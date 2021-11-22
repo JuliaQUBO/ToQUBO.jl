@@ -2,3 +2,7 @@ name = "ToQUBO"
 uuid = "9a412ddf-83fa-43b6-9748-7843c851aa65"
 authors = ["Pedro Maciel Xavier <pedromxavier@poli.ufrj.br>"]
 version = "0.1.0"
+
+[deps]
+DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
+MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
