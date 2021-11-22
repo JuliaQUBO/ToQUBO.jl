@@ -1,0 +1,4 @@
+name = "ToQUBO"
+uuid = "9a412ddf-83fa-43b6-9748-7843c851aa65"
+authors = ["Pedro Maciel Xavier <pedromxavier@poli.ufrj.br>"]
+version = "0.1.0"
