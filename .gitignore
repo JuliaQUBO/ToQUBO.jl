@@ -23,6 +23,9 @@ docs/site/
 # environment.
 Manifest.toml
 
+# Notebook Checkpoints
+.ipynb_checkpoints
+
 # LaTeX
 
 ## Core latex/pdflatex auxiliary files:
