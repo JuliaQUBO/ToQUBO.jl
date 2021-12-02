@@ -1,5 +1,5 @@
 # Objective Support
-function supported_objective(model::MOIU.Model{T}) where T
+function supported_objective(model::MOI.ModelLike)
     F = MOI.get(model, MOI.ObjectiveFunctionType())
     if !__supported_objective(F)
         error("Objective functions of type ", F, " are not implemented")
@@ -7,9 +7,10 @@ function supported_objective(model::MOIU.Model{T}) where T
     return
 end
 
+
+__supported_objective(::Type{<: VI}) = true
+__supported_objective(::Type{<: SAF{T}}) where {T} = true
 __supported_objective(::Type) = false
-__supported_objective(::VI) = true
-__supported_objective(::SAF) = true
 
 # Constraint Support
 function supported_constraints(model::MOIU.Model{T}) where T
@@ -28,3 +29,5 @@ function supported_constraints(model::MOIU.Model{T}) where T
 end
 
 __supported_constraint(::Type, ::Type) = false
+__supported_constraint(::Type{<: VI}, ::Type{<: ZO}) = true
+__supported_constraint(::Type{<: SAF{T}}, ::Type{<: EQ{T}}) where T = true
