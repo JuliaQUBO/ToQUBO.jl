@@ -28,6 +28,7 @@ module ToQUBO
     
     include("./posiform.jl")
     include("./supported.jl")
+    include("./virtualvar.jl")
     include("./qubomodel.jl")
 
     """
@@ -57,10 +58,15 @@ module ToQUBO
 
     """
     """
+    function penalty(p::Posiform{S, T}, ::Posiform{S, T}) where {S, T}
+        return sum(abs(v) for (k, v) in p if !isempty(k))
+    end
+
+    """
+    """
     function toqubo(model::MOI.ModelLike, quantum::Bool=false)::QUBOModel
 
         T = Float64 # TODO: Use MOIU.Model{T} where T ??
-        ∅ = Set{VI}()
 
         # -*- Support Validation -*-
         supported_objective(model)
@@ -73,90 +79,91 @@ module ToQUBO
         # -*- Variable Analysis -*-
 
         # Set of all model variables
-        u = Set{VI}(MOI.get(model, MOI.ListOfVariableIndices()))
+        X = Set{VI}(MOI.get(model, MOI.ListOfVariableIndices()))
 
         # Set of binary variables
-        v = Set{VI}()
+        B = Set{VI}()
 
         for cᵢ in MOI.get(model, MOI.ListOfConstraintIndices{VI, ZO}())
             # Account for variable as binary
-            vᵢ = MOI.get(model, MOI.ConstraintFunction(), cᵢ)
-
-
-            push!(v, vᵢ)
+            push!(B, MOI.get(model, MOI.ConstraintFunction(), cᵢ))
         end
 
         # Non-binary variables
-        w = setdiff(u, v)
+        W = setdiff(X, B)
 
-        if !isempty(w)
-            error("I don't know what to do with non-binary variables.")
-            # expansion
-            # for wᵢ in w
-            #   Dict{VI}[wᵢ] = expand(wᵢ)
-            # end
-        else
-            @info "Original Binary Variables: $u"
+        @info "Original Binary Variables: $B"
+
+        for bᵢ in B
+            # TODO: Enhance naming
+            expand(qubo, bᵢ, 1)
+        end
+
+        # TODO: bit size heuristics
+        bits = 3
+
+        for wᵢ in W
+            expand(qubo, wᵢ, bits)
         end
 
         # -*- Objective Analysis -*-
 
         # OS() -> ObjectiveSense()
-        MOI.set(qubo, OS(), MOI.get(model, OS()))
+        MOI.set(qubo.model, OS(), MOI.get(model, OS()))
 
         F = MOI.get(model, MOI.ObjectiveFunctionType())
-        f = MOI.get(model, MOI.ObjectiveFunction{F}())
 
+        # -*- Objective Function Posiform -*-
         p = Posiform{VI, T}()
 
         if F === VI
-            # Constant
-            p[f] = T(1)
+            # -*- Single Variable -*-
+            x = MOI.get(model, MOI.ObjectiveFunction{F}())
+
+            for (xᵢ, cᵢ) in qubo.varmap[x]
+                p[xᵢ] += cᵢ
+            end
+
         elseif F === SAF{T}
-            # Affine Terms
-            for tᵢ in f.terms
-                cᵢ = tᵢ.coefficient
-                vᵢ = tᵢ.variable
-                if vᵢ in v
-                    p[vᵢ] += cᵢ
-                else
-                    @warn "Variable 'v$(subscript(vᵢ))' is not binary and may need expansion"
+            # -*- Affine Terms -*-
+            f = MOI.get(model, MOI.ObjectiveFunction{F}())
+
+            for aᵢ in f.terms
+                cᵢ = aᵢ.coefficient
+                xᵢ = aᵢ.variable
+
+                for (xᵢⱼ, dⱼ) in qubo.varmap[xᵢ]
+                    p[xᵢⱼ] += cᵢ * dⱼ
                 end
             end
 
             # Constant
             p += f.constant
+
         elseif F === SQF{T}
+            # -*- Affine Terms -*-
+            f = MOI.get(model, MOI.ObjectiveFunction{F}())
+
             # Quadratic Terms
-            for tᵢ in f.quadratic_terms
-                cᵢ = tᵢ.coefficient
-                vᵢ = Set{Vi}([tᵢ.variable_1, tᵢ.variable_2])
+            for Qᵢ in f.quadratic_terms
+                cᵢ = Qᵢ.coefficient
+                xᵢ = Qᵢ.variable_1
+                yᵢ = Qᵢ.variable_2
 
-                for vᵢⱼ in vᵢ
-                    if vᵢⱼ in v # is binary
-                        continue
-                    elseif vᵢ in w # non-binary
-                        # for wᵢ in exp[vᵢ]
-                        #   p[wᵢ] += cᵢ
-                        # end
+                for (xᵢⱼ, dⱼ) in qubo.varmap[xᵢ]
+                    for (yᵢₖ, dₖ) in qubo.varmap[yᵢ]
+                        zⱼₖ = Set{VI}([xᵢⱼ, yᵢₖ])
+                        p[zⱼₖ] += cᵢ * dⱼ * dₖ
                     end
-                end
-
-                if all([vᵢⱼ in v ]) # is binary
-                    p[vᵢ] += cᵢ
-                else
-                    @warn "Variable 'v$(subscript(vᵢ))' is not binary and may need expansion"
                 end
             end
 
-            # Affine Terms
-            for tᵢ in f.affine_terms
-                cᵢ = tᵢ.coefficient
-                vᵢ = tᵢ.variable
-                if isbinary(model, vᵢ)
-                    p[vᵢ] += cᵢ
-                else
-                    @warn "Variable 'v$(subscript(vᵢ))' is not binary and may need expansion"
+            for aᵢ in f.affine_terms
+                cᵢ = aᵢ.coefficient
+                xᵢ = aᵢ.variable
+
+                for (xᵢⱼ, dⱼ) in qubo.varmap[xᵢ]
+                    p[xᵢⱼ] += cᵢ * dⱼ
                 end
             end
 
@@ -166,27 +173,24 @@ module ToQUBO
             error("I Don't know how to deal with objective functions of type '$F'")
         end
 
-        if sense == MOI.MAX_SENSE
-            ρ = -penalty(p)
-        else
-            ρ = penalty(p)
-        end
+        # -*- Constraint Analysis -*-
+        q = Posiform{VI, T}()
 
         # Constraints
         for (F, S) in MOI.get(model, MOI.ListOfConstraints())
             if F === VI
+                # -*- Single Variable -*-
                 if S === ZO
                     continue # These were already accounted for..
-                elseif S === INT # Integer (Need expansion with offset = 0)
-                    error("Not Implemented")
-                elseif S === EQ{T}
-                    # Fixed Variable!
-                    error("There are Fixed variables!")
+                else
+                    error("Panic! I don't know how to deal with non-binary constraints over variables (yet...)")
                 end
+
             elseif F === SAF{T}
-                if S === EQ{T}
+                # -*- Scalar Affine Function -*-
+                if S === EQ{T} # Ax = b :)
                     for cᵢ in MOI.get(model, MOI.ListOfConstraintIndices{F, S}())
-                        qᵢ = Posiform{VI, T}()
+                        rᵢ = Posiform{VI, T}()
 
                         Aᵢ = MOI.get(model, MOI.ConstraintFunction(), cᵢ)
                         bᵢ = MOI.get(model, MOI.ConstraintSet(), cᵢ).value
@@ -195,18 +199,19 @@ module ToQUBO
                             cⱼ = aⱼ.coefficient
                             vⱼ = aⱼ.variable
 
-                            if vⱼ in v
-                                qᵢ[vⱼ] += cⱼ
-                            else
-                                error("Non-Binary variable '$(vᵢ)' needs expansion")
+                            for (vⱼₖ, dₖ) in qubo.varmap[vⱼ]
+                                rᵢ[vⱼₖ] += cⱼ * dₖ
                             end
                         end
 
-                        p += ρ * (qᵢ - bᵢ) ^ 2
+                        qᵢ = (rᵢ - bᵢ) ^ 2
+                        ρᵢ = penalty(p, qᵢ)
+                        q += ρᵢ * qᵢ
                     end
-                elseif S === LT{T}
+                elseif S === LT{T} # Ax <= b :(
                     for cᵢ in MOI.get(model, MOI.ListOfConstraintIndices{F, S}())
-                        qᵢ = Posiform{VI, T}()
+                        rᵢ = Posiform{VI, T}()
+                        sᵢ = Posiform{VI, T}()
 
                         Aᵢ = MOI.get(model, MOI.ConstraintFunction(), cᵢ)
                         bᵢ = MOI.get(model, MOI.ConstraintSet(), cᵢ).upper
@@ -215,87 +220,67 @@ module ToQUBO
                             cⱼ = aⱼ.coefficient
                             vⱼ = aⱼ.variable
 
-                            if vⱼ in v
-                                qᵢ[vⱼ] += cⱼ
-                            else
-                                error("Non-Binary variable '$(vᵢ)' needs expansion")
+                            for (vⱼₖ, dₖ) in qubo.varmap[vⱼ]
+                                rᵢ[vⱼₖ] += cⱼ * dₖ
                             end
                         end
 
-                        # Introduce Slack Variables
-                        s = add_slack(model, bᵢ)
+                        # -*- Introduce Slack Variable -*-
+                        # TODO: Heavy Inference going on!
+                        bits = ndigits(ceil(Int, log(2, bᵢ)), base=2)
 
-                        sᵢ = Posiform{VI, T}()
-
-                        for (k, v) in zip(keys(s), expand(s))
-                            sᵢ[k] += v
+                        for (sⱼ, dⱼ) in addslack(qubo, bits)
+                            sᵢ[sⱼ] += dⱼ
                         end
 
-                        println(sᵢ)
-
-                        p += ρ * (qᵢ + sᵢ - bᵢ) ^ 2
+                        qᵢ = (rᵢ + sᵢ - bᵢ) ^ 2
+                        ρᵢ = penalty(p, qᵢ)
+                        q += ρᵢ * qᵢ
                     end
+                elseif S === GT{T} # Ax >= b :(
+                    for cᵢ in MOI.get(model, MOI.ListOfConstraintIndices{F, S}())
+                        rᵢ = Posiform{VI, T}()
+                        sᵢ = Posiform{VI, T}()
+
+                        Aᵢ = MOI.get(model, MOI.ConstraintFunction(), cᵢ)
+                        bᵢ = MOI.get(model, MOI.ConstraintSet(), cᵢ).lower
+
+                        for aⱼ in Aᵢ.terms
+                            cⱼ = aⱼ.coefficient
+                            vⱼ = aⱼ.variable
+
+                            for (vⱼₖ, dₖ) in qubo.varmap[vⱼ]
+                                rᵢ[vⱼₖ] += cⱼ * dₖ
+                            end
+                        end
+
+                        # -*- Introduce Slack Variable -*-
+                        # TODO: Heavy Inference going on!
+                        bits = ndigits(ceil(Int, log(2, bᵢ)), base=2)
+
+                        for (sⱼ, dⱼ) in addslack(qubo, bits)
+                            sᵢ[sⱼ] += dⱼ
+                        end
+
+                        qᵢ = (rᵢ - sᵢ - bᵢ) ^ 2
+                        ρᵢ = penalty(p, qᵢ)
+                        q += ρᵢ * qᵢ
+                    end
+                else
+                    error("Panic! I'm confused with this kind of constraint set: '$S'")
                 end
             else
                 error("Unkown Constraint Type $F")
             end
         end
 
-        if p.degree > 2
-            error("Degree reduction is needed (degree = $(p.degree))")
-        end
+        # -*- Objective Function Assembly -*-
+        e = p + q
+        e = e / maximum(values(e))
 
-        M = Dict{VI, VI}(v => VI(i) for (i, v) in enumerate(vars(p)))
-        N = Dict{VI, VI}(VI(i) => v for (i, v) in enumerate(vars(p)))
-        
-        n = length(M)
+        println(e)
 
-        Q = []
-        a = []
-        b = T(0)       
-
-        qubo_model = MOIU.Model{T}()
-
-        y = MOI.add_variables(qubo_model, n); # n <= numero de variaveis originais
-
-        for yᵢ in y
-            MOI.add_constraint(qubo_model, yᵢ, MOI.ZeroOne())
-        end
-
-        if invert_sense
-            s = -1.0
-            MOI.set(qubo_model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
-        else
-            s = 1.0
-            MOI.set(qubo_model, MOI.ObjectiveSense(), sense)
-        end
-
-        for (k, v) in p
-            # var mapping
-            x = [M[x] for x in k]
-
-            u = v * s
-
-            n = length(x) # degree
-
-            if n == 0
-                b += u
-            elseif n == 1
-                push!(a, SAT{T}(u, x...))
-            elseif n == 2
-                push!(Q, SQT{T}(u, x...))
-            else
-                error("Degree reduction failed!")
-            end
-        end
-
-        MOI.set(
-            qubo_model,
-            MOI.ObjectiveFunction{SQF{T}}(),
-            SQF{T}(Q, a, b),
-        )
-        
-        return qubo_model
+        return qubo   
     end
 
 
