@@ -12,29 +12,30 @@ There are some assumptions about this structure:
 [1] Endre Boros, Peter L. Hammer, Pseudo-boolean optimization, 2002
     https://doi.org/10.1016/S0166-218X(01)00341-9
 """
-mutable struct Posiform{S <: Any, T <: Real}
+mutable struct Posiform{S <: Any, T <: Number}
+    name::String
     pairs::Dict{Set{S}, T}
     degree::Int
 
-    function Posiform{S, T}() where {S, T}
-        return new{S, T}(Dict{Set{S}, T}(), 0)
+    function Posiform{S, T}(; name::String="x") where {S, T}
+        return new{S, T}(name, Dict{Set{S}, T}(), 0)
     end
 
-    function Posiform{S, T}(x::Dict{Set{S}, T}) where {S, T}
+    function Posiform{S, T}(x::Dict{Set{S}, T}; name::String="x") where {S, T}
         p = Dict{Set{S}, T}(k => v for (k, v) in x if v != 0)
         d = maximum(length.(keys(p)))
-        return new{S, T}(p, d)
+        return new{S, T}(name, p, d)
     end
 
-    function Posiform{S, T}(x::T) where {S, T}
+    function Posiform{S, T}(x::T; name::String="x") where {S, T}
         if x == 0
-            return new{S, T}(Dict{Set{S}, T}(), 0)
+            return new{S, T}(name, Dict{Set{S}, T}(), 0)
         else
-            return new{S, T}(Dict{Set{S}, T}(Set{S}() => x), 0)
+            return new{S, T}(name, Dict{Set{S}, T}(Set{S}() => x), 0)
         end
     end
 
-    function Posiform{S, T}(x::Pair{Set{S}, T}...) where {S, T}
+    function Posiform{S, T}(x::Pair{Set{S}, T}...; name::String="x") where {S, T}
         p = Dict{Set{S}, T}()
         for (k, v) in x
             w = get(p, k, T(0)) + v
@@ -45,10 +46,10 @@ mutable struct Posiform{S <: Any, T <: Real}
             end
         end
         d = maximum(length.(keys(p)))
-        return new{S, T}(p, d)
+        return new{S, T}(name, p, d)
     end
 
-    function Posiform{S, T}(x::Pair{Vector{S}, T}...) where {S, T}
+    function Posiform{S, T}(x::Pair{Vector{S}, T}...; name::String="x") where {S, T}
         p = Dict{Set{S}, T}()
         for (k, v) in x
             k = Set{S}(k)
@@ -60,7 +61,7 @@ mutable struct Posiform{S <: Any, T <: Real}
             end
         end
         d = maximum(length.(keys(p)))
-        return new{S, T}(p, d)
+        return new{S, T}(name, p, d)
     end
 end
 

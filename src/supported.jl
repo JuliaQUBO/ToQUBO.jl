@@ -31,3 +31,4 @@ end
 __supported_constraint(::Type, ::Type) = false
 __supported_constraint(::Type{<: VI}, ::Type{<: ZO}) = true
 __supported_constraint(::Type{<: SAF{T}}, ::Type{<: EQ{T}}) where T = true
+__supported_constraint(::Type{<: SAF{T}}, ::Type{<: LT{T}}) where T = true
