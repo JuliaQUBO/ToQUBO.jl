@@ -69,6 +69,10 @@ function Base.keys(p::Posiform)
     return keys(p.pairs)
 end
 
+function Base.values(p::Posiform)
+    return values(p.pairs)
+end
+
 function Base.iterate(p::Posiform{S, T}) where {S, T}
     return iterate(p.pairs)
 end
@@ -187,6 +191,20 @@ function Base.:*(p::Posiform{S, T}, c::T) where {S, T}
 
     for k in keys(q)
         q.pairs[k] *= c
+    end
+
+    return q
+end
+
+function Base.:/(p::Posiform{S, T}, c::T) where {S, T}
+    if c == 0
+       error(DivideError, ": division by zero") 
+    end
+
+    q = copy(p)
+
+    for k in keys(q)
+        q.pairs[k] /= c
     end
 
     return q
