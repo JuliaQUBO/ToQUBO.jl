@@ -333,7 +333,7 @@ function toqubo(model::MOI.ModelLike, quantum::Bool=false)::QUBOModel
                     end
 
                     qᵢ = (rᵢ - bᵢ) ^ 2
-                    ρᵢ = -penalty(p, qᵢ)
+                    ρᵢ = penalty(p, qᵢ)
                     q += ρᵢ * qᵢ
                 end
             elseif S === LT{T} # Ax <= b :(
@@ -365,7 +365,7 @@ function toqubo(model::MOI.ModelLike, quantum::Bool=false)::QUBOModel
                     end
 
                     qᵢ = (rᵢ + sᵢ - bᵢ) ^ 2
-                    ρᵢ = -penalty(p, qᵢ)
+                    ρᵢ = penalty(p, qᵢ)
                     q += ρᵢ * qᵢ
                 end
             elseif S === GT{T} # Ax >= b :(
@@ -395,7 +395,7 @@ function toqubo(model::MOI.ModelLike, quantum::Bool=false)::QUBOModel
                     end
 
                     qᵢ = (rᵢ - sᵢ - bᵢ) ^ 2
-                    ρᵢ = -penalty(p, qᵢ)
+                    ρᵢ = penalty(p, qᵢ)
                     q += ρᵢ * qᵢ
                 end
             else
@@ -407,7 +407,14 @@ function toqubo(model::MOI.ModelLike, quantum::Bool=false)::QUBOModel
     end
 
     # -*- Objective Function Assembly -*-
-    e = p + q
+    sense = MOI.get(qubo.model, OS()) 
+
+    if sense === MOI.MAX_SENSE
+        e = p - q
+    elseif sense === MOI.MIN_SENSE
+        e = p + q
+    end
+
     e /= maximum(values(e))
 
     Q = []
