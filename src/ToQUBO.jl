@@ -59,6 +59,7 @@ mutable struct QUBOModel{T <: Any} <: MOIU.AbstractModelLike{T}
     varvec::Vector{VV{VI, T}}
     source::Dict{VI, VV{VI, T}}
     target::Dict{VI, VV{VI, T}}
+    cache::Dict{Set{S}, Posiform{S, T}}
     quantum::Bool
 
     function QUBOModel{T}(; quantum::Bool=false) where T
@@ -66,7 +67,8 @@ mutable struct QUBOModel{T <: Any} <: MOIU.AbstractModelLike{T}
         varvec = Vector{VV{VI, T}}()
         source = Dict{VI, VV{VI, T}}()
         target = Dict{VI, VV{VI, T}}()
-        return new{T}(model, varvec, source, target, quantum)
+        cache = Dict{Set{S}, Posiform{S, T}}()
+        return new{T}(model, varvec, source, target, cache, quantum)
     end
 end
 
@@ -185,8 +187,86 @@ end
 
 """
 """
-function penalty(ρ::T, ::Posiform) where T
+function penalty(ρ::T, ::Posiform{S, T}) where {S, T}
     return ρ
+end
+
+"""
+"""
+function reduce_degree(model::QUBOModel{T}, p::Posiform{S, T}; tech::Symbol=:min)::Posiform{S, T} where {S, T}
+    if p.degree <= 2
+        return copy(p)
+    else
+        q = Posiform{S, T}()
+
+        for (tᵢ, cᵢ) in p
+            if length(tᵢ) >= 3
+                q += reduce_term(model, tᵢ, cᵢ, tech=tech)
+            else
+                q[tᵢ] += c
+            end
+        end
+    
+        return q
+    end
+end
+
+"""
+
+tech
+    :sub (Substitution)
+    :min (Minimum Selection)
+"""
+function reduce_term(model::QUBOModel{T}, t::Set{S}, c::T; tech::Symbol=:min)::Posiform{S, T} where {S, T}
+    if length(t) <= 2
+        return Posiform{S, T}(t => c)    
+    elseif haskey(model.cache, t)
+        return c * model.cache[t]
+    else
+        if tech === :sub
+            # -*- Reduction by Substitution -*-
+            w = addslack(model, 1, offset=0)
+
+            # Here we take two variables out "at random", not good
+            # I suggest some function `pick_two(model, t, cache, ...)`
+            # choose based on cached reduction results
+            x, y, z... = t 
+
+            α = convert(T, 2) # TODO: How to compute α? (besides α > 1)
+
+            r = reduce_term(model, Set{S}([w, z...]), 1, tech=tech)
+            s = Posiform{S, T}([x, y] => 1, [x, w] => -2, [y, w] => -2, [w] => 3)
+
+            p = c * (r + α * s)
+        elseif tech === :min
+            # -*- Reduction by Minimum Selection -*-
+            w = addslack(model, 1, offset=0)
+
+            # TODO: Read comment above about this construct
+            x, y, z... = t
+
+            if c < 0
+                r = reduce_term(model, Set{S}([w, z...]), c, tech=tech)
+                s = Posiform{S, T}([x, w] => c, [y, w] => c, [w] => -2 * c)
+                
+                p = r + s
+            else
+                rˣ = reduce_term(model, Set{S}([x, z...]), c, tech=tech)
+                rʸ = reduce_term(model, Set{S}([y, z...]), c, tech=tech)
+                rᶻ = reduce_term(model, Set{S}([z...]), -c, tech=tech)
+                rʷ = reduce_term(model, Set{S}([w, z...]), c, tech=tech)
+                s = Posiform{S, T}([x, w] => c, [y, w] => c, [x, y] => c, [x] => -c, [y] => -c, [w] => -c, [] => c)
+                
+                p = rˣ + rʸ + rᶻ + rʷ + s
+            end
+        else
+            error("Unknown reduction technique '$tech'")
+        end
+
+        cache[t] = p
+
+        return p
+    end
 end
 
 """
@@ -336,6 +416,7 @@ function toqubo(model::MOI.ModelLike, quantum::Bool=false)::QUBOModel
                     ρᵢ = penalty(p, qᵢ)
                     q += ρᵢ * qᵢ
                 end
+
             elseif S === LT{T} # Ax <= b :(
                 for cᵢ in MOI.get(model, MOI.ListOfConstraintIndices{F, S}())
                     rᵢ = Posiform{VI, T}()
@@ -368,6 +449,7 @@ function toqubo(model::MOI.ModelLike, quantum::Bool=false)::QUBOModel
                     ρᵢ = penalty(p, qᵢ)
                     q += ρᵢ * qᵢ
                 end
+
             elseif S === GT{T} # Ax >= b :(
                 for cᵢ in MOI.get(model, MOI.ListOfConstraintIndices{F, S}())
                     rᵢ = Posiform{VI, T}()
@@ -388,6 +470,9 @@ function toqubo(model::MOI.ModelLike, quantum::Bool=false)::QUBOModel
                     sᵢ = Posiform{VI, T}()
 
                     # TODO: Heavy Inference going on!
+                    # Hmmm... I think its actually ok...
+                    
+                    # NO! I'm missing non-integer stuff :(
                     bits = ceil(Int, log(2, bᵢ))
 
                     for (sⱼ, dⱼ) in addslack(qubo, bits)
@@ -398,6 +483,7 @@ function toqubo(model::MOI.ModelLike, quantum::Bool=false)::QUBOModel
                     ρᵢ = penalty(p, qᵢ)
                     q += ρᵢ * qᵢ
                 end
+
             else
                 error("Panic! I'm confused with this kind of constraint set: '$S'")
             end
@@ -409,6 +495,8 @@ function toqubo(model::MOI.ModelLike, quantum::Bool=false)::QUBOModel
     # -*- Objective Function Assembly -*-
     sense = MOI.get(qubo.model, OS()) 
 
+    # p (objective)
+    # q (constraints with penalties)
     if sense === MOI.MAX_SENSE
         e = p - q
     elseif sense === MOI.MIN_SENSE
