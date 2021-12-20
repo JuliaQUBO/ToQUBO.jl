@@ -26,7 +26,31 @@ const ZO = MOI.ZeroOne
 const OS = MOI.ObjectiveSense
 
 export QUBOModel
-export toqubo, isqubo
+export toqubo, isqubo, solvequbo, tojson
+
+function subscript(::Any; var::Union{String, Symbol, Nothing}=nothing)::String
+    if var === nothing
+        return "?"
+    else
+        return "$var?"
+    end
+end
+
+function subscript(i::Int; var::Union{String, Symbol, Nothing}=nothing)::String
+    if var === nothing
+        return join([(i < 0) ? Char(0x208B) : ""; [Char(0x2080 + j) for j in reverse(digits(abs(i)))]])
+    else
+        return join([var; (i < 0) ? Char(0x208B) : ""; [Char(0x2080 + j) for j in reverse(digits(abs(i)))]])
+    end
+end
+
+function subscript(v::VI; var::Union{String, Symbol, Nothing}=:x)
+    if var === nothing
+        return subscript(v.value)
+    else
+        return "$var$(subscript(v.value))"
+    end
+end
 
 # -*- Supported -*-
 include("./supported.jl")
@@ -40,6 +64,22 @@ include("./virtualvar.jl")
 using .VirtualVars
 
 const VV{S, T} = VirtualVar{S, T}
+
+function subscript(v::VV; var::Union{String, Symbol, Nothing}=:x)
+    if var === nothing
+        return subscript(v.source, var=v.var)
+    else
+        return subscript(v.source, var=var)
+    end
+end
+
+function Base.show(io::IO, v::VirtualVar)
+    if v.source === nothing
+        print(io, v.var)
+    else
+        print(io, subscript(v.source, var=v.var))
+    end
+end
 
 function value(model::MOI.ModelLike, v::VV{VI, T})::Union{T, Nothing} where T
     s = convert(T, 0)
@@ -59,36 +99,47 @@ mutable struct QUBOModel{T <: Any} <: MOIU.AbstractModelLike{T}
     varvec::Vector{VV{VI, T}}
     source::Dict{VI, VV{VI, T}}
     target::Dict{VI, VV{VI, T}}
-    cache::Dict{Set{S}, Posiform{S, T}}
+    cache::Dict{Set{VI}, Posiform{VI, T}}
     quantum::Bool
+    p::Posiform{VI, T}
+    q::Posiform{VI, T}
+    e::Posiform{VI, T}
+    i::Int
 
     function QUBOModel{T}(; quantum::Bool=false) where T
-        model = MOIU.Model{T}()
-        varvec = Vector{VV{VI, T}}()
-        source = Dict{VI, VV{VI, T}}()
-        target = Dict{VI, VV{VI, T}}()
-        cache = Dict{Set{S}, Posiform{S, T}}()
-        return new{T}(model, varvec, source, target, cache, quantum)
+        return new{T}(
+            MOIU.Model{T}(),
+            Vector{VV{VI, T}}(),
+            Dict{VI, VV{VI, T}}(),
+            Dict{VI, VV{VI, T}}(),
+            Dict{Set{VI}, Posiform{VI, T}}(),
+            quantum,
+            Posiform{VI, T}(),
+            Posiform{VI, T}(),
+            Posiform{VI, T}(),
+            1
+        )
     end
 end
 
 """
 """
-function addvar(model::QUBOModel{T}, source::Union{VI, Nothing}, bits::Int; offset::Int=0)::VV{VI, T} where T
+function addvar(model::QUBOModel{T}, source::Union{VI, Nothing}, bits::Int; offset::Int=0, var::Symbol=:x)::VV{VI, T} where T
 
     target = MOI.add_variables(model.model, bits)
 
-    v = VV{VI, T}(bits, target, source, offset=offset)
-
     if source === nothing
-        x = "s"
+        var = Symbol(subscript(model.i, var=:s))
+        model.i += 1
     else
-        x = "x"
+        var = :x
     end
+
+    v = VV{VI, T}(bits, target, source, offset=offset, var=var)
 
     for vᵢ in target
         MOI.add_constraint(model.model, vᵢ, ZO())
-        MOI.set(model.model, MOI.VariableName(), vᵢ, subscript(vᵢ, var=x))
+        MOI.set(model.model, MOI.VariableName(), vᵢ, subscript(vᵢ, var=var))
         model.target[vᵢ] = v
     end
 
@@ -99,8 +150,8 @@ end
 
 """
 """
-function addslack(model::QUBOModel{T}, bits::Int; offset::Int=0)::VV{VI, T} where T
-    return addvar(model, nothing, bits, offset=offset)
+function addslack(model::QUBOModel{T}, bits::Int; offset::Int=0, var::Symbol=:s)::VV{VI, T} where T
+    return addvar(model, nothing, bits, offset=offset, var=var)
 end
 
 """
@@ -148,18 +199,6 @@ function slackvars(model::QUBOModel{T})::Vector{VV{VI, T}} where T
 end
     
 # -*- -*-
-"""
-    subscript(v::VI)
-
-Adds support for VariableIndex Subscript Visualization.
-"""
-function Posiforms.subscript(v::VI; var::Union{String, Symbol, Nothing}=:x)
-    if var === nothing
-        return subscript(v.value)
-    else
-        return "$var$(subscript(v.value))"
-    end
-end
 
 """
 """
@@ -263,7 +302,7 @@ function reduce_term(model::QUBOModel{T}, t::Set{S}, c::T; tech::Symbol=:min)::P
             error("Unknown reduction technique '$tech'")
         end
 
-        cache[t] = p
+        model.cache[t] = p
 
         return p
     end
@@ -285,25 +324,22 @@ function toqubo(model::MOI.ModelLike, quantum::Bool=false)::QUBOModel
 
     # -*- Variable Analysis -*-
 
-    # Set of all model variables
-    X = Set{VI}(MOI.get(model, MOI.ListOfVariableIndices()))
+    # Vector of all model variables
+    X = Vector{VI}(MOI.get(model, MOI.ListOfVariableIndices()))
 
-    # Set of binary variables
-    B = Set{VI}()
+    # Vector of binary variables
+    B = Vector{VI}()
 
     for cᵢ in MOI.get(model, MOI.ListOfConstraintIndices{VI, ZO}())
         # Account for variable as binary
         push!(B, MOI.get(model, MOI.ConstraintFunction(), cᵢ))
     end
 
-    # Non-binary variables
+    # Non-binary variables Vector
     W = setdiff(X, B)
 
-    @info "Original Binary Variables: $B"
-
-    @info "Variables for expansion: $W"
-
     for bᵢ in B
+        # Create Virtual Variable in QUBO Model
         mirror!(qubo, bᵢ)
     end
 
@@ -311,6 +347,9 @@ function toqubo(model::MOI.ModelLike, quantum::Bool=false)::QUBOModel
     bits = 3
 
     for wᵢ in W
+        @warn "Expanding variable $wᵢ with $bits bits according to no reasonable criteria"
+        # This expansion could rely on VariableIndex-in-Interval constraints.
+        # Quadratures ??
         expand!(qubo, wᵢ, bits)
     end
 
@@ -322,14 +361,13 @@ function toqubo(model::MOI.ModelLike, quantum::Bool=false)::QUBOModel
     F = MOI.get(model, MOI.ObjectiveFunctionType())
 
     # -*- Objective Function Posiform -*-
-    p = Posiform{VI, T}()
 
     if F === VI
         # -*- Single Variable -*-
         x = MOI.get(model, MOI.ObjectiveFunction{F}())
 
         for (xᵢ, cᵢ) in qubo.source[x] # TODO: enhance syntax
-            p[xᵢ] += cᵢ
+            qubo.p[xᵢ] += cᵢ
         end
 
     elseif F === SAF{T}
@@ -341,12 +379,12 @@ function toqubo(model::MOI.ModelLike, quantum::Bool=false)::QUBOModel
             xᵢ = aᵢ.variable
 
             for (xᵢⱼ, dⱼ) in qubo.source[xᵢ] # TODO: enhance syntax
-                p[xᵢⱼ] += cᵢ * dⱼ
+                qubo.p[xᵢⱼ] += cᵢ * dⱼ
             end
         end
 
         # Constant
-        p += f.constant
+        qubo.p += f.constant
 
     elseif F === SQF{T}
         # -*- Affine Terms -*-
@@ -361,7 +399,7 @@ function toqubo(model::MOI.ModelLike, quantum::Bool=false)::QUBOModel
             for (xᵢⱼ, dⱼ) in qubo.source[xᵢ] # TODO: enhance syntax
                 for (yᵢₖ, dₖ) in qubo.source[yᵢ] # TODO: enhance syntax
                     zⱼₖ = Set{VI}([xᵢⱼ, yᵢₖ])
-                    p[zⱼₖ] += cᵢ * dⱼ * dₖ
+                    qubo.p[zⱼₖ] += cᵢ * dⱼ * dₖ
                 end
             end
         end
@@ -371,20 +409,21 @@ function toqubo(model::MOI.ModelLike, quantum::Bool=false)::QUBOModel
             xᵢ = aᵢ.variable
 
             for (xᵢⱼ, dⱼ) in qubo.source[xᵢ] # TODO: enhance syntax
-                p[xᵢⱼ] += cᵢ * dⱼ
+                qubo.p[xᵢⱼ] += cᵢ * dⱼ
             end
         end
 
         # Constant
-        p += f.constant
+        qubo.p += f.constant
     else
         error("I Don't know how to deal with objective functions of type '$F'")
     end
 
-    # -*- Constraint Analysis -*-
-    q = Posiform{VI, T}()
+    # * Objective Gap *
+    ρ = penalty(qubo.p)
 
-    # Constraints
+    # -*- Constraint Analysis -*-
+
     for (F, S) in MOI.get(model, MOI.ListOfConstraints())
         if F === VI
             # -*- Single Variable -*-
@@ -412,9 +451,9 @@ function toqubo(model::MOI.ModelLike, quantum::Bool=false)::QUBOModel
                         end
                     end
 
-                    qᵢ = (rᵢ - bᵢ) ^ 2
-                    ρᵢ = penalty(p, qᵢ)
-                    q += ρᵢ * qᵢ
+                    qᵢ = reduce_degree(qubo, (rᵢ - bᵢ) ^ 2)
+                    ρᵢ = penalty(ρ, qᵢ)
+                    qubo.q += ρᵢ * qᵢ
                 end
 
             elseif S === LT{T} # Ax <= b :(
@@ -439,15 +478,13 @@ function toqubo(model::MOI.ModelLike, quantum::Bool=false)::QUBOModel
                     # TODO: Heavy Inference going on!
                     bits = ceil(Int, log(2, bᵢ))
 
-                    @info "C = $bᵢ ($(bits) bits)"
-
                     for (sⱼ, dⱼ) in addslack(qubo, bits)
                         sᵢ[sⱼ] += dⱼ
                     end
 
-                    qᵢ = (rᵢ + sᵢ - bᵢ) ^ 2
-                    ρᵢ = penalty(p, qᵢ)
-                    q += ρᵢ * qᵢ
+                    qᵢ = reduce_degree(qubo, (rᵢ + sᵢ - bᵢ) ^ 2)
+                    ρᵢ = penalty(ρ, qᵢ)
+                    qubo.q += ρᵢ * qᵢ
                 end
 
             elseif S === GT{T} # Ax >= b :(
@@ -479,9 +516,9 @@ function toqubo(model::MOI.ModelLike, quantum::Bool=false)::QUBOModel
                         sᵢ[sⱼ] += dⱼ
                     end
 
-                    qᵢ = (rᵢ - sᵢ - bᵢ) ^ 2
-                    ρᵢ = penalty(p, qᵢ)
-                    q += ρᵢ * qᵢ
+                    qᵢ = reduce_degree(qubo, (rᵢ - sᵢ - bᵢ) ^ 2)
+                    ρᵢ = penalty(ρ, qᵢ)
+                    qubo.q += ρᵢ * qᵢ
                 end
 
             else
@@ -493,23 +530,23 @@ function toqubo(model::MOI.ModelLike, quantum::Bool=false)::QUBOModel
     end
 
     # -*- Objective Function Assembly -*-
-    sense = MOI.get(qubo.model, OS()) 
+    sense = MOI.get(qubo.model, OS())
 
     # p (objective)
     # q (constraints with penalties)
     if sense === MOI.MAX_SENSE
-        e = p - q
+        qubo.e = qubo.p - qubo.q
     elseif sense === MOI.MIN_SENSE
-        e = p + q
+        qubo.e = qubo.p + qubo.q
     end
 
-    e /= maximum(values(e))
+    qubo.e /= maximum(abs.(values(qubo.e)))
 
     Q = []
     a = []
     b = convert(T, 0)
 
-    for (xᵢ, cᵢ) in e
+    for (xᵢ, cᵢ) in qubo.e
         n = length(xᵢ)
         if n == 0
             b += cᵢ
@@ -573,6 +610,18 @@ function isqubo(model::MOI.ModelLike)::Bool
     end
 
     return true
-end    
+end
+
+function solvequbo(qubo::QUBOModel{T}; model::MOI.ModelLike)::Vector{Pair{VV{VI, T}, T}} where T    
+    varmap = MOI.copy_to(model, qubo.model)
+
+    MOI.optimize!(model)
+
+    Vector{Pair{VV{VI, T}, T}}([v => sum(cᵢ * MOI.get(model, MOI.VariablePrimal(), varmap[vᵢ]) for (vᵢ, cᵢ) in v) for v in vars(qubo)])
+end
+
+function tojson(qubo::QUBOModel{T})::String where T
+    return "{$(join(["\"$(join([tᵢ.value for tᵢ in t], " "))\": $c" for (t, c) in qubo.e], ", "))}"
+end
 
 end # module

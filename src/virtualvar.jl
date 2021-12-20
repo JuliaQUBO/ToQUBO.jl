@@ -18,8 +18,9 @@ struct VirtualVar{S <: Any, T <: Any}
     target::Vector{S}
     source::Union{S, Nothing}
     tech::Symbol
+    var::Symbol
 
-    function VirtualVar{S, T}(bits::Int, target::Vector{S}, source::Union{S, Nothing}=nothing; offset::Int=0, tech::Symbol=:bin) where {S, T}
+    function VirtualVar{S, T}(bits::Int, target::Vector{S}, source::Union{S, Nothing}=nothing; offset::Int=0, tech::Symbol=:bin, var::Symbol=:x) where {S, T}
     
         if length(target) != bits
             error("Virtual Variables need exactly as many keys as encoding bits")
@@ -33,11 +34,11 @@ struct VirtualVar{S <: Any, T <: Any}
             error("Expansion technique 'none' is only suited for one-bit expansions")
         end
         
-        return new{S, T}(bits, offset, target, source, tech)
+        return new{S, T}(bits, offset, target, source, tech, var)
     end
 
-    function VirtualVar{S, T}(target::S, source::Union{S, Nothing}=nothing; offset::Int=0) where {S, T}
-        return new{S, T}(1, offset, [target], source, :none)
+    function VirtualVar{S, T}(target::S, source::Union{S, Nothing}=nothing; offset::Int=0, var::Symbol=:x) where {S, T}
+        return new{S, T}(1, offset, [target], source, :none, var)
     end
 end
 

@@ -9,10 +9,14 @@ export keys, values, get, getindex, setindex!, iterate
 @doc raw"""
 $P(x) = \sum_{\omega \in \Omega} c_\omega \sum_{i \in \omega} x_i$
 
-There are some assumptions about this structure:
+There are a few assumptions about this structure:
     - Variables are all binary $x \in \{0, 1\}$. This allows straightforward idempotency rule application $x = x^{2}$, which leads to Set{S} keys
     - If the leading constant is zero, the term is removed i.e. sparsity is built upon zeros
     - If no variable terms are present, a posiform can be interpreted as a scalar via `convert(::Type{T}, ::Posiform{S, T})::T where T`
+
+Some considerations:
+    - Store terms as ::Vector{Dict{Set{S}, T}} where each term `t => c` is stored in a given entry, according to its length, i.e. `terms[length(t)][t] = c`
+
 
 [1] Endre Boros, Peter L. Hammer, Pseudo-boolean optimization, 2002
     https://doi.org/10.1016/S0166-218X(01)00341-9
@@ -272,14 +276,6 @@ function Base.:^(p::Posiform{S, T}, n::Int) where {S, T}
 end
 
 # -*- IO & Display -*-
-
-function subscript(::Any)::String
-    return "ₓ"
-end
-
-function subscript(i::Int)::String
-    return join([(i < 0) ? Char(0x208B) : ""; [Char(0x2080 + j) for j in reverse(digits(abs(i)))]])
-end
 
 function Base.print(io::IO, p::Posiform{T}) where {T}
 
