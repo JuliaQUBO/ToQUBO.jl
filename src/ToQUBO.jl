@@ -102,7 +102,7 @@ mutable struct QUBOModel{T <: Any} <: MOIU.AbstractModelLike{T}
     target::Dict{VI, VV{VI, T}}
     cache::Dict{Set{VI}, Posiform{VI, T}}
     quantum::Bool
-    Eₒ::Posiform{VI, T}
+    E₀::Posiform{VI, T}
     Eᵢ::Posiform{VI, T}
     E::Posiform{VI, T}
     slack::Int
@@ -383,7 +383,7 @@ function toqubo(model::MOI.ModelLike; quantum::Bool=false)::QUBOModel
         x = MOI.get(model, MOI.ObjectiveFunction{F}())
 
         for (xᵢ, cᵢ) in qubo.source[x] # TODO: enhance syntax
-            qubo.Eₒ[xᵢ] += cᵢ
+            qubo.E₀[xᵢ] += cᵢ
         end
 
     elseif F === SAF{T}
@@ -395,12 +395,12 @@ function toqubo(model::MOI.ModelLike; quantum::Bool=false)::QUBOModel
             xᵢ = aᵢ.variable
 
             for (xᵢⱼ, dⱼ) in qubo.source[xᵢ] # TODO: enhance syntax
-                qubo.Eₒ[xᵢⱼ] += cᵢ * dⱼ
+                qubo.E₀[xᵢⱼ] += cᵢ * dⱼ
             end
         end
 
         # Constant
-        qubo.Eₒ += f.constant
+        qubo.E₀ += f.constant
 
     elseif F === SQF{T}
         # -*- Affine Terms -*-
@@ -415,7 +415,7 @@ function toqubo(model::MOI.ModelLike; quantum::Bool=false)::QUBOModel
             for (xᵢⱼ, dⱼ) in qubo.source[xᵢ] # TODO: enhance syntax
                 for (yᵢₖ, dₖ) in qubo.source[yᵢ] # TODO: enhance syntax
                     zⱼₖ = Set{VI}([xᵢⱼ, yᵢₖ])
-                    qubo.Eₒ[zⱼₖ] += cᵢ * dⱼ * dₖ
+                    qubo.E₀[zⱼₖ] += cᵢ * dⱼ * dₖ
                 end
             end
         end
@@ -425,18 +425,18 @@ function toqubo(model::MOI.ModelLike; quantum::Bool=false)::QUBOModel
             xᵢ = aᵢ.variable
 
             for (xᵢⱼ, dⱼ) in qubo.source[xᵢ] # TODO: enhance syntax
-                qubo.Eₒ[xᵢⱼ] += cᵢ * dⱼ
+                qubo.E₀[xᵢⱼ] += cᵢ * dⱼ
             end
         end
 
         # Constant
-        qubo.Eₒ += f.constant
+        qubo.E₀ += f.constant
     else
         error("I Don't know how to deal with objective functions of type '$F'")
     end
 
     # * Objective Gap *
-    ρ = penalty(qubo.Eₒ)
+    ρ = penalty(qubo.E₀)
 
     # -*- Constraint Analysis -*-
 
@@ -552,15 +552,15 @@ function toqubo(model::MOI.ModelLike; quantum::Bool=false)::QUBOModel
     # q (constraints with penalties)
     if sense === MOI.MAX_SENSE
         if qubo.quantum
-            qubo.E = qubo.Eᵢ - qubo.Eₒ
+            qubo.E = qubo.Eᵢ - qubo.E₀
             MOI.set(qubo.model, OS(), MOI.MIN_SENSE)
         else
-            qubo.E = qubo.Eₒ - qubo.Eᵢ
+            qubo.E = qubo.E₀ - qubo.Eᵢ
             MOI.set(qubo.model, OS(), MOI.MAX_SENSE)
         end
     elseif sense === MOI.MIN_SENSE
-        qubo.E = qubo.Eₒ + qubo.Eᵢ
-        MOI.set(qubo.model, OS(), MOI.MIN_SENSE)
+        qubo.E = qubo.E₀ + qubo.Eᵢ
+        MOI.set(qubo.model, OS(), MOI.MIN_SENSE) 
     end
 
     qubo.E /= maximum(abs.(values(qubo.E)))
