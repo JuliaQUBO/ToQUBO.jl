@@ -7,10 +7,10 @@ function supported_objective(model::MOI.ModelLike)
     return
 end
 
-
+__supported_objective(::Type) = false
 __supported_objective(::Type{<: VI}) = true
 __supported_objective(::Type{<: SAF{T}}) where {T} = true
-__supported_objective(::Type) = false
+__supported_objective(::Type{<: SQF{T}}) where {T} = true
 
 # Constraint Support
 function supported_constraints(model::MOIU.Model{T}) where T
@@ -32,3 +32,4 @@ __supported_constraint(::Type, ::Type) = false
 __supported_constraint(::Type{<: VI}, ::Type{<: ZO}) = true
 __supported_constraint(::Type{<: SAF{T}}, ::Type{<: EQ{T}}) where T = true
 __supported_constraint(::Type{<: SAF{T}}, ::Type{<: LT{T}}) where T = true
+__supported_constraint(::Type{<: SAF{T}}, ::Type{<: GT{T}}) where T = true

@@ -24,6 +24,7 @@ const VI = MOI.VariableIndex
 const CI = MOI.ConstraintIndex
 const ZO = MOI.ZeroOne
 const OS = MOI.ObjectiveSense
+const INT = MOI.Integer
 
 export QUBOModel
 export toqubo, isqubo, solvequbo, tojson
@@ -101,10 +102,10 @@ mutable struct QUBOModel{T <: Any} <: MOIU.AbstractModelLike{T}
     target::Dict{VI, VV{VI, T}}
     cache::Dict{Set{VI}, Posiform{VI, T}}
     quantum::Bool
-    p::Posiform{VI, T}
-    q::Posiform{VI, T}
-    e::Posiform{VI, T}
-    i::Int
+    Eₒ::Posiform{VI, T}
+    Eᵢ::Posiform{VI, T}
+    E::Posiform{VI, T}
+    slack::Int
 
     function QUBOModel{T}(; quantum::Bool=false) where T
         return new{T}(
@@ -117,7 +118,7 @@ mutable struct QUBOModel{T <: Any} <: MOIU.AbstractModelLike{T}
             Posiform{VI, T}(),
             Posiform{VI, T}(),
             Posiform{VI, T}(),
-            1
+            0
         )
     end
 end
@@ -129,8 +130,8 @@ function addvar(model::QUBOModel{T}, source::Union{VI, Nothing}, bits::Int; offs
     target = MOI.add_variables(model.model, bits)
 
     if source === nothing
-        var = Symbol(subscript(model.i, var=:s))
-        model.i += 1
+        model.slack += 1
+        var = Symbol(subscript(model.slack, var=var))
     else
         var = :x
     end
@@ -230,7 +231,18 @@ function penalty(ρ::T, ::Posiform{S, T}) where {S, T}
     return ρ
 end
 
-"""
+@doc raw"""
+    reduce_degree(model::QUBOModel{T}, p::Posiform{S, T}; tech::Symbol=:min)::Posiform{S, T} where {S, T}
+
+From [1]
+
+Assume that $x, y, z \in \mathbb{B}$. Then the following equivalences hold:
+    $$x y = z \iff x y - 2 x z - 2 y z + 3 z = 0$$
+and
+    $$x y \neq z \iff x y - 2 x z - 2 y z + 3 z > 0$$
+
+
+
 """
 function reduce_degree(model::QUBOModel{T}, p::Posiform{S, T}; tech::Symbol=:min)::Posiform{S, T} where {S, T}
     if p.degree <= 2
@@ -264,7 +276,7 @@ function reduce_term(model::QUBOModel{T}, t::Set{S}, c::T; tech::Symbol=:min)::P
     else
         if tech === :sub
             # -*- Reduction by Substitution -*-
-            w = addslack(model, 1, offset=0)
+            w = addslack(model, 1, offset=0, var=:w)
 
             # Here we take two variables out "at random", not good
             # I suggest some function `pick_two(model, t, cache, ...)`
@@ -310,7 +322,7 @@ end
 
 """
 """
-function toqubo(model::MOI.ModelLike, quantum::Bool=false)::QUBOModel
+function toqubo(model::MOI.ModelLike; quantum::Bool=false)::QUBOModel
 
     T = Float64 # TODO: Use MOIU.Model{T} where T ??
 
@@ -327,16 +339,23 @@ function toqubo(model::MOI.ModelLike, quantum::Bool=false)::QUBOModel
     # Vector of all model variables
     X = Vector{VI}(MOI.get(model, MOI.ListOfVariableIndices()))
 
-    # Vector of binary variables
+    # Vectors of Binary, Integer and Real Variables (Bounded)
     B = Vector{VI}()
+    I = Vector{VI}()
+    R = Vector{VI}()
 
     for cᵢ in MOI.get(model, MOI.ListOfConstraintIndices{VI, ZO}())
-        # Account for variable as binary
+        # -*- Binary Variable 😄 -*-
         push!(B, MOI.get(model, MOI.ConstraintFunction(), cᵢ))
     end
 
-    # Non-binary variables Vector
-    W = setdiff(X, B)
+    for cᵢ in MOI.get(model, MOI.ListOfConstraintIndices{VI, INT}())
+        # -*- Integer Variable
+        push!(I, MOI.get(model, MOI.ConstraintFunction(), cᵢ))
+    end
+
+    # Unbounded Variables
+    U = setdiff(X, B, R, I)
 
     for bᵢ in B
         # Create Virtual Variable in QUBO Model
@@ -346,17 +365,14 @@ function toqubo(model::MOI.ModelLike, quantum::Bool=false)::QUBOModel
     # TODO: bit size heuristics
     bits = 3
 
-    for wᵢ in W
-        @warn "Expanding variable $wᵢ with $bits bits according to no reasonable criteria"
+    for uᵢ in U
+        @warn "Expanding variable $uᵢ with $bits bits according to no reasonable criteria"
         # This expansion could rely on VariableIndex-in-Interval constraints.
         # Quadratures ??
-        expand!(qubo, wᵢ, bits)
+        expand!(qubo, uᵢ, bits)
     end
 
     # -*- Objective Analysis -*-
-
-    # OS() -> ObjectiveSense()
-    MOI.set(qubo.model, OS(), MOI.get(model, OS()))
 
     F = MOI.get(model, MOI.ObjectiveFunctionType())
 
@@ -367,7 +383,7 @@ function toqubo(model::MOI.ModelLike, quantum::Bool=false)::QUBOModel
         x = MOI.get(model, MOI.ObjectiveFunction{F}())
 
         for (xᵢ, cᵢ) in qubo.source[x] # TODO: enhance syntax
-            qubo.p[xᵢ] += cᵢ
+            qubo.Eₒ[xᵢ] += cᵢ
         end
 
     elseif F === SAF{T}
@@ -379,12 +395,12 @@ function toqubo(model::MOI.ModelLike, quantum::Bool=false)::QUBOModel
             xᵢ = aᵢ.variable
 
             for (xᵢⱼ, dⱼ) in qubo.source[xᵢ] # TODO: enhance syntax
-                qubo.p[xᵢⱼ] += cᵢ * dⱼ
+                qubo.Eₒ[xᵢⱼ] += cᵢ * dⱼ
             end
         end
 
         # Constant
-        qubo.p += f.constant
+        qubo.Eₒ += f.constant
 
     elseif F === SQF{T}
         # -*- Affine Terms -*-
@@ -399,7 +415,7 @@ function toqubo(model::MOI.ModelLike, quantum::Bool=false)::QUBOModel
             for (xᵢⱼ, dⱼ) in qubo.source[xᵢ] # TODO: enhance syntax
                 for (yᵢₖ, dₖ) in qubo.source[yᵢ] # TODO: enhance syntax
                     zⱼₖ = Set{VI}([xᵢⱼ, yᵢₖ])
-                    qubo.p[zⱼₖ] += cᵢ * dⱼ * dₖ
+                    qubo.Eₒ[zⱼₖ] += cᵢ * dⱼ * dₖ
                 end
             end
         end
@@ -409,18 +425,18 @@ function toqubo(model::MOI.ModelLike, quantum::Bool=false)::QUBOModel
             xᵢ = aᵢ.variable
 
             for (xᵢⱼ, dⱼ) in qubo.source[xᵢ] # TODO: enhance syntax
-                qubo.p[xᵢⱼ] += cᵢ * dⱼ
+                qubo.Eₒ[xᵢⱼ] += cᵢ * dⱼ
             end
         end
 
         # Constant
-        qubo.p += f.constant
+        qubo.Eₒ += f.constant
     else
         error("I Don't know how to deal with objective functions of type '$F'")
     end
 
     # * Objective Gap *
-    ρ = penalty(qubo.p)
+    ρ = penalty(qubo.Eₒ)
 
     # -*- Constraint Analysis -*-
 
@@ -448,12 +464,12 @@ function toqubo(model::MOI.ModelLike, quantum::Bool=false)::QUBOModel
 
                         for (vⱼₖ, dₖ) in qubo.source[vⱼ] # TODO: enhance syntax
                             rᵢ[vⱼₖ] += cⱼ * dₖ
-                        end
+                        end 
                     end
 
                     qᵢ = reduce_degree(qubo, (rᵢ - bᵢ) ^ 2)
                     ρᵢ = penalty(ρ, qᵢ)
-                    qubo.q += ρᵢ * qᵢ
+                    qubo.Eᵢ += ρᵢ * qᵢ
                 end
 
             elseif S === LT{T} # Ax <= b :(
@@ -484,7 +500,7 @@ function toqubo(model::MOI.ModelLike, quantum::Bool=false)::QUBOModel
 
                     qᵢ = reduce_degree(qubo, (rᵢ + sᵢ - bᵢ) ^ 2)
                     ρᵢ = penalty(ρ, qᵢ)
-                    qubo.q += ρᵢ * qᵢ
+                    qubo.Eᵢ += ρᵢ * qᵢ
                 end
 
             elseif S === GT{T} # Ax >= b :(
@@ -518,7 +534,7 @@ function toqubo(model::MOI.ModelLike, quantum::Bool=false)::QUBOModel
 
                     qᵢ = reduce_degree(qubo, (rᵢ - sᵢ - bᵢ) ^ 2)
                     ρᵢ = penalty(ρ, qᵢ)
-                    qubo.q += ρᵢ * qᵢ
+                    qubo.Eᵢ += ρᵢ * qᵢ
                 end
 
             else
@@ -530,23 +546,30 @@ function toqubo(model::MOI.ModelLike, quantum::Bool=false)::QUBOModel
     end
 
     # -*- Objective Function Assembly -*-
-    sense = MOI.get(qubo.model, OS())
+    sense = MOI.get(model, OS())
 
     # p (objective)
     # q (constraints with penalties)
     if sense === MOI.MAX_SENSE
-        qubo.e = qubo.p - qubo.q
+        if qubo.quantum
+            qubo.E = qubo.Eᵢ - qubo.Eₒ
+            MOI.set(qubo.model, OS(), MOI.MIN_SENSE)
+        else
+            qubo.E = qubo.Eₒ - qubo.Eᵢ
+            MOI.set(qubo.model, OS(), MOI.MAX_SENSE)
+        end
     elseif sense === MOI.MIN_SENSE
-        qubo.e = qubo.p + qubo.q
+        qubo.E = qubo.Eₒ + qubo.Eᵢ
+        MOI.set(qubo.model, OS(), MOI.MIN_SENSE)
     end
 
-    qubo.e /= maximum(abs.(values(qubo.e)))
+    qubo.E /= maximum(abs.(values(qubo.E)))
 
     Q = []
     a = []
     b = convert(T, 0)
 
-    for (xᵢ, cᵢ) in qubo.e
+    for (xᵢ, cᵢ) in qubo.E
         n = length(xᵢ)
         if n == 0
             b += cᵢ
@@ -621,7 +644,26 @@ function solvequbo(qubo::QUBOModel{T}; model::MOI.ModelLike)::Vector{Pair{VV{VI,
 end
 
 function tojson(qubo::QUBOModel{T})::String where T
-    return "{$(join(["\"$(join([tᵢ.value for tᵢ in t], " "))\": $c" for (t, c) in qubo.e], ", "))}"
+    terms = Vector{String}()
+
+    for (t, c) in qubo.E
+        x = [i.value for i in t]
+        if length(x) == 0
+            term ="\"\":$c"
+        elseif length(x) == 1
+            i, = x
+            term = "\"$i $i\":$c"
+        elseif length(x) == 2
+            i, j = x
+            term = "\"$i $j\":$c"
+        else
+            error("Invalid QUBO Model (degree >= 3)") 
+        end
+
+        push!(terms, term)
+    end
+
+    return "{$(join(terms, ","))}"
 end
 
 end # module
