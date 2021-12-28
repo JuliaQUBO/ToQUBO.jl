@@ -14,7 +14,7 @@ There are a few assumptions about this structure:
     - If the leading constant is zero, the term is removed i.e. sparsity is built upon zeros
     - If no variable terms are present, a posiform can be interpreted as a scalar via `convert(::Type{T}, ::Posiform{S, T})::T where T`
 
-Some considerations:
+Some ideas for the future:
     - Store terms as ::Vector{Dict{Set{S}, T}} where each term `t => c` is stored in a given entry, according to its length, i.e. `terms[length(t)][t] = c`
 
 
@@ -81,7 +81,6 @@ end
 function Posiform(c::Float64)
     return Posiform{Int, Float64}(c)
 end
-
 
 function (p::Posiform{S, T})(x::Dict{S, T})::Posiform{S, T} where {S, T}
     
@@ -157,15 +156,6 @@ function vars(p::Posiform{S, T}) where {S, T}
         return Set{S}()
     else
         return union(keys(p)...)
-    end
-end
-
-function reduce_degree(p::Posiform{S, T})::Posiform{S, T} where {S, T}
-    if p.degree == 2
-        return copy(p)
-    else
-        # TODO: implement degree reduction
-        return copy(p)
     end
 end
 
