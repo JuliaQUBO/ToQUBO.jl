@@ -1,6 +1,6 @@
 module PBO
 
-export PBF
+export PBF, qubo
 
 struct PseudoBooleanFunction{S <: Any, T <: Number} <: AbstractDict{Set{S}, T}
     layers::Dict{Int, Dict{Set{S}, T}}
@@ -405,19 +405,6 @@ end
 
 function Base.one(::Type{PBF{S, T}})::PBF{S, T} where {S, T}
     return PBF{S, T}(one(T))
-end
-
-# -*- IO -*-
-function subscript(i::Int; var::Union{Symbol, Nothing}=nothing, par::Bool=false)::String
-    return join([var === nothing ? "" : var; par ? "₍" : "" ; i < 0 ? Char(0x208B) : ""; [Char(0x2080 + j) for j in reverse(digits(abs(i)))]; par ? "₎" : ""])
-end
-
-function subscript(i::Vector{Int}; var::Union{Symbol, Nothing}=nothing, par::Bool=false)::String
-    return join(subscript.(i, var=var, par=par), " ")
-end
-
-function subscript(i::Set{Int}; var::Union{Symbol, Nothing}=nothing, par::Bool=false)::String
-    return subscript(sort(collect(i)), var=var, par=par)
 end
 
 function Base.print(io::IO, p::PBF{S, T}) where {S, T}
