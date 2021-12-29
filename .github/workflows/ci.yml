@@ -1,0 +1,13 @@
+name: CI
+on:
+  push:
+    branches: [master]
+  pull_request:
+    types: [opened, synchronize, reopened]
+jobs:
+  test:
+    name: Julia runtests.jl
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v2
+      - run: julia --color=yes --project -e "import Pkg; Pkg.test()"
