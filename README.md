@@ -1,5 +1,9 @@
 # ToQUBO.jl 🟥🟩🟪🟦
 
+![logo](./assets/logo.svg)
+
+## Introduction
+
 ## List of Interpretable Constraints
 
 ### Linear constraints
@@ -38,15 +42,15 @@
 | Bilinear matrix inequality         | VectorQuadraticFunction | PositiveSemidefiniteCone... | ❌      |
 
 ### Discrete and logical constraints
-| Mathematical Constraint                                                                    | MOI Function         | MOI Set        | Status |
-| ------------------------------------------------------------------------------------------ | -------------------- | -------------- | ------ |
-| **x**ᵢ ∈ ℤ                                                                                 | VariableIndex        | Integer        | ✔️      |
-| **x**ᵢ ∈ {0,1}                                                                             | VariableIndex        | ZeroOne        | ✔️      |
-| **x**ᵢ ∈ {0} ∪ \[l, u\]                                                                    | VariableIndex        | Semicontinuous | ❌      |
-| **x**ᵢ ∈ {0} ∪ {l, l+1, …, u−1, u}                                                         | VariableIndex        | Semiinteger    | ❌      |
-| [¹](#1)                                                                                  | VectorOfVariables    | SOS1           | ❌      |
-| [²](#2) | VectorOfVariables    | SOS2          | ❌      |
-| y = 1 ⟹ **a**ᵀ**x** ∈ S                                                                    | VectorAffineFunction | Indicator       | ❌      |
+| Mathematical Constraint            | MOI Function         | MOI Set        | Status |
+| ---------------------------------- | -------------------- | -------------- | ------ |
+| **x**ᵢ ∈ ℤ                         | VariableIndex        | Integer        | ✔️      |
+| **x**ᵢ ∈ {0,1}                     | VariableIndex        | ZeroOne        | ✔️      |
+| **x**ᵢ ∈ {0} ∪ \[l, u\]            | VariableIndex        | Semicontinuous | ❌      |
+| **x**ᵢ ∈ {0} ∪ {l, l+1, …, u−1, u} | VariableIndex        | Semiinteger    | ❌      |
+| [¹](#1)                            | VectorOfVariables    | SOS1           | ❌      |
+| [²](#2)                            | VectorOfVariables    | SOS2           | ❌      |
+| y = 1 ⟹ **a**ᵀ**x** ∈ S            | VectorAffineFunction | Indicator      | ❌      |
 
 <a id="1">¹</a> 
 At most one component of **x** can be nonzero
