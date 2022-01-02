@@ -58,11 +58,12 @@ At most one component of **x** can be nonzero
 <a id="2">²</a>
 At most two components of **x** can be nonzero, and if so they must be adjacent components
 
-### Legend
-- ✔️ Available
-- ❌ Unavailable
-- ⌛ In Development (Available soon)
-- 📖 In need of further reading
+| Symbol | Meaning
+| - | -
+| ✔️ | Available
+| ❌ | Unavailable
+| ⌛ | In Development (Available soon)
+| 📖 | Under research
 
 
 
