@@ -1,9 +1,9 @@
 using Test
 
-include("../src/ToQUBO.jl")
-
 function tests()
-    
+    @testset "GitHub CI Workflow" begin
+        @test true
+    end
 end
 
 tests()
