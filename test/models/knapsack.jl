@@ -1,6 +1,14 @@
+module Knapsack
+
+import MathOptInterface
+const MOI = MathOptInterface
+const MOIU = MOI.Utilities
+
 # Model definition
 # References:
 # [1] https://jump.dev/MathOptInterface.jl/stable/tutorials/example/
+
+export model
 
 model = MOIU.Model{Float64}()
 
@@ -34,3 +42,5 @@ MOI.add_constraint(
 for xᵢ in x
    MOI.add_constraint(model, xᵢ, MOI.ZeroOne())
 end
+
+end # module
