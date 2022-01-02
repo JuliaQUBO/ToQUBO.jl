@@ -1,16 +1,21 @@
-module PBO
+"""
+    [1] Endre Boros, Peter L. Hammer Pseudo-Boolean optimization, Discrete Applied Mathematics, 2002
+        @ https://doi.org/10.1016/S0166-218X(01)00341-9
+"""
+include("./bidict.jl")
 
-export PBF, qubo
-
+# -*- Pseudo-boolean Functions -*-
 struct PseudoBooleanFunction{S <: Any, T <: Number} <: AbstractDict{Set{S}, T}
-    layers::Dict{Int, Dict{Set{S}, T}}
+    layers::Dict{Int, Dict{Set{Int}, T}}
     levels::Vector{Int}
+    varmap::BiDict{S, Int}
 
     # -*- Empty -*-
     function PseudoBooleanFunction{S, T}() where {S, T}
-        layers = Dict{Int, Dict{Set{S}, T}}()
+        layers = Dict{Int, Dict{Set{Int}, T}}()
         levels = Vector{Int}()
-        return new{S, T}(layers, levels)
+        varmap = BiDict{S, Int}()
+        return new{S, T}(layers, levels, varmap)
     end
 
     # -*- Constant -*-
@@ -22,7 +27,8 @@ struct PseudoBooleanFunction{S <: Any, T <: Number} <: AbstractDict{Set{S}, T}
             layers = Dict{Int, Dict{Set{S}, T}}(0 => Dict{Set{S}, T}(Set{S}() => c))
             levels = Vector{Int}([0])
         end
-        return new{S, T}(layers, levels)
+        varmap = BiDict{S, Int}()
+        return new{S, T}(layers, levels, varmap)
     end
 
     # -*- Pairs (Vectors) -*-
@@ -120,8 +126,7 @@ struct PseudoBooleanFunction{S <: Any, T <: Number} <: AbstractDict{Set{S}, T}
 
     # -*- I.K.E.W.I.D -*-
     function PseudoBooleanFunction{S, T}(layers::Dict{Int, Dict{Set{S}, T}}) where {S, T}
-        levels = sort(collect(keys(layers)))
-        return new{S, T}(layers, levels)
+        return new{S, T}(layers, sort(collect(keys(layers))))
     end
 end
 
@@ -243,6 +248,10 @@ function degree(p::PBF)::Int
     else
         return last(p.levels)
     end
+end
+
+function vars(p::PBF{S, T})::Vector{S} where {S, T}
+
 end
 
 # -*- Arithmetic: (+) -*-
@@ -416,11 +425,13 @@ function Base.print(io::IO, p::PBF{S, T}) where {S, T}
 end
 
 # -*- Output -*-
-function qubo(::Type{<: AbstractDict}, p::PBF{S, T})::Tuple{Dict{Tuple{S, S}, T}, T} where {S, T}
+function qubo(::Type{<: AbstractDict}, p::PBF{S, T})::Tuple{Dict{S, Int}, Dict{Tuple{Int, Int}, T} ,T} where {S, T}
     if degree(p) >= 3
-        error("Can't convert Pseudo-boolean function with degree greater than 3 to QUBO.")
+        error("Can't convert Pseudo-boolean function with degree greater than 3 to QUBO format. Try using `reduce_degree` before conversion.")
     else
-        Q = Dict{Tuple{S, T}, T}()
+        k = 1
+        x = Dict{S, Int}()
+        Q = Dict{Tuple{Int, Int}, T}()
         c = zero(T)
 
         if haskey(p.layers, 0)
@@ -430,25 +441,150 @@ function qubo(::Type{<: AbstractDict}, p::PBF{S, T})::Tuple{Dict{Tuple{S, S}, T}
         if haskey(p.layers, 1)
             for (t, d) in p.layers[1]
                 (i,) = t
-                Q[i, i] = d
+
+                if !haskey(x, i)
+                    x[i] = k
+                    k += 1
+                end
+
+                Q[x[i], x[i]] = d
             end
         end
 
         if haskey(p.layers, 2)
             for (t, d) in p.layers[2]
                 (i, j) = t
-                Q[i, j] = d
+                
+                if !haskey(x, i)
+                    x[i] = k
+                    k += 1
+                end
+
+                if !haskey(x, j)
+                    x[j] = k
+                    k += 1
+                end
+
+                Q[x[i], x[j]] = d
             end
         end
 
-        return (Q, c)
+        return (x, Q, c)
     end
 end
 
-# - Default Behavior -
-function qubo(p::PBF{S, T})::Tuple{Dict{Tuple{S, S}, T}, T} where {S, T}
+# -*- Gap -*-
+function Δ(p::PBF{S, T}; bound::Symbol=:loose)::T where{S, T}
+    if bound === :loose
+        return sum(abs(c) for (t, c) in p if !isempty(t))
+    else
+        error("Unknown bound thightness $bound")
+    end
+end
+
+function δ(p::PBF{S, T}; bound::Symbol=:loose)::T where{S, T}
+    if bound === :loose
+        return minimum(abs(c) for (t, c) in p if !isempty(t))
+    else
+        error("Unknown bound thightness $bound")
+    end
+end
+
+# -*- Output: Default Behavior -*-
+function qubo(p::PBF{S, T})::Tuple{Dict{S, Int}, Dict{Tuple{Int, Int}, T}, T} where {S, T}
     return qubo(Dict, p)
 end
 
+# -*- Degree Reduction -*-
+function pick_term(t::Set{S}; tech::Symbol=:sort)::Tuple{S, S, Set{S}} where {S}
+    if length(t) < 2
+        error("")
+    elseif tech === :sort
+        x, y, u... = sort(collect(t))
+        return (x, y, Set{S}(u))
+    elseif tech === :none
+        x, y, u... = t
+        return (x, y, Set{S}(u))
+    end
+end
 
-end # module
+function reduce_term(t::Set{S}; cache::Dict{Set{S}, PBF{S, T}}, slack::Any)::PBF{S, T} where {S, T}
+    if length(t) <= 2
+        return copy(t)
+    else
+
+    end
+end
+
+function reduce_degree(p::PBF{S, T}; cache::Dict{Set{S}, PBF{S, T}}, slack::Any)::PBF{S, T} where {S, T}
+    if degree(p) <= 2
+        return copy(p)
+    else
+        q = PBF{S, T}()
+        w = nothing
+
+        M = 1.0 + 2.0 * Δ(f)
+
+        for k in p.levels
+            for (S, c) in p.layers[k]
+                if k <= 2
+                    q[tᵢ] += cᵢ
+                elseif haskey(cache, tᵢ)
+                    q += cᵢ * cache[tᵢ]
+                else # reduce tᵢ
+                    if tech === :sub
+                        # -*- Reduction by Substitution -*-
+                        w = slack(w)
+            
+                        # Here we take two variables out "at random", not good
+                        # I suggest some function `pick_two(model, t, cache, ...)`
+                        # choose based on cached reduction results
+                        x, y, z... = t 
+            
+                        α = convert(T, 2) # TODO: How to compute α? (besides α > 1)
+            
+                        r = reduce_term(model, Set{S}([w, z...]), 1, tech=tech)
+                        s = Posiform{S, T}([x, y] => 1, [x, w] => -2, [y, w] => -2, [w] => 3)
+            
+                        p = c * (r + M * s)
+                    elseif tech === :min
+                        # -*- Reduction by Minimum Selection -*-
+                        w = addslack(model, 1, offset=0)
+            
+                        # TODO: Read comment above about this construct
+                        x, y, z... = t
+            
+                        if c < 0
+                            r = reduce_term(model, Set{S}([w, z...]), c, tech=tech)
+                            s = Posiform{S, T}([x, w] => c, [y, w] => c, [w] => -2 * c)
+                            
+                            p = r + s
+                        else
+                            rˣ = reduce_term(model, Set{S}([x, z...]), c, tech=tech)
+                            rʸ = reduce_term(model, Set{S}([y, z...]), c, tech=tech)
+                            rᶻ = reduce_term(model, Set{S}([z...]), -c, tech=tech)
+                            rʷ = reduce_term(model, Set{S}([w, z...]), c, tech=tech)
+                            s = Posiform{S, T}([x, w] => c, [y, w] => c, [x, y] => c, [x] => -c, [y] => -c, [w] => -c, [] => c)
+                            
+                            p = rˣ + rʸ + rᶻ + rʷ + s
+                        end
+                    else
+                        error("Unknown reduction technique '$tech'")
+                    end
+                end 
+            end
+        end
+    end
+end
+
+function reduce_degree(p::PBF{S, T}; cache::Dict{Set{S}, PBF{S, T}})::PBF{S, T} where {S, T}
+    return reduce_degree(p, cache=cache, slack=(v -> v === nothing ? 1 : v + 1))
+end
+
+function reduce_degree(p::PBF{S, T}; slack::Any)::PBF{S, T} where {S, T}
+    return reduce_degree(p, cache=Dict{Set{S}, PBF{S, T}}(), slack=slack)
+end
+
+function reduce_degree(p::PBF{S, T})::PBF{S, T} where {S, T}
+    return reduce_degree(p, cache=Dict{Set{S}, PBF{S, T}}(), slack=(v -> v === nothing ? 1 : v + 1))
+end

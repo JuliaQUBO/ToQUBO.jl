@@ -1,18 +1,4 @@
-module VirtualVars
-
-export VirtualVar
-export coefficients, isslack
-export iterate, vars, domain
-
-@doc raw"""
-   xᵢ <- .source::Union{S, Nothing} <- yᵢ -> .target::Vector{S} -> [yᵢ₁, ..., yᵢₙ]
-
-tech::Symbol
-    :bin - Binary expansion i.e. $ y = \sum_{i = 1}^{n} 2^{i-1} x_i $
-    :step - Step expansion i.e. $ y = \sum_{i = 1}^{n} x_i $
-"""
 struct VirtualVar{S <: Any, T <: Any}
-
     bits::Int
     offset::Int
     target::Vector{S}
@@ -20,10 +6,10 @@ struct VirtualVar{S <: Any, T <: Any}
     tech::Symbol
     var::Symbol
 
+    # -*- Default Expansion -*-
     function VirtualVar{S, T}(bits::Int, target::Vector{S}, source::Union{S, Nothing}=nothing; offset::Int=0, tech::Symbol=:bin, var::Symbol=:x) where {S, T}
-    
         if length(target) != bits
-            error("Virtual Variables need exactly as many keys as encoding bits")
+            error("Virtual Variables need exactly as many target variables as bits")
         elseif bits == 0
             error("At least one output variable must be provided")
         end
@@ -37,57 +23,71 @@ struct VirtualVar{S <: Any, T <: Any}
         return new{S, T}(bits, offset, target, source, tech, var)
     end
 
+    # -*- Variable Miorroring -*-
     function VirtualVar{S, T}(target::S, source::Union{S, Nothing}=nothing; offset::Int=0, var::Symbol=:x) where {S, T}
         return new{S, T}(1, offset, [target], source, :none, var)
     end
 end
 
-"""
-"""
-function vars(v::VirtualVar{S, T})::Vector{S} where {S, T}
-    return Vector{S}(v.target)
+# -*- Alias -*-
+const VV{S, T} = VirtualVar{S, T}
+
+# -*- Expansion Coefficients -*-
+function coefficients(v::VV{S, T})::Vector{T} where {S, T}
+    return Vector{T}([coefficient(v, i) for i = 1:v.bits])
 end
 
-"""
-"""
-function domain(v::VirtualVar{S, T})::Tuple{T, T} where {S, T}
-    if v.tech === :step
-        return Tuple{T, T}(0, v.bits)
-    elseif v.tech === :bin
-        return Tuple{T, T}(2 ^ (-v.offset - 1), 2 ^ (v.bits - v.offset - 1))
-    else # v.tech === :none
-        return Tuple{T, T}(0, 1)
+function coefficient(v::VV{S, T}, i::Int)::T where {S, T}
+    if v.tech === :bin
+        return convert(T, 2 ^ (i - v.offset - 1))
+    else #v.tech === :step || v.tech === :none
+        return one(T)
     end
 end
 
-"""
-"""
-function Base.iterate(v::VirtualVar)
-    return iterate(zip(vars(v), coefficients(v)))
+# -*- Iterator & Length -*-
+function Base.isempty(::VV)::Bool
+    return false
 end
 
-"""
-"""
-function Base.iterate(v::VirtualVar, i::Tuple{Int, Int})
-    return iterate(zip(vars(v), coefficients(v)), i)
+function Base.length(v::VV)::Int
+    return v.bits
 end
 
-"""
-"""
-function isslack(v::VirtualVar)::Bool
+function Base.iterate(v::VV{S, T})::Tuple{Tuple{S, T}, Int} where {S, T}
+    return ((v.target[1], coefficient(v, 1)), 2)
+end
+
+function Base.iterate(v::VV{S, T}, i::Int)::Union{Nothing, Tuple{Tuple{S, T}, Int}} where {S, T}
+    if i > v.bits
+        return nothing
+    else
+        return ((v.target[i], coefficient(v, i)), i + 1)
+    end
+end
+
+# -*- Variable Information -*-
+function isslack(v::VV)::Bool
     return v.source === nothing
 end
 
-"""
-"""
-function coefficients(v::VirtualVar{S, T})::Vector{T} where {S, T}
-    if v.tech === :step
-        return Vector{T}([1 for i in 1:v.bits])
-    elseif v.tech === :bin
-        return Vector{T}([2 ^ (i - v.offset) for i in 0:v.bits-1])
-    else # v.tech === :none
-        return Vector{T}([1])
-    end
+function source(v::VV{S, T})::Vector{S} where {S, T}
+    return v.source
 end
 
-end # module
+function target(v::VV{S, T})::Vector{S} where {S, T}
+    return v.target
+end
+
+# -*- IO -*-
+function subscript(v::VV)
+    return subscript(v.source, var=v.var, par=isslack(v))
+end
+
+function Base.show(io::IO, v::VV)
+    if isslack(v)
+        print(io, v.var)
+    else
+        print(io, subscript(v.source, var=v.var))
+    end
+end
