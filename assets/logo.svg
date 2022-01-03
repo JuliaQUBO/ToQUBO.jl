@@ -29,9 +29,11 @@
         font-family: Sunflower;
         src: url("../assets/Sunflower.otf");
     }
+    
+    @import url('https://fonts.googleapis.com/css2?family=Yuji+Syuku&display=swap');
 
     .title{
-      font: 120px Sunflower;
+      font: 120px 'Yuji Syuku';
       text-anchor: middle;
     }
   	</style>
