@@ -1,21 +1,28 @@
+module PBO
+
+using Random
+
+export PseudoBooleanFunction, PBF
+export copy, isempty, length, iterate, getindex, setindex!
+export +, -, *, /, ^, ==, !=, ===, !==
+export convert, zero, one, print
+export qubo, ising
+
+
 """
     [1] Endre Boros, Peter L. Hammer Pseudo-Boolean optimization, Discrete Applied Mathematics, 2002
         @ https://doi.org/10.1016/S0166-218X(01)00341-9
 """
-include("./bidict.jl")
-
 # -*- Pseudo-boolean Functions -*-
 struct PseudoBooleanFunction{S <: Any, T <: Number} <: AbstractDict{Set{S}, T}
-    layers::Dict{Int, Dict{Set{Int}, T}}
+    layers::Dict{Int, Dict{Set{S}, T}}
     levels::Vector{Int}
-    varmap::BiDict{S, Int}
 
     # -*- Empty -*-
     function PseudoBooleanFunction{S, T}() where {S, T}
-        layers = Dict{Int, Dict{Set{Int}, T}}()
+        layers = Dict{Int, Dict{Set{S}, T}}()
         levels = Vector{Int}()
-        varmap = BiDict{S, Int}()
-        return new{S, T}(layers, levels, varmap)
+        return new{S, T}(layers, levels)
     end
 
     # -*- Constant -*-
@@ -27,8 +34,7 @@ struct PseudoBooleanFunction{S <: Any, T <: Number} <: AbstractDict{Set{S}, T}
             layers = Dict{Int, Dict{Set{S}, T}}(0 => Dict{Set{S}, T}(Set{S}() => c))
             levels = Vector{Int}([0])
         end
-        varmap = BiDict{S, Int}()
-        return new{S, T}(layers, levels, varmap)
+        return new{S, T}(layers, levels)
     end
 
     # -*- Pairs (Vectors) -*-
@@ -61,7 +67,7 @@ struct PseudoBooleanFunction{S <: Any, T <: Number} <: AbstractDict{Set{S}, T}
             end
         end
         
-        levels = sort(collect(keys(layers)))
+        levels = Vector{Int}(sort(collect(keys(layers))))
 
         return new{S, T}(layers, levels)
     end
@@ -96,7 +102,7 @@ struct PseudoBooleanFunction{S <: Any, T <: Number} <: AbstractDict{Set{S}, T}
             end
         end
         
-        levels = sort(collect(keys(layers)))
+        levels = Vector{Int}(sort(collect(keys(layers))))
         
         return new{S, T}(layers, levels)
     end
@@ -119,14 +125,14 @@ struct PseudoBooleanFunction{S <: Any, T <: Number} <: AbstractDict{Set{S}, T}
             end
         end
         
-        levels = sort(collect(keys(layers)))
+        levels = Vector{Int}(sort(collect(keys(layers))))
         
         return new{S, T}(layers, levels)
     end
 
     # -*- I.K.E.W.I.D -*-
     function PseudoBooleanFunction{S, T}(layers::Dict{Int, Dict{Set{S}, T}}) where {S, T}
-        return new{S, T}(layers, sort(collect(keys(layers))))
+        return new{S, T}(layers, Vector{Int}(sort(collect(keys(layers)))))
     end
 end
 
@@ -165,7 +171,7 @@ function Base.iterate(p::PBF)
     end
 end
 
-function Base.iterate(p::PBF, state::Tuple{Int, Any})
+function Base.iterate(p::PBF, state::Tuple{Int, Int})
     i, s = state
     if i > length(p.levels)
         return nothing
@@ -251,11 +257,20 @@ function degree(p::PBF)::Int
 end
 
 function vars(p::PBF{S, T})::Vector{S} where {S, T}
+    return Vector{S}(sort(collect(union(keys.(values(p.layers))))))
+end
 
+# -*- Comparison: (==, !=, ===, !==)
+function Base.:(==)(p::PBF{S, T}, q::PBF{S, T})::Bool where {S, T}
+    return p.layers == q.layers
+end
+
+function Base.:(!=)(p::PBF{S, T}, q::PBF{S, T})::Bool where {S, T}
+    return p.layers != q.layers
 end
 
 # -*- Arithmetic: (+) -*-
-function Base.:+(p::PBF{S, T}, q::PBF{S, T})::PBF{S, T} where {S, T}
+function Base.:(+)(p::PBF{S, T}, q::PBF{S, T})::PBF{S, T} where {S, T}
     r = copy(p)
 
     for (tᵢ, cᵢ) in q
@@ -265,7 +280,7 @@ function Base.:+(p::PBF{S, T}, q::PBF{S, T})::PBF{S, T} where {S, T}
     return r
 end
 
-function Base.:+(p::PBF{S, T}, c::T)::PBF{S, T} where {S, T}
+function Base.:(+)(p::PBF{S, T}, c::T)::PBF{S, T} where {S, T}
     r = copy(p)
 
     p[Set{S}()] += c
@@ -273,12 +288,12 @@ function Base.:+(p::PBF{S, T}, c::T)::PBF{S, T} where {S, T}
     return r
 end
 
-function Base.:+(c::T, p::PBF{S, T})::PBF{S, T} where {S, T}
+function Base.:(+)(c::T, p::PBF{S, T})::PBF{S, T} where {S, T}
     return +(p, c)
 end
 
 # -*- Arithmetic: (-) -*-
-function Base.:-(p::PBF{S, T})::PBF{S, T} where {S, T}
+function Base.:(-)(p::PBF{S, T})::PBF{S, T} where {S, T}
     r = copy(p)
 
     for layer in values(r.layers), t in keys(layer)
@@ -288,7 +303,7 @@ function Base.:-(p::PBF{S, T})::PBF{S, T} where {S, T}
     return r
 end
 
-function Base.:-(p::PBF{S, T}, q::PBF{S, T})::PBF{S, T} where {S, T}
+function Base.:(-)(p::PBF{S, T}, q::PBF{S, T})::PBF{S, T} where {S, T}
     r = copy(p)
 
     for (tᵢ, cᵢ) in q
@@ -298,7 +313,7 @@ function Base.:-(p::PBF{S, T}, q::PBF{S, T})::PBF{S, T} where {S, T}
     return r
 end
 
-function Base.:-(p::PBF{S, T}, c::T)::PBF{S, T} where {S, T}
+function Base.:(-)(p::PBF{S, T}, c::T)::PBF{S, T} where {S, T}
     r = copy(p)
 
     p[Set{S}()] -= c
@@ -307,7 +322,7 @@ function Base.:-(p::PBF{S, T}, c::T)::PBF{S, T} where {S, T}
 end
 
 # -*- Arithmetic: (*) -*-
-function Base.:*(p::PBF{S, T}, q::PBF{S, T})::PBF{S, T} where {S, T}
+function Base.:(*)(p::PBF{S, T}, q::PBF{S, T})::PBF{S, T} where {S, T}
     if isempty(p) || isempty(q)
         return PBF{S, T}()
     end
@@ -321,7 +336,7 @@ function Base.:*(p::PBF{S, T}, q::PBF{S, T})::PBF{S, T} where {S, T}
     return r
 end
 
-function Base.:*(p::PBF{S, T}, c::T)::PBF{S, T} where {S, T}
+function Base.:(*)(p::PBF{S, T}, c::T)::PBF{S, T} where {S, T}
     if c === 0
         return PBF{S, T}()
     else
@@ -335,12 +350,12 @@ function Base.:*(p::PBF{S, T}, c::T)::PBF{S, T} where {S, T}
     end
 end
 
-function Base.:*(c::T, p::PBF{S, T})::PBF{S, T} where {S, T}
+function Base.:(*)(c::T, p::PBF{S, T})::PBF{S, T} where {S, T}
     return *(p, c)
 end
 
 # -*- Arithmetic: (/) -*-
-function Base.:/(p::PBF{S, T}, c::T)::PBF{S, T} where {S, T}
+function Base.:(/)(p::PBF{S, T}, c::T)::PBF{S, T} where {S, T}
     if c == 0
         error(DivideError, ": division by zero") 
     else
@@ -355,7 +370,7 @@ function Base.:/(p::PBF{S, T}, c::T)::PBF{S, T} where {S, T}
 end
 
 # -*- Arithmetic: (^) -*-
-function Base.:^(p::PBF{S, T}, n::Int)::PBF{S, T} where {S, T}
+function Base.:(^)(p::PBF{S, T}, n::Int)::PBF{S, T} where {S, T}
     if n < 0
         error(DivideError, ": Can't divide by Pseudo-boolean function.")
     end
@@ -424,10 +439,31 @@ function Base.print(io::IO, p::PBF{S, T}) where {S, T}
     end
 end
 
+# -*- Gap & Penalties -*-
+function Δ(p::PBF{S, T}; bound::Symbol=:loose)::T where{S, T}
+    if bound === :loose
+        return sum(abs(c) for (t, c) in p if !isempty(t))
+    elseif bound === :tight
+        error("Not Implemented: See [1] sec 5.1.1 Majorization")
+    else
+        error(ArgumentError, ": Unknown bound thightness $bound")
+    end
+end
+
+function δ(p::PBF{S, T}; bound::Symbol=:loose)::T where{S, T}
+    if bound === :loose
+        return one(T)
+    elseif bound === :tight
+        error("Not Implemented: See [1] sec 5.1.1 Majorization")
+    else
+        error(ArgumentError, ": Unknown bound thightness $bound")
+    end
+end
+
 # -*- Output -*-
 function qubo(::Type{<: AbstractDict}, p::PBF{S, T})::Tuple{Dict{S, Int}, Dict{Tuple{Int, Int}, T} ,T} where {S, T}
     if degree(p) >= 3
-        error("Can't convert Pseudo-boolean function with degree greater than 3 to QUBO format. Try using `reduce_degree` before conversion.")
+        error(DomainError, ": Can't convert Pseudo-boolean function with degree greater than 3 to QUBO format. Try using `reduce_degree` before conversion.")
     else
         k = 1
         x = Dict{S, Int}()
@@ -473,26 +509,26 @@ function qubo(::Type{<: AbstractDict}, p::PBF{S, T})::Tuple{Dict{S, Int}, Dict{T
     end
 end
 
-# -*- Gap -*-
-function Δ(p::PBF{S, T}; bound::Symbol=:loose)::T where{S, T}
-    if bound === :loose
-        return sum(abs(c) for (t, c) in p if !isempty(t))
-    else
-        error("Unknown bound thightness $bound")
+function ising(::Type{<: AbstractDict}, p::PBF{S, T})::Tuple{Dict{S, Int}, Dict{Int, T}, Dict{Tuple{Int, Int}, T} ,T} where {S, T}
+    if degree(p) >= 3
+        error(DomainError, ": Can't convert Pseudo-boolean function with degree greater than 3 to QUBO format. Try using `reduce_degree` before conversion.")
     end
-end
 
-function δ(p::PBF{S, T}; bound::Symbol=:loose)::T where{S, T}
-    if bound === :loose
-        return minimum(abs(c) for (t, c) in p if !isempty(t))
-    else
-        error("Unknown bound thightness $bound")
-    end
+    x = Dict{S, Int}()
+    h = Dict{Int, T}()
+    J = Dict{Tuple{Int, Int}, T}()
+    c = zero(T)
+
+    return (x, h, J, c)
 end
 
 # -*- Output: Default Behavior -*-
 function qubo(p::PBF{S, T})::Tuple{Dict{S, Int}, Dict{Tuple{Int, Int}, T}, T} where {S, T}
     return qubo(Dict, p)
+end
+
+function ising(p::PBF{S, T})::Tuple{Dict{S, Int}, Dict{Int, T}, Dict{Tuple{Int, Int}, T}, T} where {S, T}
+    return ising(Dict, p)
 end
 
 # -*- Degree Reduction -*-
@@ -505,6 +541,8 @@ function pick_term(t::Set{S}; tech::Symbol=:sort)::Tuple{S, S, Set{S}} where {S}
     elseif tech === :none
         x, y, u... = t
         return (x, y, Set{S}(u))
+    else
+        shuffle
     end
 end
 
@@ -512,7 +550,7 @@ function reduce_term(t::Set{S}; cache::Dict{Set{S}, PBF{S, T}}, slack::Any)::PBF
     if length(t) <= 2
         return copy(t)
     else
-
+        x, y, u = pick_term(t; tech=:none)
     end
 end
 
@@ -521,57 +559,12 @@ function reduce_degree(p::PBF{S, T}; cache::Dict{Set{S}, PBF{S, T}}, slack::Any)
         return copy(p)
     else
         q = PBF{S, T}()
-        w = nothing
 
-        M = 1.0 + 2.0 * Δ(f)
-
-        for k in p.levels
-            for (S, c) in p.layers[k]
-                if k <= 2
-                    q[tᵢ] += cᵢ
-                elseif haskey(cache, tᵢ)
-                    q += cᵢ * cache[tᵢ]
-                else # reduce tᵢ
-                    if tech === :sub
-                        # -*- Reduction by Substitution -*-
-                        w = slack(w)
-            
-                        # Here we take two variables out "at random", not good
-                        # I suggest some function `pick_two(model, t, cache, ...)`
-                        # choose based on cached reduction results
-                        x, y, z... = t 
-            
-                        α = convert(T, 2) # TODO: How to compute α? (besides α > 1)
-            
-                        r = reduce_term(model, Set{S}([w, z...]), 1, tech=tech)
-                        s = Posiform{S, T}([x, y] => 1, [x, w] => -2, [y, w] => -2, [w] => 3)
-            
-                        p = c * (r + M * s)
-                    elseif tech === :min
-                        # -*- Reduction by Minimum Selection -*-
-                        w = addslack(model, 1, offset=0)
-            
-                        # TODO: Read comment above about this construct
-                        x, y, z... = t
-            
-                        if c < 0
-                            r = reduce_term(model, Set{S}([w, z...]), c, tech=tech)
-                            s = Posiform{S, T}([x, w] => c, [y, w] => c, [w] => -2 * c)
-                            
-                            p = r + s
-                        else
-                            rˣ = reduce_term(model, Set{S}([x, z...]), c, tech=tech)
-                            rʸ = reduce_term(model, Set{S}([y, z...]), c, tech=tech)
-                            rᶻ = reduce_term(model, Set{S}([z...]), -c, tech=tech)
-                            rʷ = reduce_term(model, Set{S}([w, z...]), c, tech=tech)
-                            s = Posiform{S, T}([x, w] => c, [y, w] => c, [x, y] => c, [x] => -c, [y] => -c, [w] => -c, [] => c)
-                            
-                            p = rˣ + rʸ + rᶻ + rʷ + s
-                        end
-                    else
-                        error("Unknown reduction technique '$tech'")
-                    end
-                end 
+        for (t, c) in p
+            if length(t) >= 3
+                q += c * reduce_term(t; cache=cache)
+            else
+                q[t] += c
             end
         end
     end
@@ -588,3 +581,5 @@ end
 function reduce_degree(p::PBF{S, T})::PBF{S, T} where {S, T}
     return reduce_degree(p, cache=Dict{Set{S}, PBF{S, T}}(), slack=(v -> v === nothing ? 1 : v + 1))
 end
+
+end # module
