@@ -69,6 +69,6 @@ At most two components of **x** can be nonzero, and if so they must be adjacent 
 |   ⌛    | In Development (Available soon) |
 |   📖    | Under research                  |
 
-
-
 <!-- Symbols: ✔️❌⌛📖 -->
+
+## References
