@@ -1,7 +1,7 @@
 using Test
 
 # -*- Imports: Pseudo-Boolean Optimization -*-
-include("../src/lib/pbo.jl")
+using ToQUBO
 
 function tests()
     @testset "GitHub CI Workflow" begin

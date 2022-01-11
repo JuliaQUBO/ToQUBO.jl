@@ -106,3 +106,21 @@ x, Q, c = PBO.qubo(q)
 @test Q == Dict{Tuple{Int, Int}, 𝒯}(
     (x[:y], x[:y]) => 1.0, (x[:x], x[:y]) => 2.0
 ) && c == 0.5
+
+x, Q, c = PBO.qubo(r)
+@test Q == Dict{Tuple{Int, Int}, 𝒯}(
+    (x[:z], x[:z]) => -1.0
+) && c == 1.0
+
+# -*- Test: Degree Reduction -*-
+
+# - Reduction by Substitution - 
+cache = Dict{Set{𝒮}, ℱ}()
+
+@test PBO.reduce_degree(s, slack=() -> :w, cache=cache) == ℱ(
+    [:z, :w] => 3.0,
+    [:x, :y] => 21.0,
+    [:x, :w] => -42.0,
+    [:y, :w] => -42.0,
+    [:w] => 63.0
+) 

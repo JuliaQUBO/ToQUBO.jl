@@ -499,54 +499,61 @@ function ising(p::PBF{S, T})::Tuple{Dict{S, Int}, Dict{Int, T}, Dict{Tuple{Int, 
 end
 
 # -*- Degree Reduction -*-
-function pick_term(t::Set{S}; tech::Symbol=:sort)::Tuple{S, S, Set{S}} where {S}
-    if length(t) < 2
-        error("")
+function pick_term(ω::Set{S}; tech::Symbol=:sort)::Tuple{S, S, Set{S}} where {S}
+    if length(ω) < 2
+        error(MethodError, "Can't pick less than two indices")
     elseif tech === :sort
-        x, y, u... = sort(collect(t))
-        return (x, y, Set{S}(u))
+        i, j, τ... = sort(collect(S, ω))
     elseif tech === :none
-        x, y, u... = t
-        return (x, y, Set{S}(u))
-    else
-        shuffle
+        i, j, τ... = ω
+    elseif tech === :rand
+        i, j, τ... = shuffle(collect(S, ω))
     end
+
+    return (i, j, Set{S}(τ))
 end
 
-function reduce_term(t::Set{S}; cache::Dict{Set{S}, PBF{S, T}}, slack::Any)::PBF{S, T} where {S, T}
-    if length(t) <= 2
-        return copy(t)
-    else
-        x, y, u = pick_term(t; tech=:none)
+function reduce_term(ω::Set{S}, M::T; slack::Any, cache::Dict{Set{S}, PBF{S, T}}) where {S, T}
+    # -*- Reduction by Substitution -*-
+    if length(ω) <= 2
+        return PBF{S, T}(ω => one(T))
     end
+
+    if !haskey(cache, ω)
+        w = slack()::S
+
+        x, y, τ = pick_term(ω; tech=:sort)
+
+        push!(τ, w)
+
+        cache[ω] = M * PBF{S, T}(
+            [x, y] => 1.0,
+            [x, w] => -2.0,
+            [y, w] => -2.0,
+            [w] => 3.0
+        ) + reduce_term(τ, M; slack=slack, cache=cache)
+    end
+    
+    return cache[ω]
 end
 
-function reduce_degree(p::PBF{S, T}; cache::Dict{Set{S}, PBF{S, T}}, slack::Any)::PBF{S, T} where {S, T}
+function reduce_degree(p::PBF{S, T}; slack::Any, cache::Dict{Set{S}, PBF{S, T}}) where {S, T}
     if degree(p) <= 2
         return copy(p)
     else
+        M = one(T) + convert(T, 2) * Δ(p; bound=:loose)
         q = PBF{S, T}()
 
-        for (t, c) in p
-            if length(t) >= 3
-                q += c * reduce_term(t; cache=cache)
+        for (ω, c) in p
+            if length(ω) >= 3
+                q += c * reduce_term(ω, M; slack=slack, cache=cache)
             else
                 q[t] += c
             end
         end
+
+        return q
     end
-end
-
-function reduce_degree(p::PBF{S, T}; cache::Dict{Set{S}, PBF{S, T}})::PBF{S, T} where {S, T}
-    return reduce_degree(p, cache=cache, slack=(v -> v === nothing ? 1 : v + 1))
-end
-
-function reduce_degree(p::PBF{S, T}; slack::Any)::PBF{S, T} where {S, T}
-    return reduce_degree(p, cache=Dict{Set{S}, PBF{S, T}}(), slack=slack)
-end
-
-function reduce_degree(p::PBF{S, T})::PBF{S, T} where {S, T}
-    return reduce_degree(p, cache=Dict{Set{S}, PBF{S, T}}(), slack=(v -> v === nothing ? 1 : v + 1))
 end
 
 end # module
