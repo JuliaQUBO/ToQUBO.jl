@@ -3,6 +3,12 @@ module Anneal
 # -*- Sample, SampleSet, AbstractSampler -*-
 using MathOptInterface
 const MOI = MathOptInterface
+
+# -*- Exports -*-
+export Sample, SampleSet, AbstractSampler
+export AbstractAnnealer, SimulatedAnnealer, QuantumAnnealer
+
+# -*- Samplers -*-
 include("./sample.jl")
 
 # -*- Python Annealing Interface -*-

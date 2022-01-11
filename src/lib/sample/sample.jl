@@ -74,9 +74,11 @@ end
 # -*- Samplers -*-
 abstract type AbstractSampler{V <: Any, S <: Any, T <: Any} <: MOI.AbstractOptimizer end
 
+function sample(::AbstractSampler; num_reads::Int=1_000) end
+
 function sample!(sampler::AbstractSampler; num_reads::Int=1_000)
     t₀ = time()
-    results, δt = sample(sampler)
+    results, δt = sample(sampler; num_reads=num_reads)
     samples_set = SampleSet{S, T}([Sample{S, T}(states, amount, energy) for (states, amount, energy) in results])
     
     if clean
@@ -101,8 +103,4 @@ function sample!(sampler::AbstractSampler; num_reads::Int=1_000)
     end
 
     nothing
-end
-
-function sample!(sampler::AbstractSampler; n::Int=1_000)
-    return sample!(sampler; num_reads=n)
 end

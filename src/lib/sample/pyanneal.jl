@@ -1,3 +1,5 @@
+# -*- Python Simmulated Annealing -*-
+
 py"""
 import time
 import neal

@@ -94,8 +94,3 @@ MOI.supports(::AbstractAnnealer, ::MOI.NumberOfThreads)::Bool = true
 # -*- Define supports_constraint -*-
 MOI.supports_constraint(::AbstractAnnealer, ::Any, ::Any)::Bool = false
 MOI.supports_constraint(::AbstractAnnealer, ::Type{MOI.VariableIndex}, ::Type{MOI.ZeroOne})::Bool = true
-
-# -*- The copy_to interface -*-
-function MOI.copy_to(annealer::AbstractAnnealer{V, S, T}, model::QUBOModel{T}) where {V, S, T}
-    
-end
