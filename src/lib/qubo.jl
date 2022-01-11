@@ -210,7 +210,7 @@ function toqubo_variables!(ℳ::MOI.ModelLike, 𝒬::QUBOModel{T}) where {T}
     ℤ = Dict{VI, Tuple{𝕋, 𝕋}}()
     ℝ = Dict{VI, Tuple{𝕋, 𝕋}}()
 
-    for cᵢ in MOI.get(ℳ, MOI.ListOfConstraintIndices{VI, MOI.ZeroOne()}())
+    for cᵢ in MOI.get(ℳ, MOI.ListOfConstraintIndices{VI, MOI.ZeroOne}())
         # -*- Binary Variable 😄 -*-
         xᵢ = MOI.get(ℳ, MOI.ConstraintFunction(), cᵢ)
 
@@ -218,7 +218,7 @@ function toqubo_variables!(ℳ::MOI.ModelLike, 𝒬::QUBOModel{T}) where {T}
         push!(𝔹, xᵢ)
     end
 
-    for cᵢ in MOI.get(ℳ, MOI.ListOfConstraintIndices{VI, MOI.Integer()}())
+    for cᵢ in MOI.get(ℳ, MOI.ListOfConstraintIndices{VI, MOI.Integer}())
         # -*- Integer Variable 🤔 -*-
         xᵢ = MOI.get(ℳ, MOI.ConstraintFunction(), cᵢ)
 
@@ -231,7 +231,7 @@ function toqubo_variables!(ℳ::MOI.ModelLike, 𝒬::QUBOModel{T}) where {T}
         ℝ[xᵢ] = (missing, missing)
     end
 
-    for cᵢ in MOI.get(ℳ, MOI.ListOfConstraintIndices{VI, MOI.Interval()}())
+    for cᵢ in MOI.get(ℳ, MOI.ListOfConstraintIndices{VI, MOI.Interval}())
         # -*- Interval 😄 -*-
         xᵢ = MOI.get(ℳ, MOI.ConstraintFunction(), cᵢ)
         Iᵢ = MOI.get(ℳ, MOI.ConstraintSet(), cᵢ) 
@@ -246,7 +246,7 @@ function toqubo_variables!(ℳ::MOI.ModelLike, 𝒬::QUBOModel{T}) where {T}
         end
     end
 
-    for cᵢ in MOI.get(ℳ, MOI.ListOfConstraintIndices{VI, MOI.LessThan()}())
+    for cᵢ in MOI.get(ℳ, MOI.ListOfConstraintIndices{VI, MOI.LessThan}())
         # -*- Upper Bound 🤔 -*-
         xᵢ = MOI.get(ℳ, MOI.ConstraintFunction(), cᵢ)
         Iᵢ = MOI.get(ℳ, MOI.ConstraintSet(), cᵢ) 
@@ -260,7 +260,7 @@ function toqubo_variables!(ℳ::MOI.ModelLike, 𝒬::QUBOModel{T}) where {T}
         end
     end
 
-    for cᵢ in MOI.get(ℳ, MOI.ListOfConstraintIndices{VI, MOI.GreaterThan()}())
+    for cᵢ in MOI.get(ℳ, MOI.ListOfConstraintIndices{VI, MOI.GreaterThan}())
         # -*- Lower Bound 🤔 -*-
         xᵢ = MOI.get(ℳ, MOI.ConstraintFunction(), cᵢ)
         Iᵢ = MOI.get(ℳ, MOI.ConstraintSet(), cᵢ)
@@ -540,4 +540,9 @@ function toqubo(T::Type{<: Any}, ℳ::MOI.ModelLike; sampler::Union{Nothing, Abs
     )
 
     return 𝒬   
+end
+
+# -*- Default Behavior -*-
+function toqubo(ℳ::MOI.ModelLike; sampler::Union{Nothing, AbstractSampler}=nothing)
+    return toqubo(Float64, ℳ, sampler=sampler)
 end
