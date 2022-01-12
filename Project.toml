@@ -4,6 +4,7 @@ authors = ["Pedro Maciel Xavier <pedromxavier@poli.ufrj.br>"]
 version = "0.1.0"
 
 [deps]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 Conda = "8f4d0f93-b110-5947-807f-2305c1781a2d"
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
