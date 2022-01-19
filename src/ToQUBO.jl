@@ -26,6 +26,7 @@ const ZO = MOI.ZeroOne
 # ::: Exports :::
 export QUBOModel, toqubo, isqubo
 export PBO
+export SimulatedAnnealer, QuantumAnnealer
 
 # ::: Library Imports :::
 

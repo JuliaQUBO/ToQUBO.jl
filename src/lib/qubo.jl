@@ -9,9 +9,14 @@ const ℱ{T} = PBF{VI, T}
 include("./varmap.jl")
 using .VarMap
 
-# -*- Alias -*-
-# Bind VirtualVar{S, T}, S to OI.VariableIndex
+# -*- Aliases -*-
+# Bind VirtualVar{S, T}, S to MOI.VariableIndex
 const 𝒱{T} = VV{VI, T}
+
+(×)(x::T, y::T) where T = Set{T}([x, y])
+(×)(x::T, y::Set{T}) where T = union(y, x)
+(×)(x::Set{T}, y::T) where T = union(x, y)
+(×)(x::Set{T}, y::Set{T}) where T = union(x, y)
 
 # -*- QUBO Model -*-
 mutable struct QUBOModel{T <: Any} <: MOIU.AbstractModelLike{T}
@@ -33,9 +38,10 @@ mutable struct QUBOModel{T <: Any} <: MOIU.AbstractModelLike{T}
     # - Underlying Optimizer
     sampler::Union{Nothing, AbstractSampler{T}}
 
-    # Hamiltonian
+    # Energy
     ℍ₀::ℱ{T} # Objective
     ℍᵢ::ℱ{T} # Constraints
+    ℍ::ℱ{T} # Total Energy
 
     # -*- MOI Stuff -*-
     # - ObjectiveValue (Avaliar somente ℍ₀(s) ou também E(s)?)
@@ -60,6 +66,7 @@ mutable struct QUBOModel{T <: Any} <: MOIU.AbstractModelLike{T}
             sampler,
             ℱ{T}(),
             ℱ{T}(),
+            ℱ{T}(),
             NaN,
             NaN,
             nothing,
@@ -70,7 +77,7 @@ mutable struct QUBOModel{T <: Any} <: MOIU.AbstractModelLike{T}
 end
 
 # -*- Default -*-
-function QUBOModel(sampler::AbstractSampler{VI, Bool, Float64})
+function QUBOModel(sampler::AbstractSampler{Float64})
     return QUBOModel{Float64}(sampler)
 end
 
@@ -86,27 +93,29 @@ General Interface for variable inclusion on QUBO Models.
 
 
 """
-function addvar(model::QUBOModel{T}, source::Union{VI, Nothing}, bits::Int; name::Symbol=:x, domain::Tuple{T, T}=(zero(T), one(T)))::𝒱{T} where T
+function addvar(model::QUBOModel{T}, source::Union{VI, Nothing}, bits::Int; name::Symbol=:x, tech::Symbol=:bin, domain::Tuple{T, T}=(zero(T), one(T))) where T
     # -*- Add MOI Variables to underlying model -*-
     target = MOI.add_variables(model.model, bits)::Vector{VI}
 
     if source === nothing
         # -*- Slack Variable -*-
         model.slack += 1
+
         name = Symbol(subscript(model.slack, var=name, par=true))
-    else
-        name = :x
+    elseif name === Symbol()
+        name = :v
     end
 
     # -*- Virtual Variable -*-
     α, β = domain
 
-    v = 𝒱{T}(bits, target, source; name=name, α=α, β=β)
+    v = 𝒱{T}(bits, target, source; tech=tech, name=name, α=α, β=β)
 
     for vᵢ in target
         # -*- Make Variable Binary -*-
         MOI.add_constraint(model.model, vᵢ, ZO())
         MOI.set(model.model, MOI.VariableName(), vᵢ, subscript(vᵢ, var=name))
+
         model.target[vᵢ] = v
     end
 
@@ -117,27 +126,44 @@ end
 
 
 # -*- Add Slack Variable -*-
-function addslack(model::QUBOModel{T}, bits::Int; name::Symbol=:s, domain::Tuple{T, T}=(zero(T), one(T)))::𝒱{T} where T
+function addslack(model::QUBOModel{T}, bits::Int; name::Symbol=:s, domain::Tuple{T, T}=(zero(T), one(T))) where T
     return addvar(model, nothing, bits, name=name, domain=domain)
 end
 
 # -*- Expand: Interpret existing variable through its binary expansion -*-
-function expand!(model::QUBOModel{T}, src::VI, bits::Int; name::Symbol=:x, domain::Tuple{T, T}=(zero(T), one(T)))::𝒱{T} where T
-    model.source[src] = addvar(model, src, bits; name=name, domain=domain)
+"""
+Real Expansion
+"""
+function expandℝ!(model::QUBOModel{T}, src::VI, bits::Int; name::Symbol=:x, domain::Tuple{T, T}=(zero(T), one(T))) where T
+    model.source[src] = addvar(model, src, bits; name=name, domain=domain, tech=:float)
 end
 
-function expand(model::QUBOModel{T}, src::VI, bits::Int; name::Symbol=:x, domain::Tuple{T, T}=(zero(T), one(T)))::𝒱{T} where T
-    expand!(model, src, bits, name=name, domain=domain)
+function expandℝ(model::QUBOModel{T}, src::VI, bits::Int; name::Symbol=:x, domain::Tuple{T, T}=(zero(T), one(T))) where T
+    expandℝ!(model, src, bits, name=name, domain=domain)
     return model.source[src]
 end
 
-# -*- Mirror: Make existing variable Binary -*-
-function mirror!(model::QUBOModel{T}, var::VI; name::Symbol=:x)::𝒱{T} where T
-    expand!(model, var, 1, name=name)
+"""
+Integer Expansion
+"""
+function expandℤ!(model::QUBOModel{T}, src::VI, bits::Int; name::Symbol=:x, domain::Tuple{T, T}=(zero(T), one(T))) where T
+    model.source[src] = addvar(model, src, bits; name=name, domain=domain, tech=:int)
 end
 
-function mirror(model::QUBOModel{T}, var::VI; name::Symbol=:x)::𝒱{T} where T
-    mirror!(model, var, name=name)
+function expandℤ(model::QUBOModel{T}, src::VI, bits::Int; name::Symbol=:x, domain::Tuple{T, T}=(zero(T), one(T))) where T
+    expandℤ!(model, src, bits, name=name, domain=domain)
+    return model.source[src]
+end
+
+"""
+Binary Mirroring
+"""
+function mirror𝔹!(model::QUBOModel{T}, var::VI; name::Symbol=:x)::𝒱{T} where T
+    model.source[src] = addvar(model, src, bits; name=name, tech=:none)
+end
+
+function mirror𝔹(model::QUBOModel{T}, var::VI; name::Symbol=:x)::𝒱{T} where T
+    mirror𝔹!(model, var, name=name)
     return model.source[var]
 end
 
@@ -210,7 +236,7 @@ function toqubo_variables!(ℳ::MOI.ModelLike, 𝒬::QUBOModel{T}) where {T}
     ℤ = Dict{VI, Tuple{𝕋, 𝕋}}()
     ℝ = Dict{VI, Tuple{𝕋, 𝕋}}()
 
-    for cᵢ in MOI.get(ℳ, MOI.ListOfConstraintIndices{VI, MOI.ZeroOne}())
+    for cᵢ in MOI.get(ℳ, MOI.ListOfConstraintIndices{VI, ZO}())
         # -*- Binary Variable 😄 -*-
         xᵢ = MOI.get(ℳ, MOI.ConstraintFunction(), cᵢ)
 
@@ -274,15 +300,15 @@ function toqubo_variables!(ℳ::MOI.ModelLike, 𝒬::QUBOModel{T}) where {T}
         end
     end
 
-    # STRONG TODO: bits magic
-    bits = 3 # WHY ????!!!!!!
 
     # -*- Discretize Real Ones 🤔 -*-
     for (xᵢ, (aᵢ, bᵢ)) in ℝ
         if aᵢ === missing || bᵢ === missing
-            error("Unbounded variable $xᵢ ∈ ℤ")
+            error("Unbounded variable $xᵢ ∈ ℝ")
         else
-            expand!(𝒬, xᵢ, bits; domain=(aᵢ, bᵢ))
+            bits = 3
+            name = Symbol(MOI.get(ℳ, MOI.VariableName(), xᵢ))
+            expandℝ!(𝒬, xᵢ, bits; domain=(aᵢ, bᵢ), name=name)
         end
     end
 
@@ -291,20 +317,24 @@ function toqubo_variables!(ℳ::MOI.ModelLike, 𝒬::QUBOModel{T}) where {T}
         if aᵢ === missing || bᵢ === missing
             error("Unbounded variable $xᵢ ∈ ℤ")
         else
-            expand!(𝒬, xᵢ, bits; domain=(aᵢ, bᵢ))
+            α = ceil(Int, aᵢ)
+            β = floor(Int, bᵢ)
+            name = Symbol(MOI.get(ℳ, MOI.VariableName(), xᵢ))
+            expandℤ!(𝒬, xᵢ; domain=(α, β), name=name)
         end
     end
 
     # -*- Mirror Boolean Variables 😄 -*-
     for xᵢ in 𝔹
-        mirror!(𝒬, xᵢ)
+        name = Symbol(MOI.get(ℳ, MOI.VariableName(), xᵢ))
+        mirror𝔹!(𝒬, xᵢ, name=name)
     end
 end
 
 # -*- Objective Function -*-
-function toqubo_objective!(ℳ::MOI.ModelLike, 𝒬::QUBOModel{T}, ::VI) where {T}
+function toqubo_objective!(ℳ::MOI.ModelLike, 𝒬::QUBOModel{T}, F::Type{<: VI}) where {T}
     # -*- Single Variable -*-
-    xᵢ = MOI.get(ℳ, MOI.ObjectiveFunction{VI}())
+    xᵢ = MOI.get(ℳ, MOI.ObjectiveFunction{F}())
     vᵢ = 𝒬.source[xᵢ]
 
     for (xᵢⱼ, cᵢⱼ) in vᵢ
@@ -312,9 +342,9 @@ function toqubo_objective!(ℳ::MOI.ModelLike, 𝒬::QUBOModel{T}, ::VI) where {
     end
 end
 
-function toqubo_objective!(ℳ::MOI.ModelLike, 𝒬::QUBOModel{T}, ::SAF{T}) where {T}
+function toqubo_objective!(ℳ::MOI.ModelLike, 𝒬::QUBOModel{T}, F::Type{<: SAF{T}}) where {T}
     # -*- Affine Terms -*-
-    f = MOI.get(ℳ, MOI.ObjectiveFunction{SAF{T}}())
+    f = MOI.get(ℳ, MOI.ObjectiveFunction{F}())
 
     for aᵢ in f.terms
         cᵢ = aᵢ.coefficient
@@ -331,7 +361,7 @@ function toqubo_objective!(ℳ::MOI.ModelLike, 𝒬::QUBOModel{T}, ::SAF{T}) whe
     𝒬.ℍ₀ += f.constant
 end
 
-function toqubo_objective!(ℳ::MOI.ModelLike, 𝒬::QUBOModel{T}, F::Type{<: SAF{T}}) where {T}
+function toqubo_objective!(ℳ::MOI.ModelLike, 𝒬::QUBOModel{T}, F::Type{<: SQF{T}}) where {T}
     # -*- Affine Terms -*-
     f = MOI.get(ℳ, MOI.ObjectiveFunction{F}())
 
@@ -341,13 +371,12 @@ function toqubo_objective!(ℳ::MOI.ModelLike, 𝒬::QUBOModel{T}, F::Type{<: SA
         xᵢ = Qᵢ.variable_1
         yᵢ = Qᵢ.variable_2
 
-        vᵢ = 𝒬.source[xᵢ]
-        wᵢ = 𝒬.source[yᵢ]
+        uᵢ = 𝒬.source[xᵢ]
+        vᵢ = 𝒬.source[yᵢ]
 
-        for (xᵢⱼ, dᵢⱼ) in vᵢ
-            for (yᵢₖ, dᵢₖ) in wᵢ
-                zⱼₖ = Set{VI}([xᵢⱼ, yᵢₖ])
-                𝒬.ℍ₀[zⱼₖ] += cᵢ * dᵢⱼ * dᵢₖ
+        for (xᵢⱼ, dᵢⱼ) in uᵢ
+            for (yᵢₖ, dᵢₖ) in vᵢ
+                𝒬.ℍ₀[xᵢⱼ × yᵢₖ] += cᵢ * dᵢⱼ * dᵢₖ
             end
         end
     end
@@ -368,7 +397,7 @@ function toqubo_objective!(ℳ::MOI.ModelLike, 𝒬::QUBOModel{T}, F::Type{<: SA
 end
 
 # -*- Constraints -*-
-function toqubo_constraint!(ℳ::MOI.ModelLike, 𝒬::QUBOModel{T}, F::SAF{T}, S::EQ{T}) where {T}
+function toqubo_constraint!(ℳ::MOI.ModelLike, 𝒬::QUBOModel{T}, F::Type{<: SAF{T}}, S::Type{<: EQ{T}}) where {T}
     # -*- Scalar Affine Function: Ax = b 😄 -*-
     for cᵢ in MOI.get(ℳ, MOI.ListOfConstraintIndices{F, S}())
         rᵢ = ℱ{T}()
@@ -397,11 +426,11 @@ function toqubo_constraint!(ℳ::MOI.ModelLike, 𝒬::QUBOModel{T}, F::SAF{T}, S
     end
 end
 
-function toqubo_constraint!(ℳ::MOI.ModelLike, 𝒬::QUBOModel{T}, F::SAF{T}, S::LT{T}) where {T}
+function toqubo_constraint!(ℳ::MOI.ModelLike, 𝒬::QUBOModel{T}, F::Type{<: SAF{T}}, S::Type{<: LT{T}}) where {T}
     # -*- Scalar Affine Function: Ax <= b 🤔 -*-
 
     for cᵢ in MOI.get(ℳ, MOI.ListOfConstraintIndices{F, S}())
-        rᵢ = Posiform{VI, T}()
+        rᵢ = ℱ{T}()
 
         Aᵢ = MOI.get(ℳ, MOI.ConstraintFunction(), cᵢ)
         bᵢ = MOI.get(ℳ, MOI.ConstraintSet(), cᵢ).upper
@@ -440,10 +469,10 @@ function toqubo_constraint!(ℳ::MOI.ModelLike, 𝒬::QUBOModel{T}, F::SAF{T}, S
     end
 end
 
-function toqubo_constraint!(ℳ::MOI.ModelLike, 𝒬::QUBOModel{T}, F::SAF{T}, S::GT{T}) where {T}
+function toqubo_constraint!(ℳ::MOI.ModelLike, 𝒬::QUBOModel{T}, F::Type{<: SAF{T}}, S::Type{<: GT{T}}) where {T}
     # -*- Scalar Affine Function: Ax >= b 🤔 -*-
     for cᵢ in MOI.get(ℳ, MOI.ListOfConstraintIndices{F, S}())
-        rᵢ = Posiform{VI, T}()
+        rᵢ = ℱ{T}()
 
         Aᵢ = MOI.get(ℳ, MOI.ConstraintFunction(), cᵢ)
         bᵢ = MOI.get(ℳ, MOI.ConstraintSet(), cᵢ).lower
@@ -482,6 +511,8 @@ function toqubo_constraint!(ℳ::MOI.ModelLike, 𝒬::QUBOModel{T}, F::SAF{T}, S
     end
 end
 
+function toqubo_constraint!(::MOI.ModelLike, ::QUBOModel{T}, ::Type{<: VI}, ::Type{<: ZO}) where {T} end
+
 # -*- From ModelLike to QUBO -*-
 function toqubo(T::Type{<: Any}, ℳ::MOI.ModelLike; sampler::Union{Nothing, AbstractSampler}=nothing)
     # -*- Support Validation -*-
@@ -517,9 +548,9 @@ function toqubo(T::Type{<: Any}, ℳ::MOI.ModelLike; sampler::Union{Nothing, Abs
     a = []
     b = zero(T)
 
-    ℍ = (𝒬.ℍ₀ + 𝒬.ℍᵢ) # Total Energy
+    𝒬.ℍ = 𝒬.ℍ₀ + ρ * 𝒬.ℍᵢ # Total Energy
 
-    for (ω, c) in ℍ
+    for (ω, c) in 𝒬.ℍ
         n = length(ω)
 
         if n == 0

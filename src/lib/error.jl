@@ -1,5 +1,7 @@
-struct QUBOError <: Exception end
+struct CustomError <: Exception
+    msg::String
+end
 
-function Base.show(io::IO, ::QUBOError)
-    print(io, "QUBOError")
+function Base.showerror(io::IO, e::CustomError)
+    print(io, e.msg)
 end

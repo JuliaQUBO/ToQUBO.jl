@@ -6,7 +6,7 @@ export PseudoBooleanFunction, PBF
 export copy, isempty, length, iterate, getindex, setindex!
 export +, -, *, /, ^, ==, !=, ===, !==
 export convert, zero, one, print
-export qubo, ising
+export qubo, ising, reduce_degree, Δ, δ
 
 
 """
@@ -17,22 +17,16 @@ export qubo, ising
 struct PseudoBooleanFunction{S <: Any, T <: Number} <: AbstractDict{Set{S}, T}
     layers::Dict{Int, Dict{Set{S}, T}}
     degvec::Vector{Int}
-    varmap::Dict{S, Int}
 
-    function PseudoBooleanFunction{S, T}(
-        layers::Dict{Int, Dict{Set{S}, T}},
-        degvec::Vector{Int},
-        varmap::Dict{S, Int}) where {S, T}
-
-        return new{S, T}(layers, degvec, varmap)
+    function PseudoBooleanFunction{S, T}(layers::Dict{Int, Dict{Set{S}, T}}, degvec::Vector{Int}) where {S, T}
+        return new{S, T}(layers, degvec)
     end
 
     # -*- Empty -*-
     function PseudoBooleanFunction{S, T}() where {S, T}
         return new{S, T}(
             Dict{Int, Dict{Set{S}, T}}(),
-            Vector{Int}(),
-            Dict{S, T}()
+            Vector{Int}()
         )
     end
 
@@ -43,8 +37,7 @@ struct PseudoBooleanFunction{S <: Any, T <: Number} <: AbstractDict{Set{S}, T}
         else
             return new{S, T}(
                 Dict{Int, Dict{Set{S}, T}}(0 => Dict{Set{S}, T}(Set{S}() => c)),
-                Vector{Int}([0]),
-                Dict{S, Int}()
+                Vector{Int}([0])
             )
         end
         return
@@ -58,7 +51,6 @@ struct PseudoBooleanFunction{S <: Any, T <: Number} <: AbstractDict{Set{S}, T}
     # -*- Pairs (Sets) -*-
     function PseudoBooleanFunction{S, T}(ps::Pair{Set{S}, T}...) where {S, T}
         layers = Dict{Int, Dict{Set{S}, T}}()
-        varset = Set{S}()
 
         for (ω, c) in ps
             if c === zero(T)
@@ -66,7 +58,6 @@ struct PseudoBooleanFunction{S <: Any, T <: Number} <: AbstractDict{Set{S}, T}
             end
             
             n = length(ω)
-            union!(varset, ω)
 
             if haskey(layers, n)
                 layer = layers[n]
@@ -89,14 +80,12 @@ struct PseudoBooleanFunction{S <: Any, T <: Number} <: AbstractDict{Set{S}, T}
         end
         
         degvec = Vector{Int}(sort(collect(keys(layers))))
-        varmap = Dict{S, Int}(v => i for (i, v) in enumerate(sort(collect(varset))))
-        return new{S, T}(layers, degvec, varmap)
+        return new{S, T}(layers, degvec)
     end
 
     # -*- Dictionary -*-
     function PseudoBooleanFunction{S, T}(D::Dict{Set{S}, T}) where {S, T}
         layers = Dict{Int, Dict{Set{S}, T}}()
-        varset = Set{S}()
 
         for (ω, c) in D
             if c === zero(T)
@@ -104,7 +93,6 @@ struct PseudoBooleanFunction{S <: Any, T <: Number} <: AbstractDict{Set{S}, T}
             end
 
             n = length(ω)
-            union!(varset, ω)
 
             if haskey(layers, n)
                 layers[n][ω] = c
@@ -114,8 +102,7 @@ struct PseudoBooleanFunction{S <: Any, T <: Number} <: AbstractDict{Set{S}, T}
         end
         
         degvec = Vector{Int}(sort(collect(keys(layers))))
-        varmap = Dict{S, Int}(v => i for (i, v) in enumerate(sort(collect(varset))))
-        return new{S, T}(layers, degvec, varmap)
+        return new{S, T}(layers, degvec)
     end
 end
 
@@ -135,8 +122,7 @@ end
 function Base.copy(p::PBF{S, T})::PBF{S, T} where {S, T}
     layers = Dict{Int, Dict{Set{S}, T}}(i => copy(layer) for (i, layer) in p.layers)
     degvec = copy(p.degvec)
-    varmap = copy(p.varmap)
-    return PBF{S, T}(layers, degvec, varmap)
+    return PBF{S, T}(layers, degvec)
 end
 
 # -*- Iterator & Length -*-
@@ -201,36 +187,36 @@ function Base.getindex(p::PBF{S, T}, i::S)::T where {S, T}
 end
 
 # -*- Indexing: Set -*-
-function Base.setindex!(p::PBF{S, T}, c::T, i::Set{S}) where {S, T}
-    n = length(i)
+function Base.setindex!(p::PBF{S, T}, c::T, ω::Set{S}) where {S, T}
+    n = length(ω)
     if haskey(p.layers, n)
         layer = p.layers[n]
-        if haskey(layer, i) && c === zero(T)
-            delete!(layer, i)
+        if haskey(layer, ω) && c === zero(T)
+            delete!(layer, ω)
             if isempty(layer)
                 delete!(p.layers, n)
                 deleteat!(p.degvec, searchsorted(p.degvec, n))
             end
         elseif c !== zero(T)
-            layer[i] = c
+            layer[ω] = c
         end
     elseif c !== zero(T)
-        p.layers[n] = Dict{Set{S}, T}(i => c)
-        i = searchsorted(p.degvec, n)
-        if length(i) === 0
+        p.layers[n] = Dict{Set{S}, T}(ω => c)
+        ω = searchsorted(p.degvec, n)
+        if length(ω) === 0
             push!(p.degvec, n)
         else
-            insert!(p.degvec, i..., n)
+            insert!(p.degvec, ω..., n)
         end
     end
 end
 
-function Base.setindex!(p::PBF{S, T}, c::T, i::Vector{S}) where {S, T}
-    setindex!(p, Set{S}(i), c)
+function Base.setindex!(p::PBF{S, T}, c::T, v::Vector{S}) where {S, T}
+    setindex!(p, c, Set{S}(v))
 end
 
 function Base.setindex!(p::PBF{S, T}, c::T, i::S) where {S, T}
-    setindex!(p, Set{S}([i]), c)
+    setindex!(p, c, Set{S}([i]))
 end
 
 # -*- Properties: Degree & Varmap -*-
@@ -242,8 +228,8 @@ function degree(p::PBF)::Int
     end
 end
 
-function varmap(p::PBF)
-    return p.varmap
+function varmap(p::PBF{S, T}) where {S, T}
+    return Dict{S, Int}(v => i for (i, v) in enumerate(sort(collect(reduce(union, keys(p))))))
 end
 
 # -*- Comparison: (==, !=, ===, !==)
@@ -359,9 +345,9 @@ end
 function Base.:(^)(p::PBF{S, T}, n::Int)::PBF{S, T} where {S, T}
     if n < 0
         error(DivideError, ": Can't divide by Pseudo-boolean function.")
-    elseif n == 0
+    elseif n === 0
         return one(PBF{S, T})
-    elseif n == 1
+    elseif n === 1
         return copy(p)
     else 
         r = PBF{S, T}(one(T))
@@ -436,7 +422,7 @@ function δ(p::PBF{S, T}; bound::Symbol=:loose)::T where{S, T}
     if bound === :loose
         return one(T)
     elseif bound === :tight
-        error("Not Implemented: See [1] sec 5.1.1 Majorization")
+        error("Not Implemented")
     else
         error(ArgumentError, ": Unknown bound thightness $bound")
     end

@@ -56,7 +56,17 @@ function MOI.get(model::QUBOModel{T}, ::MOI.VariablePrimal, xᵢ::MOI.VariableIn
 end
 
 # -*- The copy_to interface -*-
-function MOI.copy_to(sampler::AbstractSampler{V, S, T}, model::QUBOModel{T}) where {V, S, T}
-    ## MOI.copy_to(sampler, model.model)
-    error("NotImplementedError")
+function MOI.copy_to(sampler::AbstractSampler{T}, model::QUBOModel{T}) where {T}
+    
 end
+
+function MOI.copy_to(sampler::AbstractAnnealer, model::MOI.ModelLike)
+    if isqubo(model)
+        MOI.copy_to(sampler, toqubo(model))
+    else
+        throw()
+    end
+end
+
+# -*- Variable Ordering -*-
+Base.isless(u::MOI.VariableIndex, v::MOI.VariableIndex) = isless(u.value, v.value)

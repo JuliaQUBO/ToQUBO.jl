@@ -1,5 +1,6 @@
-# -*- Python Simmulated Annealing -*-
+using PyCall
 
+# -*- Python Simmulated Annealing -*-
 py"""
 import time
 import neal
