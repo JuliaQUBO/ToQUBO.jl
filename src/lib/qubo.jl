@@ -7,7 +7,7 @@ const ℱ{T} = PBF{VI, T}
 
 # -*- Virtual Variables -*-
 include("./varmap.jl")
-using .VarMap
+using .VarMap: VV
 
 # -*- Aliases -*-
 # Bind VirtualVar{S, T}, S to MOI.VariableIndex
@@ -36,7 +36,7 @@ mutable struct QUBOModel{T <: Any} <: MOIU.AbstractModelLike{T}
     slack::Int
     
     # - Underlying Optimizer
-    sampler::Union{Nothing, AbstractSampler{T}}
+    optimizer::Union{Nothing, MOI.AbstractOptimizer}
 
     # Energy
     ℍ₀::ℱ{T} # Objective
@@ -55,7 +55,7 @@ mutable struct QUBOModel{T <: Any} <: MOIU.AbstractModelLike{T}
     # - RawStatusString
     raw_status_str::Union{Nothing, String}
 
-    function QUBOModel{T}(sampler::Union{Nothing, AbstractSampler{T}}=nothing) where T
+    function QUBOModel{T}(sampler::Union{Nothing, MOI.AbstractOptimizer}=nothing) where T
         return new{T}(
             MOIU.Model{T}(),
             Vector{𝒱{T}}(),
@@ -63,7 +63,7 @@ mutable struct QUBOModel{T <: Any} <: MOIU.AbstractModelLike{T}
             Dict{VI, 𝒱{T}}(),
             Dict{Set{VI}, ℱ{T}}(),
             0,
-            sampler,
+            optimizer,
             ℱ{T}(),
             ℱ{T}(),
             ℱ{T}(),
@@ -77,8 +77,8 @@ mutable struct QUBOModel{T <: Any} <: MOIU.AbstractModelLike{T}
 end
 
 # -*- Default -*-
-function QUBOModel(sampler::AbstractSampler{Float64})
-    return QUBOModel{Float64}(sampler)
+function QUBOModel(optimizer::MOI.AbstractOptimizer)
+    return QUBOModel{Float64}(optimizer)
 end
 
 function QUBOModel()
@@ -514,14 +514,14 @@ end
 function toqubo_constraint!(::MOI.ModelLike, ::QUBOModel{T}, ::Type{<: VI}, ::Type{<: ZO}) where {T} end
 
 # -*- From ModelLike to QUBO -*-
-function toqubo(T::Type{<: Any}, ℳ::MOI.ModelLike; sampler::Union{Nothing, AbstractSampler}=nothing)
+function toqubo(T::Type{<: Any}, ℳ::MOI.ModelLike; optimizer::Union{Nothing, MOI.AbstractOptimizer}=nothing)
     # -*- Support Validation -*-
     supported_objective(ℳ)
     supported_constraints(ℳ)
 
     # -*- Create QUBO Model -*-
     # This allows one to use MOI.copy_to afterwards
-    𝒬 = QUBOModel{T}(sampler)
+    𝒬 = QUBOModel{T}(optimizer)
 
     toqubo_variables!(ℳ, 𝒬)
 
@@ -547,6 +547,8 @@ function toqubo(T::Type{<: Any}, ℳ::MOI.ModelLike; sampler::Union{Nothing, Abs
     Q = []
     a = []
     b = zero(T)
+
+    ρ = Δ(𝒬.ℍ₀) / δ(𝒬.ℍᵢ)
 
     𝒬.ℍ = 𝒬.ℍ₀ + ρ * 𝒬.ℍᵢ # Total Energy
 
@@ -574,6 +576,6 @@ function toqubo(T::Type{<: Any}, ℳ::MOI.ModelLike; sampler::Union{Nothing, Abs
 end
 
 # -*- Default Behavior -*-
-function toqubo(ℳ::MOI.ModelLike; sampler::Union{Nothing, AbstractSampler}=nothing)
-    return toqubo(Float64, ℳ, sampler=sampler)
+function toqubo(ℳ::MOI.ModelLike; optimizer::Union{Nothing, MOI.AbstractOptimizer}=nothing)
+    return toqubo(Float64, ℳ, optimizer=optimizer)
 end

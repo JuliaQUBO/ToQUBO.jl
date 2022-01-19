@@ -23,24 +23,24 @@ const VI = MOI.VariableIndex
 const CI = MOI.ConstraintIndex
 const ZO = MOI.ZeroOne
 
-# ::: Exports :::
+# -*- :: Exports :: -*-
 export QUBOModel, toqubo, isqubo
 export PBO
 export SimulatedAnnealer, QuantumAnnealer
 
-# ::: Library Imports :::
+# -*- :: Library Imports :: -*-
 
-# -*- Library: Samplers
-include("./lib/sample/anneal.jl")
-using .Anneal
+# -*- Library: Samplers -*-
+include("./lib/anneal/anneal.jl")
+using .Anneal: AbstractAnnealer, SimulatedAnnealer, QuantumAnnealer
 
 # -*- Library: QUBO Model -*-
 include("./lib/qubo.jl")
 
-# -*- MOI Stuff -*-
+# -*- Library: MOI Stuff -*-
 include("./lib/moi.jl")
 
-# -*- IO, Printing & Plots -*-
+# -*- Library: IO, Printing & Plots? -*-
 include("./lib/io.jl")
 
 end # module
