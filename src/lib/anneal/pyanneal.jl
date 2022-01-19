@@ -1,7 +1,24 @@
 using PyCall
 
 # -*- Python Simulated Annealing -*-
-pyimport_conda("neal", "neal")
+try
+    pyimport("neal")
+catch 𝕖
+    if isa(𝕖, PyCall.PyError)
+        @warn """
+        D-Wave Neal is not installed.
+        Running `pip install dwave-neal`
+        """
+        using Conda
+        Conda.pip_interop(true, Conda.ROOTENV)
+        Conda.pip("install", "dwave-neal", Conda.ROOTENV)
+    else
+        rethrow()
+    end
+end
+
+const py_simulated_annealing = PyNULL()
+const py_quantum_annealing = PyNULL()
 
 function __init__()
     py"""
@@ -45,6 +62,9 @@ function __init__()
         '''
             1. Connect to D-Wave Leap API
         '''
-        raise NotImplementedError()
+        raise NotImplementedError("Quantum Host Connection is not Available.")
     """
+
+    copy!(py_simulated_annealing, py"py_simulated_annealing")
+    copy!(py_quantum_annealing, py"py_quantum_annealing")
 end

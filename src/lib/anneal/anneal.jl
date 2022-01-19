@@ -172,7 +172,7 @@ mutable struct SimulatedAnnealer{T} <: AbstractAnnealer{T}
 end
 
 function anneal(annealer::SimulatedAnnealer{T}; num_reads::Int=1_000, num_sweeps::Int=1_000, kws...) where {T}
-    return py"py_simulated_annealing"(
+    return py_simulated_annealing(
         annealer.Q,
         annealer.c;
         num_reads=num_reads,
@@ -212,7 +212,7 @@ mutable struct QuantumAnnealer{T} <: AbstractAnnealer{T}
 end
 
 function anneal(annealer::QuantumAnnealer{T}; num_reads::Int=1_000, num_sweeps::Int=1_000, kws...) where {T}
-    return py"py_quantum_annealing"(
+    return py_quantum_annealing(
         annealer.Q,
         annealer.c;
         num_reads=num_reads,
