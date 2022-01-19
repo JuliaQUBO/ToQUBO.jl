@@ -8,9 +8,9 @@ Q = Dict{Tuple{Int, Int}, Float64}(
 
 c = 1.0
 
+# -*- Simulated Annealing -*-
 annealer = SimulatedAnnealer{Float64}(Q, c)
 
-# -*- Arithmetic: (+) -*-
 @test !MOI.is_empty(annealer)
 
 MOI.optimize!(annealer)
