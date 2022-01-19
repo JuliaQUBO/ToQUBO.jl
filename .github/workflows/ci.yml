@@ -1,23 +1,34 @@
 name: CI
 on:
   push:
-    branches: [master]
+    branches:
+      - master
   pull_request:
     types: [opened, synchronize, reopened]
 jobs:
   test:
-    name: Julia runtests.jl
-    runs-on: self-hosted
+    name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }} - ${{ github.event_name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - version: '1'
+            os: ubuntu-latest
+            arch: x64
+          - version: '1'
+            os: windows-latest
+            arch: x64
     steps:
       - uses: actions/checkout@v2
-      - uses: actions/setup-python@v2
-        with:
-          python-version: ['3.8', '3.9']
-          cache: 'pip'
-      - run: pip install -r requirements.txt
       - uses: julia-actions/setup-julia@v1
         with:
-            version: '1.7.0'
-      - uses: julia-actions/julia-buildpkg@master
-      - run: julia --color=yes --project -e "import Pkg; Pkg.test()"
-      - uses: actions/checkout@v2
+          version: ${{ matrix.version }}
+          arch: ${{ matrix.arch }}
+      - uses: julia-actions/julia-buildpkg@v1
+      - uses: julia-actions/julia-runtest@v1
+      # Future: Add Code Cov
+      # - uses: julia-actions/julia-processcoverage@v1
+      # - uses: codecov/codecov-action@v1
+      #   with:
+      #     file: lcov.info
