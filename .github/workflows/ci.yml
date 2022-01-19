@@ -19,8 +19,5 @@ jobs:
         with:
             version: '1.7.0'
       - uses: julia-actions/julia-buildpkg@master
-      
       - run: julia --color=yes --project -e "import Pkg; Pkg.test()"
-    steps:
       - uses: actions/checkout@v2
-      
