@@ -1,4 +1,7 @@
-# ::: Input Model Support :::
+# :: Input Model Support ::
+
+# :: QUBO Error ::
+include("error.jl")
 
 # -*- Objective Support -*-
 function supported_objective(model::MOI.ModelLike)
@@ -42,7 +45,7 @@ function MOI.optimize!(model::QUBOModel)
         error("QUBO Model 'sampler' is missing.")
     end
 
-    x, Q, c = qubo(model.E₀ + model.Eᵢ)
+    x, Q, c = qubo(model.ℍ)
 
     sample!(model.sampler, x, Q, c)
 end
@@ -56,15 +59,11 @@ function MOI.get(model::QUBOModel{T}, ::MOI.VariablePrimal, xᵢ::MOI.VariableIn
 end
 
 # -*- The copy_to interface -*-
-function MOI.copy_to(sampler::AbstractSampler{T}, model::QUBOModel{T}) where {T}
-    
-end
-
 function MOI.copy_to(sampler::AbstractAnnealer, model::MOI.ModelLike)
     if isqubo(model)
         MOI.copy_to(sampler, toqubo(model))
     else
-        throw()
+        throw(QUBOError("Model is not QUBO."))
     end
 end
 
