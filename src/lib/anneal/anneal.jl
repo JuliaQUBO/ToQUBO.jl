@@ -6,7 +6,7 @@ const MOI = MathOptInterface
 
 # -*- Exports -*-
 export Sample, SampleSet
-export AbstractAnnealer, SimulatedAnnealer, QuantumAnnealer
+export AbstractAnnealer, SimulatedAnnealer, QuantumAnnealer, Optimizer
 
 # -*- Samplers -*-
 # -*- Sample & SampleSet -*-
@@ -155,7 +155,7 @@ mutable struct SimulatedAnnealer{T} <: AbstractAnnealer{T}
     # MOI Stuff
     moi::AnnealerMOIOptions
 
-    function SimulatedAnnealer{T}(Q::Dict{Tuple{Int, Int}, T}, c::T) where {T}
+    function SimulatedAnnealer{T}(Q::Dict{Tuple{Int, Int}, T}, c::T = zero(T)) where {T}
         return new{T}(
             Q,
             c,
@@ -169,6 +169,15 @@ mutable struct SimulatedAnnealer{T} <: AbstractAnnealer{T}
     function SimulatedAnnealer{T}() where {T}
         return SimulatedAnnealer{T}(Dict{Tuple{Int, Int}, T}(), zero(T))
     end
+end
+
+# -*- Aliases -*-
+function SimulatedAnnealer(Q::Dict{Tuple{Int, Int}, Float64}, c::Float64 = 0.0)
+    return SimulatedAnnealer{Float64}(Q, c)
+end
+
+function SimulatedAnnealer()
+    return SimulatedAnnealer{Float64}()
 end
 
 function anneal(annealer::SimulatedAnnealer{T}; num_reads::Int=1_000, num_sweeps::Int=1_000, kws...) where {T}
@@ -222,5 +231,8 @@ end
 
 # -*- :: MathOptInterface :: -*-
 include("moi.jl")
+
+# -*- Optimizer -*-
+const Optimizer{T} = SimulatedAnnealer{T}
 
 end # module
