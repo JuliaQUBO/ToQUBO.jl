@@ -8,18 +8,31 @@ function __init__()
     try
         copy!(neal, pyimport("neal"))
     catch
+        if PyCall.conda
+            @warn """
+            D-Wave Neal is not installed.
+            Running `pip install dwave-neal` via conda
+            """
 
-        @warn """
-        D-Wave Neal is not installed.
-        Running `$(PyCall.python) -m pip install --user dwave-neal`
-        """
-        
-        cmd = Cmd([PyCall.python, "-m", "pip", "install", "--user", "dwave-neal"])
-        
-        ans = run(cmd)
+            try
+                Conda.pip_interop(true)
+                Conda.pip("install", "dwave-neal")
+            catch
+                throw(SystemError("Unable to install D-Wave Neal via pip (conda)", ans.exitcode))
+            end
+        else
+            @warn """
+            D-Wave Neal is not installed.
+            Running `$(PyCall.python) -m pip install dwave-neal`
+            """
 
-        if ans.exitcode != 0
-            throw(SystemError("Unable to install D-Wave Neal via pip", ans.exitcode))
+            cmd = Cmd([PyCall.python, "-m", "pip", "install", "dwave-neal"])
+            
+            ans = run(cmd)
+
+            if ans.exitcode != 0
+                throw(SystemError("Unable to install D-Wave Neal via pip", ans.exitcode))
+            end
         end
 
         copy!(neal, pyimport("neal"))
