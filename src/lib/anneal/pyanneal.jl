@@ -2,8 +2,7 @@ using PyCall
 using Conda
 
 # -*- Python Simulated Annealing -*-
-const py_simulated_annealing = PyNULL()
-const py_quantum_annealing = PyNULL()
+const neal = PyNULL()
 
 function __init__()
     try
@@ -13,54 +12,26 @@ function __init__()
         D-Wave Neal is not installed.
         Running `pip install dwave-neal`
         """
-        Conda.pip_interop(true, Conda.ROOTENV)
-        Conda.pip("install", "dwave-neal", Conda.ROOTENV)
+        Conda.pip_interop(true)
+        Conda.pip("install", "dwave-neal")
     end
 
-    py"""
-    import time
-    import neal
+    copy!(neal, pyimport("neal"))
+end
 
-    def py_simulated_annealing(Q, c = 0.0, **params):
-        '''
-        Parameters
-        ----------
-        Q: dict[tuple, float]
+function py_simulated_annealing(Q::Dict{Tuple{Int, Int}, T}, c::T; params...) where {T}
+    sampler = neal.SimulatedAnnealingSampler()
 
-        c: float = 0.0
-            Base energy (QUBO constant term)
+    t₀ = time()
+    results = sampler.sample_qubo(Q; params...)
+    t₁ = time()
 
-        Returns
-        -------
-        samples: list[tuple[list[int], int, float]]
-            List of sample tuples
-                states: list[int]
-                    Binary states
-                amount: int
-                    Sampling frequency for the given state
-                energy: float
-                    Total energy for the given state
-        delta_t: float
-            Annealing (Sampling) Time
-        '''
-        sampler = neal.SimulatedAnnealingSampler()
-        
-        t_0 = time.perf_counter()
-        results = sampler.sample_qubo(Q, **params)
-        t_1 = time.perf_counter()
-        
-        samples = [(list(map(int, s)), int(n), float(e)) for (s, e, n) in results.record]
-        delta_t = t_1 - t_0
+    δt = t₁ - t₀
+    samples = [([convert(Int, sᵢ) for sᵢ ∈ s], convert(Int, n), convert(Float64, e)) for (s, e, n) in results.record]
 
-        return (samples, delta_t)
+    return (samples, δt)
+end
 
-    def py_quantum_annealing(Q, c = 0.0, **params):
-        '''
-            1. Connect to D-Wave Leap API
-        '''
-        raise NotImplementedError("Quantum Host Connection is not Available.")
-    """
-
-    copy!(py_simulated_annealing, py"py_simulated_annealing")
-    copy!(py_quantum_annealing, py"py_quantum_annealing")
+function py_quantum_annealing(Q::Dict{Tuple{Int, Int}, T}, c::T; params...) where {T}
+    throw(ErrorException("Quantum Host is Unavailable."))
 end
