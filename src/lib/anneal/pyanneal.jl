@@ -6,17 +6,23 @@ const neal = PyNULL()
 
 function __init__()
     try
-        pyimport("neal")
-    catch 𝕖
+        copy!(neal, pyimport("neal"))
+    catch
         @warn """
         D-Wave Neal is not installed.
-        Running `pip install dwave-neal`
+        Running `pip install --user dwave-neal`
         """
-        Conda.pip_interop(true)
-        Conda.pip("install", "dwave-neal")
-    end
+        sys = pyimport("sys")
+        cmd = Cmd([sys.executable, "-m", "pip", "install", "--user", "dwave-neal"])
+        
+        ans = run(cmd)
 
-    copy!(neal, pyimport("neal"))
+        if ans.exitcode != 0
+            throw(SystemError("Unable to install D-Wave Neal via pip", ans.exitcode))
+        end
+
+        copy!(neal, pyimport("neal"))
+    end
 end
 
 function py_simulated_annealing(Q::Dict{Tuple{Int, Int}, T}, c::T; params...) where {T}
