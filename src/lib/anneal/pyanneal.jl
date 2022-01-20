@@ -1,26 +1,22 @@
 using PyCall
+using Conda
 
 # -*- Python Simulated Annealing -*-
-try
-    pyimport("neal")
-catch 𝕖
-    if isa(𝕖, PyCall.PyError)
-        @warn """
-        D-Wave Neal is not installed.
-        Running `pip install dwave-neal`
-        """
-        using Conda
-        Conda.pip_interop(true, Conda.ROOTENV)
-        Conda.pip("install", "dwave-neal", Conda.ROOTENV)
-    else
-        rethrow()
-    end
-end
-
 const py_simulated_annealing = PyNULL()
 const py_quantum_annealing = PyNULL()
 
 function __init__()
+    try
+        pyimport("neal")
+    catch 𝕖
+        @warn """
+        D-Wave Neal is not installed.
+        Running `pip install dwave-neal`
+        """
+        Conda.pip_interop(true, Conda.ROOTENV)
+        Conda.pip("install", "dwave-neal", Conda.ROOTENV)
+    end
+
     py"""
     import time
     import neal
