@@ -8,12 +8,13 @@ function __init__()
     try
         copy!(neal, pyimport("neal"))
     catch
+
         @warn """
         D-Wave Neal is not installed.
-        Running `pip install --user dwave-neal`
+        Running `$(PyCall.python) -m pip install --user dwave-neal`
         """
-        sys = pyimport("sys")
-        cmd = Cmd([sys.executable, "-m", "pip", "install", "--user", "dwave-neal"])
+        
+        cmd = Cmd([PyCall.python, "-m", "pip", "install", "--user", "dwave-neal"])
         
         ans = run(cmd)
 
