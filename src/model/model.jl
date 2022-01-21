@@ -28,7 +28,7 @@ using .VarMap
 
 # -*- Alias: PBF -*-
 const ℱ{T} = PBO.PBF{VI, T} # ℱ = \scrF[tab]
-const 𝒱{T} = VV{VI, T}
+const 𝒱{T} = VirtualVariable{VI, T}
 
 # -*- Model: PreQUBOModel -*-
 MOIU.@model(PreQUBOModel,                                               # Name of model
@@ -74,6 +74,9 @@ mutable struct Model{T} <: MOIU.AbstractModelLike{T}
     # -*- Underlying Model -*-
     preq_model::PreQUBOModel{T}
     qubo_model::QUBOModel{T}
+
+    # - Underlying Optimizer
+    optimizer::Union{Nothing, MOI.AbstractOptimizer}
     
     ℍ₀::ℱ{T} # Objective
     ℍᵢ::Vector{ℱ{T}} # Constraints
@@ -90,13 +93,11 @@ mutable struct Model{T} <: MOIU.AbstractModelLike{T}
     # - For PBF Reduction
     cache::Dict{Set{VI}, ℱ{T}}
 
-    # - Underlying Optimizer
-    optimizer::Union{Nothing, MOI.AbstractOptimizer}
-
     function Model{T}() where {T}
         return new{T}(
             PreQUBOModel{T}(),
             QUBOModel{T}(),
+            nothing,
             ℱ{T}(),
             Vector{ℱ{T}}(),
             ℱ{T}()

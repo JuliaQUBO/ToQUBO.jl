@@ -2,7 +2,7 @@ module VarMap
 
 export coefficient, coefficients, offset, isslack, source, target, name
 export isempty, length, iterate
-export VirtualVariable, VV
+export VirtualVariable
 
 @doc raw"""
     VirtualVariable{S, T}(
@@ -175,36 +175,33 @@ struct VirtualVariable{S <: Any, T <: Any}
     end
 end
 
-# -*- Alias -*-
-const VV{S, T} = VirtualVariable{S, T}
-
 # -*- Expansion Coefficients -*-
-function coefficient(v::VV, i::Int)
+function coefficient(v::VirtualVariable, i::Int)
     return v.c[i]
 end
 
-function coefficients(v::VV)
+function coefficients(v::VirtualVariable)
     return copy(v.c)
 end
 
-function offset(v::VV)
+function offset(v::VirtualVariable)
     return v.α
 end
 
 # -*- Iterator & Length -*-
-function Base.isempty(::VV)::Bool
+function Base.isempty(::VirtualVariable)
     return false
 end
 
-function Base.length(v::VV)::Int
+function Base.length(v::VirtualVariable)
     return v.bits
 end
 
-function Base.iterate(v::VV{S, T})::Tuple{Tuple{S, T}, Int} where {S, T}
+function Base.iterate(v::VirtualVariable{S, T}) where {S, T}
     return ((v.target[1], coefficient(v, 1)), 2)
 end
 
-function Base.iterate(v::VV{S, T}, i::Int)::Union{Nothing, Tuple{Tuple{S, T}, Int}} where {S, T}
+function Base.iterate(v::VirtualVariable{S, T}, i::Int) where {S, T}
     if i > v.bits
         return nothing
     else
@@ -213,19 +210,19 @@ function Base.iterate(v::VV{S, T}, i::Int)::Union{Nothing, Tuple{Tuple{S, T}, In
 end
 
 # -*- Variable Information -*-
-function isslack(v::VV)
+function isslack(v::VirtualVariable)
     return v.source === nothing
 end
 
-function name(v::VV)
+function name(v::VirtualVariable)
     return v.name
 end
 
-function source(v::VV{S, T}) where {S, T}
+function source(v::VirtualVariable{S, T}) where {S, T}
     return v.source
 end
 
-function target(v::VV{S, T}) where {S, T}
+function target(v::VirtualVariable{S, T}) where {S, T}
     return v.target
 end
 

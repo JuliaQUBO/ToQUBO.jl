@@ -1,4 +1,4 @@
-const 𝒱{T} = VV{VI, T}
+const 𝒱{T} = VirtualVariable{VI, T}
 
 struct VirtualModel{T <: Any}
     varvec::Vector{𝒱{T}}
