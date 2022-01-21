@@ -27,20 +27,23 @@ const ZO = MOI.ZeroOne
 export QUBOModel, toqubo, isqubo
 export PBO
 export SimulatedAnnealer, QuantumAnnealer
+export VirtualVariable, VV, coefficient, coefficients, offset, isslack, source, target, name
 
 # -*- :: Library Imports :: -*-
 
 # -*- Library: Samplers -*-
 include("./lib/anneal/anneal.jl")
-using .Anneal: AbstractAnnealer, SimulatedAnnealer, QuantumAnnealer
+using .Anneal
 
-# -*- Library: QUBO Model -*-
-include("./lib/qubo.jl")
+include("./lib/varmap.jl")
+using .VarMap
 
-# -*- Library: MOI Stuff -*-
-include("./lib/moi.jl")
+include("./lib/pbo.jl")
+
+# -*- Model: QUBO -*-
+include("./model/model.jl")
 
 # -*- Library: IO, Printing & Plots? -*-
-include("./lib/io.jl")
+# include("./lib/io.jl")
 
 end # module

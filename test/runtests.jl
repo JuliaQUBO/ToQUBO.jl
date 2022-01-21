@@ -6,6 +6,9 @@ using ToQUBO
 # -*- Import : MOI -*-
 import MathOptInterface
 const MOI = MathOptInterface
+const MOIU = MOI.Utilities
+
+const VI = MOI.VariableIndex
 
 function tests()
     @testset "GitHub CI Workflow" begin
@@ -17,9 +20,14 @@ function tests()
         include("./lib/pbo.jl")
     end
 
-    # -*- Tests: Pseudo-Boolean Optimization -*-
+    # -*- Tests: Annealing -*-
     @testset "Annealing Module" begin
         include("./lib/anneal.jl")
+    end
+
+    # -*- Tests: Varmap
+    @testset "VarMap" begin
+        include("./lib/varmap.jl")
     end
 
     # -*- Tests: QUBO Model Assembly -*-
