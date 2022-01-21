@@ -69,11 +69,3 @@ end
 
 # -*- Variable Ordering -*-
 Base.isless(u::MOI.VariableIndex, v::MOI.VariableIndex) = isless(u.value, v.value)
-
-function MOI.optimize!(annealer::AbstractAnnealer, model::MOI.ModelLike)
-    qubo_model = toqubo(model)
-
-    
-    
-
-end
