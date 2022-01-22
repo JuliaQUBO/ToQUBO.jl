@@ -42,6 +42,7 @@ include("./lib/pbo.jl")
 
 # -*- Model: QUBO -*-
 include("./model/model.jl")
+using .QUBO: toqubo
 
 # -*- Library: IO, Printing & Plots? -*-
 # include("./lib/io.jl")

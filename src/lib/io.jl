@@ -1,4 +1,6 @@
 # -*- IO -*-
+# -*- Variable Ordering -*-
+Base.isless(u::MOI.VariableIndex, v::MOI.VariableIndex) = isless(u.value, v.value)
 
 # -*- Subscript: Generic -*-
 function subscript(i::Int; var::Union{Symbol, Nothing}=nothing, par::Bool=false)

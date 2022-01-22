@@ -1,4 +1,10 @@
 # -*- QUBO Validation -*-
+
+×(x::S, y::S) where {S} = Set{S}([x, y])
+×(x::S, y::Set{S}) where {S} = union!(y, x)
+×(x::Set{S}, y::S) where {S} = union!(x, y)
+×(x::Set{S}, y::Set{S}) where {S} = union!(x, y)
+
 @doc raw"""
     isqubo(T::Type{<:Any}, model::MOI.ModelLike)
     isqubo(model::MOI.ModelLike)
@@ -46,19 +52,20 @@ function isqubo(model::MOI.ModelLike)
     return isqubo(Float64, model)
 end
 
-isqubo(::Model) = true
 isqubo(::QUBOModel) = true
+isqubo(::VirtualQUBOModel) = true
+
 
 # -*- toqubo: MOI.ModelLike -> QUBO.Model -*-
 function toqubo(T::Type{<: Any}, model::MOI.ModelLike)
-    qubo_model = Model{T}()
+    virt_model = VirtualQUBOModel{T}()
 
     # -*- Copy To: PreQUBOModel + Trigger Bridges -*-
-    MOI.copy_to(qubo_model.preq_model, model)
+    MOI.copy_to(virt_model.preq_model, model)
 
-    toqubo!(qubo_model.qubo_model, qubo_model.preq_model)
-
-    return qubo_model
+    toqubo!(virt_model)
+ 
+    return virt_model
 end
 
 function toqubo(model::MOI.ModelLike)
@@ -71,42 +78,38 @@ end
 
 """
 """
-function toqubo!(𝒬::QUBOModel{T}, ℳ::PreQUBOModel{T}) where {T}
+function toqubo!(ℳ::VirtualQUBOModel{T}) where {T}
 
     # -*- Support Validation -*-
-    supported_objective(ℳ)
-    supported_constraints(ℳ)
+    # supported_objective(ℳ)
+    # supported_constraints(ℳ)
 
     # :: Problem Variables ::
-    toqubo_variables!(ℳ, 𝒬)
+    toqubo_variables!(ℳ)
 
     # :: Objective Analysis ::
     F = MOI.get(ℳ, MOI.ObjectiveFunctionType())
 
-    toqubo_objective!(ℳ, 𝒬, F)
+    toqubo_objective!(ℳ, F)
 
     # :: Constraint Analysis ::
 
-    for (F, S) in MOI.get(ℳ, MOI.ListOfConstraints())
-        toqubo_constraint!(ℳ, 𝒬, F, S)
+    for (F, S) in MOI.get(ℳ, MOI.ListOfConstraintTypesPresent())
+        toqubo_constraint!(ℳ, F, S)
     end
 
-    # -*- Objective Function Assembly -*-
-    MOI.set(
-        𝒬.model,
-        MOI.ObjectiveSense(),
-        MOI.get(ℳ, MOI.ObjectiveSense())
-    )
+    toqubo_sense!(ℳ)
 
-    Q = []
-    a = []
+    # -*- Objective Function Assembly -*-
+    Q = Vector{SQT{T}}()
+    a = Vector{SAT{T}}()
     b = zero(T)
 
-    ρ = Δ(𝒬.ℍ₀) / δ(𝒬.ℍᵢ)
+    ρ = Δ(ℳ.ℍ₀)
 
-    𝒬.ℍ = 𝒬.ℍ₀ + ρ * 𝒬.ℍᵢ # Total Energy
+    ℳ.ℍ = ℳ.ℍ₀ + sum(ρ * ℍᵢ for ℍᵢ ∈ ℳ.ℍᵢ)  # Total Energy
 
-    for (ω, c) in 𝒬.ℍ
+    for (ω, c) in ℳ.ℍ
         n = length(ω)
 
         if n == 0
@@ -121,16 +124,20 @@ function toqubo!(𝒬::QUBOModel{T}, ℳ::PreQUBOModel{T}) where {T}
     end
 
     MOI.set(
-        𝒬.model,
+        ℳ.qubo_model,
         MOI.ObjectiveFunction{SQF{T}}(),
         SQF{T}(Q, a, b)
     )
 
-    return 𝒬   
+    return ℳ
+end
+
+function toqubo_sense!(ℳ::VirtualQUBOModel)
+    MOI.set(ℳ.qubo_model, MOI.ObjectiveSense(), MOI.get(ℳ, MOI.ObjectiveSense()))
 end
 
 # -*- Variables -*-
-function toqubo_variables!(ℳ::PreQUBOModel{T}, 𝒬::QUBOModel{T}) where {T}
+function toqubo_variables!(ℳ::VirtualQUBOModel{T}) where {T}
     # ::: Variable Analysis :::
 
     # Set of all source variables
@@ -215,7 +222,7 @@ function toqubo_variables!(ℳ::PreQUBOModel{T}, 𝒬::QUBOModel{T}) where {T}
         else
             bits = 3 # TODO: Solve this bit-guessing magic???
             name = Symbol(MOI.get(ℳ, MOI.VariableName(), xᵢ))
-            expandℝ!(𝒬, xᵢ; α=aᵢ, β=bᵢ, name=name, bits=bits)
+            expandℝ!(ℳ, xᵢ; α=aᵢ, β=bᵢ, name=name, bits=bits)
         end
     end
 
@@ -225,29 +232,28 @@ function toqubo_variables!(ℳ::PreQUBOModel{T}, 𝒬::QUBOModel{T}) where {T}
             error("Unbounded variable $xᵢ ∈ ℤ")
         else
             name = Symbol(MOI.get(ℳ, MOI.VariableName(), xᵢ))
-            expandℤ!(𝒬, xᵢ; α=aᵢ, β=bᵢ, name=name)
+            expandℤ!(ℳ, xᵢ; α=aᵢ, β=bᵢ, name=name)
         end
     end
 
     # -*- Mirror Boolean Variables 😄 -*-
     for xᵢ in 𝔹
         name = Symbol(MOI.get(ℳ, MOI.VariableName(), xᵢ))
-        mirror𝔹!(𝒬, xᵢ; name=name)
+        mirror𝔹!(ℳ, xᵢ; name=name)
     end
 end
 
 # -*- Objective Function -*-
-function toqubo_objective!(ℳ::PreQUBOModel{T}, 𝒬::QUBOModel{T}, F::Type{<:VI}) where {T}
+function toqubo_objective!(ℳ::VirtualQUBOModel{T}, F::Type{<:VI}) where {T}
     # -*- Single Variable -*-
     xᵢ = MOI.get(ℳ, MOI.ObjectiveFunction{F}())
-    vᵢ = 𝒬.source[xᵢ]
 
-    for (xᵢⱼ, cᵢⱼ) in vᵢ
-        𝒬.ℍ₀[xᵢⱼ] += cᵢⱼ
+    for (yᵢ, cᵢ) ∈ ℳ.source[xᵢ]
+        ℳ.ℍ₀[yᵢ] += cᵢ
     end
 end
 
-function toqubo_objective!(ℳ::PreQUBOModel{T}, 𝒬::QUBOModel{T}, F::Type{<:SAF{T}}) where {T}
+function toqubo_objective!(ℳ::VirtualQUBOModel{T}, F::Type{<:SAF{T}}) where {T}
     # -*- Affine Terms -*-
     f = MOI.get(ℳ, MOI.ObjectiveFunction{F}())
 
@@ -255,18 +261,16 @@ function toqubo_objective!(ℳ::PreQUBOModel{T}, 𝒬::QUBOModel{T}, F::Type{<:S
         cᵢ = aᵢ.coefficient
         xᵢ = aᵢ.variable
 
-        vᵢ = 𝒬.source[xᵢ]
-
-        for (xᵢⱼ, dᵢⱼ) in vᵢ
-            𝒬.ℍ₀[xᵢⱼ] += cᵢ * dᵢⱼ
+        for (yᵢ, dᵢ) ∈ ℳ.source[xᵢ]
+            ℳ.ℍ₀[yᵢ] += cᵢ * dᵢ
         end
     end
 
     # -*- Constant -*-
-    𝒬.ℍ₀ += f.constant
+    ℳ.ℍ₀ += f.constant
 end
 
-function toqubo_objective!(ℳ::PreQUBOModel{T}, 𝒬::QUBOModel{T}, F::Type{<:SQF{T}}) where {T}
+function toqubo_objective!(ℳ::VirtualQUBOModel{T}, F::Type{<:SQF{T}}) where {T}
     # -*- Affine Terms -*-
     f = MOI.get(ℳ, MOI.ObjectiveFunction{F}())
 
@@ -274,15 +278,10 @@ function toqubo_objective!(ℳ::PreQUBOModel{T}, 𝒬::QUBOModel{T}, F::Type{<:S
     for Qᵢ in f.quadratic_terms
         cᵢ = Qᵢ.coefficient
         xᵢ = Qᵢ.variable_1
-        yᵢ = Qᵢ.variable_2
+        xⱼ = Qᵢ.variable_2
 
-        uᵢ = 𝒬.source[xᵢ]
-        vᵢ = 𝒬.source[yᵢ]
-
-        for (xᵢⱼ, dᵢⱼ) in uᵢ
-            for (yᵢₖ, dᵢₖ) in vᵢ
-                𝒬.ℍ₀[xᵢⱼ × yᵢₖ] += cᵢ * dᵢⱼ * dᵢₖ
-            end
+        for (yᵢ, dᵢ) ∈ ℳ.source[xᵢ], (yⱼ, dⱼ) ∈ ℳ.source[xⱼ]
+            ℳ.ℍ₀[yᵢ × yⱼ] += cᵢ * dᵢ * dⱼ
         end
     end
 
@@ -290,22 +289,20 @@ function toqubo_objective!(ℳ::PreQUBOModel{T}, 𝒬::QUBOModel{T}, F::Type{<:S
         cᵢ = aᵢ.coefficient
         xᵢ = aᵢ.variable
 
-        vᵢ = 𝒬.source[xᵢ]
-
-        for (xᵢⱼ, dᵢⱼ) in vᵢ
-            𝒬.ℍ₀[xᵢⱼ] += cᵢ * dᵢⱼ
+        for (yᵢ, dᵢ) in ℳ.source[xᵢ]
+            𝒬.ℍ₀[yᵢ] += cᵢ * dᵢ
         end
     end
 
     # -*- Constant -*-
-    𝒬.ℍ₀ += f.constant
+    ℳ.ℍ₀ += f.constant
 end
 
 # -*- Constraints -*-
-function toqubo_constraint!(ℳ::PreQUBOModel{T}, 𝒬::QUBOModel{T}, F::Type{<: SAF{T}}, S::Type{<:EQ{T}}) where {T}
+function toqubo_constraint!(ℳ::VirtualQUBOModel{T}, F::Type{<: SAF{T}}, S::Type{<:EQ{T}}) where {T}
     # -*- Scalar Affine Function: Ax = b 😄 -*-
     for cᵢ in MOI.get(ℳ, MOI.ListOfConstraintIndices{F, S}())
-        rᵢ = ℱ{T}()
+        𝕒ᵢ = ℱ{T}()
 
         Aᵢ = MOI.get(ℳ, MOI.ConstraintFunction(), cᵢ)
         bᵢ = MOI.get(ℳ, MOI.ConstraintSet(), cᵢ).value
@@ -314,28 +311,26 @@ function toqubo_constraint!(ℳ::PreQUBOModel{T}, 𝒬::QUBOModel{T}, F::Type{<:
             cⱼ = aⱼ.coefficient
             xⱼ = aⱼ.variable
 
-            vⱼ = 𝒬.source[xⱼ]
-
-            for (yⱼₖ, dⱼₖ) in vⱼ
-                rᵢ[yⱼₖ] += cⱼ * dⱼₖ
-            end 
+            for (yⱼ, dⱼ) ∈ ℳ.source[xⱼ]
+                𝕒ᵢ[yⱼ] += cⱼ * dⱼ
+            end
         end
 
-        qᵢ = reduce_degree(
-            (rᵢ - bᵢ) ^ 2;
-            cache=𝒬.cache,
-            slack=()->addslack(𝒬, 1, name=:w)
+        ℍᵢ = reduce_degree(
+            (𝕒ᵢ - bᵢ) ^ 2;
+            cache = ℳ.cache,
+            slack = () -> target(slack𝔹!(ℳ; name=:w))[1]
         )
 
-        𝒬.ℍᵢ += qᵢ
+        push!(ℳ.ℍᵢ, ℍᵢ)
     end
 end
 
-function toqubo_constraint!(ℳ::PreQUBOModel{T}, 𝒬::QUBOModel{T}, F::Type{<: SAF{T}}, S::Type{<:LT{T}}) where {T}
+function toqubo_constraint!(ℳ::VirtualQUBOModel{T}, F::Type{<: SAF{T}}, S::Type{<:LT{T}}) where {T}
     # -*- Scalar Affine Function: Ax <= b 🤔 -*-
 
     for cᵢ in MOI.get(ℳ, MOI.ListOfConstraintIndices{F, S}())
-        rᵢ = ℱ{T}()
+        𝕒ᵢ = ℱ{T}()
 
         Aᵢ = MOI.get(ℳ, MOI.ConstraintFunction(), cᵢ)
         bᵢ = MOI.get(ℳ, MOI.ConstraintSet(), cᵢ).upper
@@ -344,34 +339,26 @@ function toqubo_constraint!(ℳ::PreQUBOModel{T}, 𝒬::QUBOModel{T}, F::Type{<:
             cⱼ = aⱼ.coefficient
             xⱼ = aⱼ.variable
 
-            vⱼ = 𝒬.source[xⱼ]
-
-            for (yⱼₖ, dⱼₖ) in vⱼ
-                rᵢ[yⱼₖ] += cⱼ * dⱼₖ
+            for (yⱼ, dⱼ) ∈ ℳ.source[xⱼ]
+                𝕒ᵢ[yⱼ] += cⱼ * dⱼ
             end 
         end
 
         # -*- Introduce Slack Variable -*-
-        sᵢ = ℱ{T}()
+        𝕤ᵢ = ℱ{T}()
 
-        # TODO: Heavy Inference going on!
-        bits = ceil(Int, log(2, bᵢ))
-
-        α = zero(T)
-        β = bᵢ
-
-        for (sᵢⱼ, dᵢⱼ) in addslack(𝒬, bits, domain=(α, β), name=:s)
-            sᵢ[sᵢⱼ] += dᵢⱼ
+        for (sᵢ, dᵢ) ∈ slackℤ!(ℳ; α=zero(T), β=bᵢ, name=:s)
+            𝕤ᵢ[sᵢ] += dᵢ
         end
 
-        qᵢ = reduce_degree(
-            (rᵢ + sᵢ - bᵢ) ^ 2;
-            cache=𝒬.cache,
-            slack=()->addslack(𝒬, 1, name=:w)
+        ℍᵢ = reduce_degree(
+            (𝕒ᵢ + 𝕤ᵢ - bᵢ) ^ 2;
+            cache = ℳ.cache,
+            slack = () -> target(slack𝔹!(ℳ; name=:w))[1]
         )
 
-        𝒬.ℍᵢ += qᵢ
+        push!(ℳ.ℍᵢ, ℍᵢ)
     end
 end
 
-function toqubo_constraint!(::MOI.PreQUBOModel, ::QUBOModel{T}, ::Type{<: VI}, ::Type{<:ZO}) where {T} end
+function toqubo_constraint!(::VirtualQUBOModel, ::Type{<:VI}, ::Type{<:ZO}) end

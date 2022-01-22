@@ -1,71 +1,66 @@
 # :: Input Model Support ::
 
-# :: QUBO Error ::
-include("../lib/error.jl")
-
-# -*- Objective Support -*-
-function supported_objective(model::MOI.ModelLike)
-    F = MOI.get(model, MOI.ObjectiveFunctionType())
-    if !__qubo_supported_objective(F)
-        error("Objective functions of type ", F, " are not implemented")
-    end
-    return
+# -*- Get: ObjectiveFunctionType -*-
+function MOI.get(model::VirtualQUBOModel, ::MOI.ObjectiveSense)
+    return MOI.get(model.preq_model, MOI.ObjectiveSense())
 end
 
-__qubo_supported_objective(::Type) = false
-__qubo_supported_objective(::Type{<: VI}) = true
-__qubo_supported_objective(::Type{<: SAF{T}}) where {T} = true
-__qubo_supported_objective(::Type{<: SQF{T}}) where {T} = true
-
-# -*- Constraint Support -*-
-function supported_constraints(model::MOI.ModelLike)
-    for (F, S) in MOI.get(model, MOI.ListOfConstraints())
-        if !__qubo_supported_constraint(F, S)
-            error(
-                "Constraints of function ",
-                F,
-                " in the Set ",
-                S,
-                " are not implemented",
-            )
-        end
-    end
-    return
+function MOI.get(model::VirtualQUBOModel, ::MOI.ObjectiveFunctionType)
+    return MOI.get(model.preq_model, MOI.ObjectiveFunctionType())
 end
 
-__qubo_supported_constraint(::Type, ::Type) = false
-__qubo_supported_constraint(::Type{<: VI}, ::Type{<: ZO}) = true
-__qubo_supported_constraint(::Type{<: SAF{T}}, ::Type{<: EQ{T}}) where T = true
-__qubo_supported_constraint(::Type{<: SAF{T}}, ::Type{<: LT{T}}) where T = true
-__qubo_supported_constraint(::Type{<: SAF{T}}, ::Type{<: GT{T}}) where T = true
+function MOI.get(model::VirtualQUBOModel, attr::MOI.ObjectiveFunction{F}) where F <: MOI.AbstractScalarFunction
+    return MOI.get(model.preq_model, attr)
+end
 
-# -*- Optimize! -*-
-function MOI.optimize!(model::QUBOModel)
-    if model.sampler === missing
-        error("QUBO Model 'sampler' is missing.")
-    end
+# -*- Get: ListOfVariableIndices -*-
+function MOI.get(model::VirtualQUBOModel, attr::MOI.ListOfVariableIndices)
+    return MOI.get(model.preq_model, attr)
+end
 
-    x, Q, c = qubo(model.ℍ)
+# -*- Get: ListOfConstraints -*-
+function MOI.get(model::VirtualQUBOModel, attr::MOI.ListOfConstraintTypesPresent)
+    return MOI.get(model.preq_model, attr)
+end
 
-    sample!(model.sampler, x, Q, c)
+# -*- Get: ListOfConstraintIndices{S, T} -*-
+function MOI.get(model::VirtualQUBOModel, attr::MOI.ListOfConstraintIndices)
+    return MOI.get(model.preq_model, attr)
+end
+
+function MOI.get(model::VirtualQUBOModel, attr::MOI.ListOfConstraintIndices{MOI.VariableIndex, S}) where {S}
+    return MOI.get(model.preq_model, attr)
+end
+
+# -*- Get: ConstraintFunction -*-
+function MOI.get(model::VirtualQUBOModel, attr::MOI.ConstraintFunction, cᵢ::MOI.ConstraintIndex)
+    return MOI.get(model.preq_model, attr, cᵢ)
+end
+
+# -*- Get: ConstraintSet -*-
+function MOI.get(model::VirtualQUBOModel, attr::MOI.ConstraintSet, cᵢ::MOI.ConstraintIndex)
+    return MOI.get(model.preq_model, attr, cᵢ)
 end
 
 # -*- Get: VariablePrimal -*-
-function MOI.get(model::QUBOModel{T}, ::MOI.VariablePrimal, xᵢ::MOI.VariableIndex) where {T}
+function MOI.get(model::VirtualQUBOModel, attr::MOI.VariableName, xᵢ::MOI.VariableIndex)
+    return MOI.get(model.preq_model, attr, xᵢ)
+end
+
+# -*- Get: ObjectiveFunction{F} -*-
+function MOI.get(model::VirtualQUBOModel, ::MOI.ObjectiveFunction{F}) where {F}
+    return MOI.get(model.preq_model, MOI.ObjectiveFunction{F}())
+end
+
+# -*- Get: ObjectiveFunctionType -*-
+function MOI.get(model::VirtualQUBOModel, ::MOI.ObjectiveFunctionType)
+    return MOI.get(model.preq_model, MOI.ObjectiveFunctionType())
+end
+
+function MOI.get(model::VirtualQUBOModel{T}, ::MOI.VariablePrimal, xᵢ::MOI.VariableIndex) where {T}
     return sum(
-        (MOI.get(model.model, MOI.VariablePrimal(), yᵢⱼ) * cᵢⱼ for (yᵢⱼ, cᵢⱼ) in model.source[xᵢ]);
+        (MOI.get(model.qubo_model, MOI.VariablePrimal(), yⱼ) * cⱼ for (yⱼ, cⱼ) ∈ model.source[xᵢ]);
         init=zero(T)
     )
 end
 
-# -*- The copy_to interface -*-
-function MOI.copy_to(sampler::AbstractAnnealer, model::MOI.ModelLike)
-    if isqubo(model)
-        MOI.copy_to(sampler, toqubo(model))
-    else
-        throw(QUBOError("Model is not QUBO."))
-    end
-end
-
-# -*- Variable Ordering -*-
-Base.isless(u::MOI.VariableIndex, v::MOI.VariableIndex) = isless(u.value, v.value)
