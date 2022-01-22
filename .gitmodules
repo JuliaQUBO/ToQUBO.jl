@@ -1,0 +1,3 @@
+[submodule "examples/knapsack"]
+	path = examples/knapsack
+	url = https://github.com/dwave-examples/knapsack
