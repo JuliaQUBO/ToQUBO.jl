@@ -112,7 +112,7 @@ function anneal!(annealer::AbstractAnnealer{T}; kws...) where {T}
     nothing
 end
 
-mutable struct AnnealerMOIOptions
+mutable struct AnnealerMOI
 
     name::String
     silent::Bool
@@ -120,7 +120,7 @@ mutable struct AnnealerMOIOptions
     raw_optimizer_attribute::Any
     number_of_threads::Int
 
-    function AnnealerMOIOptions(;
+    function AnnealerMOI(;
             name::String="",
             silent::Bool=false,
             time_limit_sec::Float64=NaN,
@@ -153,7 +153,7 @@ mutable struct SimulatedAnnealer{T} <: AbstractAnnealer{T}
     anneal_time::Float64
 
     # MOI Stuff
-    moi::AnnealerMOIOptions
+    moi::AnnealerMOI
 
     function SimulatedAnnealer{T}(Q::Dict{Tuple{Int, Int}, T}, c::T = zero(T)) where {T}
         return new{T}(
@@ -162,7 +162,7 @@ mutable struct SimulatedAnnealer{T} <: AbstractAnnealer{T}
             SampleSet{Int, T}(),
             NaN,
             NaN,
-            AnnealerMOIOptions()
+            AnnealerMOI()
         )
     end
 
@@ -202,7 +202,7 @@ mutable struct QuantumAnnealer{T} <: AbstractAnnealer{T}
     anneal_time::Float64
 
     # MOI Stuff
-    moi::AnnealerMOIOptions
+    moi::AnnealerMOI
 
     function QuantumAnnealer{T}(Q::Dict{Tuple{Int, Int}, T}, c::T) where {T}
         return new{T}(
@@ -211,7 +211,7 @@ mutable struct QuantumAnnealer{T} <: AbstractAnnealer{T}
             SampleSet{Int, T}(),
             NaN,
             NaN,
-            AnnealerMOIOptions()
+            AnnealerMOI()
         )
     end
 
@@ -231,8 +231,5 @@ end
 
 # -*- :: MathOptInterface :: -*-
 include("moi.jl")
-
-# -*- Optimizer -*-
-const Optimizer{T} = SimulatedAnnealer{T}
 
 end # module
