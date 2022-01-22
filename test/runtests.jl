@@ -32,7 +32,7 @@ function tests()
 
     # -*- Tests: QUBO Model Assembly -*-
     @testset "Models" begin
-        @test true
+        include("./models/models.jl")
     end
 end
 

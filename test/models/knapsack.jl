@@ -14,8 +14,8 @@ model = MOIU.Model{Float64}()
 
 n = 3;
 c = [1.0, 2.0, 3.0]
-w = [0.3, 0.5, 1.0]
-C = 3.2;
+w = [0.3, 0.5, 1.0] * 10.0
+C = 3.2 * 10.0;
 
 x = MOI.add_variables(model, n);
 
