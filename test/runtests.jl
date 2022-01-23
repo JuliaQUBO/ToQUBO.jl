@@ -1,20 +1,15 @@
 using Test
+using LinearAlgebra
+
+import MathOptInterface
+const MOI = MathOptInterface
+const MOIU = MOI.Utilities
+const VI = MOI.VariableIndex
 
 # -*- Imports: ToQUBO -*-
 using ToQUBO
 
-# -*- Import : MOI -*-
-import MathOptInterface
-const MOI = MathOptInterface
-const MOIU = MOI.Utilities
-
-const VI = MOI.VariableIndex
-
 function tests()
-    @testset "GitHub CI Workflow" begin
-        @test true
-    end
-
     # -*- Tests: Pseudo-Boolean Optimization -*-
     @testset "Pseudo-Boolean Optimization Module" begin
         include("./lib/pbo.jl")
@@ -32,7 +27,7 @@ function tests()
 
     # -*- Tests: QUBO Model Assembly -*-
     @testset "Models" begin
-        @test true
+        include("./models/models.jl")
     end
 end
 

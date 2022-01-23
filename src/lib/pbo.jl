@@ -1,13 +1,10 @@
 module PBO
 
 using Random
+using LinearAlgebra
 
 export PseudoBooleanFunction, PBF
-export copy, isempty, length, iterate, getindex, setindex!
-export +, -, *, /, ^, ==, !=, ===, !==
-export convert, zero, one, print
 export qubo, ising, reduce_degree, Δ, δ
-
 
 """
     [1] Endre Boros, Peter L. Hammer Pseudo-Boolean optimization, Discrete Applied Mathematics, 2002
@@ -361,35 +358,34 @@ function Base.:(^)(p::PBF{S, T}, n::Int)::PBF{S, T} where {S, T}
 end
 
 # -*- Arithmetic: Evaluation -*-
-function (p::PBF{S, T})(x::Dict{S, T})::PBF{S, T} where {S, T}
+function (p::PBF{S, T})(x::Dict{S, Int}) where {S, T}
     
     q = PBF{S, T}()
     
-    for (t, c) in p
-        z = Set{S}()
-        for tⱼ in t
-            if haskey(x, tⱼ)
-                if !x[tⱼ]
+    for (ω, c) in p
+        η = Set{S}()
+        for j in ω
+            if haskey(x, j)
+                if !(x[j] > 0)
                     c = zero(T)
                     break
                 end
             else
-                push!(z, tⱼ)
+                push!(η, j)
             end
         end
-        
-        q[z] += c
+        q[η] += c
     end
 
     return q
 end
 
-function (p::PBF{S, T})(x::Pair{S, T}...)::PBF{S, T} where {S, T}
-    return p(Dict{S, T}(x...))
+function (p::PBF{S, T})(x::Pair{S, Int}...) where {S, T}
+    return p(Dict{S, Int}(x...))
 end
 
 # -*- Type conversion -*-
-function Base.convert(::Type{<: T}, p::PBF{S, T})::T where {S, T}
+function Base.convert(::Type{<: T}, p::PBF{S, T}) where {S, T}
     if isempty(p)
         return zero(T)
     elseif degree(p) === 0
@@ -399,16 +395,16 @@ function Base.convert(::Type{<: T}, p::PBF{S, T})::T where {S, T}
     end
 end
 
-function Base.zero(::Type{PBF{S, T}})::PBF{S, T} where {S, T}
+function Base.zero(::Type{PBF{S, T}}) where {S, T}
     return PBF{S, T}()
 end
 
-function Base.one(::Type{PBF{S, T}})::PBF{S, T} where {S, T}
+function Base.one(::Type{PBF{S, T}}) where {S, T}
     return PBF{S, T}(one(T))
 end
 
 # -*- Gap & Penalties -*-
-function Δ(p::PBF{S, T}; bound::Symbol=:loose)::T where{S, T}
+function Δ(p::PBF{S, T}; bound::Symbol=:loose) where{S, T}
     if bound === :loose
         return sum(abs(c) for (t, c) in p if !isempty(t))
     elseif bound === :tight
@@ -418,9 +414,9 @@ function Δ(p::PBF{S, T}; bound::Symbol=:loose)::T where{S, T}
     end
 end
 
-function δ(p::PBF{S, T}; bound::Symbol=:loose)::T where{S, T}
+function δ(p::PBF{S, T}; bound::Symbol=:loose) where{S, T}
     if bound === :loose
-        return one(T)
+        error("Not Implemented")
     elseif bound === :tight
         error("Not Implemented")
     else
@@ -429,7 +425,7 @@ function δ(p::PBF{S, T}; bound::Symbol=:loose)::T where{S, T}
 end
 
 # -*- Output -*-
-function qubo(::Type{<: AbstractDict}, p::PBF{S, T})::Tuple{Dict{S, Int}, Dict{Tuple{Int, Int}, T} ,T} where {S, T}
+function qubo(::Type{<: AbstractDict}, p::PBF{S, T}) where {S, T}
     if degree(p) >= 3
         error(DomainError, ": Can't convert Pseudo-boolean function with degree greater than 3 to QUBO format. Try using `reduce_degree` before conversion.")
     else
@@ -462,30 +458,118 @@ function qubo(::Type{<: AbstractDict}, p::PBF{S, T})::Tuple{Dict{S, Int}, Dict{T
     end
 end
 
-function ising(::Type{<: AbstractDict}, p::PBF{S, T})::Tuple{Dict{S, Int}, Dict{Int, T}, Dict{Tuple{Int, Int}, T} ,T} where {S, T}
+function qubo(::Type{<: AbstractArray}, p::PBF{S, T}) where {S, T}
     if degree(p) >= 3
         error(DomainError, ": Can't convert Pseudo-boolean function with degree greater than 3 to QUBO format. Try using `reduce_degree` before conversion.")
     end
 
-    x = Dict{S, Int}()
+    𝟐 = one(T) + one(T)
+    ∅ = Set{S}()
+    x = varmap(p)
+    n = length(x)
+    Q = zeros(T, n, n)
+    c = zero(T)
+
+    if haskey(p.layers, 0)
+        c += p[∅]
+    end
+
+    if haskey(p.layers, 1)
+        for ((i,), d) in p.layers[1]
+            Q[x[i], x[i]] += d
+        end
+    end
+
+    if haskey(p.layers, 2)
+        for ((i, j), d) in p.layers[2]  
+            Q[x[i], x[j]] += d / 𝟐
+            Q[x[j], x[i]] += d / 𝟐
+        end
+    end
+
+    return (x, Symmetric(Q), c)
+end
+
+# -*- Output: Default Behavior -*-
+function qubo(p::PBF{S, T}) where {S, T}
+    return qubo(Dict, p)
+end
+
+function ising(::Type{<: AbstractDict}, p::PBF{S, T}) where {S, T}
+    if degree(p) >= 3
+        error(DomainError, ": Can't convert Pseudo-boolean function with degree greater than 3 to QUBO format. Try using `reduce_degree` before conversion.")
+    end
+
+    ∅ = Set{S}()
+    x = varmap(p)
     h = Dict{Int, T}()
     J = Dict{Tuple{Int, Int}, T}()
     c = zero(T)
 
+    if haskey(p.layers, 0)
+        c += p[∅]
+    end
+
+    if haskey(p.layers, 1)
+        for ((i,), d) in p.layers[1]
+            h[x[i]] = d
+        end
+    end
+
+    if haskey(p.layers, 2)
+        for ((i, j), d) in p.layers[2]  
+            if x[i] < x[j]
+                J[x[i], x[j]] = d
+            else
+                J[x[j], x[i]] = d
+            end
+        end
+    end
+
     return (x, h, J, c)
 end
 
-# -*- Output: Default Behavior -*-
-function qubo(p::PBF{S, T})::Tuple{Dict{S, Int}, Dict{Tuple{Int, Int}, T}, T} where {S, T}
-    return qubo(Dict, p)
+function ising(::Type{<: AbstractArray}, p::PBF{S, T}) where {S, T}
+    if degree(p) >= 3
+        error(DomainError, ": Can't convert Pseudo-boolean function with degree greater than 3 to QUBO format. Try using `reduce_degree` before conversion.")
+    end
+
+    ∅ = Set{S}()
+    x = varmap(p)
+    n = length(x)
+    h = zeros(T, n)
+    J = zeros(T, n, n)
+    c = zero(T)
+
+    if haskey(p.layers, 0)
+        c += p[∅]
+    end
+
+    if haskey(p.layers, 1)
+        for ((i,), d) in p.layers[1]
+            h[x[i]] += d
+        end
+    end
+
+    if haskey(p.layers, 2)
+        for ((i, j), d) in p.layers[2]  
+            if x[i] < x[j]
+                J[x[i], x[j]] += d
+            else
+                J[x[j], x[i]] += d
+            end
+        end
+    end
+
+    return (x, h, UpperTriangular(J), c)
 end
 
-function ising(p::PBF{S, T})::Tuple{Dict{S, Int}, Dict{Int, T}, Dict{Tuple{Int, Int}, T}, T} where {S, T}
+function ising(p::PBF{S, T}) where {S, T}
     return ising(Dict, p)
 end
 
 # -*- Degree Reduction -*-
-function pick_term(ω::Set{S}; tech::Symbol=:sort)::Tuple{S, S, Set{S}} where {S}
+function pick_term(ω::Set{S}; tech::Symbol=:sort) where {S}
     if length(ω) < 2
         error(MethodError, "Can't pick less than two indices")
     elseif tech === :sort

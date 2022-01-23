@@ -2,7 +2,7 @@
 # -*- Definitions -*-
 𝒮 = Symbol
 𝒯 = Float64
-ℱ = PBO.PBF{𝒮, 𝒯}
+ℱ = PBF{𝒮, 𝒯}
 
 ∅ = Vector{𝒮}()
 
@@ -97,27 +97,37 @@ s = ℱ(∅ => 0.0, [:x, :y, :z] => 3.0)
 )
 
 # -*- Test: qubo -*-
-x, Q, c = PBO.qubo(p)
+x, Q, c = qubo(Dict, p)
 @test Q == Dict{Tuple{Int, Int}, 𝒯}(
     (x[:x], x[:x]) => 1.0, (x[:x], x[:y]) => -2.0
 ) && c == 0.5
 
-x, Q, c = PBO.qubo(q)
+x, Q, c = qubo(Dict, q)
 @test Q == Dict{Tuple{Int, Int}, 𝒯}(
     (x[:y], x[:y]) => 1.0, (x[:x], x[:y]) => 2.0
 ) && c == 0.5
 
-x, Q, c = PBO.qubo(r)
+x, Q, c = qubo(Dict, r)
 @test Q == Dict{Tuple{Int, Int}, 𝒯}(
     (x[:z], x[:z]) => -1.0
 ) && c == 1.0
+
+x, Q, c = qubo(Array, p)
+
+@test Q == Symmetric(Array{𝒯, 2}([1.0 -1.0; -1.0 0.0])) && c == 0.5
+
+x, Q, c = qubo(Array, q)
+@test Q == Symmetric(Array{𝒯, 2}([0.0 1.0; 1.0 1.0])) && c == 0.5
+
+x, Q, c = qubo(Array, r)
+@test Q == Symmetric(Array{𝒯, 2}([-1.0][:,:])) && c == 1.0
 
 # -*- Test: Degree Reduction -*-
 
 # - Reduction by Substitution - 
 cache = Dict{Set{𝒮}, ℱ}()
 
-@test PBO.reduce_degree(s, slack=() -> :w, cache=cache) == ℱ(
+@test reduce_degree(s, slack=() -> :w, cache=cache) == ℱ(
     [:z, :w] => 3.0,
     [:x, :y] => 21.0,
     [:x, :w] => -42.0,
