@@ -21,11 +21,12 @@ const GT{T} = MOI.GreaterThan{T}
 
 const VI = MOI.VariableIndex
 const CI = MOI.ConstraintIndex
-const ZO = MOI.ZeroOne
+
+const ∅ = Set{VI}()
 
 # -*- :: Exports :: -*-
 export QUBOModel, toqubo, isqubo
-export PBO
+export PseudoBooleanFunction, PBF, qubo, ising, Δ, δ, reduce_degree
 export SimulatedAnnealer, QuantumAnnealer
 export VirtualVariable, VV, coefficient, coefficients, offset, isslack, source, target, name
 
@@ -39,12 +40,17 @@ include("./lib/varmap.jl")
 using .VarMap
 
 include("./lib/pbo.jl")
+using .PBO: PseudoBooleanFunction, PBF, qubo, ising, Δ, δ, reduce_degree
+
+
 
 # -*- Model: QUBO -*-
 include("./model/model.jl")
-using .QUBO: toqubo
+
+# -*- MOI: Bind QUBOModel and Annealing -*-
+include("./moi.jl")
 
 # -*- Library: IO, Printing & Plots? -*-
-# include("./lib/io.jl")
+include("./lib/io.jl")
 
 end # module
