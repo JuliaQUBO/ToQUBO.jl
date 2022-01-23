@@ -1,9 +1,15 @@
 # -*- Knapsack Problem -*-
 include("./knapsack.jl")
 
-qubo_model = toqubo(Knapsack.model)
+annealer = SimulatedAnnealer{VI, Float64}()
+model = toqubo(Knapsack.model, annealer; ϵ=0.01)
 
-println(qubo_model)
-println(qubo_model.qubo_model)
+MOI.optimize!(model)
 
-@test true
+variables = MOI.get(model, MOI.ListOfVariableIndices())
+
+@test MOI.get(model, MOI.PrimalStatus()) === MOI.FEASIBLE_POINT
+
+@test MOI.get(model, MOI.ObjectiveValue()) ≈ Knapsack.objective_value
+
+@test [MOI.get(model, MOI.VariablePrimal(), vᵢ) for vᵢ ∈ variables] ≈ Knapsack.solution
