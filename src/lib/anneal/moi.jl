@@ -5,15 +5,16 @@ Necessary methods for an AbstractOptimizer according to [1]
 """
 
 # ::: Implement methods for Optimizer :::
-function MOI.empty!(annealer::AbstractAnnealer{T}) where {T}
+function MOI.empty!(annealer::AbstractAnnealer{S, T}) where {S, T}
+    empty!(annealer.x)
     empty!(annealer.Q)
     annealer.c = zero(T)
 
     nothing
 end
 
-function MOI.is_empty(annealer::AbstractAnnealer{T}) where {T}
-    return isempty(annealer.Q) && annealer.c === zero(T)
+function MOI.is_empty(annealer::AbstractAnnealer{S, T}) where {S, T}
+    return isempty(annealer.x) && isempty(annealer.Q) && annealer.c === zero(T)
 end
 
 function MOI.optimize!(annealer::AbstractAnnealer)
@@ -95,11 +96,65 @@ end
 
 MOI.supports(::AbstractAnnealer, ::MOI.NumberOfThreads) = true
 
-# -*- Define supports_constraint -*-
+# -*- SolveTimeSec -*-
+function MOI.get(annealer::AbstractAnnealer, ::MOI.SolveTimeSec)
+    return annealer.moi.solve_time_sec
+end
+
+MOI.supports(::AbstractAnnealer, ::MOI.SolveTimeSec) = true
+
+# -*- TerminationStatus -*-
+function MOI.get(annealer::AbstractAnnealer, ::MOI.TerminationStatus)
+    return annealer.moi.termination_status
+end
+
+MOI.supports(::AbstractAnnealer, ::MOI.TerminationStatus) = true
 
 # -*- Define supports_constraint -*-
 MOI.supports_constraint(::AbstractAnnealer, ::Any, ::Any) = false
 MOI.supports_constraint(::AbstractAnnealer, ::Type{<: MOI.VariableIndex}, ::Type{<: MOI.ZeroOne}) = true
+
+function MOI.get(annealer::AbstractAnnealer{S, T}, ov::MOI.ObjectiveValue) where {S, T}
+    n = length(annealer.sample_set.samples)
+
+    j = ov.result_index
+
+    if !(1 <= j <= n)
+        throw(BoundsError("Result Index is out of bounds: $j ∉ [1, $n]"))
+    end
+
+    sample = annealer.sample_set.samples[j]
+
+    return (sample.energy + annealer.c)::T
+end
+
+function MOI.get(annealer::AbstractAnnealer{S, T}, vp::MOI.VariablePrimal, s::S) where {S, T}
+    n = length(annealer.sample_set.samples)
+
+    j = vp.result_index
+
+    if !(1 <= j <= n)
+        throw(BoundsError("Result Index is out of bounds: $j ∉ [1, $n]"))
+    end
+
+    sample = annealer.sample_set.samples[j]
+
+    i = annealer.x[s]
+
+    m = length(sample.states)
+
+    if !(1 <= i <= m)
+        throw(BoundsError("Variable Index is out of bounds: $i ∉ [1, $m]"))
+    end
+
+    return (sample.states[i] > 0)
+end
+
+function MOI.get(annealer::AbstractAnnealer, ::MOI.ResultCount) 
+    return length(annealer.sample_set)
+end
+
+MOI.supports(::AbstractAnnealer, ::MOI.ResultCount) = true
 
 # -*- Simulated Annealer -*-
 
@@ -115,39 +170,5 @@ end
 
 # -*- RawSolver (get) -*-
 function MOI.get(::SimulatedAnnealer, ::MOI.RawSolver)
-    return "Python D-Wave Neal (0.5.8)"
-end
-
-function MOI.get(optimizer::SimulatedAnnealer{T}, ov::MOI.ObjectiveValue) where {T}
-    n = length(optimizer.sample_set.samples)
-
-    j = ov.result_index
-
-    if !(1 <= j <= n)
-        throw(BoundsError("Result Index is out of bounds: $j ∉ [1, $n]"))
-    end
-
-    sample = optimizer.sample_set.samples[j]
-
-    return (sample.energy + optimizer.c)::T
-end
-
-function MOI.get(optimizer::SimulatedAnnealer{T}, vp::MOI.VariablePrimal, i::Int) where {T}
-    n = length(optimizer.sample_set.samples)
-
-    j = vp.result_index
-
-    if !(1 <= j <= n)
-        throw(BoundsError("Result Index is out of bounds: $j ∉ [1, $n]"))
-    end
-
-    sample = optimizer.sample_set.samples[j]
-
-    m = length(sample.states)
-
-    if !(1 <= i <= m)
-        throw(BoundsError("Variable Index is out of bounds: $i ∉ [1, $m]"))
-    end
-
-    return (sample.states[i] > 0)
+    return "Python D-Wave Neal 0.5.8"
 end
