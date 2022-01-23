@@ -209,6 +209,10 @@ function Base.iterate(v::VirtualVariable{S, T}, i::Int) where {S, T}
     end
 end
 
+function Base.collect(𝓋::VirtualVariable{S, T}) where {S, T}
+    return Dict{S, T}(𝓋ᵢ => c for (𝓋ᵢ, c) ∈ 𝓋)
+end
+
 # -*- Variable Information -*-
 function isslack(v::VirtualVariable)
     return v.source === nothing

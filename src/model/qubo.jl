@@ -27,7 +27,7 @@ function isqubo(T::Type{<:Any}, model::MOI.ModelLike)
     v = Set{VI}(MOI.get(model, MOI.ListOfVariableIndices()))
 
     for (F, S) in MOI.get(model, MOI.ListOfConstraints())
-        if !(F === VI && S === ZO)
+        if !(F === VI && S === MOI.ZeroOne)
             # Non VariableIndex-in-ZeroOne Constraint
             return false
         else
@@ -56,9 +56,19 @@ isqubo(::QUBOModel) = true
 isqubo(::VirtualQUBOModel) = true
 
 
+function discretize(𝕡::ℱ{T}; ϵ::T) where {T}
+    𝓀 = collect(keys(𝕡))
+    𝓋 = [𝕡[k] for k in 𝓀]
+    
+    𝓇 = rationalize.(𝓋; tol=ϵ)
+    𝓈 = numerator.(𝓇 .* lcm(denominator.(𝓇)))
+
+    return ℱ{T}(Dict{Set{VI}, T}(k => 𝓈[i] for (i, k) in enumerate(𝓀)))
+end
+
 # -*- toqubo: MOI.ModelLike -> QUBO.Model -*-
-function toqubo(T::Type{<: Any}, model::MOI.ModelLike)
-    virt_model = VirtualQUBOModel{T}()
+function toqubo(T::Type{<: S}, model::MOI.ModelLike, optimizer::Union{Nothing, MOI.AbstractOptimizer}=nothing; ϵ::S=zero(S)) where {S}
+    virt_model = VirtualQUBOModel{T}(optimizer; ϵ=ϵ)
 
     # -*- Copy To: PreQUBOModel + Trigger Bridges -*-
     MOI.copy_to(virt_model.preq_model, model)
@@ -68,8 +78,8 @@ function toqubo(T::Type{<: Any}, model::MOI.ModelLike)
     return virt_model
 end
 
-function toqubo(model::MOI.ModelLike)
-    return toqubo(Float64, model)
+function toqubo(model::MOI.ModelLike, optimizer::Union{Nothing, MOI.AbstractOptimizer}=nothing; ϵ::Float64=0.0)
+    return toqubo(Float64, model, optimizer; ϵ=ϵ)
 end
 
 # -*- :: toqubo!(...) :: -*-
@@ -105,9 +115,13 @@ function toqubo!(ℳ::VirtualQUBOModel{T}) where {T}
     a = Vector{SAT{T}}()
     b = zero(T)
 
-    ρ = Δ(ℳ.ℍ₀)
+    ρ = (Δ(ℳ.ℍ₀) + one(T)) / one(T)
 
-    ℳ.ℍ = ℳ.ℍ₀ + sum(ρ * ℍᵢ for ℍᵢ ∈ ℳ.ℍᵢ)  # Total Energy
+    if MOI.get(ℳ, MOI.ObjectiveSense()) === MOI.MAX_SENSE
+        ℳ.ℍ = ℳ.ℍ₀ - ρ * sum(ℳ.ℍᵢ)  # Total Energy
+    else
+        ℳ.ℍ = ℳ.ℍ₀ + ρ * sum(ℳ.ℍᵢ)  # Total Energy
+    end
 
     for (ω, c) in ℳ.ℍ
         n = length(ω)
@@ -150,7 +164,7 @@ function toqubo_variables!(ℳ::VirtualQUBOModel{T}) where {T}
     ℤ = Dict{VI, Tuple{𝕋, 𝕋}}()
     ℝ = Dict{VI, Tuple{𝕋, 𝕋}}()
 
-    for cᵢ in MOI.get(ℳ, MOI.ListOfConstraintIndices{VI, ZO}())
+    for cᵢ in MOI.get(ℳ, MOI.ListOfConstraintIndices{VI, MOI.ZeroOne}())
         # -*- Binary Variable 😄 -*-
         xᵢ = MOI.get(ℳ, MOI.ConstraintFunction(), cᵢ)
 
@@ -290,7 +304,7 @@ function toqubo_objective!(ℳ::VirtualQUBOModel{T}, F::Type{<:SQF{T}}) where {T
         xᵢ = aᵢ.variable
 
         for (yᵢ, dᵢ) in ℳ.source[xᵢ]
-            𝒬.ℍ₀[yᵢ] += cᵢ * dᵢ
+            ℳ.ℍ₀[yᵢ] += cᵢ * dᵢ
         end
     end
 
@@ -316,8 +330,10 @@ function toqubo_constraint!(ℳ::VirtualQUBOModel{T}, F::Type{<: SAF{T}}, S::Typ
             end
         end
 
+        𝕓ᵢ = discretize(𝕒ᵢ - bᵢ; ϵ=ℳ.ϵ)
+
         ℍᵢ = reduce_degree(
-            (𝕒ᵢ - bᵢ) ^ 2;
+            𝕓ᵢ ^ 2;
             cache = ℳ.cache,
             slack = () -> target(slack𝔹!(ℳ; name=:w))[1]
         )
@@ -344,15 +360,16 @@ function toqubo_constraint!(ℳ::VirtualQUBOModel{T}, F::Type{<: SAF{T}}, S::Typ
             end 
         end
 
+        𝕓ᵢ = discretize(𝕒ᵢ - bᵢ; ϵ=ℳ.ϵ)
+    
         # -*- Introduce Slack Variable -*-
-        𝕤ᵢ = ℱ{T}()
+        α = sum(c for (ω, c) ∈ 𝕓ᵢ if !isempty(ω) && c < zero(T); init=zero(T))
+        β = - 𝕓ᵢ[∅]
 
-        for (sᵢ, dᵢ) ∈ slackℤ!(ℳ; α=zero(T), β=bᵢ, name=:s)
-            𝕤ᵢ[sᵢ] += dᵢ
-        end
+        𝕤ᵢ = ℱ{T}(Dict{Set{VI}, Float64}(Set{VI}([sᵢ]) => c for (sᵢ, c) ∈ slackℤ!(ℳ; α=α, β=β, name=:s)))
 
         ℍᵢ = reduce_degree(
-            (𝕒ᵢ + 𝕤ᵢ - bᵢ) ^ 2;
+            (𝕓ᵢ + 𝕤ᵢ) ^ 2;
             cache = ℳ.cache,
             slack = () -> target(slack𝔹!(ℳ; name=:w))[1]
         )
@@ -361,4 +378,4 @@ function toqubo_constraint!(ℳ::VirtualQUBOModel{T}, F::Type{<: SAF{T}}, S::Typ
     end
 end
 
-function toqubo_constraint!(::VirtualQUBOModel, ::Type{<:VI}, ::Type{<:ZO}) end
+function toqubo_constraint!(::VirtualQUBOModel, ::Type{<:VI}, ::Type{<:MOI.ZeroOne}) end

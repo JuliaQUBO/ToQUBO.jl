@@ -1,46 +1,14 @@
-module QUBO
-# -*- Imports: MathOptInterface -*-
-import MathOptInterface
-const MOI = MathOptInterface
-const MOIU = MOI.Utilities
-
-const ZO = MOI.ZeroOne
-const VI = MOI.VariableIndex
-const INT = MOI.Integer
-
-const EQ{T} = MOI.EqualTo{T}
-const LT{T} = MOI.LessThan{T}
-
-const SAF{T} = MOI.ScalarAffineFunction{T}
-const SQF{T} = MOI.ScalarQuadraticFunction{T}
-
-const SAT{T} = MOI.ScalarAffineTerm{T}
-const SQT{T} = MOI.ScalarQuadraticTerm{T}
-
-export Model, toqubo
-
-# -*- Include: Error -*-
-include("../lib/error.jl")
-
-# -*- Include: PBO -*-
-include("../lib/pbo.jl")
-using .PBO
-
-# -*- Include: VarMap -*-
-include("../lib/varmap.jl")
-using .VarMap
-
 # -*- Alias: PBF -*-
 const ℱ{T} = PBF{VI, T}             # ℱ = \scrF[tab]
 const 𝒱{T} = VirtualVariable{VI, T} # 𝒱 = \scrV[tab]
 
 # -*- Model: PreQUBOModel -*-
-MOIU.@model(PreQUBOModel,                                               # Name of model
-    (INT, ZO),                                                  # untyped scalar sets
+MOIU.@model(PreQUBOModel,                                       # Name of model
+    (MOI.Integer, MOI.ZeroOne),                                 # untyped scalar sets
     (EQ, LT),                                                   #   typed scalar sets
     (),                                                         # untyped vector sets
     (),                                                         #   typed vector sets
-    (VI,),                                                       # untyped scalar functions
+    (VI,),                                                      # untyped scalar functions
     (SAF, SQF),                                                 #   typed scalar functions
     (),                                                         # untyped vector functions
     (),                                                         #   typed vector functions
@@ -49,37 +17,37 @@ MOIU.@model(PreQUBOModel,                                               # Name o
 
 # -*- Model: PreQUBOModel -*-
 MOIU.@model(QUBOModel,
-    (ZO,),                                                       # untyped scalar sets
+    (MOI.ZeroOne,),                                             # untyped scalar sets
     (),                                                         #   typed scalar sets
     (),                                                         # untyped vector sets
     (),                                                         #   typed vector sets
     (),                                                         # untyped scalar functions
-    (SQF,),                                                      #   typed scalar functions
+    (SQF,),                                                     #   typed scalar functions
     (),                                                         # untyped vector functions
     (),                                                         #   typed vector functions
     false
 )
 
 
-mutable struct ModelMOI
+mutable struct ModelMOI{T <: Any}
     # - ObjectiveValue (Avaliar somente ℍ₀(s) ou também ℍᵢ(s)?)
-    objective_value::Float64
+    objective_value::T
     # - SolveTimeSec
     solve_time_sec::Float64
     # - TerminationStatus (não está 100% claro na minha cabeça o que deve retornado aqui)
-    termination_status::Any
+    termination_status::MOI.TerminationStatusCode
     # - PrimalStatus (idem)
-    primal_status::Any
+    primal_status::MOI.ResultStatusCode
     # - RawStatusString
-    raw_status_str::Union{Nothing, String}
+    raw_status_str::String  
 
-    function ModelMOI(
-        objective_value::Float64=NaN,
+    function ModelMOI{T}(
+        objective_value::T=zero(T),
         solve_time_sec::Float64=NaN,
-        termination_status::Any=MOI.OPTIMIZE_NOT_CALLED,
+        termination_status::MOI.TerminationStatusCode=MOI.OPTIMIZE_NOT_CALLED,
         primal_status::Any=MOI.NO_SOLUTION,
-        raw_status_str::Union{Nothing, String}=nothing
-    )
+        raw_status_str::String=""
+    ) where {T}
         return new(
             objective_value,
             solve_time_sec,
@@ -96,13 +64,15 @@ mutable struct VirtualQUBOModel{T} <: MOIU.AbstractModelLike{T}
     qubo_model::QUBOModel{T}
 
     # - Underlying Optimizer
-    optimizer::Union{Nothing, <:MOI.AbstractOptimizer}
+    optimizer::Union{Nothing, MOI.AbstractOptimizer}
     
     ℍ₀::ℱ{T} # Objective
     ℍᵢ::Vector{ℱ{T}} # Constraints
 
     # :: ℍ(s) = ℍ₀(s) + Σᵢ ρᵢ ℍᵢ(s) ::
     ℍ::ℱ{T} # Total Energy
+
+    ϵ::T
 
     # :: Cache for PBF degree reduction ::
     cache::Dict{Set{VI}, ℱ{T}}
@@ -113,9 +83,9 @@ mutable struct VirtualQUBOModel{T} <: MOIU.AbstractModelLike{T}
     target::Dict{VI, 𝒱{T}}
 
     # -*- MOI Stuff -*-
-    moi::ModelMOI
+    moi::ModelMOI{T}
 
-    function VirtualQUBOModel{T}(optimizer::Union{Nothing, Type{<:MOI.AbstractOptimizer}}=nothing) where {T}
+    function VirtualQUBOModel{T}(optimizer::Union{Nothing, MOI.AbstractOptimizer}=nothing; ϵ::T=zero(T)) where {T}
         return new{T}(
             PreQUBOModel{T}(),
             QUBOModel{T}(),
@@ -123,11 +93,12 @@ mutable struct VirtualQUBOModel{T} <: MOIU.AbstractModelLike{T}
             ℱ{T}(),
             Vector{ℱ{T}}(),
             ℱ{T}(),
+            ϵ,
             Dict{Set{VI}, ℱ{T}}(),
             Vector{𝒱{T}}(),
             Dict{VI, 𝒱{T}}(),
             Dict{VI, 𝒱{T}}(),
-            ModelMOI()
+            ModelMOI{T}()
         )
     end
 end
@@ -240,5 +211,3 @@ end
 
 # -*- Include: toqubo -*-
 include("qubo.jl")
-
-end # module
