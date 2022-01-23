@@ -1,8 +1,8 @@
 # ToQUBO.jl 🟥🟩🟪🟦
 
 <div align="center">
-    <a href="./assets/">
-        <img src="./assets/logo.svg" width=400px alt="ToQUBO.jl" />
+    <a href="./docs/src/assets/">
+        <img src="./docs/src/assets/logo.svg" width=400px alt="ToQUBO.jl" />
     </a>  
 </div>
 
