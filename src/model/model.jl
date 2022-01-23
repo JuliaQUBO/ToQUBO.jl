@@ -153,7 +153,7 @@ For a given variable ``x \in [\alpha, \beta]`` we approximate it by
 x \approx \alpha + \frac{(\beta - \alpha)}{2^{n} - 1} \sum_{i=0}^{n-1} {2^{i}\, y_i}
 ```
 
-where ``n`` is the number of bits and `y_i \in \mathbb{B}`.
+where ``n`` is the number of bits and ``y_i \in \mathbb{B}``.
 """
 function expandℝ!(model::VirtualQUBOModel{T}, src::Union{VI, Nothing}; bits::Int, name::Symbol, α::T, β::T) where T
     return mapvar!(model, 𝒱{T}(
