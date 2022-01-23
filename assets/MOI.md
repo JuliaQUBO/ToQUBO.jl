@@ -1,5 +1,7 @@
 # MathOptInterface API Coverage (Template)
 
+This Document is intended to help keeping track of which MOI API Methods and Properties have been implemented for a new solver or model interface.
+
 ### Reference:
 [jump.dev/MathOptInterface.jl/stable/tutorials/implementing/](https://jump.dev/MathOptInterface.jl/stable/tutorials/implementing/)
 
