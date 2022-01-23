@@ -420,7 +420,7 @@ end
 @doc raw"""
     Δ(𝒻::PBF{S, T}; bound::Symbol=:loose) where {S, T}
 
-Computes the least upper bound for the greatest variantion possible under some ``f \in \mathscr{F}`` i. e.
+Computes the least upper bound for the greatest variantion possible under some `` f \in \mathscr{F} `` i. e.
 
 ```math
 \begin{array}{r l}
@@ -639,8 +639,6 @@ end
 
 @doc raw"""
     reduce_degree(𝒻::PBF{S, T}; slack::Any, cache::Dict{Set{S}, PBF{S, T}}) where {S, T}
-
-Degree reduction according to [References](@ref)
 
 Uses the identity
 
