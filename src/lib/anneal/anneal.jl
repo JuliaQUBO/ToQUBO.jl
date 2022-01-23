@@ -55,7 +55,16 @@ mutable struct SampleSet{S <: Any, T <: Any}
     end
 end
 
-Base.isempty(x::SampleSet) = isempty(x.samples)
+Base.isempty(s::SampleSet) = isempty(s.samples)
+Base.length(s::SampleSet) = length(s.samples)
+
+function Base.iterate(s::SampleSet)
+    return iterate(s.samples)
+end
+
+function Base.iterate(s::SampleSet, i::Int)
+    return iterate(s.samples, i)
+end
 
 function merge(x::SampleSet{S, T}, y::SampleSet{S, T})::SampleSet{S, T} where {S, T}
     return SampleSet{S, T}(Vector{Sample{S, T}}([x.samples; y.samples]))
@@ -82,37 +91,25 @@ function merge!(x::SampleSet{S, T}, y::SampleSet{S, T})::Nothing where {S, T}
 end
 
 # -*- Annealers -*-
-abstract type AbstractAnnealer{T <: Any} <: MOI.AbstractOptimizer end
+abstract type AbstractAnnealer{S <: Any, T <: Any} <: MOI.AbstractOptimizer end
 
-function anneal!(annealer::AbstractAnnealer{T}; kws...) where {T}
-    t₀ = time()
-    
+function anneal!(annealer::AbstractAnnealer{S, T}; kws...) where {S, T}
     result, δt = anneal(annealer; kws...)
 
     sample_set = SampleSet{Int, T}([Sample{Int, T}(sample...) for sample in result])
     
     merge!(annealer.sample_set, sample_set)
-    
-    t₁ = time()
 
-    Δt = t₁ - t₀
-
-    if annealer.anneal_time === NaN
-        annealer.anneal_time = δt
+    if annealer.moi.solve_time_sec === NaN
+        annealer.moi.solve_time_sec = δt
     else
-        annealer.anneal_time += δt
-    end
-
-    if annealer.total_time === NaN
-        annealer.total_time = Δt
-    else
-        annealer.total_time += Δt
+        annealer.moi.solve_time_sec += δt
     end
 
     nothing
 end
 
-mutable struct AnnealerMOI
+mutable struct AnnealerMOI{T <: Any}
 
     name::String
     silent::Bool
@@ -120,19 +117,37 @@ mutable struct AnnealerMOI
     raw_optimizer_attribute::Any
     number_of_threads::Int
 
-    function AnnealerMOI(;
+    objective_value::T
+    solve_time_sec::Float64
+    termination_status::MOI.TerminationStatusCode
+    primal_status::MOI.ResultStatusCode
+    raw_status_str::String 
+
+    function AnnealerMOI{T}(;
             name::String="",
             silent::Bool=false,
             time_limit_sec::Float64=NaN,
             raw_optimizer_attribute::Any=nothing,
-            number_of_threads::Int=1
-        )
-        return new(
+            number_of_threads::Int=1,
+
+            objective_value::T=zero(T),
+            solve_time_sec::Float64=NaN,
+            termination_status::MOI.TerminationStatusCode=MOI.OPTIMIZE_NOT_CALLED,
+            primal_status::Any=MOI.NO_SOLUTION,
+            raw_status_str::String=""
+        ) where {T}
+        return new{T}(
             name,
             silent,
             time_limit_sec,
             raw_optimizer_attribute,
-            number_of_threads
+            number_of_threads,
+            
+            objective_value,
+            solve_time_sec,
+            termination_status,
+            primal_status,
+            raw_status_str,
         )
     end
 end
@@ -140,47 +155,50 @@ end
 # -*- Python Annealing Interface -*-
 include("pyanneal.jl")
 
-mutable struct SimulatedAnnealer{T} <: AbstractAnnealer{T}
+mutable struct SimulatedAnnealer{S, T} <: AbstractAnnealer{S, T}
     # QUBO Formulation
+    x::Dict{S, Int}
     Q::Dict{Tuple{Int, Int}, T}
     c::T
 
     # Solution
     sample_set::SampleSet{Int, T}
 
-    # Timing
-    total_time::Float64
-    anneal_time::Float64
-
     # MOI Stuff
-    moi::AnnealerMOI
+    moi::AnnealerMOI{T}
 
-    function SimulatedAnnealer{T}(Q::Dict{Tuple{Int, Int}, T}, c::T = zero(T)) where {T}
-        return new{T}(
+    function SimulatedAnnealer{S, T}(x::Dict{S, Int}, Q::Dict{Tuple{Int, Int}, T}, c::T=zero(T)) where {S, T}
+        return new{S, T}(
+            x,
             Q,
             c,
             SampleSet{Int, T}(),
-            NaN,
-            NaN,
-            AnnealerMOI()
+            AnnealerMOI{T}()
         )
     end
 
-    function SimulatedAnnealer{T}() where {T}
-        return SimulatedAnnealer{T}(Dict{Tuple{Int, Int}, T}(), zero(T))
+    function SimulatedAnnealer{T}(n::Int, Q::Dict{Tuple{Int, Int}, T}, c::T=zero(T)) where {T}
+        return new{Int, T}(
+            Dict{Int, Int}(i => i for i=1:n),
+            Q,
+            c,
+            SampleSet{Int, T}(),
+            AnnealerMOI{T}()
+        )
+    end
+
+    function SimulatedAnnealer{S, T}() where {S, T}
+        return new{S, T}(
+            Dict{S, Int}(),
+            Dict{Tuple{Int, Int}, T}(),
+            zero(T),
+            SampleSet{Int, T}(),
+            AnnealerMOI{T}()
+        )
     end
 end
 
-# -*- Aliases -*-
-function SimulatedAnnealer(Q::Dict{Tuple{Int, Int}, Float64}, c::Float64 = 0.0)
-    return SimulatedAnnealer{Float64}(Q, c)
-end
-
-function SimulatedAnnealer()
-    return SimulatedAnnealer{Float64}()
-end
-
-function anneal(annealer::SimulatedAnnealer{T}; num_reads::Int=1_000, num_sweeps::Int=1_000, kws...) where {T}
+function anneal(annealer::SimulatedAnnealer{S, T}; num_reads::Int=1_000, num_sweeps::Int=1_000, kws...) where {S, T}
     return py_simulated_annealing(
         annealer.Q,
         annealer.c;
@@ -189,38 +207,30 @@ function anneal(annealer::SimulatedAnnealer{T}; num_reads::Int=1_000, num_sweeps
     )::Tuple{Vector{Tuple{Vector{Int}, Int, T}}, Float64}
 end
 
-mutable struct QuantumAnnealer{T} <: AbstractAnnealer{T}
+mutable struct QuantumAnnealer{S, T} <: AbstractAnnealer{S, T}
     # QUBO Formulation
+    x::Dict{S, Int}
     Q::Dict{Tuple{Int, Int}, T}
     c::T
 
     # Solution
     sample_set::SampleSet{Int, T}
 
-    # Timing
-    total_time::Float64
-    anneal_time::Float64
-
     # MOI Stuff
-    moi::AnnealerMOI
+    moi::AnnealerMOI{T}
 
-    function QuantumAnnealer{T}(Q::Dict{Tuple{Int, Int}, T}, c::T) where {T}
-        return new{T}(
-            Q,
-            c,
+    function QuantumAnnealer{S, T}() where {S, T}
+        return new{S, T}(
+            Dict{S, Int}(),
+            Dict{Tuple{Int, Int}, T}(),
+            zero(T),
             SampleSet{Int, T}(),
-            NaN,
-            NaN,
-            AnnealerMOI()
+            AnnealerMOI{T}()
         )
-    end
-
-    function QuantumAnnealer{T}() where {T}
-        return QuantumAnnealer{T}(Dict{Tuple{Int, Int}, T}(), zero(T))
     end
 end
 
-function anneal(annealer::QuantumAnnealer{T}; num_reads::Int=1_000, num_sweeps::Int=1_000, kws...) where {T}
+function anneal(annealer::QuantumAnnealer{S, T}; num_reads::Int=1_000, num_sweeps::Int=1_000, kws...) where {S, T}
     return py_quantum_annealing(
         annealer.Q,
         annealer.c;
@@ -231,5 +241,8 @@ end
 
 # -*- :: MathOptInterface :: -*-
 include("moi.jl")
+
+# -*- :: View :: -*-
+include("view.jl")
 
 end # module
