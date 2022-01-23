@@ -1,6 +1,6 @@
 # Logo
 
-The ideia behind [ToQUBO](../)'s logo comes from a wordplay in Portuguese. The package's main purpose is to assemble QUBO Models, which sounds like *cubo*[¹](#1), portuguese for cube.
+The ideia behind [ToQUBO](../../../)'s logo comes from a wordplay in Portuguese. The package's main purpose is to assemble QUBO Models, which sounds like *cubo*[¹](#1), portuguese for cube.
 
 [![ToQUBO.jl](./logo.svg)](./)
 

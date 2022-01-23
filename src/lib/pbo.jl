@@ -9,11 +9,23 @@ export convert, zero, one, print
 export qubo, ising, reduce_degree, Δ, δ
 
 
+@doc raw"""
+    PseudoBooleanFunction{S, T}(c::T)
+    PseudoBooleanFunction{S, T}(ps::Pair{Vector{S}, T}...)
+
+A Pseudo-Boolean Function over some field ``\mathbb{T}`` takes the form
+
+```math
+f(\mathbf{x}) = \sum_{\omega \in \Omega\left[f\right]} c_\omega \prod_{j \in \omega} \mathbb{x}_j
+```
+
+where each ``\Omega\left[{f}\right]`` is the multi-linear representation of ``f`` as a set of terms. Each term is given by a unique set of indices ``\omega \subseteq \mathbb{S}`` related to some coefficient ``c_\omega \in \mathbb{T}``. We say that ``\omega \in \Omega\left[{f}\right] \iff c_\omega \neq 0``.
+
+
+## References
+
+    [1] Endre Boros, Peter L. Hammer Pseudo-Boolean optimization, Discrete Applied Mathematics, 2002 [{doi}](https://doi.org/10.1016/S0166-218X(01)00341-9)
 """
-    [1] Endre Boros, Peter L. Hammer Pseudo-Boolean optimization, Discrete Applied Mathematics, 2002
-        @ https://doi.org/10.1016/S0166-218X(01)00341-9
-"""
-# -*- Pseudo-boolean Functions -*-
 struct PseudoBooleanFunction{S <: Any, T <: Number} <: AbstractDict{Set{S}, T}
     layers::Dict{Int, Dict{Set{S}, T}}
     degvec::Vector{Int}
@@ -523,6 +535,18 @@ function reduce_term(ω::Set{S}, M::T; slack::Any, cache::Dict{Set{S}, PBF{S, T}
     return cache[ω]
 end
 
+@doc raw"""
+    reduce_degree(p::PBF{S, T}; slack::Any, cache::Dict{Set{S}, PBF{S, T}}) where {S, T}
+
+Degree reduction according to [References](@ref)
+
+Uses the identity
+
+```math
+x y z \iff z w + x y - 2 x w - 2 y w + 3 w
+```
+
+"""
 function reduce_degree(p::PBF{S, T}; slack::Any, cache::Dict{Set{S}, PBF{S, T}}) where {S, T}
     if degree(p) <= 2
         return copy(p)
