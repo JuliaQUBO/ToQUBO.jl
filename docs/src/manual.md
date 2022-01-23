@@ -19,8 +19,9 @@ using ToQUBO
 ## Pseudo-Boolean Optimization
 
 ```@docs
-PBO.PseudoBooleanFunction
-PBO.reduce_degree
+PseudoBooleanFunction
+reduce_degree
+Δ 
 ```
 
 ### Annealing
