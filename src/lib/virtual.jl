@@ -1,4 +1,4 @@
-module VarMap
+module VirtualMapping
 
 export coefficient, coefficients, offset, isslack, source, target, name
 export isempty, length, iterate

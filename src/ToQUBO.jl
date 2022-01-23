@@ -1,7 +1,6 @@
 module ToQUBO
 
 # ::: Imports :::
-using Documenter
 using JSON
 
 # -*- MOI Stuff -*-
@@ -36,13 +35,11 @@ export VirtualVariable, VV, coefficient, coefficients, offset, isslack, source, 
 include("./lib/anneal/anneal.jl")
 using .Anneal
 
-include("./lib/varmap.jl")
-using .VarMap
+include("./lib/virtual.jl")
+using .VirtualMapping
 
 include("./lib/pbo.jl")
-using .PBO: PseudoBooleanFunction, PBF, qubo, ising, Δ, δ, reduce_degree
-
-
+using .PBO
 
 # -*- Model: QUBO -*-
 include("./model/model.jl")
