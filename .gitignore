@@ -320,5 +320,5 @@ TSWLatexianTemp*
 # Uncomment the next line to have this generated file ignored.
 #*Notes.bib
 
-# JSON Outuput
-examples/*.json
+# Jupyter Notebooks
+*.ipynb
