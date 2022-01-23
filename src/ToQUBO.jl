@@ -24,10 +24,11 @@ const CI = MOI.ConstraintIndex
 const ∅ = Set{VI}()
 
 # -*- :: Exports :: -*-
-export QUBOModel, toqubo, isqubo
+export VirtualQUBOModel, PreQUBOModel, QUBOModel, toqubo, isqubo
 export PseudoBooleanFunction, PBF, qubo, ising, Δ, δ, reduce_degree
 export SimulatedAnnealer, QuantumAnnealer
 export VirtualVariable, VV, coefficient, coefficients, offset, isslack, source, target, name
+export mapvar!, expandℝ!, expandℤ!, mirror𝔹!, slackℝ!, slackℤ!, slack𝔹!
 
 # -*- :: Library Imports :: -*-
 
