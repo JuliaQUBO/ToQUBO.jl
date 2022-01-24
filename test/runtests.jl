@@ -20,9 +20,9 @@ function tests()
         include("./lib/anneal.jl")
     end
 
-    # -*- Tests: Varmap
-    @testset "VarMap" begin
-        include("./lib/varmap.jl")
+    # -*- Tests: Virtual Mapping -*-
+    @testset "VirtualMapping Module" begin
+        include("./lib/virtual.jl")
     end
 
     # -*- Tests: QUBO Model Assembly -*-

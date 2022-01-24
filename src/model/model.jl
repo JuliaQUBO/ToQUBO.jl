@@ -58,6 +58,14 @@ mutable struct ModelMOI{T <: Any}
     end
 end
 
+@doc raw"""
+    VirtualQUBOModel{T}(
+        optimizer::Union{Nothing, MOI.AbstractOptimizer}=nothing;
+        ϵ::T=zero(T)
+    )
+
+This QUBO Virtual Model links the final QUBO formulation to the original one, allowing variable value retrieving and other features.
+"""
 mutable struct VirtualQUBOModel{T} <: MOIU.AbstractModelLike{T}
     # -*- Underlying Model -*-
     preq_model::PreQUBOModel{T}
@@ -107,10 +115,14 @@ end
 include("moi.jl")
 
 # ::: Variable Management :::
-"""
-    mapvar(model::VirtualQUBOModel{T}, 𝓋::𝒱{T}) where {T}
+@doc raw"""
+    mapvar!(model::VirtualQUBOModel{T}, 𝓋::𝒱{T}) where {T}
 
-Variable Mapping
+Maps newly created virtual variable `𝓋` within the virtual model structure. It follows these steps:
+ 
+ 1. Maps `𝓋`'s source to it in the model's `source` mapping.
+ 2. For every one of `𝓋`'s targets, maps it to itself and adds a binary constraint to it.
+ 2. Adds `𝓋` to the end of the model's `varvec`.  
 """
 function mapvar!(model::VirtualQUBOModel{T}, 𝓋::𝒱{T}) where {T}
     x = source(𝓋)
@@ -130,10 +142,18 @@ function mapvar!(model::VirtualQUBOModel{T}, 𝓋::𝒱{T}) where {T}
     return 𝓋
 end
 
-"""
+@doc raw"""
     expandℝ!(model::QUBOModel{T}, src::VI; bits::Int, name::Symbol, α::T, β::T) where T
 
-Real Expansion
+Real Binary Expansion within the closed interval ``[\alpha, \beta]``.
+
+For a given variable ``x \in [\alpha, \beta]`` we approximate it by
+
+```math    
+x \approx \alpha + \frac{(\beta - \alpha)}{2^{n} - 1} \sum_{i=0}^{n-1} {2^{i}\, y_i}
+```
+
+where ``n`` is the number of bits and ``y_i \in \mathbb{B}``.
 """
 function expandℝ!(model::VirtualQUBOModel{T}, src::Union{VI, Nothing}; bits::Int, name::Symbol, α::T, β::T) where T
     return mapvar!(model, 𝒱{T}(
@@ -159,10 +179,10 @@ function slackℝ!(model::VirtualQUBOModel{T}; bits::Int, name::Symbol, α::T, �
     ))
 end
 
-"""
+@doc raw"""
     expandℤ!(model::QUBOModel{T}, src::VI; name::Symbol, α::T, β::T) where T
 
-Integer Expansion
+Integer Binary Expansion within the closed interval ``[\left\lceil{\alpha}\right\rceil, \left\lfloor{\beta}\right\rfloor]``.
 """
 function expandℤ!(model::VirtualQUBOModel{T}, src::Union{VI, Nothing}; name::Symbol, α::T, β::T) where T
     return mapvar!(model, 𝒱{T}(
@@ -175,6 +195,11 @@ function expandℤ!(model::VirtualQUBOModel{T}, src::Union{VI, Nothing}; name::S
     ))
 end
 
+@doc raw"""
+    slackℤ!(model::VirtualQUBOModel{T}; name::Symbol, α::T, β::T) where {T}
+
+Adds integer slack variable according to [`expandℤ!`](@ref)'s expansion method.
+"""
 function slackℤ!(model::VirtualQUBOModel{T}; name::Symbol, α::T, β::T) where {T}
     return mapvar!(model, 𝒱{T}(
         (n) -> MOI.add_variables(model.qubo_model, n),
@@ -186,10 +211,10 @@ function slackℤ!(model::VirtualQUBOModel{T}; name::Symbol, α::T, β::T) where
     ))
 end
 
-"""
-    mirror𝔹!(model::QUBOModel{T}, src::Union{VI, Nothing}; name::Symbol) where T
+@doc raw"""
+    mirror𝔹!(model::VirtualQUBOModel{T}, src::Union{VI, Nothing}; name::Symbol) where T
 
-Binary Mirroring
+Simply crates a virtual-mapped *Doppelgänger* into the destination model.
 """
 function mirror𝔹!(model::VirtualQUBOModel{T}, src::Union{VI, Nothing}; name::Symbol) where T
     return mapvar!(model, 𝒱{T}(

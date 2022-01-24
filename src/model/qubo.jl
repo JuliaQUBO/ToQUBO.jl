@@ -6,15 +6,15 @@
 ×(x::Set{S}, y::Set{S}) where {S} = union!(x, y)
 
 @doc raw"""
-    isqubo(T::Type{<:Any}, model::MOI.ModelLike)
     isqubo(model::MOI.ModelLike)
-    isqubo(::Model)
-    isqubo(::QUBOModel)
+    isqubo(T::Type{<:Any}, model::MOI.ModelLike)
+    
+Tells if a given model is ready to be interpreted as a QUBO model.
 
-Tells if `model` is ready as QUBO Model. A few conditions must be met:
-    1. All variables must be binary (VariableIndex-in-ZeroOne)
-    2. No other constraints are allowed
-    3. The objective function must be either ScalarQuadratic, ScalarAffine or VariableIndex
+For it to be true, a few conditions must be met:
+ 1. All variables must be binary (`MOI.VariableIndex ∈ MOI.ZeroOne`)
+ 2. No other constraints are allowed
+ 3. The objective function must be either `MOI.ScalarQuadraticFunction`, `MOI.ScalarAffineFunction` or `MOI.VariableIndex`
 """
 function isqubo(T::Type{<:Any}, model::MOI.ModelLike)
     F = MOI.get(model, MOI.ObjectiveFunctionType()) 
@@ -55,7 +55,6 @@ end
 isqubo(::QUBOModel) = true
 isqubo(::VirtualQUBOModel) = true
 
-
 function discretize(𝕡::ℱ{T}; ϵ::T) where {T}
     𝓀 = collect(keys(𝕡))
     𝓋 = [𝕡[k] for k in 𝓀]
@@ -67,6 +66,21 @@ function discretize(𝕡::ℱ{T}; ϵ::T) where {T}
 end
 
 # -*- toqubo: MOI.ModelLike -> QUBO.Model -*-
+@doc raw"""
+    toqubo(
+        T::Type{<:S},
+        model::MOI.ModelLike,
+        optimizer::Union{Nothing, MOI.AbstractOptimizer}=nothing;
+        ϵ::S=zero(S)
+    ) where {S}
+
+Low-level interface to create a `::VirtualQUBOModel{T}` from `::MOI.ModelLike` instance. If provided, an `::MOI.AbstractOptimizer` is attached to the model.
+
+The `ϵ` parameter defines the tolerance imposed for turning the problem's coefficients into integers.
+
+!!! warning "Warning"
+    Be careful with the `ϵ` parameter. When equal to zero, truncates all entries.
+"""
 function toqubo(T::Type{<: S}, model::MOI.ModelLike, optimizer::Union{Nothing, MOI.AbstractOptimizer}=nothing; ϵ::S=zero(S)) where {S}
     virt_model = VirtualQUBOModel{T}(optimizer; ϵ=ϵ)
 
@@ -86,8 +100,6 @@ end
 # ::: QUBO Conversion :::
 # -*- From ModelLike to QUBO -*-
 
-"""
-"""
 function toqubo!(ℳ::VirtualQUBOModel{T}) where {T}
 
     # -*- Support Validation -*-

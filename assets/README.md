@@ -1,8 +1,8 @@
 # Logo
 
-The ideia behind [ToQUBO](../../../)'s logo comes from a wordplay in Portuguese. The package's main purpose is to assemble QUBO Models, which sounds like *cubo*[¹](#1), portuguese for cube.
+The ideia behind [ToQUBO](../../..)'s logo comes from a wordplay in Portuguese. The package's main purpose is to assemble QUBO Models, which sounds like *cubo*[¹](#1), portuguese for cube.
 
-[![ToQUBO.jl](./logo.svg)](./)
+[![ToQUBO.jl](./logo.svg)](.)
 
 ## Colors
 
@@ -19,7 +19,7 @@ The colors were chosen according to  *Julia's Reference for logo graphics*[²](#
 
 <a href="#2">²</a> [github.com/JuliaLang/julia-logo-graphics](https://github.com/JuliaLang/julia-logo-graphics/)
 
-<a href="#3">³</a> [Licensed](Sunflower%20LICENSE.txt) by the authors for use in this project
+<a href="#3">³</a> [Licensed](./fonts/Sunflower%20LICENSE.txt) by the authors for use in this project
 
 <a href="#4">⁴</a> [danmarshall.github.io/google-font-to-svg-path](https://danmarshall.github.io/google-font-to-svg-path/)
 

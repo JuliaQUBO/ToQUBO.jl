@@ -1,7 +1,6 @@
 module ToQUBO
 
 # ::: Imports :::
-using Documenter
 using JSON
 
 # -*- MOI Stuff -*-
@@ -25,10 +24,11 @@ const CI = MOI.ConstraintIndex
 const ∅ = Set{VI}()
 
 # -*- :: Exports :: -*-
-export QUBOModel, toqubo, isqubo
+export VirtualQUBOModel, PreQUBOModel, QUBOModel, toqubo, isqubo
 export PseudoBooleanFunction, PBF, qubo, ising, Δ, δ, reduce_degree
 export SimulatedAnnealer, QuantumAnnealer
 export VirtualVariable, VV, coefficient, coefficients, offset, isslack, source, target, name
+export mapvar!, expandℝ!, expandℤ!, mirror𝔹!, slackℝ!, slackℤ!, slack𝔹!
 
 # -*- :: Library Imports :: -*-
 
@@ -36,13 +36,11 @@ export VirtualVariable, VV, coefficient, coefficients, offset, isslack, source, 
 include("./lib/anneal/anneal.jl")
 using .Anneal
 
-include("./lib/varmap.jl")
-using .VarMap
+include("./lib/virtual.jl")
+using .VirtualMapping
 
 include("./lib/pbo.jl")
-using .PBO: PseudoBooleanFunction, PBF, qubo, ising, Δ, δ, reduce_degree
-
-
+using .PBO
 
 # -*- Model: QUBO -*-
 include("./model/model.jl")
