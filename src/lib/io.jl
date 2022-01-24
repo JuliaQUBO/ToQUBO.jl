@@ -1,5 +1,4 @@
 # -*- IO -*-
-# -*- Variable Ordering -*-
 
 # -*- Subscript: Generic -*-
 function subscript(i::Int; var::Union{Symbol, Nothing}=nothing, par::Bool=false)
@@ -45,6 +44,17 @@ function Base.show(io::IO, p::PBF{S, T}) where {S, T}
         print(io, join(join(["$((c < 0) ? (i == 1 ? "-" : " - ") : (i == 1 ? "" : " + "))$(abs(c))$(isempty(t) ? "" : subscript(t, var=:x))" for (i, (t, c)) in enumerate(p)])))
     end
 end
+
+function Base.show(io::IO, model::VirtualQUBOModel)
+    print(io, """$(model.preq_model)
+    
+    TERMINATION STATUS: $(MOI.get(model, MOI.TerminationStatus()))
+    PRIMAL STATUS: $(MOI.get(model, MOI.PrimalStatus()))
+    SOLVE TIME: $(MOI.get(model, MOI.SolveTimeSec()))s
+    """)
+end
+
+Base.print(io::IO, model::VirtualQUBOModel) = show(io, model)
 
 # -*- JSON -*-
 # function tojson(model::QUBOModel{T}) where T
