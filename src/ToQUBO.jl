@@ -25,7 +25,7 @@ const ∅ = Set{VI}()
 
 # -*- :: Exports :: -*-
 export VirtualQUBOModel, PreQUBOModel, QUBOModel, toqubo, isqubo
-export PseudoBooleanFunction, PBF, qubo, ising, Δ, δ, reduce_degree
+export PseudoBooleanFunction, PBF, qubo, ising, Δ, Θ, quadratize, discretize, gap, @quadratization
 export SimulatedAnnealer, QuantumAnnealer
 export VirtualVariable, VV, coefficient, coefficients, offset, isslack, source, target, name
 export mapvar!, expandℝ!, expandℤ!, mirror𝔹!, slackℝ!, slackℤ!, slack𝔹!
@@ -33,7 +33,7 @@ export mapvar!, expandℝ!, expandℤ!, mirror𝔹!, slackℝ!, slackℤ!, slack
 # -*- :: Library Imports :: -*-
 
 # -*- Library: Samplers -*-
-include("./lib/anneal/anneal.jl")
+include("lib/Anneal.jl/src/Anneal.jl")
 using .Anneal
 
 include("./lib/virtual.jl")
