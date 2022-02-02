@@ -61,9 +61,13 @@ end
 ```@example moi-knapsack; continued=true
 using ToQUBO
 
+# Instantiate optimizer (annealer)
 optimizer = SimulatedAnnealer{MOI.VariableIndex, Float64}()
-qubo_model = toqubo(model, optimizer; ϵ=0.01)
 
+# Attach optimizer to model
+qubo_model = toqubo(model, optimizer; tol=0.01)
+
+# Run Annealing
 MOI.optimize!(qubo_model)
 ```
 
@@ -135,7 +139,7 @@ end
 
 ```@example dwave-knapsack
 optimizer = SimulatedAnnealer{MOI.VariableIndex, Float64}()
-qubo_model = toqubo(model, optimizer; ϵ=0.01)
+qubo_model = toqubo(model, optimizer; tol=0.01)
 
 MOI.optimize!(qubo_model)
 
