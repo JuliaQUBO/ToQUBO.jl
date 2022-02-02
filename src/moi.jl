@@ -35,6 +35,16 @@ function MOI.optimize!(annealer::AbstractAnnealer{S, T}, model::VirtualQUBOModel
     model.moi.solve_time_sec = annealer.moi.solve_time_sec
 
     # -*- Termination Status -*-
+    # Candidates:
+    # 1. LOCALLY_SOLVED: The algorithm converged to a stationary point, local optimal solution, could not find directions for improvement, or otherwise completed its search without global guarantees.
+    # 2. LOCALLY_INFEASIBLE: The algorithm converged to an infeasible point or otherwise completed its search without finding a feasible solution, without guarantees that no feasible solution exists.
+    # 3. SOLUTION_LIMIT: The algorithm stopped because it found the required number of solutions. This is often used in MIPs to get the solver to return the first feasible solution it encounters.
+    # 4. OTHER_LIMIT: The algorithm stopped due to a limit not covered by one of the above.
+    #
+    # References:
+    # [1] https://jump.dev/MathOptInterface.jl/stable/reference/models/#MathOptInterface.TerminationStatusCode
+    #
+    # PS:   
     # ∂ᵢf(x) = 0 ∀i ?
     model.moi.termination_status = annealer.moi.termination_status
 
@@ -51,6 +61,8 @@ function MOI.optimize!(annealer::AbstractAnnealer{S, T}, model::VirtualQUBOModel
 
     # -*- Raw Status String -*-
     model.moi.raw_status_str = annealer.moi.raw_status_str
+
+    nothing
 end
 
 function MOI.optimize!(model::VirtualQUBOModel)
