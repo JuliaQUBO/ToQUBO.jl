@@ -3,14 +3,24 @@ module PBO
 using Random
 using LinearAlgebra
 
+using Base: haslength
+
 export PseudoBooleanFunction, PBF
-export qubo, ising, reduce_degree, Δ, δ
+export qubo, ising
+export discretize, quadratize, gap, @quadratization
+export Δ, Θ, ×
+
+# -*- Variable Terms -*-
+×(x::S, y::S) where {S} = Set{S}([x, y])
+×(x::Set{S}, y::S) where {S} = union(x, y)
+×(x::S, y::Set{S}) where {S} = union(x, y)
+×(x::Set{S}, y::Set{S}) where {S} = union(x, y)
 
 @doc raw"""
     PseudoBooleanFunction{S, T}(c::T)
     PseudoBooleanFunction{S, T}(ps::Pair{Vector{S}, T}...)
 
-A Pseudo-Boolean Function ```f \in \mathscr{F}`` over some field ``\mathbb{T}`` takes the form
+A Pseudo-Boolean Function ``f \in \mathscr{F}`` over some field ``\mathbb{T}`` takes the form
 
 ```math
 f(\mathbf{x}) = \sum_{\omega \in \Omega\left[f\right]} c_\omega \prod_{j \in \omega} \mathbb{x}_j
@@ -23,19 +33,32 @@ Variables ``\mathbf{x}_i`` are indeed boolean, thus ``f : \mathbb{B}^{n} \to \ma
  * [1] Endre Boros, Peter L. Hammer, Pseudo-Boolean optimization, Discrete Applied Mathematics, 2002 [{doi}](https://doi.org/10.1016/S0166-218X(01)00341-9)
 """
 struct PseudoBooleanFunction{S <: Any, T <: Number} <: AbstractDict{Set{S}, T}
-    layers::Dict{Int, Dict{Set{S}, T}}
-    degvec::Vector{Int}
+    Ω::Dict{Set{S}, T}
 
-    function PseudoBooleanFunction{S, T}(layers::Dict{Int, Dict{Set{S}, T}}, degvec::Vector{Int}) where {S, T}
-        return new{S, T}(layers, degvec)
+    function PseudoBooleanFunction{S, T}(kv::Any) where {S, T}
+        Ω = Dict{Set{S}, T}()
+        haslength(kv) && sizehint!(Ω, Int(length(kv))::Int)
+        for (η, a) ∈ kv
+            ω = Set{S}(η)
+            c = get(Ω, ω, zero(T)) + convert(T, a)
+            if c == zero(T)
+                delete!(Ω, ω)
+            else
+                Ω[ω] = c
+            end
+        end
+        return new{S, T}(Ω)
+    end
+
+    function PseudoBooleanFunction{S, T}(Ω::Dict{Set{S}, T}) where {S, T}
+        return new{S, T}(
+            Dict{Set{S}, T}(ω => c for (ω, c) in Ω if c != zero(T))
+        )
     end
 
     # -*- Empty -*-
     function PseudoBooleanFunction{S, T}() where {S, T}
-        return new{S, T}(
-            Dict{Int, Dict{Set{S}, T}}(),
-            Vector{Int}()
-        )
+        return new{S, T}(Dict{Set{S}, T}())
     end
 
     # -*- Constant -*-
@@ -43,74 +66,54 @@ struct PseudoBooleanFunction{S <: Any, T <: Number} <: AbstractDict{Set{S}, T}
         if c === zero(T)
             return PseudoBooleanFunction{S, T}()
         else
-            return new{S, T}(
-                Dict{Int, Dict{Set{S}, T}}(0 => Dict{Set{S}, T}(Set{S}() => c)),
-                Vector{Int}([0])
-            )
+            return new{S, T}(Dict{Set{S}, T}(Set{S}() => c))
         end
-        return
+    end
+
+    # -*- Terms -*-
+    function PseudoBooleanFunction{S, T}(ω::Set{S}) where {S, T}
+        return new{S, T}(Dict{Set{S}, T}(ω => one(T)))
+    end
+
+    function PseudoBooleanFunction{S, T}(ω::Vararg{S}) where {S, T}
+        return new{S, T}(Dict{Set{S}, T}(Set{S}(ω) => one(T)))
     end
 
     # -*- Pairs (Vectors) -*-
-    function PseudoBooleanFunction{S, T}(ps::Pair{Vector{S}, T}...) where {S, T}
-        return PseudoBooleanFunction{S, T}((Set{S}(ω) => c for (ω, c) in ps)...)
+    function PseudoBooleanFunction{S, T}(ps::Vararg{Pair{Vector{S}, T}}) where {S, T}
+        Ω = Dict{Set{S}, T}()
+        haslength(ps) && sizehint!(Ω, Int(length(ps))::Int)
+
+        for (η, a) in ps
+            ω = Set{S}(η)
+            c = get(Ω, ω, zero(T)) + a
+
+            if c == zero(T)
+                delete!(Ω, ω)
+            else
+                Ω[ω] = c
+            end
+        end
+
+        return new{S, T}(Ω)
     end
 
     # -*- Pairs (Sets) -*-
-    function PseudoBooleanFunction{S, T}(ps::Pair{Set{S}, T}...) where {S, T}
-        layers = Dict{Int, Dict{Set{S}, T}}()
+    function PseudoBooleanFunction{S, T}(ps::Vararg{Pair{Set{S}, T}}) where {S, T}
+        Ω = Dict{Set{S}, T}()
+        haslength(ps) && sizehint!(Ω, Int(length(ps))::Int)
 
-        for (ω, c) in ps
-            if c === zero(T)
-                continue
-            end
-            
-            n = length(ω)
+        for (ω, a) in ps
+            c = get(Ω, ω, zero(T)) + a
 
-            if haskey(layers, n)
-                layer = layers[n]
-                if haskey(layer, ω)
-                    d = layer[ω] + c
-                    if d !== zero(T)
-                        layer[ω] = d
-                    else
-                        delete!(layer, ω)
-                        if isempty(layer)
-                            delete!(layers, n)
-                        end
-                    end
-                else
-                    layer[ω] = c
-                end
+            if c == zero(T)
+                delete!(Ω, ω)
             else
-                layers[n] = Dict{Set{S}, T}(ω => c)
+                Ω[ω] = c
             end
         end
-        
-        degvec = Vector{Int}(sort(collect(keys(layers))))
-        return new{S, T}(layers, degvec)
-    end
 
-    # -*- Dictionary -*-
-    function PseudoBooleanFunction{S, T}(D::Dict{Set{S}, T}) where {S, T}
-        layers = Dict{Int, Dict{Set{S}, T}}()
-
-        for (ω, c) in D
-            if c === zero(T)
-                continue
-            end
-
-            n = length(ω)
-
-            if haskey(layers, n)
-                layers[n][ω] = c
-            else
-                layers[n] = Dict{Set{S}, T}(ω => c)
-            end
-        end
-        
-        degvec = Vector{Int}(sort(collect(keys(layers))))
-        return new{S, T}(layers, degvec)
+        return new{S, T}(Ω)
     end
 end
 
@@ -127,255 +130,199 @@ function PBF(c::Float64)::PBF{Int, Float64}
 end
 
 # -*- Copy -*-
-function Base.copy(p::PBF{S, T})::PBF{S, T} where {S, T}
-    layers = Dict{Int, Dict{Set{S}, T}}(i => copy(layer) for (i, layer) in p.layers)
-    degvec = copy(p.degvec)
-    return PBF{S, T}(layers, degvec)
-end
+function Base.copy(f::PBF{S, T})::PBF{S, T} where {S, T}
+    return PBF{S, T}(copy(f.Ω))
+end 
 
 # -*- Iterator & Length -*-
-function Base.length(𝑓::PBF)::Int
-    return sum(length.(values(𝑓.layers)))
+function Base.length(f::PBF)::Int
+    return length(f.Ω)
 end
 
-function Base.isempty(𝑓::PBF)::Bool
-    return isempty(𝑓.degvec)
+function Base.isempty(f::PBF)::Bool
+    return isempty(f.Ω)
 end
 
-function Base.iterate(𝑓::PBF)
-    if isempty(𝑓)
-        return nothing
-    else
-        item, s = iterate(𝑓.layers[𝑓.degvec[1]])
-        return (item, (1, s))
-    end
+function Base.iterate(f::PBF)
+    return iterate(f.Ω)
 end
 
-function Base.iterate(𝑓::PBF, state::Tuple{Int, Int})
-    i, s = state
-    if i > length(𝑓.degvec)
-        return nothing
-    else
-        next = iterate(𝑓.layers[𝑓.degvec[i]], s)
-        if next === nothing
-            if i === length(𝑓.degvec)
-                return nothing
-            else
-                item, s = iterate(𝑓.layers[𝑓.degvec[i + 1]])
-                return (item, (i + 1, s))
-            end
-        else
-            item, s = next
-            return (item, (i, s))
-        end
-    end
+function Base.iterate(f::PBF, i::Int)
+    return iterate(f.Ω, i)
 end
 
 # -*- Indexing: Get -*-
-function Base.getindex(𝑓::PBF{S, T}, i::Set{S})::T where {S, T}
-    n = length(i)
-    if haskey(𝑓.layers, n)
-        layer = 𝑓.layers[n]
-        if haskey(layer, i)
-            return layer[i]
-        else
-            return zero(T)
-        end
-    else
-        return zero(T)
-    end
+function Base.getindex(f::PBF{S, T}, ω::Set{S})::T where {S, T}
+    return get(f.Ω, ω, zero(T))
 end
 
-function Base.getindex(𝑓::PBF{S, T}, i::Vector{S}) where {S, T}
-    return getindex(𝑓, Set{S}(i))
+function Base.getindex(f::PBF{S, T}, η::Vector{S}) where {S, T}
+    return getindex(f, Set{S}(η))
 end
 
-function Base.getindex(𝑓::PBF{S, T}, i::S) where {S, T}
-    return getindex(𝑓, Set{S}([i]))
+function Base.getindex(f::PBF{S, T}, ξ::S...) where {S, T}
+    return getindex(f, Set{S}(ξ))
 end
 
 # -*- Indexing: Set -*-
-function Base.setindex!(𝑓::PBF{S, T}, c::T, ω::Set{S}) where {S, T}
-    n = length(ω)
-    if haskey(𝑓.layers, n)
-        layer = 𝑓.layers[n]
-        if haskey(layer, ω) && c === zero(T)
-            delete!(layer, ω)
-            if isempty(layer)
-                delete!(𝑓.layers, n)
-                deleteat!(𝑓.degvec, searchsorted(𝑓.degvec, n))
-            end
-        elseif c !== zero(T)
-            layer[ω] = c
-        end
-    elseif c !== zero(T)
-        𝑓.layers[n] = Dict{Set{S}, T}(ω => c)
-        ω = searchsorted(𝑓.degvec, n)
-        if length(ω) === 0
-            push!(𝑓.degvec, n)
-        else
-            insert!(𝑓.degvec, ω..., n)
-        end
-    end
-end
-
-function Base.setindex!(𝑓::PBF{S, T}, c::T, v::Vector{S}) where {S, T}
-    setindex!(𝑓, c, Set{S}(v))
-end
-
-function Base.setindex!(𝑓::PBF{S, T}, c::T, i::S) where {S, T}
-    setindex!(𝑓, c, Set{S}([i]))
-end
-
-# -*- Properties: Degree & Varmap -*-
-function degree(𝑓::PBF)::Int
-    if isempty(𝑓)
-        return 0
+function Base.setindex!(f::PBF{S, T}, c::T, ω::Set{S}) where {S, T}
+    if c == zero(T) && haskey(f.Ω, ω)
+        delete!(f.Ω, ω)
     else
-        return last(𝑓.degvec)
+        f.Ω[ω] = c
+    end
+
+    nothing
+end
+
+function Base.setindex!(f::PBF{S, T}, c::T, η::Vector{S}) where {S, T}
+    setindex!(f, c, Set{S}(η))
+end
+
+function Base.setindex!(f::PBF{S, T}, c::T, ξ::S...) where {S, T}
+    setindex!(f, c, Set{S}(ξ))
+end
+
+# -*- Properties -*-
+function Base.size(f::PBF{S, T}) where {S, T}
+    return length(f) - (f.Ω[Set{S}()] != zero(T))
+end
+
+function degree(f::PBF)
+    return maximum(length.(keys(f.Ω)))
+end
+
+function varset(f::PBF{S, T}) where {S, T}
+    if isempty(f)
+        return Set{S}()
+    else
+        return reduce(union, keys(f.Ω))
     end
 end
 
-function varmap(𝑓::PBF{S, T}) where {S, T}
-    return Dict{S, Int}(v => i for (i, v) in enumerate(sort(collect(reduce(union, keys(𝑓))))))
+function varmap(f::PBF{S, T}) where {S, T}
+    return Dict{S, Int}(x => i for (i, x) in enumerate(sort(collect(varset(f)))))
+end
+
+function varinv(f::PBF{S, T}) where {S, T}
+    return Dict{Int, S}(i => x for (i, x) in enumerate(sort(collect(varset(f)))))
 end
 
 # -*- Comparison: (==, !=, ===, !==)
-function Base.:(==)(𝑓::PBF{S, T}, 𝑔::PBF{S, T})::Bool where {S, T}
-    return 𝑓.layers == 𝑔.layers
+function Base.:(==)(f::PBF{S, T}, g::PBF{S, T}) where {S, T}
+    return f.Ω == g.Ω
 end
 
-function Base.:(!=)(𝑓::PBF{S, T}, 𝑔::PBF{S, T})::Bool where {S, T}
-    return 𝑓.layers != 𝑔.layers
+function Base.:(!=)(f::PBF{S, T}, g::PBF{S, T}) where {S, T}
+    return f.Ω != g.Ω
 end
 
 # -*- Arithmetic: (+) -*-
-function Base.:(+)(𝑓::PBF{S, T}, 𝑔::PBF{S, T})::PBF{S, T} where {S, T}
-    ℎ = copy(𝑓)
-
-    for (ω, c) in 𝑔
-        ℎ[ω] += c
+function Base.:(+)(f::PBF{S, T}, g::PBF{S, T}) where {S, T}
+    h = copy(f)
+    for (ω, c) in g.Ω
+        h[ω] += c
     end
-
-    return ℎ
+    return h
 end
 
-function Base.:(+)(𝑓::PBF{S, T}, c::T)::PBF{S, T} where {S, T}
-    r = copy(𝑓)
-
-    r[Set{S}()] += c
-    
-    return r
+function Base.:(+)(f::PBF{S, T}, c::T) where {S, T}
+    g = copy(f)
+    g[Set{S}()] += c
+    return g
 end
 
-function Base.:(+)(c::T, 𝑓::PBF{S, T})::PBF{S, T} where {S, T}
-    return +(𝑓, c)
+function Base.:(+)(c::T, f::PBF{S, T}) where {S, T}
+    return +(f, c)
 end
 
 # -*- Arithmetic: (-) -*-
-function Base.:(-)(𝑓::PBF{S, T})::PBF{S, T} where {S, T}
-    r = copy(𝑓)
+function Base.:(-)(f::PBF{S, T}) where {S, T}
+    return PBF{S, T}(Dict{Set{S}, T}(ω => -c for (ω, c) in f.Ω))
+end
 
-    for layer in values(r.layers)
-        for ω in keys(layer)
-            layer[ω] = -layer[ω]
-        end
+function Base.:(-)(f::PBF{S, T}, g::PBF{S, T})::PBF{S, T} where {S, T}
+    h = copy(f)
+    for (ω, c) in g.Ω
+        h[ω] -= c
     end
-
-    return r
+    return h
 end
 
-function Base.:(-)(𝑓::PBF{S, T}, 𝑔::PBF{S, T})::PBF{S, T} where {S, T}
-    r = copy(𝑓)
-
-    for (tᵢ, cᵢ) in 𝑔
-        r[tᵢ] -= cᵢ
-    end
-
-    return r
+function Base.:(-)(f::PBF{S, T}, c::T)::PBF{S, T} where {S, T}
+    g = copy(f)
+    g[Set{S}()] -= c
+    return g
 end
 
-function Base.:(-)(𝑓::PBF{S, T}, c::T)::PBF{S, T} where {S, T}
-    return +(𝑓, -(c))
-end
-
-function Base.:(-)(c::T, 𝑓::PBF{S, T})::PBF{S, T} where {S, T}
-    return +(-(𝑓), c)
+function Base.:(-)(c::T, f::PBF{S, T})::PBF{S, T} where {S, T}
+    g = -(f)
+    g[Set{S}()] += c
+    return g
 end
 
 # -*- Arithmetic: (*) -*-
-function Base.:(*)(𝑓::PBF{S, T}, 𝑔::PBF{S, T})::PBF{S, T} where {S, T}
-    if isempty(𝑓) || isempty(𝑔)
+function Base.:(*)(f::PBF{S, T}, g::PBF{S, T})::PBF{S, T} where {S, T}
+    if isempty(f) || isempty(g)
         return PBF{S, T}()
     end
 
-    r = PBF{S, T}()
+    h = PBF{S, T}()
 
-    for (tᵢ, cᵢ) in 𝑓, (tⱼ, cⱼ) in 𝑔
-        r[union(tᵢ, tⱼ)] += cᵢ * cⱼ
+    for (ωᵢ, cᵢ) ∈ f.Ω, (ωⱼ, cⱼ) ∈ g.Ω
+        h[ωᵢ × ωⱼ] += cᵢ * cⱼ
     end
 
-    return r
+    return h
 end
 
-function Base.:(*)(𝑓::PBF{S, T}, c::T)::PBF{S, T} where {S, T}
-    if c === 0
+function Base.:(*)(f::PBF{S, T}, c::T)::PBF{S, T} where {S, T}
+    if c == zero(T)
         return PBF{S, T}()
     else
-        r = copy(𝑓)
-
-        for layer in values(r.layers), t in keys(layer)
-            layer[t] *= c
-        end
-
-        return r
+        return PBF{S, T}(
+            Dict(ω => a * c for (ω, a) ∈ f.Ω)
+        )
     end
 end
 
-function Base.:(*)(c::T, 𝑓::PBF{S, T})::PBF{S, T} where {S, T}
-    return *(𝑓, c)
+function Base.:(*)(c::T, f::PBF{S, T})::PBF{S, T} where {S, T}
+    return *(f, c)
 end
 
 # -*- Arithmetic: (/) -*-
-function Base.:(/)(𝑓::PBF{S, T}, c::T)::PBF{S, T} where {S, T}
-    if c == 0
+function Base.:(/)(f::PBF{S, T}, c::T)::PBF{S, T} where {S, T}
+    if c == zero(T)
         error(DivideError, ": division by zero") 
     else
-        r = copy(𝑓)
-
-        for layer in values(r.layers), t in keys(layer)
-            layer[t] /= c
-        end
-
-        return r
+        return PBF{S, T}(
+            Dict(ω => a / c for (ω, a) ∈ f.Ω)
+        )
     end
 end
 
 # -*- Arithmetic: (^) -*-
-function Base.:(^)(𝑓::PBF{S, T}, n::Int)::PBF{S, T} where {S, T}
+function Base.:(^)(f::PBF{S, T}, n::Int)::PBF{S, T} where {S, T}
     if n < 0
-        error(DivideError, ": Can't divide by Pseudo-boolean function.")
-    elseif n === 0
+        error(DivideError, ": Can't raise Pseudo-boolean function to a negative power")
+    elseif n == 0
         return one(PBF{S, T})
-    elseif n === 1
-        return copy(𝑓)
+    elseif n == 1
+        return copy(f)
     else 
-        r = PBF{S, T}(one(T))
-
+        g = PBF{S, T}(one(T))
         for _ = 1:n
-            r *= 𝑓
+            g *= f
         end
-
-        return r
+        return g
     end
 end
 
 # -*- Arithmetic: Evaluation -*-
-function (𝑓::PBF{S, T})(x::Dict{S, Int}) where {S, T}
+function (f::PBF{S, T})(x::Dict{S, Int}) where {S, T}
+    g = PBF{S, T}()
     
-    𝑔 = PBF{S, T}()
-    
-    for (ω, c) in 𝑓
+    for (ω, c) in f
         η = Set{S}()
         for j in ω
             if haskey(x, j)
@@ -387,38 +334,38 @@ function (𝑓::PBF{S, T})(x::Dict{S, Int}) where {S, T}
                 push!(η, j)
             end
         end
-        𝑔[η] += c
+        g[η] += c
     end
 
-    return 𝑔
+    return g
 end
 
-function (𝑓::PBF{S, T})(x::Pair{S, Int}...) where {S, T}
-    return 𝑓(Dict{S, Int}(x...))
+function (f::PBF{S, T})(x::Pair{S, Int}...) where {S, T}
+    return f(Dict{S, Int}(x...))
 end
 
 # -*- Type conversion -*-
-function Base.convert(::Type{<: T}, p::PBF{S, T}) where {S, T}
-    if isempty(p)
+function Base.convert(::Type{<: T}, f::PBF{S, T}) where {S, T}
+    if isempty(f)
         return zero(T)
-    elseif degree(p) === 0
-        return p[Set{S}()]
+    elseif degree(f) == 0
+        return f[Set{S}()]
     else
         error("Can't convert Pseudo-boolean Function with variables to scalar type $T")
     end
 end
 
-function Base.zero(::Type{PBF{S, T}}) where {S, T}
+function Base.zero(::Type{<:PBF{S, T}}) where {S, T}
     return PBF{S, T}()
 end
 
-function Base.one(::Type{PBF{S, T}}) where {S, T}
+function Base.one(::Type{<:PBF{S, T}}) where {S, T}
     return PBF{S, T}(one(T))
 end
 
 # -*- Gap & Penalties -*-
 @doc raw"""
-    Δ(𝒻::PBF{S, T}; bound::Symbol=:loose) where {S, T}
+    gap(f::PBF{S, T}; bound::Symbol=:loose) where {S, T}
 
 Computes the least upper bound for the greatest variantion possible under some `` f \in \mathscr{F} `` i. e.
 
@@ -434,9 +381,9 @@ A simple approach, avaiable using the `bound=:loose` parameter, is to define
 M \triangleq \sum_{\omega \neq \varnothing} \left|{c_\omega}\right|
 ```
 """
-function Δ(𝒻::PBF{S, T}; bound::Symbol=:loose) where {S, T}
+function gap(f::PBF{S, T}; bound::Symbol=:loose) where {S, T}
     if bound === :loose
-        return sum(abs(c) for (ω, c) in 𝒻 if !isempty(ω))
+        return sum(abs(c) for (ω, c) in f if !isempty(ω))
     elseif bound === :tight
         error("Not Implemented: See [1] sec 5.1.1 Majorization")
     else
@@ -444,76 +391,104 @@ function Δ(𝒻::PBF{S, T}; bound::Symbol=:loose) where {S, T}
     end
 end
 
-function δ(p::PBF{S, T}; bound::Symbol=:loose) where{S, T}
-    if bound === :loose
-        error("Not Implemented")
-    elseif bound === :tight
-        error("Not Implemented")
-    else
-        error(ArgumentError, ": Unknown bound thightness $bound")
-    end
+# -*- Computations with PBF's -*-
+function Ω(f::PBF{S, T}) where {S, T}
+    return keys(f.Ω)
+end
+
+@doc raw"""
+    Δ(f::PBF{S, T}, i::S) where {S, T}
+    Δ(f::PBF{S, T}, i::Int) where {S, T}
+
+The partial derivate of function ``f \in \mathscr{F}`` with respect to the ``i``-th variable.
+
+```math
+    \Delta_i f(\mathbf{x}) = \frac{\partial f(\mathbf{x})}{\partial \mathbf{x}_i} =
+    \sum_{\omega \in \Omega\left[{f}\right] \setminus \left\{{i}\right\}}
+    c_{\omega \cup \left\{{i}\}\right\} \prod_{i \in \omega} \mathbf{x}_i
+```
+"""
+function Δ(f::PBF{S, T}, i::S) where {S, T}
+    return PBF{S, T}(ω => f[ω × i] for (ω, _) ∈ Ω(f) if (i ∉ ω))
+end
+
+function Δ(f::PBF{S, T}, i::Int) where {S, T}
+    return Δ(f, varinv(f)[i])
+end
+
+@doc raw"""
+    Θ(f::PBF{S, T}, i::S) where {S, T}
+    Θ(f::PBF{S, T}, i::Int) where {S, T}
+
+The residual of function ``f \in \mathscr{F}`` with respect to the ``i``-th variable.
+
+```math
+    \Theta_i f(\mathbf{x}) = f(\mathbf{x}) - \mathbf{x}_i\, \Delta_i f(\mathbf{x}) =
+    \sum_{\omega \in \Omega\left[{f}\right] \setminus \left\{{i}\right\}}
+    c_{\omega \cup \left\{{i}\}\right\} \prod_{i \in \omega} \mathbf{x}_i
+```
+"""
+function Θ(f::PBF{S, T}, i::S) where {S, T}
+    return PBF{S, T}(ω => c for (ω, c) ∈ Ω(f) if (i ∉ ω))
+end
+
+function Θ(f::PBF{S, T}, i::Int) where {S, T}
+    return Θ(f, varinv(f)[i])
 end
 
 # -*- Output -*-
-function qubo(::Type{<: AbstractDict}, p::PBF{S, T}) where {S, T}
-    if degree(p) >= 3
-        error(DomainError, ": Can't convert Pseudo-boolean function with degree greater than 3 to QUBO format. Try using `reduce_degree` before conversion.")
-    else
-        ∅ = Set{S}()
-        x = varmap(p)
-        Q = Dict{Tuple{Int, Int}, T}()
-        c = zero(T)
+function qubo(::Type{<: AbstractDict}, f::PBF{S, T}) where {S, T}
+    # -* QUBO *-
+    x = varmap(f)
+    Q = Dict{Tuple{Int, Int}, T}()
+    c = zero(T)
 
-        if haskey(p.layers, 0)
-            c += p[∅]
+    sizehint!(Q, size(f))
+
+    for (ω, a) ∈ f.Ω
+        η = sort([x[i] for i ∈ ω])
+        k = length(η)
+
+        if k == 0
+            c += a
+        elseif k == 1
+            i, = η
+            Q[i, i] = a
+        elseif k == 2
+            i, j = η
+            Q[i, j] = a
+        else
+            error(DomainError, ": Can't convert Pseudo-boolean function with degree greater than 2 to QUBO format.\nTry using 'quadratize' before conversion.")
         end
-
-        if haskey(p.layers, 1)
-            for ((i,), d) in p.layers[1]
-                Q[x[i], x[i]] = d
-            end
-        end
-
-        if haskey(p.layers, 2)
-            for ((i, j), d) in p.layers[2]  
-                if x[i] < x[j]
-                    Q[x[i], x[j]] = d
-                else
-                    Q[x[j], x[i]] = d
-                end
-            end
-        end
-
-        return (x, Q, c)
     end
+
+    return (x, Q, c)
 end
 
-function qubo(::Type{<: AbstractArray}, p::PBF{S, T}) where {S, T}
-    if degree(p) >= 3
-        error(DomainError, ": Can't convert Pseudo-boolean function with degree greater than 3 to QUBO format. Try using `reduce_degree` before conversion.")
-    end
+function qubo(::Type{<: AbstractArray}, f::PBF{S, T}) where {S, T}
+    # -* Constants *-
+    𝟐 = convert(T, 2)
 
-    𝟐 = one(T) + one(T)
-    ∅ = Set{S}()
-    x = varmap(p)
+    # -* QUBO *-
+    x = varmap(f)
     n = length(x)
     Q = zeros(T, n, n)
     c = zero(T)
 
-    if haskey(p.layers, 0)
-        c += p[∅]
-    end
-
-    if haskey(p.layers, 1)
-        for ((i,), d) in p.layers[1]
-            Q[x[i], x[i]] += d
-        end
-    end
-
-    if haskey(p.layers, 2)
-        for ((i, j), d) in p.layers[2]  
-            Q[x[i], x[j]] += d / 𝟐
-            Q[x[j], x[i]] += d / 𝟐
+    for (ω, a) ∈ f.Ω
+        η = sort([x[i] for i ∈ ω])
+        k = length(η)
+        if k == 0
+            c += a
+        elseif k == 1
+            i, = η
+            Q[i, i] += a
+        elseif k == 2
+            i, j = η
+            Q[i, j] += a / 𝟐
+            Q[j, i] += a / 𝟐
+        else
+            error(DomainError, ": Can't convert Pseudo-boolean function with degree greater than 2 to QUBO format.\nTry using 'quadratize' before conversion.")
         end
     end
 
@@ -521,149 +496,127 @@ function qubo(::Type{<: AbstractArray}, p::PBF{S, T}) where {S, T}
 end
 
 # -*- Output: Default Behavior -*-
-function qubo(p::PBF{S, T}) where {S, T}
-    return qubo(Dict, p)
+function qubo(f::PBF{S, T}) where {S, T}
+    return qubo(Dict, f)
 end
 
-function ising(::Type{<: AbstractDict}, p::PBF{S, T}) where {S, T}
-    if degree(p) >= 3
-        error(DomainError, ": Can't convert Pseudo-boolean function with degree greater than 3 to QUBO format. Try using `reduce_degree` before conversion.")
-    end
+function ising(::Type{<: AbstractDict}, f::PBF{S, T}) where {S, T}
+    # -* Constants *-
+    𝟎 = zero(T)
+    𝟐 = convert(T, 2)
+    𝟒 = convert(T, 4)
 
-    ∅ = Set{S}()
-    x = varmap(p)
+    # -* QUBO *-
+    x, Q, c = qubo(Dict, f)
+
+    # -* Ising *-
     h = Dict{Int, T}()
     J = Dict{Tuple{Int, Int}, T}()
-    c = zero(T)
 
-    if haskey(p.layers, 0)
-        c += p[∅]
-    end
+    for (ω, a) ∈ Q
+        i, j = ω
 
-    if haskey(p.layers, 1)
-        for ((i,), d) in p.layers[1]
-            h[x[i]] = d
-        end
-    end
+        if i == j
+            α = a / 𝟐
 
-    if haskey(p.layers, 2)
-        for ((i, j), d) in p.layers[2]  
-            if x[i] < x[j]
-                J[x[i], x[j]] = d
-            else
-                J[x[j], x[i]] = d
-            end
+            h[i] = get(h, i, 𝟎) + α
+
+            c += α
+        else
+            β = a / 𝟒
+
+            J[i, j] = β
+
+            h[i] = get(h, i, 𝟎) + β
+            h[j] = get(h, j, 𝟎) + β
+
+            c += β
         end
     end
 
     return (x, h, J, c)
 end
 
-function ising(::Type{<: AbstractArray}, p::PBF{S, T}) where {S, T}
-    if degree(p) >= 3
-        error(DomainError, ": Can't convert Pseudo-boolean function with degree greater than 3 to QUBO format. Try using `reduce_degree` before conversion.")
-    end
+function ising(::Type{<:AbstractArray}, f::PBF{S, T}) where {S, T}
+    # -* Constants *-
+    𝟐 = convert(T, 2)
+    𝟒 = convert(T, 4)
 
-    ∅ = Set{S}()
-    x = varmap(p)
+    # -* QUBO *-
+    x, Q, c = qubo(Dict, f)
+    
+    # -* Ising *-
     n = length(x)
     h = zeros(T, n)
     J = zeros(T, n, n)
-    c = zero(T)
 
-    if haskey(p.layers, 0)
-        c += p[∅]
-    end
+    for (ω, a) ∈ Q
+        i, j = ω
 
-    if haskey(p.layers, 1)
-        for ((i,), d) in p.layers[1]
-            h[x[i]] += d
-        end
-    end
+        if i == j
+            α = a / 𝟐
 
-    if haskey(p.layers, 2)
-        for ((i, j), d) in p.layers[2]  
-            if x[i] < x[j]
-                J[x[i], x[j]] += d
-            else
-                J[x[j], x[i]] += d
-            end
+            h[i] += α
+
+            c += α
+        else
+            β = a / 𝟒
+
+            J[i, j] += β
+
+            h[i] += β
+            h[j] += β
+
+            c += β
         end
     end
 
     return (x, h, UpperTriangular(J), c)
 end
 
-function ising(p::PBF{S, T}) where {S, T}
-    return ising(Dict, p)
+# :: Default ::
+function ising(f::PBF{S, T}) where {S, T}
+    return ising(Dict, f)
 end
 
-# -*- Degree Reduction -*-
-function pick_term(ω::Set{S}; tech::Symbol=:sort) where {S}
-    if length(ω) < 2
-        error(MethodError, "Can't pick less than two indices")
-    elseif tech === :sort
-        i, j, τ... = sort(collect(S, ω))
-    elseif tech === :none
-        i, j, τ... = ω
-    elseif tech === :rand
-        i, j, τ... = shuffle(collect(S, ω))
-    end
-
-    return (i, j, Set{S}(τ))
-end
-
-function reduce_term(ω::Set{S}, M::T; slack::Any, cache::Dict{Set{S}, PBF{S, T}}) where {S, T}
-    # -*- Reduction by Substitution -*-
-    if length(ω) <= 2
-        return PBF{S, T}(ω => one(T))
-    end
-
-    if !haskey(cache, ω)
-        w = slack()::S
-
-        x, y, τ = pick_term(ω; tech=:sort)
-
-        push!(τ, w)
-
-        cache[ω] = M * PBF{S, T}(
-            [x, y] => 1.0,
-            [x, w] => -2.0,
-            [y, w] => -2.0,
-            [w] => 3.0
-        ) + reduce_term(τ, M; slack=slack, cache=cache)
-    end
-    
-    return cache[ω]
-end
-
+# -*- Integer Coefficients -*-
 @doc raw"""
-    reduce_degree(𝒻::PBF{S, T}; slack::Any, cache::Dict{Set{S}, PBF{S, T}}) where {S, T}
+    discretize(f::PBF{S, T}; tol::T) where {S, T}
 
-Uses the identity
+For a given function ``f \in \mathscr{F}`` written as
 
 ```math
-x y z \iff z w + x y - 2 x w - 2 y w + 3 w
+    f\left({\mathbf{x}}\right) = \sum_{\omega \in \Omega\left[{f}\right]} c_\omega \prod_{i \in \omega} \mathbf{x}_i
 ```
 
+computes an approximate function  ``g : \mathbb{B}^{n} \to \mathbb{Z}`` such that
+
+```math
+    \argmin_{\mathbf{x} \in \mathbb{B}^{n}} g\left({\mathbf{x}}\right) = \argmin_{\mathbf{x} \in \mathbb{B}^{n}} f\left({\mathbf{x}}\right)
+```
+
+This is done by rationalizing every coefficient ``c_\omega`` according to some tolerance `tol`.
+
 """
-function reduce_degree(p::PBF{S, T}; slack::Any, cache::Dict{Set{S}, PBF{S, T}}) where {S, T}
-    if degree(p) <= 2
-        return copy(p)
-    else
-        M = one(T) + convert(T, 2) * Δ(p; bound=:loose)
-        𝑔 = PBF{S, T}()
+function discretize(f::PBF{S, T}; tol::T) where {S, T}
+    k = Vector{Set{S}}()
+    v = Vector{T}()
 
-        for (ω, c) in p
-            if length(ω) >= 3
-                𝑔 += c * reduce_term(ω, M; slack=slack, cache=cache)
-            else
-                𝑔[t] += c
-            end
-        end
-
-        return 𝑔
+    for (ω, c) ∈ f.Ω
+        push!(k, ω)
+        push!(v, c)
     end
+
+    p = rationalize.(v; tol=tol)
+    q = numerator.(p .* lcm(denominator.(p)))
+
+    f = PBF{S, T}(ω => q[i] for (i, ω) in enumerate(k))
+    e = sum(abs.(v - p); init = zero(T))
+
+    return (f, e)
 end
+
+# -* Quadratization *-
+include("pbo_quad.jl")
 
 end # module

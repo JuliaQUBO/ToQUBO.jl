@@ -124,13 +124,24 @@ x, Q, c = qubo(Array, r)
 
 # -*- Test: Degree Reduction -*-
 
-# - Reduction by Substitution - 
-cache = Dict{Set{𝒮}, ℱ}()
+# - Reduction by Minimum Selection - 
+function slack(n::Union{Int, Nothing} = nothing)
+    if n === nothing
+        return :w
+    elseif n == 1
+        return [:w]
+    elseif n == 2
+        return [:u :v]
+    elseif n == 3
+        return [:u :v :w]
+    end
+end
 
-@test reduce_degree(s, slack=() -> :w, cache=cache) == ℱ(
-    [:z, :w] => 3.0,
-    [:x, :y] => 21.0,
-    [:x, :w] => -42.0,
-    [:y, :w] => -42.0,
-    [:w] => 63.0
+
+@test quadratize(s, slack=slack) == ℱ(
+    [:w] => 3.0,
+    [:x, :w] => 3.0,
+    [:y, :w] => -3.0,
+    [:z, :w] => -3.0,
+    [:y, :z] => 3.0
 ) 
