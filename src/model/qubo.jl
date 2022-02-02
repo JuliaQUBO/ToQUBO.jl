@@ -1,10 +1,5 @@
 # -*- QUBO Validation -*-
 
-×(x::S, y::S) where {S} = Set{S}([x, y])
-×(x::S, y::Set{S}) where {S} = union!(y, x)
-×(x::Set{S}, y::S) where {S} = union!(x, y)
-×(x::Set{S}, y::Set{S}) where {S} = union!(x, y)
-
 @doc raw"""
     isqubo(model::MOI.ModelLike)
     isqubo(T::Type{<:Any}, model::MOI.ModelLike)
@@ -55,34 +50,24 @@ end
 isqubo(::QUBOModel) = true
 isqubo(::VirtualQUBOModel) = true
 
-function discretize(𝕡::ℱ{T}; ϵ::T) where {T}
-    𝓀 = collect(keys(𝕡))
-    𝓋 = [𝕡[k] for k in 𝓀]
-    
-    𝓇 = rationalize.(𝓋; tol=ϵ)
-    𝓈 = numerator.(𝓇 .* lcm(denominator.(𝓇)))
-
-    return ℱ{T}(Dict{Set{VI}, T}(k => 𝓈[i] for (i, k) in enumerate(𝓀)))
-end
-
 # -*- toqubo: MOI.ModelLike -> QUBO.Model -*-
 @doc raw"""
     toqubo(
         T::Type{<:S},
         model::MOI.ModelLike,
         optimizer::Union{Nothing, MOI.AbstractOptimizer}=nothing;
-        ϵ::S=zero(S)
+        tol::S=zero(S)
     ) where {S}
 
 Low-level interface to create a `::VirtualQUBOModel{T}` from `::MOI.ModelLike` instance. If provided, an `::MOI.AbstractOptimizer` is attached to the model.
 
-The `ϵ` parameter defines the tolerance imposed for turning the problem's coefficients into integers.
+The `tol` parameter defines the tolerance imposed for turning the problem's coefficients into integers.
 
 !!! warning "Warning"
-    Be careful with the `ϵ` parameter. When equal to zero, truncates all entries.
+    Be careful with the `tol` parameter. When equal to zero, truncates all entries.
 """
-function toqubo(T::Type{<: S}, model::MOI.ModelLike, optimizer::Union{Nothing, MOI.AbstractOptimizer}=nothing; ϵ::S=zero(S)) where {S}
-    virt_model = VirtualQUBOModel{T}(optimizer; ϵ=ϵ)
+function toqubo(T::Type{<: S}, model::MOI.ModelLike, optimizer::Union{Nothing, MOI.AbstractOptimizer}=nothing; tol::S=zero(S)) where {S}
+    virt_model = VirtualQUBOModel{T}(optimizer; tol=tol)
 
     # -*- Copy To: PreQUBOModel + Trigger Bridges -*-
     MOI.copy_to(virt_model.preq_model, model)
@@ -92,8 +77,8 @@ function toqubo(T::Type{<: S}, model::MOI.ModelLike, optimizer::Union{Nothing, M
     return virt_model
 end
 
-function toqubo(model::MOI.ModelLike, optimizer::Union{Nothing, MOI.AbstractOptimizer}=nothing; ϵ::Float64=0.0)
-    return toqubo(Float64, model, optimizer; ϵ=ϵ)
+function toqubo(model::MOI.ModelLike, optimizer::Union{Nothing, MOI.AbstractOptimizer}=nothing; tol::Float64=0.0)
+    return toqubo(Float64, model, optimizer; tol=tol)
 end
 
 # -*- :: toqubo!(...) :: -*-
@@ -123,11 +108,13 @@ function toqubo!(ℳ::VirtualQUBOModel{T}) where {T}
     toqubo_sense!(ℳ)
 
     # -*- Objective Function Assembly -*-
+    𝟏 = one(T)
+
     Q = Vector{SQT{T}}()
     a = Vector{SAT{T}}()
     b = zero(T)
 
-    ρ = (Δ(ℳ.ℍ₀) + one(T)) / one(T)
+    ρ = gap(ℳ.ℍ₀) + ℳ.tol
 
     if MOI.get(ℳ, MOI.ObjectiveSense()) === MOI.MAX_SENSE
         ℳ.ℍ = ℳ.ℍ₀ - ρ * sum(ℳ.ℍᵢ)  # Total Energy
@@ -156,6 +143,18 @@ function toqubo!(ℳ::VirtualQUBOModel{T}) where {T}
     )
 
     return ℳ
+end
+
+function toqubo_slack(ℳ::VirtualQUBOModel)
+    function slack(n::Union{Int, Nothing}=nothing)
+        if n === nothing
+            return first(target(slack𝔹!(ℳ; name=:w)))
+        else
+            return [first(target(slack𝔹!(ℳ; name=:w))) for _ = 1:n]
+        end
+    end
+
+    return slack
 end
 
 function toqubo_sense!(ℳ::VirtualQUBOModel)
@@ -342,12 +341,11 @@ function toqubo_constraint!(ℳ::VirtualQUBOModel{T}, F::Type{<: SAF{T}}, S::Typ
             end
         end
 
-        𝕓ᵢ = discretize(𝕒ᵢ - bᵢ; ϵ=ℳ.ϵ)
+        𝕓ᵢ, ϵᵢ = discretize(𝕒ᵢ - bᵢ; tol=ℳ.tol)
 
-        ℍᵢ = reduce_degree(
+        ℍᵢ = quadratize(
             𝕓ᵢ ^ 2;
-            cache = ℳ.cache,
-            slack = () -> target(slack𝔹!(ℳ; name=:w))[1]
+            slack = toqubo_slack(ℳ)
         )
 
         push!(ℳ.ℍᵢ, ℍᵢ)
@@ -372,7 +370,7 @@ function toqubo_constraint!(ℳ::VirtualQUBOModel{T}, F::Type{<: SAF{T}}, S::Typ
             end 
         end
 
-        𝕓ᵢ = discretize(𝕒ᵢ - bᵢ; ϵ=ℳ.ϵ)
+        𝕓ᵢ, ϵᵢ = discretize(𝕒ᵢ - bᵢ; tol=ℳ.tol)
     
         # -*- Introduce Slack Variable -*-
         α = sum(c for (ω, c) ∈ 𝕓ᵢ if !isempty(ω) && c < zero(T); init=zero(T))
@@ -380,10 +378,9 @@ function toqubo_constraint!(ℳ::VirtualQUBOModel{T}, F::Type{<: SAF{T}}, S::Typ
 
         𝕤ᵢ = ℱ{T}(Dict{Set{VI}, Float64}(Set{VI}([sᵢ]) => c for (sᵢ, c) ∈ slackℤ!(ℳ; α=α, β=β, name=:s)))
 
-        ℍᵢ = reduce_degree(
+        ℍᵢ = quadratize(
             (𝕓ᵢ + 𝕤ᵢ) ^ 2;
-            cache = ℳ.cache,
-            slack = () -> target(slack𝔹!(ℳ; name=:w))[1]
+            slack = toqubo_slack(ℳ)
         )
 
         push!(ℳ.ℍᵢ, ℍᵢ)

@@ -19,17 +19,14 @@ The Virtual Variable Mapping
 
 ## Variable Expansion techniques:
 
-    - `:𝔹`
-        Used when a boolean variable is to be mirrored.
-    - `:ℤ₂`
-        Binary expansion for integer variable.
-    - `:ℤ₁`
-        Unary expansion for integer variable.
-    - `:ℝ₂`
-        Binary expansion for real variable.
-    - `:ℝ₁`
-        Unary expansion for real variable.
+ * `:𝔹` - Used when a boolean variable is to be mirrored.
+ * `:ℤ₂` - Binary expansion for integer variable.
+ * `:ℤ₁` - Unary expansion for integer variable.
+ * `:ℝ₂` - Binary expansion for real variable.
+ * `:ℝ₁` - Unary expansion for real variable.
 
+## References:
+ * [1] Chancellor, N. (2019). Domain wall encoding of discrete variables for quantum annealing and QAOA. _Quantum Science and Technology_, _4_(4), 045004. [{doi}](https://doi.org/10.1088/2058-9565/ab33c2)
 """
 struct VirtualVariable{S <: Any, T <: Any}
 

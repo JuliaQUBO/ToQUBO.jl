@@ -61,7 +61,7 @@ end
 @doc raw"""
     VirtualQUBOModel{T}(
         optimizer::Union{Nothing, MOI.AbstractOptimizer}=nothing;
-        ϵ::T=zero(T)
+        tol::T=zero(T)
     )
 
 This QUBO Virtual Model links the final QUBO formulation to the original one, allowing variable value retrieving and other features.
@@ -80,7 +80,7 @@ mutable struct VirtualQUBOModel{T} <: MOIU.AbstractModelLike{T}
     # :: ℍ(s) = ℍ₀(s) + Σᵢ ρᵢ ℍᵢ(s) ::
     ℍ::ℱ{T} # Total Energy
 
-    ϵ::T
+    tol::T
 
     # :: Cache for PBF degree reduction ::
     cache::Dict{Set{VI}, ℱ{T}}
@@ -93,7 +93,7 @@ mutable struct VirtualQUBOModel{T} <: MOIU.AbstractModelLike{T}
     # -*- MOI Stuff -*-
     moi::ModelMOI{T}
 
-    function VirtualQUBOModel{T}(optimizer::Union{Nothing, MOI.AbstractOptimizer}=nothing; ϵ::T=zero(T)) where {T}
+    function VirtualQUBOModel{T}(optimizer::Union{Nothing, MOI.AbstractOptimizer}=nothing; tol::T=zero(T)) where {T}
         return new{T}(
             PreQUBOModel{T}(),
             QUBOModel{T}(),
@@ -101,7 +101,7 @@ mutable struct VirtualQUBOModel{T} <: MOIU.AbstractModelLike{T}
             ℱ{T}(),
             Vector{ℱ{T}}(),
             ℱ{T}(),
-            ϵ,
+            tol,
             Dict{Set{VI}, ℱ{T}}(),
             Vector{𝒱{T}}(),
             Dict{VI, 𝒱{T}}(),

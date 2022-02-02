@@ -2,7 +2,7 @@
 include("./knapsack.jl")
 
 annealer = SimulatedAnnealer{VI, Float64}()
-model = toqubo(Knapsack.model, annealer; ϵ=0.01)
+model = toqubo(Knapsack.model, annealer; tol=0.01)
 
 MOI.optimize!(model)
 
