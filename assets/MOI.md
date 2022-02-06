@@ -9,17 +9,17 @@ This Document is intended to help keeping track of which MOI API Methods and Pro
 
 ## Optimizer
 
-| Method                         | Status |
-| :----------------------------- | :----: |
-| `MOI.empty!(::Optimizer)`      |   ⚠️    |
-| `MOI.is_empty(::Optimizer)::Bool`    |   ⚠️    |
-| `MOI.optimize!(::Optimizer)`   |   ⚠️    |
-| `Base.show(::IO, ::Optimizer)` |   ❌    |
+| Method                            | Status |
+| :-------------------------------- | :----: |
+| `MOI.empty!(::Optimizer)`         |   ⚠️    |
+| `MOI.is_empty(::Optimizer)::Bool` |   ⚠️    |
+| `MOI.optimize!(::Optimizer)`      |   ⚠️    |
+| `Base.show(::IO, ::Optimizer)`    |   ❌    |
 
 ## Constraint Support
 
-| Method                                                                                                                      | Status |
-| :-------------------------------------------------------------------------------------------------------------------------- | :----: |
+| Method                                                                                                                            | Status |
+| :-------------------------------------------------------------------------------------------------------------------------------- | :----: |
 | `MOI.supports_constraint(`<br/>`::Optimizer,`<br/>`::Type{<:MOI.AbstractFunction},`<br/>`::Type{<:MOI.AbstractSet}`<br/>`)::Bool` |   ⚠️    |
 
 ## The `copy_to` interface 
@@ -30,14 +30,14 @@ This Document is intended to help keeping track of which MOI API Methods and Pro
 
 ## The incremental interface 
 
-| Method                                                                                                                  | Status |
-| :---------------------------------------------------------------------------------------------------------------------- | :----: |
-| `MOI.add_variable(::Optimizer)::MOI.VariableIndex`                                                                                         |   ⚠️    |
-| `MOI.add_variables(::Optimizer, ::Int)::Vector{MOI.VariableIndex}`                                                                                 |   ⚠️    |
-| `MOI.add_constraint(`<br/>`::Optimizer,`<br/>`::F,`<br/>`::S`<br/>`)::MOI.ConstraintIndex{F, S} where {F, S}`                  |   ⚠️    |
+| Method                                                                                                                             | Status |
+| :--------------------------------------------------------------------------------------------------------------------------------- | :----: |
+| `MOI.add_variable(::Optimizer)::MOI.VariableIndex`                                                                                 |   ⚠️    |
+| `MOI.add_variables(::Optimizer, ::Int)::Vector{MOI.VariableIndex}`                                                                 |   ⚠️    |
+| `MOI.add_constraint(`<br/>`::Optimizer,`<br/>`::F,`<br/>`::S`<br/>`)::MOI.ConstraintIndex{F, S} where {F, S}`                      |   ⚠️    |
 | `MOI.add_constraints(`<br/>`::Optimizer,`<br/>`Vector{F},`<br/>`Vector{S}`<br/>`)::Vector{MOI.ConstraintIndex{F, S}} where {F, S}` |   ⚠️    |
-| `MOI.is_valid(::Optimizer, i::MOI.Index)::Bool`                                                                                             |   ⚠️    |
-| `MOI.delete(::Optimizer, i::MOI.Index)`                                                                                               |   ⚠️    |
+| `MOI.is_valid(::Optimizer, i::MOI.Index)::Bool`                                                                                    |   ⚠️    |
+| `MOI.delete(::Optimizer, i::MOI.Index)`                                                                                            |   ⚠️    |
 
 | Property                    | Type      | `get` | `set` | `supports` |
 | :-------------------------- | :-------- | :---: | :---: | :--------: |
