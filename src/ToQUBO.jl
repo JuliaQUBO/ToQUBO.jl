@@ -7,7 +7,8 @@ using JSON
 using MathOptInterface
 
 const MOI = MathOptInterface
-const MOIU = MathOptInterface.Utilities
+const MOIU = MOI.Utilities
+const MOIB = MOI.Bridges
 
 const SAF{T} = MOI.ScalarAffineFunction{T}
 const SQF{T} = MOI.ScalarQuadraticFunction{T}
@@ -21,8 +22,6 @@ const GT{T} = MOI.GreaterThan{T}
 const VI = MOI.VariableIndex
 const CI = MOI.ConstraintIndex
 
-const ∅ = Set{VI}()
-
 # -*- :: Exports :: -*-
 export VirtualQUBOModel, PreQUBOModel, QUBOModel, toqubo, isqubo
 export PseudoBooleanFunction, PBF, qubo, ising, Δ, Θ, quadratize, discretize, gap, @quadratization
@@ -31,9 +30,10 @@ export VirtualVariable, VV, coefficient, coefficients, offset, isslack, source, 
 export mapvar!, expandℝ!, expandℤ!, mirror𝔹!, slackℝ!, slackℤ!, slack𝔹!
 
 # -*- :: Library Imports :: -*-
+include("./error.jl")
 
-# -*- Library: Samplers -*-
-include("lib/Anneal.jl/src/Anneal.jl")
+# -*- Proto-Package: Anneal.jl -*-
+include("./Anneal.jl/src/Anneal.jl")
 using .Anneal
 
 include("./lib/virtual.jl")

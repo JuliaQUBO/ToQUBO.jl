@@ -41,6 +41,8 @@ function MOI.optimize!(annealer::AbstractAnnealer{S, T}, model::VirtualQUBOModel
     # 3. SOLUTION_LIMIT: The algorithm stopped because it found the required number of solutions. This is often used in MIPs to get the solver to return the first feasible solution it encounters.
     # 4. OTHER_LIMIT: The algorithm stopped due to a limit not covered by one of the above.
     #
+    # MIP Solvers: Also check fesibility
+    #
     # References:
     # [1] https://jump.dev/MathOptInterface.jl/stable/reference/models/#MathOptInterface.TerminationStatusCode
     #
@@ -53,7 +55,7 @@ function MOI.optimize!(annealer::AbstractAnnealer{S, T}, model::VirtualQUBOModel
 
     if γ ≈ zero(T)
         model.moi.primal_status = MOI.FEASIBLE_POINT
-    elseif γ <= model.ϵ
+    elseif γ <= model.tol
         model.moi.primal_status = MOI.NEARLY_FEASIBLE_POINT
     else
         model.moi.primal_status = MOI.INFEASIBLE_POINT
