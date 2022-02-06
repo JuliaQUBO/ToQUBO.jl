@@ -64,6 +64,12 @@ function MOI.get(::AbstractAnnealer, ::MOI.RawSolver)
 end
 
 # -*- Name (get, set, supports) -*-
+function MOI.get(annealer::AbstractAnnealer, ::MOI.ResultCount) 
+    return length(annealer.sample_set)
+end
+
+MOI.supports(::AbstractAnnealer, ::MOI.ResultCount) = true
+
 function MOI.get(annealer::AbstractAnnealer, ::MOI.Name)
     return annealer.moi.name
 end
@@ -168,12 +174,6 @@ function MOI.get(annealer::AbstractAnnealer{S, T}, vp::MOI.VariablePrimal, s::S)
     return (sample.states[i] > 0)
 end
 
-function MOI.get(annealer::AbstractAnnealer, ::MOI.ResultCount) 
-    return length(annealer.sample_set)
-end
-
-MOI.supports(::AbstractAnnealer, ::MOI.ResultCount) = true
-
 # -*- Simulated Annealer -*-
 
 # -*- SolverName (get) -*-
@@ -183,12 +183,12 @@ end
 
 # -*- SolverVersion (get) -*-
 function MOI.get(::SimulatedAnnealer, ::MOI.SolverVersion)
-    return "1.0.0"
+    return "v0.5.8"
 end
 
 # -*- RawSolver (get) -*-
 function MOI.get(::SimulatedAnnealer, ::MOI.RawSolver)
-    return "Python D-Wave Neal 0.5.8"
+    return "D-Wave Neal"
 end
 
 
