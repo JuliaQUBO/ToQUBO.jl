@@ -29,16 +29,7 @@ This Document is intended to help keeping track of which MOI API Methods and Pro
 | :------------------------------------------ | :----: |
 | `MOI.copy_to(::Optimizer, ::MOI.ModelLike)` |   ⚠️    |
 
-## The incremental interface 
-
-| Method                                                                                                                             | Status |
-| :--------------------------------------------------------------------------------------------------------------------------------- | :----: |
-| `MOI.add_variable(::Optimizer)::MOI.VariableIndex`                                                                                 |   ⚠️    |
-| `MOI.add_variables(::Optimizer, ::Int)::Vector{MOI.VariableIndex}`                                                                 |   ⚠️    |
-| `MOI.add_constraint(`<br/>`::Optimizer,`<br/>`::F,`<br/>`::S`<br/>`)::MOI.ConstraintIndex{F, S} where {F, S}`                      |   ⚠️    |
-| `MOI.add_constraints(`<br/>`::Optimizer,`<br/>`Vector{F},`<br/>`Vector{S}`<br/>`)::Vector{MOI.ConstraintIndex{F, S}} where {F, S}` |   ⚠️    |
-| `MOI.is_valid(::Optimizer, i::MOI.Index)::Bool`                                                                                    |   ⚠️    |
-| `MOI.delete(::Optimizer, i::MOI.Index)`                                                                                            |   ⚠️    |
+## Attributes
 
 | Property                    | Type      | `get` | `set` | `supports` |
 | :-------------------------- | :-------- | :---: | :---: | :--------: |
