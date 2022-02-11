@@ -1,13 +1,14 @@
 module VirtualMapping
 
 using MathOptInterface
-
 const MOI = MathOptInterface
 const MOIU = MOI.Utilities
+const VI = MOI.VariableIndex
 
 export isempty, length, iterate
 export VirtualVariable
 export VirtualMOIVariable
+export AbstractVirtualModel
 export coefficient, coefficients, offset, isslack, source, target, name
 export expandℝ!, slackℝ!, expandℤ!, slackℤ!, mirror𝔹!, slack𝔹!
 
@@ -289,7 +290,7 @@ function mapvar!(model::AbstractVirtualModel{T}, 𝓋::VirtualMOIVariable{T}) wh
 end
 
 @doc raw"""
-    expandℝ!(model::QUBOModel{T}, src::VI; bits::Int, name::Symbol, α::T, β::T) where T
+    expandℝ!(model::QUBOModel{T}, src::VI; bits::Int, name::Symbol, α::T, β::T, semi::Bool) where T
 
 Real Binary Expansion within the closed interval ``[\alpha, \beta]``.
 
@@ -314,6 +315,11 @@ function expandℝ!(model::AbstractVirtualModel{T}, src::Union{VI, Nothing}; bit
     ))
 end
 
+@doc raw"""
+    slackℝ!(model::AbstractVirtualModel{T}; name::Symbol, α::T, β::T, semi::Bool) where T
+
+Adds real slack variable according to [`expandℝ!`](@ref)'s expansion method.
+"""
 function slackℝ!(model::AbstractVirtualModel{T}; bits::Int, name::Symbol, α::T, β::T, semi::Bool) where T
     return mapvar!(model, VirtualMOIVariable{T}(
         (n) -> MOI.add_variables(model.target_model, n),
@@ -328,7 +334,7 @@ function slackℝ!(model::AbstractVirtualModel{T}; bits::Int, name::Symbol, α::
 end
 
 @doc raw"""
-    expandℤ!(model::QUBOModel{T}, src::VI; name::Symbol, α::T, β::T) where T
+    expandℤ!(model::QUBOModel{T}, src::VI; name::Symbol, α::T, β::T, semi::Bool) where T
 
 Integer Binary Expansion within the closed interval ``[\left\lceil{\alpha}\right\rceil, \left\lfloor{\beta}\right\rfloor]``.
 """
