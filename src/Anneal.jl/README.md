@@ -1,4 +1,10 @@
 # Anneal.jl
 
-Implements wrapper for Quantum, Digital and Simulated Annealers, through the `AbstractAnnealer <: MOI.AbstractOptimizer` interface, for `MathOptInterface` & `JuMP` integration.
+Implements wrapper for QUBO Annealers, through the `AbstractAnnealer <: MOI.AbstractOptimizer` interface, for `MathOptInterface` & `JuMP` integration.
+
+```julia
+using Anneal
+
+SimulatedAnnealing.Optimizer
+```
 

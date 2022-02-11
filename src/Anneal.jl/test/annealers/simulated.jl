@@ -1,13 +1,18 @@
-@testset "Quantum Annealing" begin
-    annealer = QuantumAnnealer{MOI.VariableIndex, Float64}(
-        num_reads=500
+@testset "Simulated Annealing" begin
+
+    annealer = Simulated.Optimizer{Float64}(
+        num_reads=500,
+        num_sweeps=500
     )
 
-    @test (MOI.get(annealer, Anneal.NumberOfReads()) == 500)
+    @test (MOI.get(annealer, Simulated.NumberOfReads()) == 500)
+    @test (MOI.get(annealer, Simulated.NumberOfSweeps()) == 500)
 
-    MOI.set(annealer, Anneal.NumberOfReads(), 1_000)
+    MOI.set(annealer, Simulated.NumberOfReads(), 1_000)
+    MOI.set(annealer, Simulated.NumberOfSweeps(), 1_000)
 
-    @test (MOI.get(annealer, Anneal.NumberOfReads()) == 1_000)
+    @test (MOI.get(annealer, Simulated.NumberOfReads()) == 1_000)
+    @test (MOI.get(annealer, Simulated.NumberOfSweeps()) == 1_000)
 
     @test (MOI.is_empty(annealer) == true)
 

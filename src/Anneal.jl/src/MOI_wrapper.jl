@@ -5,9 +5,6 @@ Necessary methods for an AbstractOptimizer according to [1]
  * [1] https://jump.dev/JuMP.jl/stable/moi/tutorials/implementing/
 """
 
-# -*- Aliasing -*-
-const Annealer = Union{SimulatedAnnealer, QuantumAnnealer, DigitalAnnealer}
-
 # -*- :: -*- Optimizer Interface -*- :: -*-
 function MOI.empty!(annealer::AbstractAnnealer{S, T}) where {S, T}
     # Variable Mapping
@@ -40,36 +37,20 @@ end
 MOI.supports_constraint(::AbstractAnnealer, ::Any, ::Any) = false
 MOI.supports_constraint(::AbstractAnnealer, ::Type{<: MOI.VariableIndex}, ::Type{<: MOI.ZeroOne}) = true
 
-# -*- :: -*- The copy_to Interface -*- :: -*-
-function MOI.copy_to(annealer::AbstractAnnealer{S, T}, model::MOI.ModelLike) where {S, T}
-    (annealer.x, annealer.Q, annealer.c) = toqubo(T, model; sense=MOI.MIN_SENSE)
-
-    nothing
-end
-
-# ::: Implement attributes :::
-# -*- SolverName (get) -*-
+# -*- :: -*-  Attributes -*- :: -*-
 function MOI.get(::AbstractAnnealer, ::MOI.SolverName)
     return "Annealer"
 end
 
-# -*- SolverVersion (get) -*-
 function MOI.get(::AbstractAnnealer, ::MOI.SolverVersion)
-    return "v1.0.0"
+    return "v0.0.0"
 end
 
-# -*- RawSolver (get) -*-
 function MOI.get(::AbstractAnnealer, ::MOI.RawSolver)
-    return nothing
+    return "Generic Annealer"
 end
 
 # -*- Name (get, set, supports) -*-
-function MOI.get(annealer::AbstractAnnealer, ::MOI.ResultCount) 
-    return length(annealer.sample_set)
-end
-
-MOI.supports(::AbstractAnnealer, ::MOI.ResultCount) = true
-
 function MOI.get(annealer::AbstractAnnealer, ::MOI.Name)
     return annealer.moi.name
 end
@@ -96,19 +77,19 @@ function MOI.get(annealer::AbstractAnnealer, ::MOI.TimeLimitSec)
     return annealer.moi.time_limit_sec
 end
 
-function MOI.set(annealer::AbstractAnnealer, ::MOI.TimeLimitSec, Δt::Float64)
-    annealer.moi.time_limit_sec = Δt
+function MOI.set(annealer::AbstractAnnealer, ::MOI.TimeLimitSec, time_limit_sec::Union{Nothing, Float64})
+    annealer.moi.time_limit_sec = time_limit_sec
 end
 
 MOI.supports(::AbstractAnnealer, ::MOI.TimeLimitSec) = true
 
 # -*- RawOptimizerAttribute (get, set, supports) -*-
-function MOI.get(annealer::AbstractAnnealer, ::MOI.RawOptimizerAttribute)
-    return annealer.moi.raw_optimizer_attribute
+function MOI.get(annealer::AbstractAnnealer, attr::MOI.RawOptimizerAttribute)
+    return annealer.moi.raw_optimizer_attributes[attr.name]
 end
 
-function MOI.set(annealer::AbstractAnnealer, ::MOI.RawOptimizerAttribute, attr::Any)
-    annealer.moi.raw_optimizer_attribute = attr
+function MOI.set(annealer::AbstractAnnealer, attr::MOI.RawOptimizerAttribute, value::Any)
+    annealer.moi.raw_optimizer_attributes[attr.name] = value
 end
 
 MOI.supports(::AbstractAnnealer, ::MOI.RawOptimizerAttribute) = true
@@ -124,22 +105,43 @@ end
 
 MOI.supports(::AbstractAnnealer, ::MOI.NumberOfThreads) = true
 
-# -*- SolveTimeSec -*-
-function MOI.get(annealer::AbstractAnnealer, ::MOI.SolveTimeSec)
-    return annealer.moi.solve_time_sec
+# -*- :: -*- The copy_to Interface -*- :: -*-
+function MOI.copy_to(annealer::AbstractAnnealer{S, T}, model::MOI.ModelLike) where {S, T}
+    (annealer.x, annealer.Q, annealer.c) = toqubo(T, model; sense=MOI.MIN_SENSE)
+
+    nothing
 end
 
-MOI.supports(::AbstractAnnealer, ::MOI.SolveTimeSec) = true
+# -*- :: -*- Names -*- :: -*-
+function MOI.get(annealer::AbstractAnnealer, ps::MOI.PrimalStatus)
+    i = ps.result_index
+    n = MOI.get(annealer, MOI.ResultCount())
+
+    if 1 <= i <= n
+        return nothing
+    else
+        return MOI.NO_SOLUTION
+    end
+end
+
+# -*- RawStatusString -*-
+function MOI.get(annealer::AbstractAnnealer, ::MOI.RawStatusString)
+    return annealer.moi.raw_status_string
+end
+
+# -*- ResultCount -*-
+function MOI.get(annealer::AbstractAnnealer, ::MOI.ResultCount) 
+    return length(annealer.sample_set)
+end
 
 # -*- TerminationStatus -*-
 function MOI.get(annealer::AbstractAnnealer, ::MOI.TerminationStatus)
     return annealer.moi.termination_status
 end
 
-MOI.supports(::AbstractAnnealer, ::MOI.TerminationStatus) = true
-
+# -*- ObjectiveValue -*-
 function MOI.get(annealer::AbstractAnnealer{S, T}, ov::MOI.ObjectiveValue) where {S, T}
-    n = length(annealer.sample_set.samples)
+    n = length(annealer.sample_set)
 
     j = ov.result_index
 
@@ -147,11 +149,17 @@ function MOI.get(annealer::AbstractAnnealer{S, T}, ov::MOI.ObjectiveValue) where
         throw(BoundsError("Result Index is out of bounds: $j ∉ [1, $n]"))
     end
 
-    sample = annealer.sample_set.samples[j]
+    sample = annealer.sample_set[j]
 
     return (sample.energy + annealer.c)::T
 end
 
+# -*- SolveTimeSec -*-
+function MOI.get(annealer::AbstractAnnealer, ::MOI.SolveTimeSec)
+    return annealer.moi.solve_time_sec
+end
+
+# -*- VariablePrimal -*-
 function MOI.get(annealer::AbstractAnnealer{S, T}, vp::MOI.VariablePrimal, s::S) where {S, T}
     n = length(annealer.sample_set.samples)
 
@@ -161,7 +169,7 @@ function MOI.get(annealer::AbstractAnnealer{S, T}, vp::MOI.VariablePrimal, s::S)
         throw(MOI.ResultIndexBoundsError("Result Index is out of bounds: $j ∉ [1, $n]"))
     end
 
-    sample = annealer.sample_set.samples[j]
+    sample = annealer.sample_set[j]
 
     i = annealer.x[s]
 
@@ -174,41 +182,15 @@ function MOI.get(annealer::AbstractAnnealer{S, T}, vp::MOI.VariablePrimal, s::S)
     return (sample.states[i] > 0)
 end
 
-# -*- Simulated Annealer -*-
-
-# -*- SolverName (get) -*-
-function MOI.get(::SimulatedAnnealer, ::MOI.SolverName)
-    return "Simulated Annealer"
-end
-
-# -*- SolverVersion (get) -*-
-function MOI.get(::SimulatedAnnealer, ::MOI.SolverVersion)
-    return "v0.5.8"
-end
-
-# -*- RawSolver (get) -*-
-function MOI.get(::SimulatedAnnealer, ::MOI.RawSolver)
-    return "D-Wave Neal"
-end
 
 
 # -*- :: Settings :: -*-
-function MOI.get(annealer::Annealer, ::NumberOfReads)
+function MOI.get(annealer::AbstractAnnealer, ::NumberOfReads)
     return annealer.settings.num_reads
 end
 
-function MOI.set(annealer::Annealer, ::NumberOfReads, num_reads::Int)
+function MOI.set(annealer::AbstractAnnealer, ::NumberOfReads, num_reads::Int)
     annealer.settings.num_reads = num_reads
-
-    nothing
-end
-
-function MOI.get(annealer::SimulatedAnnealer, ::NumberOfSweeps)
-    return annealer.settings.num_sweeps
-end
-
-function MOI.set(annealer::SimulatedAnnealer, ::NumberOfSweeps, num_sweeps::Int)
-    annealer.settings.num_sweeps = num_sweeps
 
     nothing
 end

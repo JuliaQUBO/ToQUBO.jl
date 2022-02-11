@@ -6,12 +6,13 @@ Tells if a given model is ready to be interpreted as a QUBO model.
 For it to be true, a few conditions must be met:
  1. All variables must be binary (`MOI.VariableIndex ∈ MOI.ZeroOne`)
  2. No other constraints are allowed
- 3. The objective function must be either `MOI.ScalarQuadraticFunction`, `MOI.ScalarAffineFunction` or `MOI.VariableIndex`
+ 3. The objective function must be of type `MOI.ScalarQuadraticFunction`, `MOI.ScalarAffineFunction` or `MOI.VariableIndex`
+ 4. The objective sense must be either `MOI.MIN_SENSE` or `MOI.MAX_SENSE`
 """
 function isqubo(model::MOI.ModelLike)
-    F = MOI.get(model, MOI.ObjectiveFunctionType()) 
-    
-    if !(F <: Union{SQF, SAF, VI})
+    F = MOI.get(model, MOI.ObjectiveFunctionType())
+
+    if !(F <: Union{SQF,SAF,VI})
         return false
     end
 
@@ -26,7 +27,7 @@ function isqubo(model::MOI.ModelLike)
 
     for (F, S) in MOI.get(model, MOI.ListOfConstraintTypesPresent())
         if (F === VI && S === MOI.ZeroOne)
-            for cᵢ in MOI.get(model, MOI.ListOfConstraintIndices{F, S}())
+            for cᵢ in MOI.get(model, MOI.ListOfConstraintIndices{F,S}())
                 vᵢ = MOI.get(model, MOI.ConstraintFunction(), cᵢ)
 
                 # Account for variable as binary
@@ -59,27 +60,27 @@ function toqubo(T::Type{<:Any}, model::MOI.ModelLike; sense::MOI.OptimizationSen
     if sense === MOI.FEASIBILITY_SENSE
         throw(ArgumentError("'FEASIBILITY' is not a valid sense for QUBO models"))
     end
-    
+
     if !isqubo(model)
         throw(QUBOError())
     end
 
-    x = Dict{VI, Int}(xᵢ => i for (i, xᵢ) ∈ enumerate(MOI.get(model, MOI.ListOfVariableIndices())))
-    Q = Dict{Tuple{Int, Int}, T}()
+    x = Dict{VI,Int}(xᵢ => i for (i, xᵢ) ∈ enumerate(MOI.get(model, MOI.ListOfVariableIndices())))
+    Q = Dict{Tuple{Int,Int},T}()
     c = zero(T)
 
     F = MOI.get(model, MOI.ObjectiveFunctionType())
     f = MOI.get(model, MOI.ObjectiveFunction{F}())
 
     if F <: VI
-        iᵢ = (x[xᵢ], x[xᵢ]) 
+        iᵢ = (x[xᵢ], x[xᵢ])
         Q[iᵢ] = one(T)
     elseif F <: SAF
         for aᵢ ∈ f.terms
             cᵢ = aᵢ.coefficient
             xᵢ = aᵢ.variable
 
-            iᵢ = (x[xᵢ], x[xᵢ]) 
+            iᵢ = (x[xᵢ], x[xᵢ])
 
             Q[iᵢ] = get(Q, iᵢ, zero(T)) + cᵢ
         end
@@ -90,7 +91,7 @@ function toqubo(T::Type{<:Any}, model::MOI.ModelLike; sense::MOI.OptimizationSen
             cᵢ = aᵢ.coefficient
             xᵢ = aᵢ.variable
 
-            ii = (x[xᵢ], x[xᵢ]) 
+            ii = (x[xᵢ], x[xᵢ])
 
             Q[ii] = get(Q, ii, zero(T)) + cᵢ
         end
@@ -100,7 +101,7 @@ function toqubo(T::Type{<:Any}, model::MOI.ModelLike; sense::MOI.OptimizationSen
             xᵢ = aᵢ.variable_1
             xⱼ = aᵢ.variable_2
 
-            ij = (x[xᵢ], x[xⱼ]) 
+            ij = (x[xᵢ], x[xⱼ])
 
             Q[ij] = get(Q, ij, zero(T)) + cᵢ
         end
@@ -122,5 +123,5 @@ function toqubo(T::Type{<:Any}, model::MOI.ModelLike; sense::MOI.OptimizationSen
 end
 
 function toqubo(model::MOI.ModelLike; sense::MOI.OptimizationSense = MOI.MIN_SENSE)
-    return toqubo(Float64, model)
+    return toqubo(Float64, model; sense = sense)
 end

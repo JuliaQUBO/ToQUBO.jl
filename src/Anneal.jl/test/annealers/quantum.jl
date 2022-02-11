@@ -1,13 +1,14 @@
-@testset "Digital Annealing" begin
-    annealer = DigitalAnnealer{MOI.VariableIndex, Float64}(
+@testset "Quantum Annealing" begin
+
+    annealer = Quantum.Optimizer{Float64}(
         num_reads=500
     )
 
-    @test (MOI.get(annealer, Anneal.NumberOfReads()) == 500)
+    @test (MOI.get(annealer, Quantum.NumberOfReads()) == 500)
 
     MOI.set(annealer, Anneal.NumberOfReads(), 1_000)
 
-    @test (MOI.get(annealer, Anneal.NumberOfReads()) == 1_000)
+    @test (MOI.get(annealer, Quantum.NumberOfReads()) == 1_000)
 
     @test (MOI.is_empty(annealer) == true)
 

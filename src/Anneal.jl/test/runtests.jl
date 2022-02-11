@@ -9,10 +9,10 @@ const MOIU = MOI.Utilities
 include("qubo.jl")
 
 # -*- Simulated Annealing -*-
-include("simulated.jl")
+include("annealers/simulated.jl")
 
 # -*- Simulated Annealing -*-
-include("quantum.jl")
+include("annealers/quantum.jl")
 
 # -*- Simulated Annealing -*-
-include("digital.jl")
+include("annealers/digital.jl")

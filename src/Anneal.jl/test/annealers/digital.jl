@@ -1,17 +1,14 @@
-@testset "Simulated Annealing" begin
-    annealer = SimulatedAnnealer{MOI.VariableIndex, Float64}(
-        num_reads=500,
-        num_sweeps=500
+@testset "Digital Annealing" begin
+
+    annealer = Digital.Optimizer{Float64}(
+        num_reads=500
     )
 
-    @test (MOI.get(annealer, Anneal.NumberOfReads()) == 500)
-    @test (MOI.get(annealer, Anneal.NumberOfSweeps()) == 500)
+    @test (MOI.get(annealer, Digital.NumberOfReads()) == 500)
 
     MOI.set(annealer, Anneal.NumberOfReads(), 1_000)
-    MOI.set(annealer, Anneal.NumberOfSweeps(), 1_000)
 
-    @test (MOI.get(annealer, Anneal.NumberOfReads()) == 1_000)
-    @test (MOI.get(annealer, Anneal.NumberOfSweeps()) == 1_000)
+    @test (MOI.get(annealer, Digital.NumberOfReads()) == 1_000)
 
     @test (MOI.is_empty(annealer) == true)
 
