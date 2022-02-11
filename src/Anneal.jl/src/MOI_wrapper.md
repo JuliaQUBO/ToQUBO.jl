@@ -68,7 +68,7 @@ This Document is intended to help keeping track of which MOI API Methods and Pro
 ## Solver-specific attributes
 | Property        | Type  | `get` | `set` | `supports` |
 | :-------------- | :---- | :---: | :---: | :--------: |
-| `NumberOfReads` | `Int` |   ⚠️   |   ⚠️   |     -      |
+| `NumberOfReads` | `Int` |   ✔️   |   ✔️   |     -      |
 
 ## Key
 | Symbol | Meaning                 |
