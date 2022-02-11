@@ -633,26 +633,28 @@ Assigns new quadratization technique.
 """
 macro quadratization(name, nsv, nst)
     return :(
-        struct $name <: AbstractQuadratization end;
-
-        function Quadratization(::$name, k::Int)
-            return Quadratization{$name}(k, $nsv, $nst)
+        struct $(esc(name)) <: AbstractQuadratization end;
+    
+        function Quadratization(::$(esc(name)), k::Int);
+            return Quadratization{$(esc(name))}(k, $nsv, $nst);
         end;
     )
 end
 
-"""
+@doc raw"""
     TBT_QUAD(::Int)
 
 Term-by-term quadratization
 """
+
 @quadratization(TBT_QUAD, 0, 0)
 
-"""
+@doc raw"""
     NTR_KZFD(::Int)
 
 NTR-KZFD (Kolmogorov & Zabih, 2004; Freedman & Drineas, 2005)
 """
+
 @quadratization(NTR_KZFD, 1, 0)
 
 function quadratize(::Quadratization{NTR_KZFD}, ω::Set{S}, c::T; slack::Any) where {S, T}
@@ -664,12 +666,13 @@ function quadratize(::Quadratization{NTR_KZFD}, ω::Set{S}, c::T; slack::Any) wh
     return PBF{S, T}(Set{S}([s]) => -c * convert(T, k - 1), (i × s => c for i ∈ ω)...)
 end
 
-"""
+@doc raw"""
     PTR_BG(::Int)
 
 PTR-BG (Boros & Gruber, 2014)
 """
-@quadratization(PTR_BG, k, k - 2, k - 1)
+
+@quadratization(PTR_BG, k - 2, k - 1)
 
 function quadratize(::Quadratization{PTR_BG}, ω::Set{S}, c::T; slack::Any) where {S, T}
     # -* Degree *-
