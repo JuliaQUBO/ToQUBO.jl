@@ -38,13 +38,13 @@
 
     @test (Anneal.isqubo(model) === true)
 
-    @test (Anneal.toqubo(model) == (
+    @test (Anneal.qubo_normal_form(model) == (
             Dict{MOI.VariableIndex, Int}(x₁ => 1, x₂ => 2),
             Dict{Tuple{Int, Int}, Float64}(
                 (1, 1) => -1.0,
                 (2, 2) => -2.0
             ),
-            3.0
+            3.0,
         )
     )
 
@@ -59,14 +59,14 @@
 
     @test (Anneal.isqubo(model) === true)
 
-    @test (Anneal.toqubo(model) == (
+    @test (Anneal.qubo_normal_form(model) == (
             Dict{MOI.VariableIndex, Int}(x₁ => 1, x₂ => 2),
             Dict{Tuple{Int, Int}, Float64}(
                 (1, 1) => -1.0,
                 (1, 2) => 1.0,
                 (2, 2) => -2.0
             ),
-            3.0
+            3.0,
         )
     )
 
