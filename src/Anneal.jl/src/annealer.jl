@@ -1,60 +1,61 @@
 # -*- Annealers -*-
-abstract type AbstractAnnealer{S <: Any, T <: Any} <: MOI.AbstractOptimizer end
+abstract type AbstractAnnealer{T <: Any} <: AbstractSampler{T} end
+abstract type AbstractAnnealerSettings{T} <: AbstractSamplerSettings{T} end
 
-function anneal!(annealer::AbstractAnnealer{S, T}) where {S, T}
-    result, δt = anneal(annealer)
+const AnnealingResults = Vector{Tuple{Vector{Int}, Int, Float64}}
 
-    sample_set = SampleSet{Int, T}([Sample{Int, T}(sample...) for sample in result])
-    
-    merge!(annealer.sample_set, sample_set)
+sample(annealer::AbstractAnnealer) = anneal(annealer)
 
-    if annealer.moi.solve_time_sec === NaN
-        annealer.moi.solve_time_sec = δt
-    else
-        annealer.moi.solve_time_sec += δt
-    end
-
-    nothing
+function anneal(::AbstractAnnealer)
+    error("`anneal(::AbstractAnnealer)` was not implemented")
 end
 
-mutable struct AnnealerMOI{T <: Any}
+const AnnealerMOI{T} = SamplerMOI{T}
 
-    name::String
-    silent::Bool
-    time_limit_sec::Union{Nothing, Float64}
-    raw_optimizer_attributes::Dict{String, Any}
-    number_of_threads::Int
+macro anew_annealer(expr)
+    expr = macroexpand(__module__, expr)
 
-    objective_value::T
-    solve_time_sec::Float64
-    termination_status::MOI.TerminationStatusCode
-    primal_status::MOI.ResultStatusCode
-    raw_status_string::String
+    if !(expr isa Expr && expr.head === :block)
+        error("Invalid usage of @anew")
+    end
 
-    function AnnealerMOI{T}() where {T}
-        return new{T}(
-            "",
-            false,
-            nothing,
-            Dict{String, Any}(),
-            1,
-            
-            zero(T),
-            NaN,
-            MOI.OPTIMIZE_NOT_CALLED,
-            MOI.NO_SOLUTION,
-            "",
+    return esc(:(
+            Base.@kwdef mutable struct AnnealerSettings{T} <: Anneal.AbstractAnnealerSettings{T}
+                $(expr)
+            end;
+
+            mutable struct Optimizer{T} <: Anneal.AbstractAnnealer{T}
+
+                x::Dict{MOI.VariableIndex, Union{Int, Missing}}
+                Q::Dict{Tuple{Int, Int}, T}
+                c::T
+                n::Int
+
+                settings::AnnealerSettings{T}
+                sample_set::Anneal.SampleSet{Int, T}
+                moi::Anneal.AnnealerMOI{T}
+
+                function Optimizer{T}(; kws...) where {T}
+                    optimizer = new{T}(
+                        Dict{MOI.VariableIndex, Int}(),
+                        Dict{Tuple{Int, Int}, T}(),
+                        zero(T),
+                        0,
+
+                        AnnealerSettings{T}(; kws...),
+                        Anneal.SampleSet{Int, T}(),
+                        Anneal.AnnealerMOI{T}(),
+                    )
+
+                    Anneal.init!(optimizer)
+
+                    return optimizer
+                end
+
+                function Optimizer(; kws...)
+                    return Optimizer{Float64}(; kws...)
+                end
+            end;
+            )
         )
-    end
 end
-
-# -*- Python Annealing Interfaces -*-
-include("pyannealer.jl")
-
-abstract type AbstractAnnealerSettings end
-
-struct NumberOfReads <: MOI.AbstractOptimizerAttribute end
-
-include("./simulated/annealer.jl")
-include("./quantum/annealer.jl")
-include("./digital/annealer.jl")

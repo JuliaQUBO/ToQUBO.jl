@@ -6,116 +6,128 @@ Necessary methods for an AbstractOptimizer according to [1]
 """
 
 # -*- :: -*- Optimizer Interface -*- :: -*-
-function MOI.empty!(annealer::AbstractAnnealer{S, T}) where {S, T}
+function MOI.empty!(sampler::AbstractSampler{T}) where {T}
     # Variable Mapping
-    empty!(annealer.x)
+    empty!(sampler.x)
 
     # QUBO Problem
-    empty!(annealer.Q)
+    empty!(sampler.Q)
 
     # Constant Term
-    annealer.c = zero(T)
+    sampler.c = zero(T)
 
     nothing
 end
 
-function MOI.is_empty(annealer::AbstractAnnealer{S, T}) where {S, T}
-    return isempty(annealer.x) && isempty(annealer.Q) && (annealer.c == zero(T))
+function MOI.is_empty(sampler::AbstractSampler{T}) where {T}
+    return isempty(sampler.x) && isempty(sampler.Q) && (sampler.c == zero(T))
 end
 
-function MOI.optimize!(annealer::AbstractAnnealer)
-    anneal!(annealer)
+function MOI.optimize!(sampler::AbstractSampler, model::MOI.ModelLike)
+    if !MOI.is_empty(sampler)
+        error("MOI Error: Sampler is not empty")
+    end
 
-    nothing
+    MOI.copy_to(sampler, model)
+
+    sample!(sampler)
+
+    return (MOIU.identity_index_map(model), false)
 end
 
-function Base.show(io::IO, ::AbstractAnnealer)
-    Base.print(io, "An Annealer for QUBO Models")
+
+function Base.show(io::IO, ::AbstractSampler)
+    Base.print(io, "An sampler for QUBO Models")
 end
 
 # -*- :: -*- Constraint Support -*- :: -*-
-MOI.supports_constraint(::AbstractAnnealer, ::Any, ::Any) = false
-MOI.supports_constraint(::AbstractAnnealer, ::Type{<: MOI.VariableIndex}, ::Type{<: MOI.ZeroOne}) = true
+MOI.supports_constraint(::AbstractSampler, ::Type{<:MOI.AbstractFunction}, ::Type{<:MOI.AbstractSet}) = false
+MOI.supports_constraint(::AbstractSampler, ::Type{<:MOI.VariableIndex}, ::Type{<:MOI.ZeroOne}) = true
+MOI.supports_add_constrained_variable(::AbstractSampler, ::Type{<:MOI.ZeroOne}) = true
+MOI.supports_add_constrained_variables(::AbstractSampler, ::Type{<:MOI.ZeroOne}) = true
 
 # -*- :: -*-  Attributes -*- :: -*-
-function MOI.get(::AbstractAnnealer, ::MOI.SolverName)
-    return "Annealer"
+function MOI.get(::AbstractSampler, ::MOI.SolverName)
+    return "Sampler"
 end
 
-function MOI.get(::AbstractAnnealer, ::MOI.SolverVersion)
+function MOI.get(::AbstractSampler, ::MOI.SolverVersion)
     return "v0.0.0"
 end
 
-function MOI.get(::AbstractAnnealer, ::MOI.RawSolver)
-    return "Generic Annealer"
+function MOI.get(::AbstractSampler, ::MOI.RawSolver)
+    return "Generic Sampler"
 end
 
 # -*- Name (get, set, supports) -*-
-function MOI.get(annealer::AbstractAnnealer, ::MOI.Name)
-    return annealer.moi.name
+function MOI.get(sampler::AbstractSampler, ::MOI.Name)
+    return sampler.moi.name
 end
 
-function MOI.set(annealer::AbstractAnnealer, ::MOI.Name, name::String)
-    annealer.moi.name = name
+function MOI.set(sampler::AbstractSampler, ::MOI.Name, name::String)
+    sampler.moi.name = name
 end
 
-MOI.supports(::AbstractAnnealer, ::MOI.Name) = true
+MOI.supports(::AbstractSampler, ::MOI.Name) = true
 
 # -*- Silent (get, set, supports) -*-
-function MOI.get(annealer::AbstractAnnealer, ::MOI.Silent)
-    return annealer.moi.silent
+function MOI.get(sampler::AbstractSampler, ::MOI.Silent)
+    return sampler.moi.silent
 end
 
-function MOI.set(annealer::AbstractAnnealer, ::MOI.Silent, silent::Bool)
-    annealer.moi.silent = silent
+function MOI.set(sampler::AbstractSampler, ::MOI.Silent, silent::Bool)
+    sampler.moi.silent = silent
 end
 
-MOI.supports(::AbstractAnnealer, ::MOI.Silent) = true
+MOI.supports(::AbstractSampler, ::MOI.Silent) = true
 
 # -*- TimeLimitSec (get, set, supports) -*-
-function MOI.get(annealer::AbstractAnnealer, ::MOI.TimeLimitSec)
-    return annealer.moi.time_limit_sec
+function MOI.get(sampler::AbstractSampler, ::MOI.TimeLimitSec)
+    return sampler.moi.time_limit_sec
 end
 
-function MOI.set(annealer::AbstractAnnealer, ::MOI.TimeLimitSec, time_limit_sec::Union{Nothing, Float64})
-    annealer.moi.time_limit_sec = time_limit_sec
+function MOI.set(sampler::AbstractSampler, ::MOI.TimeLimitSec, time_limit_sec::Union{Nothing, Float64})
+    sampler.moi.time_limit_sec = time_limit_sec
 end
 
-MOI.supports(::AbstractAnnealer, ::MOI.TimeLimitSec) = true
+MOI.supports(::AbstractSampler, ::MOI.TimeLimitSec) = true
 
 # -*- RawOptimizerAttribute (get, set, supports) -*-
-function MOI.get(annealer::AbstractAnnealer, attr::MOI.RawOptimizerAttribute)
-    return annealer.moi.raw_optimizer_attributes[attr.name]
+function MOI.get(sampler::AbstractSampler, attr::MOI.RawOptimizerAttribute)
+    return sampler.moi.raw_optimizer_attributes[attr.name]
 end
 
-function MOI.set(annealer::AbstractAnnealer, attr::MOI.RawOptimizerAttribute, value::Any)
-    annealer.moi.raw_optimizer_attributes[attr.name] = value
+function MOI.set(sampler::AbstractSampler, attr::MOI.RawOptimizerAttribute, value::Any)
+    sampler.moi.raw_optimizer_attributes[attr.name] = value
 end
 
-MOI.supports(::AbstractAnnealer, ::MOI.RawOptimizerAttribute) = true
+MOI.supports(::AbstractSampler, ::MOI.RawOptimizerAttribute) = true
 
 # -*- NumberOfThreads (get, set, supports) -*-
-function MOI.get(annealer::AbstractAnnealer, ::MOI.NumberOfThreads)
-    return annealer.moi.number_of_threads
+function MOI.get(sampler::AbstractSampler, ::MOI.NumberOfThreads)
+    return sampler.moi.number_of_threads
 end
 
-function MOI.set(annealer::AbstractAnnealer, ::MOI.NumberOfThreads, n::Int)
-    annealer.moi.number_of_threads = n
+function MOI.set(sampler::AbstractSampler, ::MOI.NumberOfThreads, n::Int)
+    sampler.moi.number_of_threads = n
 end
 
-MOI.supports(::AbstractAnnealer, ::MOI.NumberOfThreads) = true
+MOI.supports(::AbstractSampler, ::MOI.NumberOfThreads) = true
 
 # -*- :: -*- The copy_to Interface -*- :: -*-
-function MOI.copy_to(annealer::AbstractAnnealer{S, T}, model::MOI.ModelLike) where {S, T}
-    (annealer.x, annealer.Q, annealer.c) = toqubo(T, model; sense=MOI.MIN_SENSE)
+function MOI.copy_to(sampler::AbstractSampler{T}, model::MOI.ModelLike) where {T}
+    sampler.x, sampler.Q, sampler.c = qubo_normal_form(T, model)
+    sampler.n = length(sampler.x)
+
+    sampler.moi.objective_sense = MOI.get(model, MOI.ObjectiveSense())
 
     nothing
 end
 
 # -*- :: -*- Names -*- :: -*-
-function MOI.get(annealer::AbstractAnnealer, ps::MOI.PrimalStatus)
+function MOI.get(sampler::AbstractSampler, ps::MOI.PrimalStatus)
     i = ps.result_index
-    n = MOI.get(annealer, MOI.ResultCount())
+    n = MOI.get(sampler, MOI.ResultCount())
 
     if 1 <= i <= n
         return nothing
@@ -125,23 +137,23 @@ function MOI.get(annealer::AbstractAnnealer, ps::MOI.PrimalStatus)
 end
 
 # -*- RawStatusString -*-
-function MOI.get(annealer::AbstractAnnealer, ::MOI.RawStatusString)
-    return annealer.moi.raw_status_string
+function MOI.get(sampler::AbstractSampler, ::MOI.RawStatusString)
+    return sampler.moi.raw_status_string
 end
 
 # -*- ResultCount -*-
-function MOI.get(annealer::AbstractAnnealer, ::MOI.ResultCount) 
-    return length(annealer.sample_set)
+function MOI.get(sampler::AbstractSampler, ::MOI.ResultCount) 
+    return length(sampler.sample_set)
 end
 
 # -*- TerminationStatus -*-
-function MOI.get(annealer::AbstractAnnealer, ::MOI.TerminationStatus)
-    return annealer.moi.termination_status
+function MOI.get(sampler::AbstractSampler, ::MOI.TerminationStatus)
+    return sampler.moi.termination_status
 end
 
 # -*- ObjectiveValue -*-
-function MOI.get(annealer::AbstractAnnealer{S, T}, ov::MOI.ObjectiveValue) where {S, T}
-    n = length(annealer.sample_set)
+function MOI.get(sampler::AbstractSampler{T}, ov::MOI.ObjectiveValue) where {T}
+    n = MOI.get(sampler, MOI.ResultCount())
 
     j = ov.result_index
 
@@ -149,19 +161,23 @@ function MOI.get(annealer::AbstractAnnealer{S, T}, ov::MOI.ObjectiveValue) where
         throw(BoundsError("Result Index is out of bounds: $j ∉ [1, $n]"))
     end
 
-    sample = annealer.sample_set[j]
+    e = sampler.sample_set[j].energy
 
-    return (sample.energy + annealer.c)::T
+    if sampler.moi.objective_sense === MOI.MIN_SENSE
+        return e
+    else # MOI.MAX_SENSE    
+        return -e
+    end
 end
 
 # -*- SolveTimeSec -*-
-function MOI.get(annealer::AbstractAnnealer, ::MOI.SolveTimeSec)
-    return annealer.moi.solve_time_sec
+function MOI.get(sampler::AbstractSampler, ::MOI.SolveTimeSec)
+    return sampler.moi.solve_time_sec
 end
 
 # -*- VariablePrimal -*-
-function MOI.get(annealer::AbstractAnnealer{S, T}, vp::MOI.VariablePrimal, s::S) where {S, T}
-    n = length(annealer.sample_set.samples)
+function MOI.get(sampler::AbstractSampler{T}, vp::MOI.VariablePrimal, vi::MOI.VariableIndex) where {T}
+    n = length(sampler.sample_set)
 
     j = vp.result_index
 
@@ -169,28 +185,55 @@ function MOI.get(annealer::AbstractAnnealer{S, T}, vp::MOI.VariablePrimal, s::S)
         throw(MOI.ResultIndexBoundsError("Result Index is out of bounds: $j ∉ [1, $n]"))
     end
 
-    sample = annealer.sample_set[j]
+    sample = sampler.sample_set[j]
 
-    i = annealer.x[s]
-
-    m = length(sample.states)
-
-    if !(1 <= i <= m)
-        throw(MOI.InvalidIndex("Variable Index is out of bounds: $i ∉ [1, $m]"))
+    if !haskey(sampler.x, vi)
+        throw(MOI.InvalidIndex(vi))
     end
 
-    return (sample.states[i] > 0)
+    i = sampler.x[vi]
+
+    if i === missing
+        return zero(T)
+    else
+        return convert(T, sample.states[i])
+    end
 end
 
-
+# -*- ObjectiveFunction -*-
+MOI.supports(::AbstractSampler{T}, ::MOI.ObjectiveFunction{SQF{T}}) where T = true
 
 # -*- :: Settings :: -*-
-function MOI.get(annealer::AbstractAnnealer, ::NumberOfReads)
-    return annealer.settings.num_reads
+function MOI.get(sampler::AbstractSampler, ::NumberOfReads)
+    return sampler.settings.num_reads
 end
 
-function MOI.set(annealer::AbstractAnnealer, ::NumberOfReads, num_reads::Int)
-    annealer.settings.num_reads = num_reads
+function MOI.set(sampler::AbstractSampler, ::NumberOfReads, num_reads::Int)
+    sampler.settings.num_reads = num_reads
 
     nothing
 end
+
+function MOI.get(sampler::AbstractSampler, ::MOI.VariablePrimalStart, vi::MOI.VariableIndex)
+    if !haskey(sampler.x, vi)
+        throw(MOI.InvalidIndex(vi))
+    elseif haskey(sampler.moi.variable_primal_start, vi)
+        return sampler.moi.variable_primal_start[vi]
+    else
+        return nothing
+    end
+end
+
+function MOI.set(sampler::AbstractSampler{T}, ::MOI.VariablePrimalStart, vi::MOI.VariableIndex, s::Union{Nothing, T}) where {T}
+    if !haskey(sampler.x, vi)
+        throw(MOI.InvalidIndex(vi))
+    elseif s === nothing
+        delete!(sampler.moi.variable_primal_start, vi)
+    else
+        sampler.moi.variable_primal_start[vi] = s
+    end
+
+    nothing
+end
+
+MOI.supports(::AbstractSampler, ::MOI.VariablePrimalStart, ::Type{MOI.VariableIndex}) = true

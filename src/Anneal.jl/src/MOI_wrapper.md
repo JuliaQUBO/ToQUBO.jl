@@ -7,12 +7,12 @@ This Document is intended to help keeping track of which MOI API Methods and Pro
 [jump.dev/MathOptInterface.jl/stable/tutorials/implementing/](https://jump.dev/MathOptInterface.jl/stable/tutorials/implementing/)
 
 ## Optimizer Interface
-| Method                            | Status |
-| :-------------------------------- | :----: |
-| `MOI.empty!(::Optimizer)`         |   ✔️    |
-| `MOI.is_empty(::Optimizer)::Bool` |   ✔️    |
-| `MOI.optimize!(::Optimizer)`      |   ✔️    |
-| `Base.show(::IO, ::Optimizer)`    |   ✔️    |
+| Method                                        | Status |
+| :-------------------------------------------- | :----: |
+| `MOI.empty!(::Optimizer)`                     |   ✔️    |
+| `MOI.is_empty(::Optimizer)::Bool`             |   ✔️    |
+| `MOI.optimize!(::Optimizer, ::MOI.ModelLike)` |   ✔️    |
+| `Base.show(::IO, ::Optimizer)`                |   ✔️    |
 
 ## Constraint Support
 | Method                                                              | Status |
@@ -53,6 +53,10 @@ This Document is intended to help keeping track of which MOI API Methods and Pro
 | `MOI.ObjectiveValue`    | `T`                         |   ✔️   |   -   |     -      |
 | `MOI.SolveTimeSec`      | `Float64`                   |   ✔️   |   -   |     -      |
 | `MOI.VariablePrimal`    | `T`                         |   ✔️   |   -   |     -      |
+
+| Property                | Type | `get` | `set` | `supports` |
+| :---------------------- | :--- | :---: | :---: | :--------: |
+| `MOI.ObjectiveFunction` | -    |   -   |   -   |     ✔️      |
 
 ## Integer Solver
 | Property             | Type | `get` | `set` | `supports` |

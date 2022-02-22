@@ -2,30 +2,44 @@ module Anneal
 
 using MathOptInterface
 const MOI = MathOptInterface
+const MOIU = MOI.Utilities
 
 const SQF{T} = MOI.ScalarQuadraticFunction{T}
 const SAF{T} = MOI.ScalarAffineFunction{T}
 const VI = MOI.VariableIndex
 
+# -*- Exports: Python -*-
+export python_import, PyNULL
+
 # -*- Exports: Submodules -*-
-export Simulated
-export Quantum
-export Digital
+export ExactSampler, RandomSampler, IdentitySampler
+export SimulatedAnnealer
 
 # -*- Exports: Attributes -*-
-export NumberOfReads
+export NumberOfReads, NumberOfSweeps, RandomBias, RandomSeed
 
 # -*- Includes: Anneal -*-
 include("error.jl")
 include("qubo.jl")
-include("sample.jl")
+include("sampler.jl")
 include("annealer.jl")
+include("pyimport.jl")
 include("MOI_wrapper.jl")
 include("view.jl")
 
 # -*- Includes: Submodules -*-
-include("digital/digital.jl")
-include("quantum/quantum.jl")
-include("simulated/simulated.jl")
+# :: Samplers ::
+include("samplers/random/random.jl")
+using .RandomSampler
+
+include("samplers/exact/exact.jl")
+using .ExactSampler
+
+include("samplers/identity/identity.jl")
+using .IdentitySampler
+
+# :: Annealers ::
+include("annealers/simulated/simulated.jl")
+using .SimulatedAnnealer
 
 end # module
