@@ -1,59 +1,122 @@
 @testset "Simulated Annealing" begin
+    @testset "Regular UI + Attributes" begin
+        annealer = SimulatedAnnealer.Optimizer{Float64}(
+            num_reads=500,
+            num_sweeps=500
+        )
 
-    annealer = Simulated.Optimizer{Float64}(
-        num_reads=500,
-        num_sweeps=500
-    )
+        # -*- Attributes -*-
+        @test (MOI.get(annealer, NumberOfSweeps()) == 500)
 
-    @test (MOI.get(annealer, Simulated.NumberOfReads()) == 500)
-    @test (MOI.get(annealer, Simulated.NumberOfSweeps()) == 500)
+        MOI.set(annealer, NumberOfSweeps(), 1_000)
 
-    MOI.set(annealer, Simulated.NumberOfReads(), 1_000)
-    MOI.set(annealer, Simulated.NumberOfSweeps(), 1_000)
+        @test (MOI.get(annealer, NumberOfSweeps()) == 1_000)
 
-    @test (MOI.get(annealer, Simulated.NumberOfReads()) == 1_000)
-    @test (MOI.get(annealer, Simulated.NumberOfSweeps()) == 1_000)
+        @test (MOI.get(annealer, NumberOfReads()) == 500)
 
-    @test (MOI.is_empty(annealer) == true)
+        MOI.set(annealer, NumberOfReads(), 1_000)
 
-    model = MOIU.Model{Float64}()
+        @test (MOI.get(annealer, NumberOfReads()) == 1_000)
 
-    MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+        # -*- Model -*-
+        @test (MOI.is_empty(annealer) == true)
 
-    x₁ = MOI.add_variable(model)
-    x₂ = MOI.add_variable(model)
+        model = MOIU.Model{Float64}()
 
-    @test (Anneal.isqubo(model) == false)
+        MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
 
-    @test_throws Anneal.QUBOError MOI.copy_to(annealer, model)
+        x₁ = MOI.add_variable(model)
+        x₂ = MOI.add_variable(model)
 
-    MOI.add_constraint(model, x₁, MOI.ZeroOne())
-    MOI.add_constraint(model, x₂, MOI.ZeroOne())
+        @test (Anneal.isqubo(model) == false)
 
-    MOI.set(model, MOI.ObjectiveFunction{MOI.ScalarQuadraticFunction{Float64}}(),
-        MOI.ScalarQuadraticFunction{Float64}([
-            MOI.ScalarQuadraticTerm{Float64}(1.0, x₁, x₂),
-        ], [
-            MOI.ScalarAffineTerm{Float64}(-1.0, x₁),
-            MOI.ScalarAffineTerm{Float64}(-2.0, x₂)
-        ], 3.0)
-    )
+        @test_throws Anneal.QUBOError MOI.copy_to(annealer, model)
 
-    @test (Anneal.isqubo(model) == true)
+        MOI.add_constraint(model, x₁, MOI.ZeroOne())
+        MOI.add_constraint(model, x₂, MOI.ZeroOne())
 
-    MOI.copy_to(annealer, model)
+        MOI.set(model, MOI.ObjectiveFunction{MOI.ScalarQuadraticFunction{Float64}}(),
+            MOI.ScalarQuadraticFunction{Float64}([
+                MOI.ScalarQuadraticTerm{Float64}(3.0, x₁, x₂),
+            ], [
+                MOI.ScalarAffineTerm{Float64}(-1.0, x₁),
+                MOI.ScalarAffineTerm{Float64}(-2.0, x₂)
+            ], 3.0)
+        )
 
-    @test (MOI.is_empty(annealer) == false)
+        @test (Anneal.isqubo(model) == true)
 
-    @test annealer.x == Dict{MOI.VariableIndex, Int}(x₁ => 1, x₂ => 2)
-    @test annealer.Q == Dict{Tuple{Int, Int}, Float64}(
-        (1, 1) => -1.0,
-        (1, 2) => 1.0,
-        (2, 2) => -2.0,
-    )
-    @test annealer.c == 3.0
+        # -*- copy_to -*-
+        MOI.copy_to(annealer, model)
 
-    MOI.empty!(annealer)
+        @test (MOI.is_empty(annealer) == false)
 
-    @test (MOI.is_empty(annealer) == true)
+        @test annealer.x == Dict{MOI.VariableIndex, Int}(x₁ => 1, x₂ => 2)
+        @test annealer.Q == Dict{Tuple{Int, Int}, Float64}(
+            (1, 1) => -1.0,
+            (1, 2) =>  3.0,
+            (2, 2) => -2.0,
+        )
+        @test annealer.c == 3.0
+
+        MOI.empty!(annealer)
+
+        @test (MOI.is_empty(annealer) == true)
+    end # testset
+
+    @testset "MOI UI" begin
+        model = MOI.instantiate(SimulatedAnnealer.Optimizer, with_bridge_type = Float64)
+    
+        # -*- Model -*-
+        @test (MOI.is_empty(model) == true)
+    
+        n = 2
+    
+        x = MOI.add_variables(model, n)
+    
+        for xᵢ in x
+            MOI.add_constraint(model, xᵢ, MOI.ZeroOne())
+        end
+        
+        MOI.set(model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
+    
+        MOI.set(
+            model,
+            MOI.ObjectiveFunction{MOI.ScalarQuadraticFunction{Float64}}(),
+            MOI.ScalarQuadraticFunction(MOI.ScalarQuadraticTerm{Float64}[], MOI.ScalarAffineTerm.([1.0, 1.2], x), 0.0),
+        )
+    
+        MOI.optimize!(model)
+    
+        @test MOI.get.(model, MOI.VariablePrimal(), x[1:2]) == [1, 1]
+        @test MOI.get(model, MOI.ObjectiveValue()) ≈ 2.2
+    end
+    
+    @testset "MOI UI + Extra Variable" begin
+        model = MOI.instantiate(SimulatedAnnealer.Optimizer, with_bridge_type = Float64)
+    
+        # -*- Model -*-
+        @test (MOI.is_empty(model) == true)
+    
+        n = 3
+    
+        x = MOI.add_variables(model, n)
+    
+        for xᵢ in x
+            MOI.add_constraint(model, xᵢ, MOI.ZeroOne())
+        end
+        
+        MOI.set(model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
+    
+        MOI.set(
+            model,
+            MOI.ObjectiveFunction{MOI.ScalarQuadraticFunction{Float64}}(),
+            MOI.ScalarQuadraticFunction(MOI.ScalarQuadraticTerm{Float64}[], MOI.ScalarAffineTerm.([1.0, 1.2], x[1:2]), 0.0),
+        )
+    
+        MOI.optimize!(model)
+
+        ## @test_broken MOI.get.(model, MOI.VariablePrimal(), x[1:3]) == [1, 1, 0]
+        ## @test MOI.get(model, MOI.ObjectiveValue()) ≈ 2.2
+    end
 end
