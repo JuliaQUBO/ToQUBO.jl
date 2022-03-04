@@ -1,20 +1,36 @@
 module PBO
 
-using Random
+# -*- Imports -*-
 using LinearAlgebra
-
 using Base: haslength
 
-export PseudoBooleanFunction, PBF
-export qubo, ising
-export discretize, quadratize, gap, @quadratization
-export Δ, Θ, ×
+# -*- Exports -*-
+export PBF
+export ×, ∂, Δ, δ, ϵ, Θ, ∅
 
 # -*- Variable Terms -*-
 ×(x::S, y::S) where {S} = Set{S}([x, y])
 ×(x::Set{S}, y::S) where {S} = union(x, y)
 ×(x::S, y::Set{S}) where {S} = union(x, y)
 ×(x::Set{S}, y::Set{S}) where {S} = union(x, y)
+
+# -*- Empty Term -*-
+const ∅ = nothing
+
+# -*- Greatest Common Divisor -*-
+function Base.gcd(x::T, y::T; tol::T = T(1e-6)) where {T <: AbstractFloat}
+    if y == zero(T)
+        return x
+    elseif x == zero(T)
+        return y
+    else
+        return (x / numerator(rationalize(x / y; tol = tol)))::T
+    end    
+end
+
+function Base.gcd(a::AbstractArray{T}; tol::T = T(1e-6)) where {T<:AbstractFloat}
+    return reduce((x, y) -> gcd(x, y; tol = tol), a)::T
+end
 
 @doc raw"""
     PseudoBooleanFunction{S, T}(c::T)
@@ -35,6 +51,9 @@ Variables ``\mathbf{x}_i`` are indeed boolean, thus ``f : \mathbb{B}^{n} \to \ma
 struct PseudoBooleanFunction{S <: Any, T <: Number} <: AbstractDict{Set{S}, T}
     Ω::Dict{Set{S}, T}
 
+    varmap::Dict{S, Int}
+    varinv::Dict{Int, S}
+
     function PseudoBooleanFunction{S, T}(kv::Any) where {S, T}
         Ω = Dict{Set{S}, T}()
         haslength(kv) && sizehint!(Ω, Int(length(kv))::Int)
@@ -47,36 +66,62 @@ struct PseudoBooleanFunction{S <: Any, T <: Number} <: AbstractDict{Set{S}, T}
                 Ω[ω] = c
             end
         end
-        return new{S, T}(Ω)
+        return new{S, T}(
+            Ω,
+            Dict{S, Int}(),
+            Dict{Int, S}()
+        )
     end
 
     function PseudoBooleanFunction{S, T}(Ω::Dict{Set{S}, T}) where {S, T}
         return new{S, T}(
-            Dict{Set{S}, T}(ω => c for (ω, c) in Ω if c != zero(T))
+            Dict{Set{S}, T}(ω => c for (ω, c) in Ω if c != zero(T)),
+            Dict{S, Int}(),
+            Dict{Int, S}(),
         )
     end
 
     # -*- Empty -*-
     function PseudoBooleanFunction{S, T}() where {S, T}
-        return new{S, T}(Dict{Set{S}, T}())
+        return new{S, T}(
+            Dict{Set{S}, T}(),
+            Dict{S, Int}(),
+            Dict{Int, S}(),
+        )
     end
 
     # -*- Constant -*-
     function PseudoBooleanFunction{S, T}(c::T) where {S, T}
         if c === zero(T)
-            return PseudoBooleanFunction{S, T}()
+            return new{S, T}(
+                Dict{Set{S}, T}(),
+                Dict{S, Int}(),
+                Dict{Int, S}(),
+            )
         else
-            return new{S, T}(Dict{Set{S}, T}(Set{S}() => c))
+            return new{S, T}(
+                Dict{Set{S}, T}(Set{S}() => c),
+                Dict{S, Int}(),
+                Dict{Int, S}(),
+            )
         end
     end
 
     # -*- Terms -*-
     function PseudoBooleanFunction{S, T}(ω::Set{S}) where {S, T}
-        return new{S, T}(Dict{Set{S}, T}(ω => one(T)))
+        return new{S, T}(
+            Dict{Set{S}, T}(ω => one(T)),
+            Dict{S, Int}(),
+            Dict{Int, S}(),
+        )
     end
 
     function PseudoBooleanFunction{S, T}(ω::Vararg{S}) where {S, T}
-        return new{S, T}(Dict{Set{S}, T}(Set{S}(ω) => one(T)))
+        return new{S, T}(
+            Dict{Set{S}, T}(Set{S}(ω) => one(T)),
+            Dict{S, Int}(),
+            Dict{Int, S}(),
+        )
     end
 
     # -*- Pairs (Vectors) -*-
@@ -95,7 +140,11 @@ struct PseudoBooleanFunction{S <: Any, T <: Number} <: AbstractDict{Set{S}, T}
             end
         end
 
-        return new{S, T}(Ω)
+        return new{S, T}(
+            Ω,
+            Dict{S, Int}(),
+            Dict{Int, S}(),
+        )
     end
 
     # -*- Pairs (Sets) -*-
@@ -113,7 +162,11 @@ struct PseudoBooleanFunction{S <: Any, T <: Number} <: AbstractDict{Set{S}, T}
             end
         end
 
-        return new{S, T}(Ω)
+        return new{S, T}(
+            Ω,
+            Dict{S, Int}(),
+            Dict{Int, S}(),
+        )
     end
 end
 
@@ -164,6 +217,10 @@ function Base.getindex(f::PBF{S, T}, ξ::S...) where {S, T}
     return getindex(f, Set{S}(ξ))
 end
 
+function Base.getindex(f::PBF{S, T}, ::Nothing) where {S, T}
+    return getindex(f, Set{S}())
+end
+
 # -*- Indexing: Set -*-
 function Base.setindex!(f::PBF{S, T}, c::T, ω::Set{S}) where {S, T}
     if c == zero(T) && haskey(f.Ω, ω)
@@ -181,6 +238,10 @@ end
 
 function Base.setindex!(f::PBF{S, T}, c::T, ξ::S...) where {S, T}
     setindex!(f, c, Set{S}(ξ))
+end
+
+function Base.setindex!(f::PBF{S, T}, c::T, ::Nothing) where {S, T}
+    setindex!(f, c, Set{S}())
 end
 
 # -*- Properties -*-
@@ -201,11 +262,25 @@ function varset(f::PBF{S, T}) where {S, T}
 end
 
 function varmap(f::PBF{S, T}) where {S, T}
-    return Dict{S, Int}(x => i for (i, x) in enumerate(sort(collect(varset(f)))))
+    if isempty(f.varmap)
+        for (i, x) ∈ enumerate(sort(collect(varset(f))))
+            f.varmap[x] = i
+            f.varinv[i] = x
+        end
+    end
+
+    return f.varmap
 end
 
 function varinv(f::PBF{S, T}) where {S, T}
-    return Dict{Int, S}(i => x for (i, x) in enumerate(sort(collect(varset(f)))))
+    if isempty(f.varinv)
+        for (i, x) ∈ enumerate(sort(collect(varset(f))))
+            f.varmap[x] = i
+            f.varinv[i] = x
+        end
+    end
+
+    return f.varinv
 end
 
 # -*- Comparison: (==, !=, ===, !==)
@@ -228,7 +303,7 @@ end
 
 function Base.:(+)(f::PBF{S, T}, c::T) where {S, T}
     g = copy(f)
-    g[Set{S}()] += c
+    g[nothing] += c
     return g
 end
 
@@ -251,13 +326,13 @@ end
 
 function Base.:(-)(f::PBF{S, T}, c::T)::PBF{S, T} where {S, T}
     g = copy(f)
-    g[Set{S}()] -= c
+    g[nothing] -= c
     return g
 end
 
 function Base.:(-)(c::T, f::PBF{S, T})::PBF{S, T} where {S, T}
     g = -(f)
-    g[Set{S}()] += c
+    g[nothing] += c
     return g
 end
 
@@ -345,13 +420,13 @@ function (f::PBF{S, T})(x::Pair{S, Int}...) where {S, T}
 end
 
 # -*- Type conversion -*-
-function Base.convert(::Type{<: T}, f::PBF{S, T}) where {S, T}
+function Base.convert(U::Type{<:T}, f::PBF{S, T}) where {S, T}
     if isempty(f)
-        return zero(T)
+        return zero(U)
     elseif degree(f) == 0
-        return f[Set{S}()]
+        return convert(U, f[nothing])
     else
-        error("Can't convert Pseudo-boolean Function with variables to scalar type $T")
+        error("Can't convert non-constant Pseudo-boolean Function to scalar type $U")
     end
 end
 
@@ -387,18 +462,50 @@ function gap(f::PBF{S, T}; bound::Symbol=:loose) where {S, T}
     elseif bound === :tight
         error("Not Implemented: See [1] sec 5.1.1 Majorization")
     else
-        error(ArgumentError, ": Unknown bound thightness $bound")
+        throw(ArgumentError(": Unknown bound thightness $bound"))
     end
 end
 
+const δ = gap
+
+"""
+"""
+function sharpness(f::PBF{S, T}; bound::Symbol=:loose) where {S, T}
+    if bound === :none
+        return one(T)
+    elseif bound === :loose
+        return gcd(values(f))::T
+    elseif bound === :tight
+        error("Not Implemented: thightness $bound")
+    else
+        throw(ArgumentError(": Unknown bound thightness $bound"))
+    end
+end
+
+function sharpness(f::PBF{S, T}; bound::Symbol=:loose, tol::T = T(1e-6)) where {S, T<:AbstractFloat}
+    if bound === :none
+        return one(T)
+    elseif bound === :loose
+        return gcd([f[ω] for ω ∈ Ω(f) if !isempty(ω)]; tol = tol)::T
+    elseif bound === :tight
+        error("Not Implemented: thightness $bound")
+    else
+        throw(ArgumentError(": Unknown bound thightness $bound"))
+    end
+end
+
+const ϵ = sharpness
+
 # -*- Computations with PBF's -*-
-function Ω(f::PBF{S, T}) where {S, T}
+function terms(f::PBF{S, T}) where {S, T}
     return keys(f.Ω)
 end
 
+const Ω = terms
+
 @doc raw"""
-    Δ(f::PBF{S, T}, i::S) where {S, T}
-    Δ(f::PBF{S, T}, i::Int) where {S, T}
+    derivative(f::PBF{S, T}, i::S) where {S, T}
+    derivative(f::PBF{S, T}, i::Int) where {S, T}
 
 The partial derivate of function ``f \in \mathscr{F}`` with respect to the ``i``-th variable.
 
@@ -408,17 +515,26 @@ The partial derivate of function ``f \in \mathscr{F}`` with respect to the ``i``
     c_{\omega \cup \left\{{i}\}\right\} \prod_{i \in \omega} \mathbf{x}_i
 ```
 """
-function Δ(f::PBF{S, T}, i::S) where {S, T}
-    return PBF{S, T}(ω => f[ω × i] for (ω, _) ∈ Ω(f) if (i ∉ ω))
+function derivative(f::PBF{S, T}, s::S) where {S, T}
+    return PBF{S, T}(ω => f[ω × s] for ω ∈ Ω(f) if (s ∉ ω))
 end
 
-function Δ(f::PBF{S, T}, i::Int) where {S, T}
-    return Δ(f, varinv(f)[i])
+function derivative(f::PBF{S, T}, i::Int) where {S, T}
+    return derivative(f, varinv(f)[i])
 end
+
+const Δ = derivative
+const ∂ = derivative
+
+function gradient(f::PBF{S, T}) where {S, T}
+    return [derivative(f, s) for (s, _) ∈ varmap(f)]
+end
+
+const ∇ = gradient
 
 @doc raw"""
-    Θ(f::PBF{S, T}, i::S) where {S, T}
-    Θ(f::PBF{S, T}, i::Int) where {S, T}
+    residual(f::PBF{S, T}, i::S) where {S, T}
+    residual(f::PBF{S, T}, i::Int) where {S, T}
 
 The residual of function ``f \in \mathscr{F}`` with respect to the ``i``-th variable.
 
@@ -428,16 +544,18 @@ The residual of function ``f \in \mathscr{F}`` with respect to the ``i``-th vari
     c_{\omega \cup \left\{{i}\}\right\} \prod_{i \in \omega} \mathbf{x}_i
 ```
 """
-function Θ(f::PBF{S, T}, i::S) where {S, T}
+function residual(f::PBF{S, T}, i::S) where {S, T}
     return PBF{S, T}(ω => c for (ω, c) ∈ Ω(f) if (i ∉ ω))
 end
 
-function Θ(f::PBF{S, T}, i::Int) where {S, T}
+function residual(f::PBF{S, T}, i::Int) where {S, T}
     return Θ(f, varinv(f)[i])
 end
 
+const Θ = residual
+
 # -*- Output -*-
-function qubo(::Type{<: AbstractDict}, f::PBF{S, T}) where {S, T}
+function qubo_normal_form(::Type{<: AbstractDict}, f::PBF{S, T}) where {S, T}
     # -* QUBO *-
     x = varmap(f)
     Q = Dict{Tuple{Int, Int}, T}()
@@ -465,7 +583,7 @@ function qubo(::Type{<: AbstractDict}, f::PBF{S, T}) where {S, T}
     return (x, Q, c)
 end
 
-function qubo(::Type{<: AbstractArray}, f::PBF{S, T}) where {S, T}
+function qubo_normal_form(::Type{<: AbstractArray}, f::PBF{S, T}) where {S, T}
     # -* Constants *-
     𝟐 = convert(T, 2)
 
@@ -496,11 +614,11 @@ function qubo(::Type{<: AbstractArray}, f::PBF{S, T}) where {S, T}
 end
 
 # -*- Output: Default Behavior -*-
-function qubo(f::PBF{S, T}) where {S, T}
-    return qubo(Dict, f)
+function qubo_normal_form(f::PBF{S, T}) where {S, T}
+    return qubo_normal_form(Dict, f)
 end
 
-function ising(::Type{<: AbstractDict}, f::PBF{S, T}) where {S, T}
+function ising_normal_form(::Type{<: AbstractDict}, f::PBF{S, T}) where {S, T}
     # -* Constants *-
     𝟎 = zero(T)
     𝟐 = convert(T, 2)
@@ -537,7 +655,7 @@ function ising(::Type{<: AbstractDict}, f::PBF{S, T}) where {S, T}
     return (x, h, J, c)
 end
 
-function ising(::Type{<:AbstractArray}, f::PBF{S, T}) where {S, T}
+function ising_normal_form(::Type{<:AbstractArray}, f::PBF{S, T}) where {S, T}
     # -* Constants *-
     𝟐 = convert(T, 2)
     𝟒 = convert(T, 4)
@@ -575,8 +693,8 @@ function ising(::Type{<:AbstractArray}, f::PBF{S, T}) where {S, T}
 end
 
 # :: Default ::
-function ising(f::PBF{S, T}) where {S, T}
-    return ising(Dict, f)
+function ising_normal_form(f::PBF{S, T}) where {S, T}
+    return ising_normal_form(Dict, f)
 end
 
 # -*- Integer Coefficients -*-
@@ -598,45 +716,46 @@ computes an approximate function  ``g : \mathbb{B}^{n} \to \mathbb{Z}`` such tha
 This is done by rationalizing every coefficient ``c_\omega`` according to some tolerance `tol`.
 
 """
-function discretize(f::PBF{S, T}; tol::T) where {S, T}
-    k = Vector{Set{S}}()
-    v = Vector{T}()
-
-    for (ω, c) ∈ f.Ω
-        push!(k, ω)
-        push!(v, c)
-    end
-
-    p = rationalize.(v; tol=tol)
-    q = numerator.(p .* lcm(denominator.(p)))
-
-    f = PBF{S, T}(ω => q[i] for (i, ω) in enumerate(k))
-    e = sum(abs.(v - p); init = zero(T))
-
-    return (f, e)
+function discretize(f::PBF{S, T}; tol::T = T(1e-6)) where {S, T}
+    return f / ϵ(f; bound = :loose, tol = tol)
 end
 
 # -*- :: Quadratization :: -*-
 
-abstract type AbstractQuadratization end
+abstract type QuadratizationType end
 
-struct Quadratization{T <: AbstractQuadratization}
-    deg::Int
-    nsv::Int
-    nst::Int
+nsv(::Type{<:QuadratizationType}, ::Int) = 0
+nst(::Type{<:QuadratizationType}, ::Int) = 0
+
+struct Quadratization{T<:QuadratizationType}
+    deg::Int # Initial Degree
+    nsv::Int # New Slack Variables
+    nst::Int # Non-Submodular Terms
+
+    function Quadratization{T}(deg::Int) where {T<:QuadratizationType}
+        return new{T}(
+            deg,
+            nsv(T, deg),
+            nst(T, deg),
+        )
+    end
 end
 
 @doc raw"""
     @quadratization(name, nsv, nst)
 
-Assigns new quadratization technique.
+Defines a new quadratization technique.
 """
 macro quadratization(name, nsv, nst)
     return :(
-        struct $(esc(name)) <: AbstractQuadratization end;
-    
-        function Quadratization(::$(esc(name)), k::Int);
-            return Quadratization{$(esc(name))}(k, $nsv, $nst);
+        struct $(esc(name)) <: QuadratizationType end;
+
+        function nsv(::Type{$(esc(name))}, k::Int)
+            return $(esc(nsv))
+        end;
+
+        function nst(::Type{$(esc(name))}, k::Int)
+            return $(esc(nst))
         end;
     )
 end
@@ -647,7 +766,7 @@ end
 Term-by-term quadratization
 """
 
-@quadratization(TBT_QUAD, 0, 0)
+@quadratization TBT_QUAD 0 0
 
 @doc raw"""
     NTR_KZFD(::Int)
@@ -655,7 +774,7 @@ Term-by-term quadratization
 NTR-KZFD (Kolmogorov & Zabih, 2004; Freedman & Drineas, 2005)
 """
 
-@quadratization(NTR_KZFD, 1, 0)
+@quadratization NTR_KZFD 1 0
 
 function quadratize(::Quadratization{NTR_KZFD}, ω::Set{S}, c::T; slack::Any) where {S, T}
     # -* Degree *-
@@ -672,7 +791,7 @@ end
 PTR-BG (Boros & Gruber, 2014)
 """
 
-@quadratization(PTR_BG, k - 2, k - 1)
+@quadratization PTR_BG k - 2 k - 1
 
 function quadratize(::Quadratization{PTR_BG}, ω::Set{S}, c::T; slack::Any) where {S, T}
     # -* Degree *-
@@ -698,6 +817,24 @@ function quadratize(::Quadratization{PTR_BG}, ω::Set{S}, c::T; slack::Any) wher
     return f
 end
 
+function quadratize(ω::Set{S}, c::T; slack::Any) where {S, T}
+    if c < zero(T)
+        return quadratize(
+            Quadratization{NTR_KZFD}(length(ω)),
+            ω,
+            c;
+            slack=slack,
+        )
+    else
+        return quadratize(
+            Quadratization{PTR_BG}(length(ω)),    
+            ω,
+            c;
+            slack=slack,
+        )
+    end
+end
+
 function quadratize(::Quadratization{TBT_QUAD}, f::PBF{S, T}; slack::Any) where {S, T}
     g = PBF{S, T}()
 
@@ -705,27 +842,18 @@ function quadratize(::Quadratization{TBT_QUAD}, f::PBF{S, T}; slack::Any) where 
         if length(ω) <= 2
             g[ω] += c
         else
-            for (η, a) ∈ quadratize(ω, c; slack=slack)
+            for (η, a) ∈ quadratize(
+                    Quadratization{PTR_BG}(length(ω)),
+                    ω,
+                    c;
+                    slack=slack,
+                )
                 g[η] += a
             end
         end
     end
 
     return g
-end
-
-function quadratize(ω::Set{S}, c::T; slack::Any) where {S, T}
-    if c < zero(T)
-        return quadratize(
-            Quadratization(NTR_KZFD, length(ω)),
-            ω, c; slack=slack
-        )
-    else
-        return quadratize(
-            Quadratization(PTR_BG, length(ω)),    
-            ω, c; slack=slack
-        )
-    end
 end
 
 @doc raw"""
@@ -737,8 +865,9 @@ f(X ∪ Y) + f(X ∩ Y) ≤ f(X) + f(Y)  X, Y ⊂ S ⟹ Submodular
 """
 function quadratize(f::PBF{S, T}; slack::Any) where {S, T}
     return quadratize(
-        Quadratization(TBT_QUAD, degree(f)),
-        f; slack=slack
+        Quadratization{TBT_QUAD}(degree(f)),
+        f;
+        slack=slack,
     )
 end
 

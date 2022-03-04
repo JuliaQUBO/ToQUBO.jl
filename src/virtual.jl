@@ -1,16 +1,18 @@
 module VirtualMapping
 
+# -*- :: External Imports :: -*-
 using MathOptInterface
 const MOI = MathOptInterface
 const MOIU = MOI.Utilities
+
+# -*- MOI Aliases -*-
 const VI = MOI.VariableIndex
 
-export isempty, length, iterate
+# -*- :: Module Exports :: -*-
 export VirtualVariable
-export VirtualMOIVariable
-export AbstractVirtualModel
-export coefficient, coefficients, offset, isslack, source, target, name
-export expandℝ!, slackℝ!, expandℤ!, slackℤ!, mirror𝔹!, slack𝔹!
+export VirtualMOIVariable, AbstractVirtualModel
+export mirror𝔹!, expandℤ!, expandℝ!, slack𝔹!, slackℤ!, slackℝ!
+export name, source, target, isslack
 
 @doc raw"""
     VirtualVariable{S, T}(
@@ -36,7 +38,7 @@ The Virtual Variable Mapping
 ## References:
  * [1] Chancellor, N. (2019). Domain wall encoding of discrete variables for quantum annealing and QAOA. _Quantum Science and Technology_, _4_(4), 045004. [{doi}](https://doi.org/10.1088/2058-9565/ab33c2)
 """
-struct VirtualVariable{S <: Any, T <: Any}
+struct VirtualVariable{S<:Any, T<:Any}
 
     # -*- Variable Mapping -*-
     target::Vector{S}
@@ -214,19 +216,27 @@ function Base.length(v::VirtualVariable)
 end
 
 function Base.iterate(v::VirtualVariable{S, T}) where {S, T}
-    return ((v.target[1], coefficient(v, 1)), 2)
+    if v.semi
+        return ((Set{S}([v.target[1], v.target[2]]), coefficient(v, 1)), 2)
+    else
+        return ((Set{S}([v.target[1]]), coefficient(v, 1)), 2)
+    end
 end
 
 function Base.iterate(v::VirtualVariable{S, T}, i::Int) where {S, T}
     if i > v.bits
         return nothing
     else
-        return ((v.target[i], coefficient(v, i)), i + 1)
+        if v.semi
+            return ((Set{S}([v.target[1], v.target[i]]), coefficient(v, i)), i + 1)
+        else
+            return ((Set{S}([v.target[i]]), coefficient(v, i)), i + 1)
+        end
     end
 end
 
-function Base.collect(𝓋::VirtualVariable{S, T}) where {S, T}
-    return Dict{S, T}(𝓋ᵢ => c for (𝓋ᵢ, c) ∈ 𝓋)
+function Base.collect(v::VirtualVariable{S, T}) where {S, T}
+    return Dict{Set{S}, T}(s => c for (s, c) ∈ v)
 end
 
 # -*- Variable Information -*-
@@ -249,44 +259,33 @@ end
 # -*- :: Virtual Model + MOI Integration :: -*-
 const VirtualMOIVariable{T} = VirtualVariable{MOI.VariableIndex, T}
 
-abstract type AbstractVirtualModel{T <: Any} <: MOIU.AbstractModelLike{T} end
-
-struct VirtualModel{T} <: AbstractVirtualModel{T}
-    # -*- Underlying Model -*-
-    source_model::Any
-    target_model::Any
-
-    # -*- Virtual Model Interface -*-
-    varvec::Vector{VirtualMOIVariable{T}}
-    source::Dict{MOI.VariableIndex, VirtualMOIVariable{T}}
-    target::Dict{MOI.VariableIndex, VirtualMOIVariable{T}}
-end
+abstract type AbstractVirtualModel{T} <: MOIU.AbstractModelLike{T} end
 
 # ::: Variable Management :::
 @doc raw"""
-    mapvar!(model::AbstractVirtualModel{T}, 𝓋::VirtualMOIVariable{T}) where {T}
+    mapvar!(model::AbstractVirtualModel{T}, v::VirtualMOIVariable{T}) where {T}
 
-Maps newly created virtual variable `𝓋` within the virtual model structure. It follows these steps:
+Maps newly created virtual variable `v` within the virtual model structure. It follows these steps:
  
- 1. Maps `𝓋`'s source to it in the model's `source` mapping.
- 2. For every one of `𝓋`'s targets, maps it to itself and adds a binary constraint to it.
- 2. Adds `𝓋` to the end of the model's `varvec`.  
+ 1. Maps `v`'s source to it in the model's `source` mapping.
+ 2. For every one of `v`'s targets, maps it to itself and adds a binary constraint to it.
+ 2. Adds `v` to the end of the model's `varvec`.  
 """
-function mapvar!(model::AbstractVirtualModel{T}, 𝓋::VirtualMOIVariable{T}) where {T}
-    x = source(𝓋)
+function mapvar!(model::AbstractVirtualModel{T}, v::VirtualMOIVariable{T}) where {T}
+    x = source(v)
 
     if x !== nothing # not a slack variable
-        model.source[x] = 𝓋
+        model.source[x] = v
     end
 
-    for yᵢ in target(𝓋)
+    for yᵢ in target(v)
         MOI.add_constraint(model.target_model, yᵢ, MOI.ZeroOne())
-        model.target[yᵢ] = 𝓋
+        model.target[yᵢ] = v
     end
 
-    push!(model.varvec, 𝓋)
+    push!(model.varvec, v)
 
-    return 𝓋
+    return v
 end
 
 @doc raw"""
