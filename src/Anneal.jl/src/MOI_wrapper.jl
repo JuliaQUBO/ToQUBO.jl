@@ -16,6 +16,14 @@ function MOI.empty!(sampler::AbstractSampler{T}) where {T}
     # Constant Term
     sampler.c = zero(T)
 
+    sampler.n = 0
+
+    # MathOptInterface Parameters
+    empty!(sampler.moi)
+
+    # Previous Samples
+    empty!(sampler.sample_set)
+
     nothing
 end
 
@@ -128,12 +136,7 @@ end
 function MOI.get(sampler::AbstractSampler, ps::MOI.PrimalStatus)
     i = ps.result_index
     n = MOI.get(sampler, MOI.ResultCount())
-
-    if 1 <= i <= n
-        return nothing
-    else
-        return MOI.NO_SOLUTION
-    end
+    return (1 <= i <= n) ? MOI.FEASIBLE_POINT : MOI.NO_SOLUTION
 end
 
 # -*- RawStatusString -*-
@@ -182,21 +185,19 @@ function MOI.get(sampler::AbstractSampler{T}, vp::MOI.VariablePrimal, vi::MOI.Va
     j = vp.result_index
 
     if !(1 <= j <= n)
-        throw(MOI.ResultIndexBoundsError("Result Index is out of bounds: $j ∉ [1, $n]"))
+        throw(MOI.ResultIndexBoundsError{MOI.VariablePrimal}(vp, n))
     end
 
-    sample = sampler.sample_set[j]
-
     if !haskey(sampler.x, vi)
-        throw(MOI.InvalidIndex(vi))
+        throw(MOI.InvalidIndex{MOI.VariableIndex}(vi))
     end
 
     i = sampler.x[vi]
 
-    if i === missing
+    if i === nothing
         return zero(T)
     else
-        return convert(T, sample.states[i])
+        return convert(T, sampler.sample_set[j].states[i])
     end
 end
 
@@ -216,7 +217,7 @@ end
 
 function MOI.get(sampler::AbstractSampler, ::MOI.VariablePrimalStart, vi::MOI.VariableIndex)
     if !haskey(sampler.x, vi)
-        throw(MOI.InvalidIndex(vi))
+        throw(MOI.InvalidIndex{MOI.VariableIndex}(vi))
     elseif haskey(sampler.moi.variable_primal_start, vi)
         return sampler.moi.variable_primal_start[vi]
     else
@@ -226,7 +227,7 @@ end
 
 function MOI.set(sampler::AbstractSampler{T}, ::MOI.VariablePrimalStart, vi::MOI.VariableIndex, s::Union{Nothing, T}) where {T}
     if !haskey(sampler.x, vi)
-        throw(MOI.InvalidIndex(vi))
+        throw(MOI.InvalidIndex{MOI.VariableIndex}(vi))
     elseif s === nothing
         delete!(sampler.moi.variable_primal_start, vi)
     else
@@ -236,4 +237,4 @@ function MOI.set(sampler::AbstractSampler{T}, ::MOI.VariablePrimalStart, vi::MOI
     nothing
 end
 
-MOI.supports(::AbstractSampler, ::MOI.VariablePrimalStart, ::Type{MOI.VariableIndex}) = true
+MOI.supports(::AbstractSampler, ::MOI.VariablePrimalStart, ::Type{<:MOI.VariableIndex}) = true

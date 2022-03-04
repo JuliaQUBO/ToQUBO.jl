@@ -5,7 +5,7 @@ function identity_sample(sampler::Optimizer{T}) where {T}
     s = Vector{Int}(undef, sampler.n)
 
     for (xᵢ, i) ∈ sampler.x
-        if i === missing
+        if i === nothing
             continue
         end
 

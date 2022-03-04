@@ -52,7 +52,7 @@ end
     qubo_normal_form(T::Type{<:Any}, model::MOI.ModelLike)
 
 Returns a triple ``(x, Q, c)`` where:
- * `x::Dict{MOI.VariableIndex, Union{Int, Missing}}` maps each of the model's variables to an integer index, to be used when interacting with `Q`.
+ * `x::Dict{MOI.VariableIndex, Union{Int, Nothing}}` maps each of the model's variables to an integer index, to be used when interacting with `Q`.
  * `Q::Dict{Tuple{Int, Int}, T}` is a sparse representation of the QUBO Matrix.
  * `c::T` is the constant term associated with the problem.
 """
@@ -63,7 +63,8 @@ function qubo_normal_form(T::Type{<:Any}, model::MOI.ModelLike)
 
     u = Vector{VI}(MOI.get(model, MOI.ListOfVariableIndices()))
     v = Set{VI}(u)
-    x = Dict{VI, Union{Int, Missing}}(xᵢ => i for (i, xᵢ) ∈ enumerate(u))
+    
+    x = Dict{VI, Union{Int, Nothing}}(xᵢ => i for (i, xᵢ) ∈ enumerate(u))
     q = Dict{Tuple{Int, Int}, T}()
     c = zero(T)
 
@@ -128,7 +129,7 @@ function qubo_normal_form(T::Type{<:Any}, model::MOI.ModelLike)
     end
 
     for xᵢ ∈ v
-        x[xᵢ] = missing
+        x[xᵢ] = nothing
     end
 
     return (x, Q, c)

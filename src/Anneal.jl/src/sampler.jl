@@ -59,11 +59,11 @@ function Base.getindex(s::SampleSet, i::Int)
     return getindex(s.samples, i)
 end
 
-function merge(x::SampleSet{S, T}, y::SampleSet{S, T}) where {S, T}
+function Base.merge(x::SampleSet{S, T}, y::SampleSet{S, T}) where {S, T}
     return SampleSet{S, T}(Vector{Sample{S, T}}([x.samples; y.samples]))
 end
 
-function merge!(x::SampleSet{S, T}, y::SampleSet{S, T}) where {S, T}
+function Base.merge!(x::SampleSet{S, T}, y::SampleSet{S, T}) where {S, T}
     i = length(x.samples)
 
     for sample in y.samples
@@ -81,6 +81,11 @@ function merge!(x::SampleSet{S, T}, y::SampleSet{S, T}) where {S, T}
     x.mapping = Dict{Vector{S}, Int}(s => I[i] for (s, i) in x.mapping)
     
     nothing
+end
+
+function Base.empty!(s::SampleSet)
+    empty!(s.samples)
+    empty!(s.mapping)   
 end
 
 # -*- :: Samplers :: -*-
@@ -119,7 +124,7 @@ Base.@kwdef mutable struct SamplerMOI{T} <: AbstractMOI{T}
     silent::Bool = false
     time_limit_sec::Union{Nothing, Float64} = nothing
     raw_optimizer_attributes::Dict{String, Any} = Dict{String, Any}()
-    number_of_threads::Int = 1
+    number_of_threads::Int = Threads.nthreads()
 
     objective_value::T = zero(T)
     solve_time_sec::Float64 = NaN
@@ -132,52 +137,80 @@ Base.@kwdef mutable struct SamplerMOI{T} <: AbstractMOI{T}
     objective_sense::MOI.OptimizationSense = MOI.MIN_SENSE
 end
 
+function Base.empty!(moi::SamplerMOI{T}) where {T}
+    moi.name = ""
+    moi.silent = false
+    moi.time_limit_sec = nothing
+    empty!(moi.raw_optimizer_attributes)
+    moi.number_of_threads = Threads.nthreads()
+
+    moi.objective_value = zero(T)
+    moi.solve_time_sec = NaN
+    moi.termination_status = MOI.OPTIMIZE_NOT_CALLED
+    moi.primal_status = MOI.NO_SOLUTION
+    moi.raw_status_string = ""
+
+    empty!(moi.variable_primal_start)
+
+    moi.objective_sense = MOI.MIN_SENSE
+end
+
 struct NumberOfReads <: MOI.AbstractOptimizerAttribute end
 
-macro anew_sampler(expr)
-    expr = macroexpand(__module__, expr)
+function __anew(kind::Symbol, expr::Expr)
 
-    if !(expr isa Expr && expr.head === :block)
-        error("Invalid usage of @anew")
+    if !(expr.head === :block)
+        error("Invalid usage of @anew_$(lowercase(kind))")
     end
 
+    settings = Symbol("$(kind)Settings")
+    
+    abstract_settings = Symbol("Abstract$(kind)Settings")
+
+    abstract = Symbol("Abstract$(kind)")
+
+    moi = Symbol("$(kind)MOI")
+
     return esc(:(
-            Base.@kwdef mutable struct SamplerSettings{T} <: Anneal.AbstractSamplerSettings{T}
-                $(expr)
-            end;
+        Base.@kwdef mutable struct $(settings){T} <: Anneal.$(abstract_settings){T}
+            $(expr)
+        end;
 
-            mutable struct Optimizer{T} <: Anneal.AbstractSampler{T}
+        mutable struct Optimizer{T} <: Anneal.$(abstract){T}
 
-                x::Dict{MOI.VariableIndex, Union{Int, Missing}}
-                Q::Dict{Tuple{Int, Int}, T}
-                c::T
-                n::Int
+            x::Dict{MOI.VariableIndex, Union{Int, Nothing}}
+            Q::Dict{Tuple{Int, Int}, T}
+            c::T
+            n::Int
 
-                settings::SamplerSettings{T}
-                sample_set::Anneal.SampleSet{Int, T}
-                moi::Anneal.SamplerMOI{T}
+            settings::$(settings){T}
+            sample_set::Anneal.SampleSet{Int, T}
+            moi::Anneal.$moi{T}
 
-                function Optimizer{T}(; kws...) where {T}
-                    optimizer = new{T}(
-                        Dict{MOI.VariableIndex, Int}(),
-                        Dict{Tuple{Int, Int}, T}(),
-                        zero(T),
-                        0,
+            function Optimizer{T}(; kws...) where {T}
+                optimizer = new{T}(
+                    Dict{MOI.VariableIndex, Int}(),
+                    Dict{Tuple{Int, Int}, T}(),
+                    zero(T),
+                    0,
 
-                        SamplerSettings{T}(; kws...),
-                        Anneal.SampleSet{Int, T}(),
-                        Anneal.SamplerMOI{T}(),
-                    )
+                    $(settings){T}(; kws...),
+                    Anneal.SampleSet{Int, T}(),
+                    Anneal.$moi{T}(),
+                )
 
-                    Anneal.init!(optimizer)
+                Anneal.init!(optimizer)
 
-                    return optimizer
-                end
+                return optimizer
+            end
 
-                function Optimizer(; kws...)
-                    return Optimizer{Float64}(; kws...)
-                end
-            end;
-            )
-        )
+            function Optimizer(; kws...)
+                return Optimizer{Float64}(; kws...)
+            end
+        end;
+    ))
+end
+
+macro anew_sampler(expr)
+    return __anew(:Sampler, expr)
 end
