@@ -3,7 +3,6 @@ module VirtualMapping
 # -*- :: External Imports :: -*-
 using MathOptInterface
 const MOI = MathOptInterface
-const MOIU = MOI.Utilities
 
 # -*- MOI Aliases -*-
 const VI = MOI.VariableIndex
@@ -12,7 +11,7 @@ const VI = MOI.VariableIndex
 export VirtualVariable
 export VirtualMOIVariable, AbstractVirtualModel
 export mirror𝔹!, expandℤ!, expandℝ!, slack𝔹!, slackℤ!, slackℝ!
-export name, source, target, isslack
+export name, source, target, isslack, offset
 
 @doc raw"""
     VirtualVariable{S, T}(
@@ -216,11 +215,7 @@ function Base.length(v::VirtualVariable)
 end
 
 function Base.iterate(v::VirtualVariable{S, T}) where {S, T}
-    if v.semi
-        return ((Set{S}([v.target[1], v.target[2]]), coefficient(v, 1)), 2)
-    else
-        return ((Set{S}([v.target[1]]), coefficient(v, 1)), 2)
-    end
+    return ((Set{S}(), offset(v)), 1)
 end
 
 function Base.iterate(v::VirtualVariable{S, T}, i::Int) where {S, T}
@@ -259,9 +254,9 @@ end
 # -*- :: Virtual Model + MOI Integration :: -*-
 const VirtualMOIVariable{T} = VirtualVariable{MOI.VariableIndex, T}
 
-abstract type AbstractVirtualModel{T} <: MOIU.AbstractModelLike{T} end
+abstract type AbstractVirtualModel{T} <: MOI.AbstractOptimizer end
 
-# ::: Variable Management :::
+# :: Variable Management ::
 @doc raw"""
     mapvar!(model::AbstractVirtualModel{T}, v::VirtualMOIVariable{T}) where {T}
 
@@ -301,7 +296,15 @@ x \approx \alpha + \frac{(\beta - \alpha)}{2^{n} - 1} \sum_{i=0}^{n-1} {2^{i}\, 
 
 where ``n`` is the number of bits and ``y_i \in \mathbb{B}``.
 """
-function expandℝ!(model::AbstractVirtualModel{T}, src::Union{VI, Nothing}; bits::Int, name::Symbol, α::T, β::T, semi::Bool) where T
+function expandℝ!(
+        model::AbstractVirtualModel{T},
+        src::Union{VI, Nothing};
+        bits::Int,
+        name::Symbol,
+        α::T,
+        β::T,
+        semi::Bool = false,
+    ) where {T}
     return mapvar!(model, VirtualMOIVariable{T}(
         (n) -> MOI.add_variables(model.target_model, n),
         src;
@@ -310,7 +313,7 @@ function expandℝ!(model::AbstractVirtualModel{T}, src::Union{VI, Nothing}; bit
         name=name,
         α=α,
         β=β,
-        semi=semi
+        semi=semi,
     ))
 end
 
@@ -319,7 +322,14 @@ end
 
 Adds real slack variable according to [`expandℝ!`](@ref)'s expansion method.
 """
-function slackℝ!(model::AbstractVirtualModel{T}; bits::Int, name::Symbol, α::T, β::T, semi::Bool) where T
+function slackℝ!(
+        model::AbstractVirtualModel{T};
+        bits::Int,
+        name::Symbol,
+        α::T,
+        β::T,
+        semi::Bool = false,
+    ) where {T}
     return mapvar!(model, VirtualMOIVariable{T}(
         (n) -> MOI.add_variables(model.target_model, n),
         nothing;
@@ -328,7 +338,7 @@ function slackℝ!(model::AbstractVirtualModel{T}; bits::Int, name::Symbol, α::
         name=name,
         α=α,
         β=β,
-        semi=semi
+        semi=semi,
     ))
 end
 
@@ -337,7 +347,14 @@ end
 
 Integer Binary Expansion within the closed interval ``[\left\lceil{\alpha}\right\rceil, \left\lfloor{\beta}\right\rfloor]``.
 """
-function expandℤ!(model::AbstractVirtualModel{T}, src::Union{VI, Nothing}; name::Symbol, α::T, β::T, semi::Bool) where T
+function expandℤ!(
+        model::AbstractVirtualModel{T},
+        src::Union{VI, Nothing};
+        name::Symbol,
+        α::T,
+        β::T,
+        semi::Bool = false,
+    ) where {T}
     return mapvar!(model, VirtualMOIVariable{T}(
         (n) -> MOI.add_variables(model.target_model, n),
         src;
@@ -345,7 +362,7 @@ function expandℤ!(model::AbstractVirtualModel{T}, src::Union{VI, Nothing}; nam
         name=name,
         α=α,
         β=β,
-        semi=semi
+        semi=semi,
     ))
 end
 
@@ -354,7 +371,13 @@ end
 
 Adds integer slack variable according to [`expandℤ!`](@ref)'s expansion method.
 """
-function slackℤ!(model::AbstractVirtualModel{T}; name::Symbol, α::T, β::T, semi::Bool) where {T}
+function slackℤ!(
+        model::AbstractVirtualModel{T};
+        name::Symbol,
+        α::T,
+        β::T,
+        semi::Bool = false,
+    ) where {T}
     return mapvar!(model, VirtualMOIVariable{T}(
         (n) -> MOI.add_variables(model.target_model, n),
         nothing;
@@ -362,7 +385,7 @@ function slackℤ!(model::AbstractVirtualModel{T}; name::Symbol, α::T, β::T, s
         name=name,
         α=α,
         β=β,
-        semi=semi
+        semi=semi,
     ))
 end
 
@@ -371,23 +394,30 @@ end
 
 Simply crates a virtual-mapped *Doppelgänger* into the destination model.
 """
-function mirror𝔹!(model::AbstractVirtualModel{T}, src::Union{VI, Nothing}; name::Symbol) where T
+function mirror𝔹!(
+        model::AbstractVirtualModel{T},
+        src::Union{VI, Nothing};
+        name::Symbol,
+    ) where {T}
     return mapvar!(model, VirtualMOIVariable{T}(
         (n) -> MOI.add_variables(model.target_model, n),
         src;
         tech=:𝔹,
         name=name,
-        semi=false
+        semi=false,
     ))
 end
 
-function slack𝔹!(model::AbstractVirtualModel{T}; name::Symbol) where {T}
+function slack𝔹!(
+        model::AbstractVirtualModel{T};
+        name::Symbol,
+    ) where {T}
     return mapvar!(model, VirtualMOIVariable{T}(
         (n) -> MOI.add_variables(model.target_model, n),
         nothing;
         tech=:𝔹,
         name=name,
-        semi=false
+        semi=false,
     ))
 end
 

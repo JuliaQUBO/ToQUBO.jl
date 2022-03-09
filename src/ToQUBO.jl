@@ -38,10 +38,13 @@ using .VirtualMapping
 # -*- QUBO Model -*-
 include("model.jl")
 
+# -*- ToQUBO Aliases -*-
+const Optimizer{T} = VirtualQUBOModel{T}
+
 # -*- -> QUBO <- -*-
 include("qubo.jl")
 
 # -*- MOI Wrapper -*-
-#include("MOI_wrapper.jl")
+include("MOI_wrapper.jl")
 
 end # module

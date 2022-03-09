@@ -9,10 +9,11 @@ const VI = MOI.VariableIndex
 
 # -*- Imports: ToQUBO -*-
 using ToQUBO
+using Anneal
 
 # -*- Tests: Library -*-
 include("./lib/pbo.jl")
 include("./lib/virtual.jl")
 
-# -*- Tests: QUBO Model Assembly -*-
-# include("./models/models.jl")
+# -*- Tests: ToQUBO UI -*-
+include("toqubo.jl")

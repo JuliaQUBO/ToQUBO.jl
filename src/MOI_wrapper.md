@@ -6,15 +6,22 @@ This Document is intended to help keeping track of which MOI API Methods and Pro
 ### Reference:
 [jump.dev/MathOptInterface.jl/stable/manual/models/](https://jump.dev/MathOptInterface.jl/stable/manual/models/)
 
-## Model
 
-| Method                         | Status |
-| :----------------------------- | :----: |
-| `MOI.empty!(::ModelLike)`      |   ✔️    |
-| `MOI.is_empty(::ModelLike)`    |   ✔️    |
-| `MOI.optimize!(::ModelLike)`   |   ✔️    |
-| `Base.show(::IO, ::ModelLike)` |   ✔️    |
+## Start
+| Method                                | Status |
+| :------------------------------------ | :----: |
+| `MOI.empty!(::VirtualQUBOModel)`      |   ✔️    |
+| `MOI.is_empty(::VirtualQUBOModel)`    |   ✔️    |
+| `MOI.optimize!(::VirtualQUBOModel)`   |   ✔️    |
+| `Base.show(::IO, ::VirtualQUBOModel)` |   ✔️    |
 
+## Constraint Support
+| Method                              | Status |
+| :---------------------------------- | :----: |
+| `MOI.supports_constraint`           |   ✔️    |
+| `MOI.supports_constrained_variable` |   ✔️    |
+
+## Attributes
 | Property                            | Type                          | `get` | `set` | `supports` |
 | :---------------------------------- | :---------------------------- | :---: | :---: | :--------: |
 | `MOI.ListOfConstraintAttributesSet` | `Vector`                      |   ✔️   |   -   |     -      |
