@@ -259,6 +259,9 @@ end
 # -*- :: Virtual Model + MOI Integration :: -*-
 const VirtualMOIVariable{T} = VirtualVariable{MOI.VariableIndex, T}
 
+@doc raw"""
+    abstract type AbstractVirtualModel{T} <: MOIU.AbstractModelLike{T} end
+"""
 abstract type AbstractVirtualModel{T} <: MOIU.AbstractModelLike{T} end
 
 # ::: Variable Management :::
@@ -381,6 +384,11 @@ function mirror𝔹!(model::AbstractVirtualModel{T}, src::Union{VI, Nothing}; na
     ))
 end
 
+@doc raw"""
+    slack𝔹!(model::AbstractVirtualModel{T}; name::Symbol) where {T}
+
+Adds binary slack variable to the model.
+"""
 function slack𝔹!(model::AbstractVirtualModel{T}; name::Symbol) where {T}
     return mapvar!(model, VirtualMOIVariable{T}(
         (n) -> MOI.add_variables(model.target_model, n),
