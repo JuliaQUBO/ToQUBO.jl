@@ -138,7 +138,7 @@ function toqubo!(model::VirtualQUBOModel{T}) where {T}
     end
 
     MOI.set(
-        model.qubo_model,
+        model.target_model,
         MOI.ObjectiveFunction{SQF{T}}(),
         SQF{T}(Q, a, b)
     )
@@ -193,12 +193,12 @@ function toqubo_variables!(model::VirtualQUBOModel{T}) where {T}
         ℤ[xᵢ] = (nothing, nothing)
     end
 
-    for xᵢ in setdiff(Ω, 𝔹, ℤ)
+    for xᵢ in setdiff(Ω, 𝔹, keys(ℤ))
         # -*- Real Variable 😢 -*-
         ℝ[xᵢ] = (nothing, nothing)
     end
 
-    for cᵢ in MOI.get(model, MOI.ListOfConstraintIndices{VI, MOI.Interval}())
+    for cᵢ in MOI.get(model, MOI.ListOfConstraintIndices{VI, MOI.Interval{T}}())
         # -*- Interval 😄 -*-
         xᵢ = MOI.get(model, MOI.ConstraintFunction(), cᵢ)
         Iᵢ = MOI.get(model, MOI.ConstraintSet(), cᵢ) 
@@ -213,7 +213,7 @@ function toqubo_variables!(model::VirtualQUBOModel{T}) where {T}
         end
     end
 
-    for cᵢ in MOI.get(model, MOI.ListOfConstraintIndices{VI, LT}())
+    for cᵢ in MOI.get(model, MOI.ListOfConstraintIndices{VI, LT{T}}())
         # -*- Upper Bound 🤔 -*-
         xᵢ = MOI.get(model, MOI.ConstraintFunction(), cᵢ)
         Iᵢ = MOI.get(model, MOI.ConstraintSet(), cᵢ) 
@@ -227,7 +227,7 @@ function toqubo_variables!(model::VirtualQUBOModel{T}) where {T}
         end
     end
 
-    for cᵢ in MOI.get(model, MOI.ListOfConstraintIndices{VI, GT}())
+    for cᵢ in MOI.get(model, MOI.ListOfConstraintIndices{VI, GT{T}}())
         # -*- Lower Bound 🤔 -*-
         xᵢ = MOI.get(model, MOI.ConstraintFunction(), cᵢ)
         Iᵢ = MOI.get(model, MOI.ConstraintSet(), cᵢ)
@@ -241,7 +241,6 @@ function toqubo_variables!(model::VirtualQUBOModel{T}) where {T}
         end
     end
 
-
     # -*- Discretize Real Ones 🤔 -*-
     for (xᵢ, (aᵢ, bᵢ)) in ℝ
         if aᵢ === nothing || bᵢ === nothing
@@ -249,9 +248,15 @@ function toqubo_variables!(model::VirtualQUBOModel{T}) where {T}
         else
             # bits = 3
             # TODO: Solve this bit-guessing magic???
-            # IDEA:
-            #   bits ≥ log₂(1 + |b - a| / 4τ)
-            # ∴ bits = ⌈log₂(1 + |b - a| / 4τ)⌉
+            # IDEA: 
+            #     Let x̂ ~ U[a, b], K = 2ᴺ, γ = [a, b]
+            #       𝔼[|xᵢ - x̂|] = ∫ᵧ |xᵢ - x̂| f(x̂) dx̂
+            #                   = 1 / |b - a| ∫ᵧ |xᵢ - x̂| dx̂
+            #                   = |b - a| / 4 (K - 1)
+            #
+            #     For 𝔼[|xᵢ - x̂|] ≤ τ we have
+            #       N ≥ log₂(1 + |b - a| / 4τ)
+            #
             # where τ is the (absolute) tolerance
             τ = 0.25 # TODO: Add τ as parameter
                     
@@ -344,7 +349,7 @@ end
     toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}, S::Type{<:LT{T}}) where {T}
     toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::Type{<:EQ{T}}) where {T}
     toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::Type{<:LT{T}}) where {T}
-    toqubo_constraint!(::VirtualQUBOModel{T}, ::Type{<:VI}, ::Type{<:Union{MOI.ZeroOne, MOI.Interval, MOI.LessThan{T}, MOI.GreaterThan{T}}}) where {T}
+    toqubo_constraint!(::VirtualQUBOModel{T}, ::Type{<:VI}, ::Type{<:Union{MOI.ZeroOne, MOI.Integer, MOI.Interval{T}, MOI.LessThan{T}, MOI.GreaterThan{T}}}) where {T}
 """
 function toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}, S::Type{<:EQ{T}}) where {T}
     # -*- Scalar Affine Function: Ax = b 😄 -*-
@@ -368,6 +373,8 @@ function toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}, S::Ty
 
         push!(model.ℍᵢ, hᵢ)
     end
+
+    nothing
 end
 
 function toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}, S::Type{<:LT{T}}) where {T}
@@ -388,17 +395,19 @@ function toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}, S::Ty
             end
         end
 
-        gᵢ = discretize(gᵢ - bᵢ; tol=model.tol)
+        gᵢ = PBO.discretize(gᵢ - bᵢ; tol=model.tol)
     
         # -*- Introduce Slack Variable -*-
         αᵢ = sum(c for (ω, c) ∈ gᵢ if !isempty(ω) && c < zero(T); init=zero(T))
         βᵢ = -gᵢ[nothing]
 
         sᵢ = ℱ{T}(collect(slackℤ!(model; α=αᵢ, β=βᵢ, name=:s)))
-        hᵢ = quadratize((hᵢ + sᵢ) ^ 2;slack = add_slack(model))
+        hᵢ = PBO.quadratize((gᵢ + sᵢ) ^ 2;slack = add_slack(model))
 
         push!(model.ℍᵢ, hᵢ)
     end
+
+    nothing
 end
 
 function toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::Type{<:EQ{T}}) where {T}
@@ -433,6 +442,8 @@ function toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::Ty
 
         push!(model.ℍᵢ, hᵢ)
     end
+
+    nothing
 end
 
 function toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::Type{<:LT{T}}) where {T}
@@ -469,10 +480,14 @@ function toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::Ty
         βᵢ = -gᵢ[nothing]
 
         sᵢ = ℱ{T}(collect(slackℤ!(model; α=αᵢ, β=βᵢ, name=:s)))
-        hᵢ = quadratize((hᵢ + sᵢ) ^ 2;slack = add_slack(model))
+        hᵢ = PBO.quadratize((gᵢ + sᵢ) ^ 2;slack = add_slack(model))
 
         push!(model.ℍᵢ, hᵢ)
     end
 end
 
-function toqubo_constraint!(::VirtualQUBOModel{T}, ::Type{<:VI}, ::Type{<:Union{MOI.ZeroOne, MOI.Interval, MOI.LessThan{T}, MOI.GreaterThan{T}}}) where {T} end
+function toqubo_constraint!(
+    ::VirtualQUBOModel{T},
+    ::Type{<:VI},
+    ::Type{<:Union{MOI.ZeroOne, MOI.Integer, MOI.Interval{T}, MOI.LessThan{T}, MOI.GreaterThan{T}}}
+) where {T} end
