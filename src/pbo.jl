@@ -512,7 +512,7 @@ The partial derivate of function ``f \in \mathscr{F}`` with respect to the ``i``
 ```math
     \Delta_i f(\mathbf{x}) = \frac{\partial f(\mathbf{x})}{\partial \mathbf{x}_i} =
     \sum_{\omega \in \Omega\left[{f}\right] \setminus \left\{{i}\right\}}
-    c_{\omega \cup \left\{{i}\}\right\} \prod_{i \in \omega} \mathbf{x}_i
+    c_{\omega \cup \left\{{i}\right\}} \prod_{i \in \omega} \mathbf{x}_i
 ```
 """
 function derivative(f::PBF{S, T}, s::S) where {S, T}
@@ -526,7 +526,12 @@ end
 const Δ = derivative
 const ∂ = derivative
 
-function gradient(f::PBF{S, T}) where {S, T}
+@doc raw"""
+    gradient(f::PBF)
+
+Computes the gradient of ``f \in \mathscr{F}`` where the ``i``-th derivative is given by [`derivative`](@ref).
+"""
+function gradient(f::PBF)
     return [derivative(f, s) for (s, _) ∈ varmap(f)]
 end
 
@@ -541,7 +546,7 @@ The residual of function ``f \in \mathscr{F}`` with respect to the ``i``-th vari
 ```math
     \Theta_i f(\mathbf{x}) = f(\mathbf{x}) - \mathbf{x}_i\, \Delta_i f(\mathbf{x}) =
     \sum_{\omega \in \Omega\left[{f}\right] \setminus \left\{{i}\right\}}
-    c_{\omega \cup \left\{{i}\}\right\} \prod_{i \in \omega} \mathbf{x}_i
+    c_{\omega \cup \left\{{i}\right\}} \prod_{i \in \omega} \mathbf{x}_i
 ```
 """
 function residual(f::PBF{S, T}, i::S) where {S, T}

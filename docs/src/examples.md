@@ -21,11 +21,17 @@
 import MathOptInterface as MOI
 const MOIU = MOI.Utilities
 
+using ToQUBO
+using Anneal # Your favourite Annealer / Sampler / Solver
+
 # References:
 # [1] https://jump.dev/MathOptInterface.jl/stable/tutorials/example/
 
 # Generic Model
-model = MOIU.Model{Float64}()
+model = MOI.instantiate(
+   () -> ToQUBO.Optimizer(Anneal.Optimizer),
+   with_bridge_type = Float64,
+)
 
 n = 3;
 c = [1.0, 2.0, 3.0]
@@ -54,37 +60,22 @@ MOI.add_constraint(
 for xᵢ in x
    MOI.add_constraint(model, xᵢ, MOI.ZeroOne())
 end
-```
-
-*Donec pretium finibus est, nec ultricies lectus placerat in. Aliquam efficitur quam eget consequat feugiat. Fusce tempus risus in cursus consectetur.*
-
-```@example moi-knapsack; continued=true
-using ToQUBO
-
-# Instantiate optimizer (annealer)
-optimizer = SimulatedAnnealer{MOI.VariableIndex, Float64}()
-
-# Attach optimizer to model
-qubo_model = toqubo(model, optimizer; tol=0.01)
 
 # Run Annealing
-MOI.optimize!(qubo_model)
+MOI.optimize!(model)
+
+println(model)
 ```
 
-*Fusce elit urna, fermentum ac mauris vitae, hendrerit euismod nunc. Praesent gravida urna libero.*
-
-```@example moi-knapsack
-# Annealing Status
-println(qubo_model)
-```
-
-### Extra: D-Wave Examples
+<!-- ### Extra: D-Wave Examples
 
 *Nulla ligula dui, maximus ut aliquam eu, consectetur at tellus. In hac habitasse platea dictumst. Praesent tempor porta risus. Curabitur eget vulputate est, eget ultrices libero.*
 
 ```@setup dwave-knapsack
 import MathOptInterface as MOI
 const MOIU = MOI.Utilities
+
+using Anneal
 using ToQUBO
 ```
 
@@ -104,7 +95,10 @@ df = CSV.read(
 
 ```@example dwave-knapsack; continued=true
 # -*- Model -*-
-model = MOIU.Model{Float64}()
+model = MOI.instantiate(
+   ()->ToQUBO.Optimizer(SimulatedAnnealer.Optimizer),
+   with_bridge_type = Float64,
+)
 
 n = size(df, 1)
 c = collect(Float64, df[!, :cost])
@@ -138,26 +132,7 @@ end
 *Sed lorem dolor, mollis non vulputate ut, dignissim vitae enim. Curabitur egestas, elit a gravida gravida, enim magna consectetur massa, eget condimentum mi libero sed neque.*
 
 ```@example dwave-knapsack
-optimizer = SimulatedAnnealer{MOI.VariableIndex, Float64}()
-qubo_model = toqubo(model, optimizer; tol=0.01)
+MOI.optimize!(model)
 
-MOI.optimize!(qubo_model)
-
-println(qubo_model)
-```
-
-## Graph Coloring
-
-*Phasellus eget mauris eu libero euismod pulvinar sollicitudin vel urna. Donec elit justo, viverra id lectus nec, faucibus vehicula justo. Nunc tincidunt magna at diam faucibus, non consequat ante finibus.*
-
-### Standard Formulation
-```math
-\begin{array}{r l}
-    \min        & \displaystyle \sum_{j = 1}^{n} \mathbf{c}_j \\
-    \text{s.t.} & \displaystyle \sum_{i = 1}^{n} \mathbf{x}_{i, k} - n\, \mathbf{c}_k \le 0  ~~ \forall k \\
-    ~           & \displaystyle \mathbf{A}_{i, j} \left({\mathbf{x}_{i, k} + \mathbf{x}_{j, k}}\right) \le 1 ~~ \forall i < j, k \\
-    ~           & \displaystyle \sum_{k = 1}^{n} \mathbf{x}_{i, k} = 1 ~~ \forall i \\
-    ~           & \displaystyle \mathbf{A}, \mathbf{x} \in \mathbb{B}^{n \times n}\\
-    ~           & \displaystyle \mathbf{c} \in \mathbb{B}^{n}
-\end{array}
-```
+println(MOI.get.(model, MOI.VariablePrimal()))
+``` -->

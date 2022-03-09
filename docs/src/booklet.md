@@ -1,14 +1,27 @@
 # ToQUBO.jl Booklet
 
-This page contains information about ToQUBO's inner functions and theoretical overview.
+This booklet aims to explain in great detail
 
 ## QUBO
 
-*In in auctor nunc, nec commodo dolor. Fusce vel mi semper libero imperdiet luctus in vel nisl. Nullam sed urna pharetra, rhoncus diam vel, fringilla ipsum. In tempus ligula vel enim condimentum tristique. Nulla blandit congue laoreet. Aenean sagittis ipsum a imperdiet suscipit. Duis in interdum augue, vel volutpat odio. Donec lorem risus, malesuada id consequat in, pretium ut sem. Vestibulum suscipit tempor nibh, nec sodales quam. Curabitur quis condimentum ipsum, quis tincidunt lorem. Sed aliquet ex fermentum, rutrum dolor quis, lacinia elit.*
+```math
+\begin{array}{rl}
+   \min        & \mathbf{x}^{\intercal} Q\,\mathbf{x} \\
+   \text{s.t.} & \mathbf{x} \in \mathbb{B}^{n}
+\end{array}
+```
 
 ```@docs
-isqubo
-toqubo
+ToQUBO.isqubo
+ToQUBO.toqubo
+ToQUBO.toqubo!
+```
+
+```@docs
+ToQUBO.toqubo_sense!
+ToQUBO.toqubo_variables!
+ToQUBO.toqubo_constraint!
+ToQUBO.toqubo_objective!
 ```
 
 ## Pseudo-Boolean Optimization
@@ -16,17 +29,19 @@ toqubo
 Internally, problems are represented through a Pseudo-Boolean Optimization (PBO) framework. The main goal is to represent a given problem using a Pseudo-Boolean Function (PBF) since there is an imediate correspondence between PBFs and QUBO forms.
 
 ```@docs
-PseudoBooleanFunction
-gap
-Δ
-Θ
-discretize
+ToQUBO.PBO.PseudoBooleanFunction
+ToQUBO.PBO.residual
+ToQUBO.PBO.derivative
+ToQUBO.PBO.gradient
+ToQUBO.PBO.gap
+ToQUBO.PBO.sharpness
+ToQUBO.PBO.discretize
 ```
 
 ### Quadratization
 ```@docs
-@quadratization
-quadratize
+ToQUBO.PBO.quadratize
+ToQUBO.PBO.@quadratization
 ```
 
 ## Virtual Mapping
@@ -38,20 +53,29 @@ quadratize
 *Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam aliquet nec mauris nec mattis. Aenean pretium mauris elementum nisl sodales elementum. Etiam urna sapien, vehicula ac enim non, egestas accumsan orci.*
 
 ```@docs
-VirtualVariable
-mapvar!
-expandℝ!
-expandℤ!
-slackℤ!
-mirror𝔹!
+ToQUBO.VirtualMapping.VirtualVariable
+ToQUBO.VirtualMapping.mapvar!
+ToQUBO.VirtualMapping.expandℝ!
+ToQUBO.VirtualMapping.slackℝ!
+ToQUBO.VirtualMapping.expandℤ!
+ToQUBO.VirtualMapping.slackℤ!
+ToQUBO.VirtualMapping.mirror𝔹!
+ToQUBO.VirtualMapping.slack𝔹!
 ```
 
 ### Virtual Models
 
 *Aenean condimentum a libero a condimentum. Aliquam ac nisi id risus malesuada placerat at et diam. Nam eget nibh elit. Cras nec mollis elit, sit amet imperdiet magna. Suspendisse tempor est eu tortor sodales porta.*
 
+
 ```@docs
-VirtualQUBOModel
+ToQUBO.VirtualMapping.AbstractVirtualModel
+```
+
+*Aenean condimentum a libero a condimentum. Aliquam ac nisi id risus malesuada placerat at et diam. Nam eget nibh elit. Cras nec mollis elit, sit amet imperdiet magna. Suspendisse tempor est eu tortor sodales porta.*
+
+```@docs
+ToQUBO.VirtualQUBOModel
 ```
 
 ## MIP Solvers
@@ -67,3 +91,8 @@ VirtualQUBOModel
 
 ### Quantum Annealing
 *Curabitur pretium consectetur lobortis. Nunc pretium ornare arcu, et accumsan metus aliquet et. Quisque efficitur nunc justo, vitae eleifend tortor rhoncus a. Sed nec maximus orci.*
+
+### Errors
+```@docs
+ToQUBO.QUBOError
+```

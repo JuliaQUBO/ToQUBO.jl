@@ -23,10 +23,10 @@ makedocs(;
         "examples.md",
         "Booklet" => "booklet.md"
     ],
-    workdir="../examples"
+    workdir="./examples"
 )
 
-deploydocs(
-        repo=raw"https://github.com/psrenergy/ToQUBO.jl.git",
-        push_preview = true
-    )
+# deploydocs(
+#     repo=raw"https://github.com/psrenergy/ToQUBO.jl.git",
+#     push_preview = true
+# )
