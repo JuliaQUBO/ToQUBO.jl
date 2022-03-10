@@ -119,7 +119,7 @@ function toqubo!(model::VirtualQUBOModel{T}) where {T}
         ρᵢ *= -1.0
     end
 
-    model.ℍ = model.ℍ₀ + sum(ρᵢ .* model.ℍᵢ)
+    model.ℍ = model.ℍ₀ + sum(ρᵢ .* model.ℍᵢ; init=zero(T))
 
     Q = SQT{T}[]
     a = SAT{T}[]
@@ -447,12 +447,12 @@ function toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::Ty
 end
 
 function toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::Type{<:LT{T}}) where {T}
-    # -*- Scalar Quadratic Function: x Q x + a x = b 😢 -*-
+    # -*- Scalar Quadratic Function: x Q x + a x <= b 😢 -*-
     for cᵢ in MOI.get(model, MOI.ListOfConstraintIndices{F, S}())
         gᵢ = ℱ{T}()
 
         fᵢ = MOI.get(model, MOI.ConstraintFunction(), cᵢ)
-        bᵢ = MOI.get(model, MOI.ConstraintSet(), cᵢ).value
+        bᵢ = MOI.get(model, MOI.ConstraintSet(), cᵢ).upper
 
         for Qⱼ ∈ fᵢ.quadratic_terms
             cⱼ = Qⱼ.coefficient
@@ -473,14 +473,14 @@ function toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::Ty
             end
         end
 
-        gᵢ = PBO.discretize((gᵢ - bᵢ) ^ 2; tol=model.tol)
+        gᵢ = PBO.discretize(gᵢ - bᵢ; tol=model.tol)
 
         # -*- Introduce Slack Variable -*-
         αᵢ = sum(c for (ω, c) ∈ gᵢ if !isempty(ω) && c < zero(T); init=zero(T))
-        βᵢ = -gᵢ[nothing]
+        βᵢ = -gᵢ[nothing] # PBF constant term
 
         sᵢ = ℱ{T}(collect(slackℤ!(model; α=αᵢ, β=βᵢ, name=:s)))
-        hᵢ = PBO.quadratize((gᵢ + sᵢ) ^ 2;slack = add_slack(model))
+        hᵢ = PBO.quadratize((gᵢ + sᵢ) ^ 2; slack = add_slack(model))
 
         push!(model.ℍᵢ, hᵢ)
     end

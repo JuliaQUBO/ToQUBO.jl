@@ -11,6 +11,12 @@ const VI = MOI.VariableIndex
 using ToQUBO
 using Anneal
 
+const VM = ToQUBO.VirtualMapping
+
+function Base.show(io::IO, v::VI)
+    print(io, "v[$(v.value)]")
+end
+
 # -*- Tests: Library -*-
 include("./lib/pbo.jl")
 include("./lib/virtual.jl")

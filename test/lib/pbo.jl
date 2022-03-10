@@ -147,4 +147,16 @@ end
     [:y, :z] => 3.0
 ) 
 
+@test ToQUBO.PBO.discretize(p; tol=0.1) == ℱ(
+    ∅ => 1.0, [:x] => 2.0, [:x, :y] => -4.0,
+)
+
+@test ToQUBO.PBO.discretize(q; tol=0.1) == ℱ(
+    ∅ => 1.0, [:y] => 2.0, [:x, :y] =>  4.0,
+)
+
+@test ToQUBO.PBO.discretize(r; tol=0.1) == ℱ(
+    ∅ => 1.0, [:z] => -1.0,
+)
+
 end

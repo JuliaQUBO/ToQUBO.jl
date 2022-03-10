@@ -270,7 +270,7 @@ Maps newly created virtual variable `v` within the virtual model structure. It f
  2. Adds `v` to the end of the model's `varvec`.  
 """
 function mapvar!(model::AbstractVirtualModel{T}, v::VirtualMOIVariable{T}) where {T}
-    x = source(v)
+    x = source(v)::Union{VI, Nothing}
 
     if x !== nothing # not a slack variable
         model.source[x] = v

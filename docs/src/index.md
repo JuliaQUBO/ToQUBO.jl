@@ -2,7 +2,6 @@
 
 `ToQUBO.jl` is a Julia Package intended to automatically translate models written in [JuMP](https://github.com/jump-dev/JuMP.jl), into the [QUBO](https://en.wikipedia.org/wiki/Quadratic_unconstrained_binary_optimization) mathematical optimization framework.
 
-
 ## Installation
 
 ### **Pre-release note:**

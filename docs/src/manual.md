@@ -4,7 +4,6 @@
 
 ## Basic Usage
 ```julia
-using JuMP
 using ToQUBO
 
 

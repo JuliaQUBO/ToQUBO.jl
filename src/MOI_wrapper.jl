@@ -1,3 +1,16 @@
+function MOI.empty!(model::AbstractVirtualModel)
+    # -*- Models -*-
+    MOI.empty!(model.source_model)
+    MOI.empty!(model.target_model)
+
+    # -*- Virtual Variables -*-
+    empty!(model.varvec)
+    empty!(model.source)
+    empty!(model.target)
+
+    nothing
+end
+
 function MOI.empty!(model::VirtualQUBOModel)
     # -*- Models -*-
     MOI.empty!(model.source_model)
@@ -22,7 +35,7 @@ function MOI.empty!(model::VirtualQUBOModel)
     nothing
 end
 
-function MOI.is_empty(model::VirtualQUBOModel)
+function MOI.is_empty(model::AbstractVirtualModel)
     return MOI.is_empty(model.source_model) && MOI.is_empty(model.target_model)
 end
 
@@ -93,6 +106,12 @@ MOI.supports_add_constrained_variable(
 MOI.supports_constraint(
     ::VirtualQUBOModel{T},
     ::Type{<:MOI.ScalarAffineFunction{T}},
+    ::Type{<:Union{MOI.EqualTo{T}, MOI.LessThan{T}}},
+) where {T} = true
+
+MOI.supports_constraint(
+    ::VirtualQUBOModel{T},
+    ::Type{<:MOI.ScalarQuadraticFunction{T}},
     ::Type{<:Union{MOI.EqualTo{T}, MOI.LessThan{T}}},
 ) where {T} = true
 
@@ -206,34 +225,6 @@ end
 
 MOI.supports(::VirtualQUBOModel, ::MOI.ResultCount) = true
 
-function MOI.get(model::VirtualQUBOModel, ::MOI.ObjectiveSense)
-    return MOI.get(model.source_model, MOI.ObjectiveSense())
-end
-
-function MOI.get(model::VirtualQUBOModel, ::MOI.ObjectiveFunctionType)
-    return MOI.get(model.source_model, MOI.ObjectiveFunctionType())
-end
-
-function MOI.get(model::VirtualQUBOModel, attr::MOI.ObjectiveFunction{F}) where F <: MOI.AbstractScalarFunction
-    return MOI.get(model.source_model, attr)
-end
-
-function MOI.get(model::VirtualQUBOModel, attr::MOI.ListOfVariableIndices)
-    return MOI.get(model.source_model, attr)
-end
-
-function MOI.get(model::VirtualQUBOModel, attr::MOI.ListOfConstraintTypesPresent)
-    return MOI.get(model.source_model, attr)
-end
-
-function MOI.get(model::VirtualQUBOModel, attr::MOI.ListOfConstraintIndices)
-    return MOI.get(model.source_model, attr)
-end
-
-# function MOI.get(model::VirtualQUBOModel, attr::MOI.ListOfConstraintIndices{MOI.VariableIndex, S}) where {S}
-#     return MOI.get(model.source_model, attr)
-# end
-
 function MOI.get(model::VirtualQUBOModel, attr::MOI.ConstraintFunction, cᵢ::MOI.ConstraintIndex)
     return MOI.get(model.source_model, attr, cᵢ)
 end
@@ -257,3 +248,5 @@ function MOI.get(model::VirtualQUBOModel{T}, vp::MOI.VariablePrimal, xᵢ::MOI.V
 
     return sum((prod(MOI.get(model.optimizer, vp, yⱼ) for yⱼ ∈ ωⱼ; init=one(T)) * cⱼ for (ωⱼ, cⱼ) ∈ model.source[xᵢ]); init=zero(T))
 end
+
+Base.isless(u::MOI.VariableIndex, v::MOI.VariableIndex) = isless(u.value, v.value)

@@ -19,9 +19,11 @@ const ∅ = nothing
 
 # -*- Greatest Common Divisor -*-
 function Base.gcd(x::T, y::T; tol::T = T(1e-6)) where {T <: AbstractFloat}
-    if y == zero(T)
+    if abs(x) < abs(y)
+        return gcd(y, x; tol = tol)::T
+    elseif abs(y) < tol
         return x
-    elseif x == zero(T)
+    elseif abs(x) < tol
         return y
     else
         return (x / numerator(rationalize(x / y; tol = tol)))::T
@@ -29,7 +31,13 @@ function Base.gcd(x::T, y::T; tol::T = T(1e-6)) where {T <: AbstractFloat}
 end
 
 function Base.gcd(a::AbstractArray{T}; tol::T = T(1e-6)) where {T<:AbstractFloat}
-    return reduce((x, y) -> gcd(x, y; tol = tol), a)::T
+    if length(a) == 0
+        return one(T)
+    elseif length(a) == 1
+        return first(a)::T
+    else
+        return reduce((x, y) -> gcd(x, y; tol = tol), a)::T
+    end
 end
 
 @doc raw"""
@@ -250,7 +258,7 @@ function Base.size(f::PBF{S, T}) where {S, T}
 end
 
 function degree(f::PBF)
-    return maximum(length.(keys(f.Ω)))
+    return maximum(length.(keys(f.Ω)); init=0)
 end
 
 function varset(f::PBF{S, T}) where {S, T}
@@ -438,6 +446,10 @@ function Base.one(::Type{<:PBF{S, T}}) where {S, T}
     return PBF{S, T}(one(T))
 end
 
+function Base.round(f::PBF{S, T}; digits::Int = 0) where {S, T}
+    return PBF{S, T}(ω => round(c; digits=digits) for (ω, c) ∈ f)
+end
+
 # -*- Gap & Penalties -*-
 @doc raw"""
     gap(f::PBF{S, T}; bound::Symbol=:loose) where {S, T}
@@ -468,25 +480,14 @@ end
 
 const δ = gap
 
+@doc raw"""
+    sharpness(f::PBF{S, T}; bound::Symbol=:loose, tol::T = T(1e-6)) where {S, T<:AbstractFloat}
 """
-"""
-function sharpness(f::PBF{S, T}; bound::Symbol=:loose) where {S, T}
-    if bound === :none
-        return one(T)
-    elseif bound === :loose
-        return gcd(values(f))::T
-    elseif bound === :tight
-        error("Not Implemented: thightness $bound")
-    else
-        throw(ArgumentError(": Unknown bound thightness $bound"))
-    end
-end
-
 function sharpness(f::PBF{S, T}; bound::Symbol=:loose, tol::T = T(1e-6)) where {S, T<:AbstractFloat}
     if bound === :none
         return one(T)
     elseif bound === :loose
-        return gcd([f[ω] for ω ∈ Ω(f) if !isempty(ω)]; tol = tol)::T
+        return gcd(collect(values(f)); tol = tol)::T
     elseif bound === :tight
         error("Not Implemented: thightness $bound")
     else
@@ -722,7 +723,7 @@ This is done by rationalizing every coefficient ``c_\omega`` according to some t
 
 """
 function discretize(f::PBF{S, T}; tol::T = T(1e-6)) where {S, T}
-    return f / ϵ(f; bound = :loose, tol = tol)
+    return round(f / ϵ(f; bound = :loose, tol = tol)::T; digits=0)
 end
 
 # -*- :: Quadratization :: -*-
@@ -874,6 +875,38 @@ function quadratize(f::PBF{S, T}; slack::Any) where {S, T}
         f;
         slack=slack,
     )
+end
+
+function show_term(ω::Set{S}, c::T, i::Int) where {S, T}
+    if i == 1
+        if isempty(ω)
+            return "$c"
+        else
+            return "$c $(join(ω, "*"))"
+        end
+    else
+        if isempty(ω)
+            if c < zero(T)
+                return " - $(abs(c))"
+            else
+                return " + $(abs(c))"
+            end
+        else
+            if c < zero(T)
+                return " - $(abs(c)) $(join(ω, "*"))"
+            else
+                return " + $(abs(c)) $(join(ω, "*"))"
+            end
+        end
+    end
+end
+
+function Base.show(io::IO, f::PBF{S, T}) where {S, T}
+    if degree(f) == 0
+        print(io, convert(T, f))
+    else
+        print(io, join((show_term(ω, c, i) for (i, (ω, c)) ∈ enumerate(f))))
+    end
 end
 
 end # module
