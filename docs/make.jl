@@ -16,7 +16,7 @@ makedocs(;
         sidebar_sitename=false,
     ), 
     sitename="ToQUBO.jl",
-    authors="Pedro Xavier, Tiago Andrade, and Joaquim Garcia",
+    authors="Pedro Xavier and Tiago Andrade and Joaquim Garcia",
     pages=[
         "Home" => "index.md",
         "manual.md",

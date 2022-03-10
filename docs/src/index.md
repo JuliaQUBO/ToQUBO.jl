@@ -12,15 +12,21 @@ $ cd ToQUBO.jl
 $ julia --project=.
 ```
 
+To use the `Anneal.jl` submodule, it will be necessary to run
+```julia
+(ToQUBO) pkg> dev .\\src\\Anneal.jl
+```
+on Julia's REPL beforehand.
+
 ## Citing ToQUBO.jl
 
-If you use ToQUBO.jl in your work, we kindly ask you to include the following citation:
+If you use `ToQUBO.jl` in your work, we kindly ask you to include the following citation:
 ```tex
 @software{ToQUBO.jl:2022,
   author = {Pedro Xavier and Tiago Andrade and Joaquim Garcia},
   title = {ToQUBO.jl},
   url = {https://github.com/psrenergy/ToQUBO.jl},
-  version = {0.0.1},
+  version = {0.1.0},
   date = {2022-03-31},
 }
 ```

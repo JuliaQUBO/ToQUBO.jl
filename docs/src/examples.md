@@ -2,9 +2,7 @@
 
 ## Knapsack
 
-*Quisque auctor, quam non dignissim luctus, ipsum nisl cursus enim, id eleifend ipsum risus dapibus velit. Nunc dignissim aliquet lorem, ut fermentum diam. Sed nec lectus odio. Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Nulla ultrices ut felis a pulvinar.*
-
-### Standard Formulation
+We start with some instances of the discrete [Knapsack Problem](https://en.wikipedia.org/wiki/Knapsack_problem) whose standard formulation is
 ```math
 \begin{array}{r l}
     \max        & \mathbf{c}\, \mathbf{x} \\
@@ -14,22 +12,20 @@
 ```
 
 ### MathOptInterface
-
-*Maecenas fermentum venenatis laoreet. Sed iaculis, risus ac scelerisque consectetur, orci metus dapibus magna, sed tincidunt dolor sapien sed tortor.*
+Using [MOI](https://github.com/jump-dev/MathOptInterface.jl) directly to build a simple model is pretty straightforward. All that one has to do is to use `MOI.instantiate` and define the model as usual.
 
 ```@example moi-knapsack
 import MathOptInterface as MOI
 const MOIU = MOI.Utilities
 
 using ToQUBO
-using Anneal # Your favourite Annealer / Sampler / Solver
+using Anneal # <- Your favourite Annealer / Sampler / Solver here
 
-# References:
-# [1] https://jump.dev/MathOptInterface.jl/stable/tutorials/example/
+# Example from https://jump.dev/MathOptInterface.jl/stable/tutorials/example/
 
-# Generic Model
+# Virtual QUBO Model
 model = MOI.instantiate(
-   () -> ToQUBO.Optimizer(Anneal.Optimizer),
+   () -> ToQUBO.Optimizer(SimulatedAnnealer.Optimizer),
    with_bridge_type = Float64,
 )
 
@@ -61,78 +57,64 @@ for xᵢ in x
    MOI.add_constraint(model, xᵢ, MOI.ZeroOne())
 end
 
-# Run Annealing
+# Run!
 MOI.optimize!(model)
 
-println(model)
+# Collect Solution
+MOI.get(model, MOI.VariablePrimal(), x)
 ```
 
-<!-- ### Extra: D-Wave Examples
-
-*Nulla ligula dui, maximus ut aliquam eu, consectetur at tellus. In hac habitasse platea dictumst. Praesent tempor porta risus. Curabitur eget vulputate est, eget ultrices libero.*
-
-```@setup dwave-knapsack
-import MathOptInterface as MOI
-const MOIU = MOI.Utilities
-
-using Anneal
-using ToQUBO
-```
+### JuMP + D-Wave Examples
+We may now fill a few more knapsacks with [JuMP](https://github.com/jump-dev/JuMP.jl), using data from [D-Wave's Knapsack Example repo](https://github.com/dwave-examples/knapsack).
 
 ```@example dwave-knapsack
 import CSV
 import DataFrames
 
-# -*- Data -*-
+# git clone https://github.com/dwave-examples/knapsack
+const DATA_PATH = joinpath("knapsack", "data")
+
+# -> Load Data <-
 df = CSV.read(
-    "./knapsack/data/small.csv",
+    joinpath(DATA_PATH, "small.csv"), 
     DataFrames.DataFrame;
-    header=[:cost, :weight]
+    header=[:cost, :weight],
 )
+# Also available: "very_small.csv", "large.csv", "very_large.csv" and "huge.csv".
 ```
 
-*Donec quis sollicitudin ex. Pellentesque luctus dolor sit amet lacinia lacinia.*
+```@example dwave-knapsack
+using JuMP
+using ToQUBO
+using Anneal # <- Your favourite Annealer / Sampler / Solver here
 
-```@example dwave-knapsack; continued=true
-# -*- Model -*-
-model = MOI.instantiate(
-   ()->ToQUBO.Optimizer(SimulatedAnnealer.Optimizer),
-   with_bridge_type = Float64,
-)
+# -> Model <-
+model = Model(() -> ToQUBO.Optimizer(SimulatedAnnealer.Optimizer))
 
 n = size(df, 1)
 c = collect(Float64, df[!, :cost])
 w = collect(Float64, df[!, :weight])
 C = round(0.8 * sum(w))
 
-# -*- Variables -*- #
-x = MOI.add_variables(model, n);
+# -> Variables <-
+@variable(model, x[i=1:n], Bin)
 
-# -*- Objective -*- #
-MOI.set(model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
+# -> Objective <-
+@objective(model, Max, c' * x)
 
-MOI.set(
-   model,
-   MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
-   MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.(c, x), 0.0),
-);
+# -> Constraint <-
+@constraint(model, w' * x <= C)
 
-# -*- Constraints -*- #
-MOI.add_constraint(
-   model,
-   MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.(w, x), 0.0),
-   MOI.LessThan(C),
-);
+# ->-> Run! ->->
+optimize!(model)
 
-for xᵢ in x
-   MOI.add_constraint(model, xᵢ, MOI.ZeroOne())
-end
+# Add Results as a new column
+DataFrames.insertcols!(
+   df,
+   3, 
+   :select => map(
+      (ξ) -> (ξ > 0.0) ? "Yes" : "No",
+      value.(x),
+   ),
+)
 ```
-
-*Sed lorem dolor, mollis non vulputate ut, dignissim vitae enim. Curabitur egestas, elit a gravida gravida, enim magna consectetur massa, eget condimentum mi libero sed neque.*
-
-```@example dwave-knapsack
-MOI.optimize!(model)
-
-println(MOI.get.(model, MOI.VariablePrimal()))
-``` -->
