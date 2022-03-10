@@ -190,17 +190,23 @@ function PBF(c::Float64)::PBF{Int, Float64}
     return PBF{Int, Float64}(c)
 end
 
-# -*- Copy -*-
-function Base.copy(f::PBF{S, T})::PBF{S, T} where {S, T}
+# -*- Copy-*-
+function Base.copy(f::PBF{S, T}) where {S, T}
     return PBF{S, T}(copy(f.Ω))
-end 
+end
 
 # -*- Iterator & Length -*-
-function Base.length(f::PBF)::Int
+function Base.length(f::PBF)
     return length(f.Ω)
 end
 
-function Base.isempty(f::PBF)::Bool
+function Base.empty!(f::PBF)
+    empty!(f.varmap)
+    empty!(f.varinv)
+    empty!(f.Ω)
+end
+
+function Base.isempty(f::PBF)
     return isempty(f.Ω)
 end
 

@@ -33,6 +33,8 @@ mutable struct VirtualQUBOModelMOI{T}
     termination_status::MOI.TerminationStatusCode
     # - PrimalStatus (idem)
     primal_status::MOI.ResultStatusCode
+    # - DualStatus (idem)
+    dual_status::MOI.ResultStatusCode
     # - RawStatusString
     raw_status_string::String
 
@@ -41,6 +43,7 @@ mutable struct VirtualQUBOModelMOI{T}
             solve_time_sec::Float64 = NaN,
             termination_status::MOI.TerminationStatusCode = MOI.OPTIMIZE_NOT_CALLED,
             primal_status::MOI.ResultStatusCode = MOI.NO_SOLUTION,
+            dual_status::MOI.ResultStatusCode = MOI.NO_SOLUTION,
             raw_status_string::String = "",
         ) where {T}
 
@@ -49,6 +52,7 @@ mutable struct VirtualQUBOModelMOI{T}
             solve_time_sec,
             termination_status,
             primal_status,
+            dual_status,
             raw_status_string,
         )
     end
@@ -59,6 +63,7 @@ function Base.empty!(moi::VirtualQUBOModelMOI{T}) where {T}
     moi.solve_time_sec = NaN
     moi.termination_status = MOI.OPTIMIZE_NOT_CALLED
     moi.primal_status = MOI.NO_SOLUTION
+    moi.dual_status = MOI.NO_SOLUTION
     moi.raw_status_string = ""
 
     nothing

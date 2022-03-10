@@ -130,6 +130,7 @@ Base.@kwdef mutable struct SamplerMOI{T} <: AbstractMOI{T}
     solve_time_sec::Float64 = NaN
     termination_status::MOI.TerminationStatusCode = MOI.OPTIMIZE_NOT_CALLED
     primal_status::MOI.ResultStatusCode = MOI.NO_SOLUTION
+    dual_status::MOI.ResultStatusCode = MOI.NO_SOLUTION
     raw_status_string::String = ""
 
     variable_primal_start::Dict{MOI.VariableIndex, T} = Dict{MOI.VariableIndex, T}()
@@ -148,6 +149,7 @@ function Base.empty!(moi::SamplerMOI{T}) where {T}
     moi.solve_time_sec = NaN
     moi.termination_status = MOI.OPTIMIZE_NOT_CALLED
     moi.primal_status = MOI.NO_SOLUTION
+    moi.dual_status = MOI.NO_SOLUTION
     moi.raw_status_string = ""
 
     empty!(moi.variable_primal_start)

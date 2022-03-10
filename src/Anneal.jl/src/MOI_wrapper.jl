@@ -40,9 +40,11 @@ function MOI.optimize!(sampler::AbstractSampler, model::MOI.ModelLike)
 
     sample!(sampler)
 
+    # TODO: Open Issue about termination/primal status
+    sampler.moi.termination_status = MOI.LOCALLY_SOLVED
+
     return (MOIU.identity_index_map(model), false)
 end
-
 
 function Base.show(io::IO, ::AbstractSampler)
     Base.print(io, "An sampler for QUBO Models")
@@ -132,14 +134,18 @@ function MOI.copy_to(sampler::AbstractSampler{T}, model::MOI.ModelLike) where {T
     nothing
 end
 
-# -*- :: -*- Names -*- :: -*-
 function MOI.get(sampler::AbstractSampler, ps::MOI.PrimalStatus)
     i = ps.result_index
     n = MOI.get(sampler, MOI.ResultCount())
     return (1 <= i <= n) ? MOI.FEASIBLE_POINT : MOI.NO_SOLUTION
 end
 
-# -*- RawStatusString -*-
+function MOI.get(sampler::AbstractSampler, ps::MOI.DualStatus)
+    i = ps.result_index
+    n = MOI.get(sampler, MOI.ResultCount())
+    return (1 <= i <= n) ? MOI.UNKNOWN_RESULT_STATUS : MOI.NO_SOLUTION
+end
+
 function MOI.get(sampler::AbstractSampler, ::MOI.RawStatusString)
     return sampler.moi.raw_status_string
 end

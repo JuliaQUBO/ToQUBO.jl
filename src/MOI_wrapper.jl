@@ -51,6 +51,7 @@ function MOI.optimize!(model::VirtualQUBOModel)
     model.moi.solve_time_sec     = MOI.get(model.optimizer, MOI.SolveTimeSec())
     model.moi.termination_status = MOI.get(model.optimizer, MOI.TerminationStatus())
     model.moi.primal_status      = MOI.get(model.optimizer, MOI.PrimalStatus())
+    model.moi.dual_status        = MOI.get(model.optimizer, MOI.DualStatus())
     model.moi.raw_status_string  = MOI.get(model.optimizer, MOI.RawStatusString())
     
     return (MOIU.identity_index_map(model.source_model), false)
@@ -197,6 +198,15 @@ function MOI.set(model::VirtualQUBOModel, ::MOI.PrimalStatus, status::MOI.Result
     nothing
 end
 
+function MOI.get(model::VirtualQUBOModel, ::MOI.DualStatus)
+    return model.moi.dual_status
+end
+
+function MOI.set(model::VirtualQUBOModel, ::MOI.DualStatus, status::MOI.ResultStatusCode)
+    model.moi.dual_status = status
+    nothing
+end
+
 function MOI.get(model::VirtualQUBOModel, ::MOI.TerminationStatus)
     return model.moi.termination_status
 end
@@ -207,11 +217,11 @@ function MOI.set(model::VirtualQUBOModel, ::MOI.TerminationStatus, status::MOI.T
 end
 
 function MOI.get(model::VirtualQUBOModel, ::MOI.RawStatusString)
-    return model.moi.raw_status_str
+    return model.moi.raw_status_string
 end
 
 function MOI.set(model::VirtualQUBOModel, ::MOI.RawStatusString, str::String)
-    model.moi.raw_status_str = str
+    model.moi.raw_status_string = str
     nothing
 end
 
@@ -247,6 +257,22 @@ function MOI.get(model::VirtualQUBOModel{T}, vp::MOI.VariablePrimal, xᵢ::MOI.V
     end
 
     return sum((prod(MOI.get(model.optimizer, vp, yⱼ) for yⱼ ∈ ωⱼ; init=one(T)) * cⱼ for (ωⱼ, cⱼ) ∈ model.source[xᵢ]); init=zero(T))
+end
+
+function MOI.get(::VirtualQUBOModel, ::MOI.SolverName)
+    return "Virtual QUBO Model"
+end
+
+function MOI.get(::VirtualQUBOModel, ::MOI.SolverVersion)
+    return v"0.1.0"
+end
+
+function MOI.get(model::VirtualQUBOModel, rs::MOI.RawSolver)
+    if isnothing(model.optimizer)
+        return "None"
+    else
+        return MOI.get(model.optimizer, rs)
+    end
 end
 
 Base.isless(u::MOI.VariableIndex, v::MOI.VariableIndex) = isless(u.value, v.value)
