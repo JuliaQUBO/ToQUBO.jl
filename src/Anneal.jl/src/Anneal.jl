@@ -8,9 +8,6 @@ const SQF{T} = MOI.ScalarQuadraticFunction{T}
 const SAF{T} = MOI.ScalarAffineFunction{T}
 const VI = MOI.VariableIndex
 
-# -*- Exports: Python -*-
-export python_import, PyNULL
-
 # -*- Exports: Submodules -*-
 export ExactSampler, RandomSampler, IdentitySampler
 export SimulatedAnnealer
@@ -23,7 +20,6 @@ include("error.jl")
 include("qubo.jl")
 include("sampler.jl")
 include("annealer.jl")
-include("pyimport.jl")
 include("MOI_wrapper.jl")
 
 # -*- Includes: Submodules -*-

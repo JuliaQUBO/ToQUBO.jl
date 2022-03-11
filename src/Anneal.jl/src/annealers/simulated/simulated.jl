@@ -1,5 +1,7 @@
 module SimulatedAnnealer
 
+using PythonCall
+
 using Anneal
 using MathOptInterface
 const MOI = MathOptInterface

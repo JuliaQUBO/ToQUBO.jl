@@ -7,17 +7,17 @@ Anneal.@anew_annealer begin
 end
 
 # -*- :: Python D-Wave Simulated Annealing :: -*-
-const neal = PyNULL()
+const neal = PythonCall.pynew() # initially NULL
 
 function __init__()
-    copy!(neal, python_import("neal", "dwave-neal"))
+    PythonCall.pycopy!(neal, pyimport("neal"))
 end
 
 function Anneal.anneal(annealer::Optimizer{T}) where {T}
     sampler = neal.SimulatedAnnealingSampler()
 
     t₀ = time()
-    samples = [(convert.(Int, s), convert(Int, n), convert(Float64, e + annealer.c)) for (s, e, n) ∈ sampler.sample_qubo(
+    samples = [(pyconvert.(Int, s), pyconvert(Int, n), pyconvert(Float64, e + annealer.c)) for (s, e, n) ∈ sampler.sample_qubo(
         annealer.Q;
         num_reads=annealer.settings.num_reads,
         num_sweeps=annealer.settings.num_sweeps

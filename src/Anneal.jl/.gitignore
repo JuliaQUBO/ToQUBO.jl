@@ -322,3 +322,6 @@ TSWLatexianTemp*
 
 # Jupyter Notebooks
 *.ipynb
+
+# Conda Pkg
+.CondaPkg
