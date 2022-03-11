@@ -1,18 +1,17 @@
 using Test
-using LinearAlgebra
+using Pkg
+Pkg.develop(path=joinpath(@__DIR__, "..", "src", "Anneal.jl"))
 
+# -*- MOI -*-
 import MathOptInterface
 const MOI = MathOptInterface
 const MOIU = MOI.Utilities
-
 const VI = MOI.VariableIndex
 
-# -*- Imports: ToQUBO -*-
+# -*- Imports -*-
 using ToQUBO
-
-# -*- Imports: Anneal -*-
-using Pkg; Pkg.develop(path=joinpath("..", "src", "Anneal.jl"))
 using Anneal
+using LinearAlgebra
 
 const VM = ToQUBO.VirtualMapping
 
