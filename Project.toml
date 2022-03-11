@@ -4,19 +4,16 @@ authors = ["pedromxavier <pedromxavier@poli.ufrj.br>"]
 version = "0.1.0"
 
 [deps]
-Anneal = "e4d9eb7f-b088-426e-aeb5-1c0dae3d8abb"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
-Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
 
 [compat]
 MathOptInterface = "0.10"
 julia = "1.6"
 
 [extras]
-BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
-Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
+Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "BenchmarkTools", "Revise"]
+test = ["Test", "Pkg"]

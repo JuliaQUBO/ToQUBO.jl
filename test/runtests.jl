@@ -9,6 +9,9 @@ const VI = MOI.VariableIndex
 
 # -*- Imports: ToQUBO -*-
 using ToQUBO
+
+# -*- Imports: Anneal -*-
+using Pkg; Pkg.develop(path=joinpath("..", "src", "Anneal.jl"))
 using Anneal
 
 const VM = ToQUBO.VirtualMapping
