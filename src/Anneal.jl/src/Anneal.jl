@@ -25,7 +25,6 @@ include("sampler.jl")
 include("annealer.jl")
 include("pyimport.jl")
 include("MOI_wrapper.jl")
-include("view.jl")
 
 # -*- Includes: Submodules -*-
 # :: Samplers ::
