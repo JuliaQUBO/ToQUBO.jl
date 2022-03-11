@@ -23,7 +23,7 @@ makedocs(;
         "examples.md",
         "Booklet" => "booklet.md"
     ],
-    workdir="./examples"
+    workdir="."
 )
 
 # deploydocs(

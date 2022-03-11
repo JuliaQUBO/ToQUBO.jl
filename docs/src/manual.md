@@ -1,7 +1,6 @@
 # Manual
 
 ## Quick Start Guide
-
 ```@example quick-start
 using JuMP
 using ToQUBO

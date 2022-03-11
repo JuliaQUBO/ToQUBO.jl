@@ -72,7 +72,7 @@ import CSV
 import DataFrames
 
 # git clone https://github.com/dwave-examples/knapsack
-const DATA_PATH = joinpath("knapsack", "data")
+const DATA_PATH = joinpath("examples", "knapsack", "data")
 
 # -> Load Data <-
 df = CSV.read(
