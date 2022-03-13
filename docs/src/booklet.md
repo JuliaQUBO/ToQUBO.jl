@@ -26,7 +26,7 @@ ToQUBO.toqubo_objective!
 
 ## Pseudo-Boolean Optimization
 
-Internally, problems are represented through a Pseudo-Boolean Optimization (PBO) framework. The main goal is to represent a given problem using a Pseudo-Boolean Function (PBF) since there is an imediate correspondence between quadratic PBFs and QUBO forms.
+Internally, problems are represented through a Pseudo-Boolean Optimization (PBO) framework. The main goal is to represent a given problem using a Pseudo-Boolean Function (PBF) since there is an immediate correspondence between quadratic PBFs and QUBO forms.
 
 ```@docs
 ToQUBO.PBO.PseudoBooleanFunction
@@ -39,7 +39,7 @@ ToQUBO.PBO.discretize
 ```
 
 ### Quadratization
-In order to successfuly achieve a QUBO formulation, sometimes it is needed to quadratize the resulting PBF i.e. reduce its degree until reaching the quadratic case. There is a great number of quadratization methods available and `ToQUBO` implements a few of them.
+In order to successfully achieve a QUBO formulation, sometimes it is needed to quadratize the resulting PBF, i.e., reduce its degree until reaching the quadratic case. There are many quadratization methods available, and ToQUBO implements a few of them.
 
 ```@docs
 ToQUBO.PBO.quadratize
@@ -47,9 +47,9 @@ ToQUBO.PBO.@quadratization
 ```
 
 ## Virtual Mapping
-During reformulation, `ToQUBO` holds two distinct models, namely the *Source Model* and the *Target Model*. The source model is a generic `MOI` model restricted to the supported constraints. The target one is on the QUBO form and is used during the solving process. Both lie within a *Virtual Model*, which provides the necessary API integration and keeps all variable and constraint mapping tied together.
+During reformulation, `ToQUBO` holds two distinct models, namely the *Source Model* and the *Target Model*. The source model is a generic `MOI` model restricted to the supported constraints. The target one is on the QUBO form used during the solving process. Both lie within a *Virtual Model*, which provides the necessary API integration and keeps all variable and constraint mapping tied together.
 
-This is done in a transparent fashion for both agents, since the user will mostly interact with the presented model and the solvers will only access the generated one.
+This is done in a transparent fashion for both agents since the user will mostly interact with the presented model, and the solvers will only access the generated one.
 
 ### Virtual Variables
 Every virtual model stores a collection of virtual variables, intended to provide a link between those in the source and those to be created in the target model. Each virtual variable stores enconding information for later expansion and evaluation.
@@ -72,7 +72,7 @@ ToQUBO.VirtualQUBOModel
 ```
 
 ### Annealing & Sampling
-`ToQUBO`'s main goal is to benefit from non-deterministic samplers, specially *Quantum Adiabatic* devices and other *Annealing* machines. A few `MOI`-compliant interfaces for annealers and samplers are bundled within `ToQUBO` via the `Anneal.jl` submodule and package prototype. Some of them are presented below.
+`ToQUBO`'s main goal is to benefit from non-deterministic samplers, especially *Quantum Adiabatic* devices and other *Annealing* machines. A few `MOI`-compliant interfaces for annealers and samplers are bundled within `ToQUBO` via the `Anneal.jl` submodule and package prototype. Some of them are presented below.
 
 ### Quantum Annealing
 Interfacing with [D-Wave](https://www.dwavesys.com/)'s quantum computers is one of the milestones we expect to achieve with this package. Like other proprietary optimization resources such as [Gurobi](https://gurobi.com) and [FICO® Xpress](https://www.fico.com/en/products/fico-xpress-solver), this requires licensing and extra steps are needed to get access to it. In a first moment, for those willing to get started, the *Simulated Annealing* optimizer might be enough.
@@ -80,7 +80,7 @@ Interfacing with [D-Wave](https://www.dwavesys.com/)'s quantum computers is one 
 While in `JuMP`, run `using Anneal` and look for `QuantumAnnealer.Optimizer`.
 
 ### Simulated Annealing
-Provided by D-Wave's open-source code libraries, this [Simulated Annealing](https://en.wikipedia.org/wiki/Simulated_annealing) engine implements some of the features and configuration you would find using the Quantum API. Its adoption is recommended for basic usage, tests and during early research steps due to its simplicity and ease of use. It does not implements the most advanced Simulated Annealing algorithm available but performs fairly well on small instances. `Anneal.jl` exports this interface as `SimulatedAnnealer.Optimizer`.
+Provided by D-Wave's open-source code libraries, this [Simulated Annealing](https://en.wikipedia.org/wiki/Simulated_annealing) engine implements some of the features and configuration you would find using the Quantum API. Its adoption is recommended for basic usage, tests, and during early research steps due to its simplicity and ease of use. It does not implement the most advanced Simulated Annealing algorithm available but performs fairly well on small instances. `Anneal.jl` exports this interface as `SimulatedAnnealer.Optimizer`.
 
 ### Random Sampling
 This sampler is implemented for test purposes and simply assigns 0 or 1 to each variable according to a given probability bias ``0 \le p \le 1``, which defaults to ``p = 0.5``. After running the ``using Anneal`` command, ``RandomSampler.Optimizer`` will be available.

@@ -1,1 +1,1 @@
-# D-Wave Quantum Annealing
+# Quantum Annealing

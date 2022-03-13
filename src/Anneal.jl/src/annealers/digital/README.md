@@ -1,1 +1,1 @@
-# Fujitsu Digital Annealing
+# Digital Annealing
