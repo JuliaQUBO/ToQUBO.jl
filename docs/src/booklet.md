@@ -83,7 +83,7 @@ While in `JuMP`, run `using Anneal` and look for `QuantumAnnealer.Optimizer`.
 Provided by D-Wave's open-source code libraries, this [Simulated Annealing](https://en.wikipedia.org/wiki/Simulated_annealing) engine implements some of the features and configuration you would find using the Quantum API. Its adoption is recommended for basic usage, tests, and during early research steps due to its simplicity and ease of use. It does not implement the most advanced Simulated Annealing algorithm available but performs fairly well on small instances. `Anneal.jl` exports this interface as `SimulatedAnnealer.Optimizer`.
 
 ### Random Sampling
-This sampler is implemented for test purposes and simply assigns 0 or 1 to each variable according to a given probability bias ``0 \le p \le 1``, which defaults to ``p = 0.5``. After running the ``using Anneal`` command, ``RandomSampler.Optimizer`` will be available.
+This sampler is implemented for test purposes and simply assigns 0 or 1 to each variable according to a given probability bias ``0 \le p \le 1``, which defaults to ``p = 0.5``. After running the `using Anneal` command, `RandomSampler.Optimizer` will be available.
 
 ### Exact Solver (Exaustive Enumeration)
 Also made to be used in tests, the `ExactSolver.Optimizer` interface runs through all possible state configurations, which implies in an exponential time complexity on the number of variables. Thus, only problems with no more than 20 variables should be provided.
