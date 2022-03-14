@@ -1,2 +1,6 @@
-# docs
-TeX Docs were moved to Overleaf
+# ToQUBO Documentation
+
+## Building
+```shell
+$ julia --project .\make.jl
+```
