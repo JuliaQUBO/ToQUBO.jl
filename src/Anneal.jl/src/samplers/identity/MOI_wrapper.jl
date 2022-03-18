@@ -11,6 +11,6 @@ function MOI.get(::Optimizer, ::MOI.SolverVersion)
 end
 
 # -*- RawSolver (get) -*-
-function MOI.get(::Optimizer, ::MOI.RawSolver)
-    return "Identity Sampler"
+function MOI.get(model::Optimizer, ::MOI.RawSolver)
+    return model
 end

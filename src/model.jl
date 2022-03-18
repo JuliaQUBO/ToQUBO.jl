@@ -77,7 +77,7 @@ end
 
 This QUBO Virtual Model links the final QUBO formulation to the original one, allowing variable value retrieving and other features.
 """
-mutable struct VirtualQUBOModel{T} <: AbstractVirtualModel{T}
+mutable struct VirtualQUBOModel{T} <: MOI.AbstractOptimizer
 
     # -*- Virtual Model Interface -*-
     source_model::PreQUBOModel{T}
