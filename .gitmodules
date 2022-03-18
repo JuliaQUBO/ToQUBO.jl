@@ -1,6 +1,0 @@
-[submodule "examples/knapsack"]
-	path = examples/knapsack
-	url = https://github.com/dwave-examples/knapsack
-[submodule "docs/examples/knapsack"]
-	path = docs/examples/knapsack
-	url = https://github.com/dwave-examples/knapsack
