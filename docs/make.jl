@@ -26,7 +26,7 @@ makedocs(;
     workdir="."
 )
 
-# deploydocs(
-#     repo=raw"https://github.com/psrenergy/ToQUBO.jl.git",
-#     push_preview = true
-# )
+deploydocs(
+    repo=raw"github.com/psrenergy/ToQUBO.jl.git",
+    push_preview = true
+)
