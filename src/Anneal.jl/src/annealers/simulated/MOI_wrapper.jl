@@ -2,7 +2,7 @@
 
 # -*- SolverName (get) -*-
 function MOI.get(::Optimizer, ::MOI.SolverName)
-    return "Simulated Annealer"
+    return "D-Wave Neal - Simulated Annealer"
 end
 
 # -*- SolverVersion (get) -*-
