@@ -6,10 +6,6 @@ const AnnealingResults = SamplingResults
 
 sample(annealer::AbstractAnnealer) = anneal(annealer)
 
-function anneal(::AbstractAnnealer)
-    error("`anneal(::AbstractAnnealer)` was not implemented")
-end
-
 const AnnealerMOI{T} = SamplerMOI{T}
 
 macro anew_annealer(expr)
