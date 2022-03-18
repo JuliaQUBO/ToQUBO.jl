@@ -160,6 +160,10 @@ function MOI.get(sampler::AbstractSampler, ::MOI.TerminationStatus)
     return sampler.moi.termination_status
 end
 
+function MOI.get(sampler::AbstractSampler, ::MOI.ObjectiveSense)
+    return sampler.moi.objective_sense
+end
+
 # -*- ObjectiveValue -*-
 function MOI.get(sampler::AbstractSampler{T}, ov::MOI.ObjectiveValue) where {T}
     n = MOI.get(sampler, MOI.ResultCount())
@@ -186,7 +190,7 @@ end
 
 # -*- VariablePrimal -*-
 function MOI.get(sampler::AbstractSampler{T}, vp::MOI.VariablePrimal, vi::MOI.VariableIndex) where {T}
-    n = length(sampler.sample_set)
+    n = length(sampler.x)
 
     j = vp.result_index
 

@@ -72,7 +72,7 @@ The `tol` parameter defines the tolerance imposed for turning the problem's coef
 !!! warning "Warning"
     Be careful with the `tol` parameter. When equal to zero, truncates all entries.
 """
-function toqubo(T::Type, model::MOI.ModelLike, optimizer::Union{Nothing, MOI.AbstractOptimizer}=nothing; kws...)
+function toqubo(T::Type, model::MOI.ModelLike, optimizer::Union{Nothing, Type{<:MOI.AbstractOptimizer}}=nothing; kws...)
     virt_model = VirtualQUBOModel{T}(optimizer; kws...)
 
     # -*- Copy to PreQUBOModel + Trigger Bridges -*-
@@ -85,7 +85,7 @@ function toqubo(T::Type, model::MOI.ModelLike, optimizer::Union{Nothing, MOI.Abs
     return toqubo!(virt_model)
 end
 
-function toqubo(model::MOI.ModelLike, optimizer::Union{Nothing, MOI.AbstractOptimizer}=nothing; kws...)
+function toqubo(model::MOI.ModelLike, optimizer::Union{Nothing, Type{<:MOI.AbstractOptimizer}}=nothing; kws...)
     return toqubo(Float64, model, optimizer; kws...)
 end
 

@@ -71,7 +71,7 @@ end
 
 @doc raw"""
     VirtualQUBOModel{T}(
-        optimizer::Union{Nothing, MOI.AbstractOptimizer}=nothing;
+        optimizer::Union{Nothing, Type{<:MOI.AbstractOptimizer}}=nothing;
         tol::T = T(1e-6),
     ) where {T}
 
