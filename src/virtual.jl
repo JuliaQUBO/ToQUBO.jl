@@ -252,7 +252,7 @@ function target(v::VirtualVariable{S, T}) where {S, T}
 end
 
 # -*- :: Virtual Model + MOI Integration :: -*-
-const VirtualMOIVariable{T} = VirtualVariable{MOI.VariableIndex, T}
+const VirtualMOIVariable{T} = VirtualVariable{VI, T}
 
 @doc raw"""
     abstract type AbstractVirtualModel{T} <: MOI.AbstractOptimizer end
