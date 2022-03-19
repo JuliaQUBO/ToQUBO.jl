@@ -17,10 +17,19 @@ export ×, ∂, Δ, δ, ϵ, Θ, ∅
 # -*- Empty Term -*-
 const ∅ = nothing
 
-# -*- Greatest Common Divisor -*-
-function Base.gcd(x::T, y::T; tol::T = T(1e-6)) where {T <: AbstractFloat}
+# -*- Relaxed Greatest Common Divisor -*-
+@doc raw"""
+    relaxed_gcd(x::T, y::T; tol::T = T(1e-6)) where {T <: AbstractFloat}
+
+We define two real numbers ``x`` and ``y`` to be ``\tau``-comensurable if, for some ``\tau > 0`` there exists a continued fractions convergent ``p_{k} \div q_{k}`` such that
+
+```math
+    \left| {q_{k} x - p_{k} y} \right| \le \tau
+```
+"""
+function relaxed_gcd(x::T, y::T; tol::T = T(1e-6)) where {T <: AbstractFloat}
     if abs(x) < abs(y)
-        return gcd(y, x; tol = tol)::T
+        return relaxed_gcd(y, x; tol = tol)::T
     elseif abs(y) < tol
         return x
     elseif abs(x) < tol
@@ -30,15 +39,17 @@ function Base.gcd(x::T, y::T; tol::T = T(1e-6)) where {T <: AbstractFloat}
     end    
 end
 
-function Base.gcd(a::AbstractArray{T}; tol::T = T(1e-6)) where {T<:AbstractFloat}
+function relaxed_gcd(a::AbstractArray{T}; tol::T = T(1e-6)) where {T<:AbstractFloat}
     if length(a) == 0
         return one(T)
     elseif length(a) == 1
         return first(a)::T
     else
-        return reduce((x, y) -> gcd(x, y; tol = tol), a)::T
+        return reduce((x, y) -> relaxed_gcd(x, y; tol = tol), a)::T
     end
 end
+
+const τgcd = relaxed_gcd
 
 @doc raw"""
     PseudoBooleanFunction{S, T}(c::T)
@@ -493,7 +504,7 @@ function sharpness(f::PBF{S, T}; bound::Symbol=:loose, tol::T = T(1e-6)) where {
     if bound === :none
         return one(T)
     elseif bound === :loose
-        return gcd(collect(values(f)); tol = tol)::T
+        return τgcd(collect(values(f)); tol = tol)::T
     elseif bound === :tight
         error("Not Implemented: thightness $bound")
     else
