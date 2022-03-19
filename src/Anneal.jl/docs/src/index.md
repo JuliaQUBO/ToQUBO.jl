@@ -11,11 +11,11 @@ pkg> add Anneal
 ## Citing Anneal.jl
 
 ```tex
-@misc{Anneal:2022,
-  author = {{Pedro Xavier, Tiago Andrade and Joaquim Garcia}},
+@misc{Anneal.jl:2022,
+  author = {Pedro Xavier and Tiago Andrade and Joaquim Garcia and David Bernal},
   title = {Anneal.jl},
   url = {https://github.com/psrenergy/Anneal.jl},
-  version = {0.0.1},
+  version = {0.1.0},
   date = {2022-01-31},
 }
 ```

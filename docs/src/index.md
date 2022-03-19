@@ -23,7 +23,7 @@ on Julia's REPL beforehand.
 If you use `ToQUBO.jl` in your work, we kindly ask you to include the following citation:
 ```tex
 @software{ToQUBO.jl:2022,
-  author = {Pedro Xavier and Tiago Andrade and Joaquim Garcia},
+  author = {Pedro Xavier and Tiago Andrade and Joaquim Garcia and David Bernal},
   title = {ToQUBO.jl},
   url = {https://github.com/psrenergy/ToQUBO.jl},
   version = {0.1.0},

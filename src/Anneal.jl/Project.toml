@@ -1,6 +1,6 @@
 name = "Anneal"
 uuid = "e4d9eb7f-b088-426e-aeb5-1c0dae3d8abb"
-authors = ["pedromxavier <pedromxavier@poli.ufrj.br>"]
+authors = ["pedromxavier <pedroxavier@psr-inc.com>", "joaquimg <joaquim@psr-inc.com>", "AndradeTiago <tiago.andrade@psr-inc.com>", "David Bernal <dbernalneira@usra.edu>"]
 version = "0.1.0"
 
 [deps]
