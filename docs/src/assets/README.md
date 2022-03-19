@@ -1,6 +1,6 @@
 # Logo
 
-The ideia behind [ToQUBO](/)'s logo comes from a wordplay in Portuguese. The package's main purpose is to assemble QUBO Models, which sounds like *cubo*[¹](#1), portuguese for cube.
+The ideia behind [ToQUBO](/)'s logo comes from a wordplay in Portuguese and Spanish. The package's main purpose is to assemble QUBO Models, which sounds like *cubo*[¹](#1), the translation for *cube*.
 
 [![ToQUBO.jl](logo.svg)](/docs/src/assets)
 
@@ -11,10 +11,6 @@ The colors were chosen according to  *Julia's Reference for logo graphics*[²](#
 ## Typography
 *MADETYPE Sunflower*[³](#3) Font was used. It was converted to a SVG path through the *Google Font to Svg Path*[⁴](#4) online tool.
 
-
-
-<!-- ¹²³⁴⁵⁶⁷⁸⁹⁰ -->
-
 <a href="#1">¹</a> IPA: \[ˈkubʊ\]
 
 <a href="#2">²</a> [github.com/JuliaLang/julia-logo-graphics](https://github.com/JuliaLang/julia-logo-graphics/)
@@ -23,3 +19,5 @@ The colors were chosen according to  *Julia's Reference for logo graphics*[²](#
 
 <a href="#4">⁴</a> [danmarshall.github.io/google-font-to-svg-path](https://danmarshall.github.io/google-font-to-svg-path/)
 
+# Web Icon [![ToQUBO.jl](favicon.ico)](/docs/src/assets)
+The icon used to decorate the documentation resembles an assembled version of the cube with its blue face making up the background.
