@@ -133,6 +133,10 @@ function toqubo!(model::VirtualQUBOModel{T}) where {T}
         elseif length(ω) == 2
             push!(Q, SQT{T}(c, ω...))
         else
+            # NOTE: This should never happen in production.
+            # During implementation of new quadratization methods and constraint reformulation
+            # higher degree terms might be introduced by mistake. That's why it's important to 
+            # have this condition here.
             throw(QUBOError("Quadratization failed"))
         end
     end
