@@ -95,7 +95,7 @@ MOI.supports(
 # Constraint Support
 MOI.supports_constraint(
     ::VirtualQUBOModel{T},
-    ::Type{<:MOI.VariableIndex},
+    ::Type{<:VI},
     ::Type{<:Union{MOI.ZeroOne, MOI.Integer, MOI.Interval{T}}},
 ) where {T} = true
 
@@ -243,7 +243,7 @@ function MOI.get(model::VirtualQUBOModel, attr::MOI.ConstraintSet, cᵢ::MOI.Con
     return MOI.get(model.source_model, attr, cᵢ)
 end
 
-function MOI.get(model::VirtualQUBOModel, attr::MOI.VariableName, xᵢ::MOI.VariableIndex)
+function MOI.get(model::VirtualQUBOModel, attr::MOI.VariableName, xᵢ::VI)
     return MOI.get(model.source_model, attr, xᵢ)
 end
 
@@ -251,7 +251,7 @@ function MOI.get(model::VirtualQUBOModel, ::MOI.ObjectiveFunction{F}) where {F}
     return MOI.get(model.source_model, MOI.ObjectiveFunction{F}())
 end
 
-function MOI.get(model::VirtualQUBOModel{T}, vp::MOI.VariablePrimal, xᵢ::MOI.VariableIndex) where {T}
+function MOI.get(model::VirtualQUBOModel{T}, vp::MOI.VariablePrimal, xᵢ::VI) where {T}
     if isnothing(model.optimizer)
         throw(ErrorException("No underlying optimizer for model"))
     end
@@ -275,4 +275,4 @@ function MOI.get(model::VirtualQUBOModel, rs::MOI.RawSolver)
     end
 end
 
-Base.isless(u::MOI.VariableIndex, v::MOI.VariableIndex) = isless(u.value, v.value)
+Base.isless(u::VI, v::VI) = isless(u.value, v.value)
