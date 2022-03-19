@@ -1,9 +1,7 @@
 # ToQUBO.jl Booklet
-
-This booklet aims to gather the theoretical and practical details behind `ToQUBO`'s development.
+This booklet aims to gather the theoretical and practical details behind `ToQUBO` and provide documentation for project internals. The target audience includes, among others, advanced users and those willing to contribute to the project. The latter are advised to read the following sections, as they give a glimpse of the ideas employed up to now.
 
 ## QUBO
-
 ```math
 \begin{array}{rl}
    \min        & \mathbf{x}^{\intercal} Q\,\mathbf{x} \\
@@ -25,7 +23,6 @@ ToQUBO.toqubo_objective!
 ```
 
 ## Pseudo-Boolean Optimization
-
 Internally, problems are represented through a Pseudo-Boolean Optimization (PBO) framework. The main goal is to represent a given problem using a Pseudo-Boolean Function (PBF) since there is an immediate correspondence between quadratic PBFs and QUBO forms.
 
 ```@docs
@@ -39,7 +36,7 @@ ToQUBO.PBO.discretize
 ```
 
 ### Quadratization
-In order to successfully achieve a QUBO formulation, sometimes it is needed to quadratize the resulting PBF, i.e., reduce its degree until reaching the quadratic case. There are many quadratization methods available, and ToQUBO implements a few of them.
+In order to successfully achieve a QUBO formulation, sometimes it is needed to quadratize the resulting PBF, i.e., reduce its degree until reaching the quadratic case. There are many quadratization methods available, and `ToQUBO` implements a few of them.
 
 ```@docs
 ToQUBO.PBO.quadratize
