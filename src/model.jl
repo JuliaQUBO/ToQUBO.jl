@@ -1,41 +1,77 @@
-# -*- Model: PreQUBOModel -*-
-MOIU.@model(PreQUBOModel,                                       # Name of model
-    (MOI.Integer, MOI.ZeroOne),                                 # untyped scalar sets
-    (EQ, LT),                                                   #   typed scalar sets
-    (),                                                         # untyped vector sets
-    (),                                                         #   typed vector sets
-    (VI,),                                                      # untyped scalar functions
-    (SAF, SQF),                                                 #   typed scalar functions
-    (),                                                         # untyped vector functions
-    (),                                                         #   typed vector functions
-    false
+# -*- Model: PreQUBOModel -*- #
+MOIU.@model(PreQUBOModel,       # Name of model
+    (MOI.Integer, MOI.ZeroOne), # untyped scalar sets
+    (EQ, LT, GT),               #   typed scalar sets
+    (),                         # untyped vector sets
+    (),                         #   typed vector sets
+    (VI,),                      # untyped scalar functions
+    (SAF, SQF),                 #   typed scalar functions
+    (),                         # untyped vector functions
+    (),                         #   typed vector functions
+    false,                      # is optimizer?
 )
 
-# -*- Model: PreQUBOModel -*-
+# :: Reset Constraint Support :: #
+MOI.supports_constraint(
+    ::PreQUBOModel{T},
+    ::Type{<:MOI.AbstractFunction},
+    ::Type{<:MOI.AbstractSet},
+) where {T} = false
+
+# :: VariableIndex Constraint Support ::
+MOI.supports_constraint(
+    ::PreQUBOModel{T},
+    ::Type{<:VI},
+    ::Type{<:Union{EQ{T}, LT{T}, GT{T}, MOI.Interval{T}, MOI.Integer, MOI.ZeroOne}},
+) where {T} = true
+
+# :: ScalarAffineFunction Constraint Support ::
+MOI.supports_constraint(
+    ::PreQUBOModel{T},
+    ::Type{<:SAF},
+    ::Type{<:Union{EQ{T}, LT{T}}},
+) where {T} = true
+
+# :: ScalarQuadraticFunction Constraint Support ::
+MOI.supports_constraint(
+    ::PreQUBOModel{T},
+    ::Type{<:SQF},
+    ::Type{<:Union{EQ{T}, LT{T}}},
+) where {T} = true
+
+# -*- Model: QUBOModel -*-
 MOIU.@model(QUBOModel,
-    (MOI.ZeroOne,),                                             # untyped scalar sets
-    (),                                                         #   typed scalar sets
-    (),                                                         # untyped vector sets
-    (),                                                         #   typed vector sets
-    (),                                                         # untyped scalar functions
-    (SQF,),                                                     #   typed scalar functions
-    (),                                                         # untyped vector functions
-    (),                                                         #   typed vector functions
-    false
+    (MOI.ZeroOne,),             # untyped scalar sets
+    (),                         #   typed scalar sets
+    (),                         # untyped vector sets
+    (),                         #   typed vector sets
+    (),                         # untyped scalar functions
+    (SQF,),                     #   typed scalar functions
+    (),                         # untyped vector functions
+    (),                         #   typed vector functions
+    false,                      # is optimizer?
 )
+
+# :: Reset Constraint Support :: #
+MOI.supports_constraint(
+    ::PreQUBOModel{T},
+    ::Type{<:MOI.AbstractFunction},
+    ::Type{<:MOI.AbstractSet},
+) where {T} = false
+
+# :: VariableIndex Constraint Support ::
+MOI.supports_constraint(
+    ::PreQUBOModel{T},
+    ::Type{<:VI},
+    ::Type{<:MOI.ZeroOne},
+) where {T} = true
 
 mutable struct VirtualQUBOModelMOI{T}
-    # - ObjectiveValue (Avaliar somente ℍ₀(s) ou também ℍᵢ(s)?)
     objective_value::T
-    # - SolveTimeSec
     solve_time_sec::Float64
-    # - TerminationStatus (não está 100% claro na minha cabeça o que deve retornado aqui)
     termination_status::MOI.TerminationStatusCode
-    # - PrimalStatus (idem)
     primal_status::MOI.ResultStatusCode
-    # - DualStatus (idem)
     dual_status::MOI.ResultStatusCode
-    # - RawStatusString
     raw_status_string::String
 
     function VirtualQUBOModelMOI{T}(;
@@ -58,13 +94,26 @@ mutable struct VirtualQUBOModelMOI{T}
     end
 end
 
+mutable struct VirtualQUBOModelSettings{T}
+    tol::T
+
+    function VirtualQUBOModelSettings{T}(;
+        tol::T = T(1e-6),
+        )
+        
+        return new{T}(
+            tol,
+        )
+    end
+end
+
 function Base.empty!(moi::VirtualQUBOModelMOI{T}) where {T}
-    moi.objective_value = zero(T)
-    moi.solve_time_sec = NaN
+    moi.objective_value    = zero(T)
+    moi.solve_time_sec     = NaN
     moi.termination_status = MOI.OPTIMIZE_NOT_CALLED
-    moi.primal_status = MOI.NO_SOLUTION
-    moi.dual_status = MOI.NO_SOLUTION
-    moi.raw_status_string = ""
+    moi.primal_status      = MOI.NO_SOLUTION
+    moi.dual_status        = MOI.NO_SOLUTION
+    moi.raw_status_string  = ""
 
     nothing
 end
@@ -77,7 +126,7 @@ end
 
 This QUBO Virtual Model links the final QUBO formulation to the original one, allowing variable value retrieving and other features.
 """
-mutable struct VirtualQUBOModel{T} <: MOI.AbstractOptimizer
+mutable struct VirtualQUBOModel{T} <: AbstractVirtualModel{T}
 
     # -*- Virtual Model Interface -*-
     source_model::PreQUBOModel{T}
@@ -98,14 +147,10 @@ mutable struct VirtualQUBOModel{T} <: MOI.AbstractOptimizer
     moi::VirtualQUBOModelMOI{T}
 
     # -*- Settings -*-
-    tol::T
-
-    # :: Cache for PBF degree reduction ::
-    # cache::Dict{Set{VI}, ℱ{T}}
+    settings::VirtualQUBOModelSettings{T}
 
     function VirtualQUBOModel{T}(
-            optimizer::Union{Nothing, Type{<:MOI.AbstractOptimizer}} = nothing;
-            tol::T = T(1e-6),
+            optimizer::Union{Nothing, Type{<:MOI.AbstractOptimizer}} = nothing
         ) where {T}
 
         return new{T}(
@@ -123,10 +168,7 @@ mutable struct VirtualQUBOModel{T} <: MOI.AbstractOptimizer
             ℱ{T}[],
             
             VirtualQUBOModelMOI{T}(),
-
-            tol,
-
-            # Dict{Set{VI}, ℱ{T}}(),
+            VirtualQUBOModelSettings{T}(),
         )
     end
 
