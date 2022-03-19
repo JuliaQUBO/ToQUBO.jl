@@ -1,7 +1,6 @@
 # Examples
 
 ## Knapsack
-
 We start with some instances of the discrete [Knapsack Problem](https://en.wikipedia.org/wiki/Knapsack_problem) whose standard formulation is
 ```math
 \begin{array}{r l}
@@ -65,22 +64,31 @@ MOI.get(model, MOI.VariablePrimal(), x)
 ```
 
 ### JuMP + D-Wave Examples
-We may now fill a few more knapsacks with [JuMP](https://github.com/jump-dev/JuMP.jl), using data from [D-Wave's Knapsack Example repo](https://github.com/dwave-examples/knapsack).
+We may now fill a few more knapsacks using [JuMP](https://github.com/jump-dev/JuMP.jl). We will generate uniform random costs ``\mathbf{c}`` and weights ``\mathbf{w}`` then set the knapsack's capacity ``C`` to be a fraction of the total available weight i.e. ``80\%``.
+
+This example was inspired by [D-Wave's knapsack example repository](https://github.com/dwave-examples/knapsack).
+
+```@setup
+using CSV
+using DataFrames
+using Random
+
+# -> Generate Data <-
+rng = MersenneTwister(1)
+
+df = DataFrame(
+   :cost   => rand(rng, 1:100, 16),
+   :weight => rand(rng, 1:100, 16),
+)
+
+CSV.write("knapsack.csv", df)
+```
 
 ```@example dwave-knapsack
-import CSV
-import DataFrames
+using CSV
+using DataFrames
 
-# git clone https://github.com/dwave-examples/knapsack
-const DATA_PATH = joinpath("examples", "knapsack", "data")
-
-# -> Load Data <-
-df = CSV.read(
-    joinpath(DATA_PATH, "small.csv"), 
-    DataFrames.DataFrame;
-    header=[:cost, :weight],
-)
-# Also available: "very_small.csv", "large.csv", "very_large.csv" and "huge.csv".
+df = CSV.read("knapsack.csv", DataFrame)
 ```
 
 ```@example dwave-knapsack
@@ -109,7 +117,7 @@ C = round(0.8 * sum(w))
 optimize!(model)
 
 # Add Results as a new column
-DataFrames.insertcols!(
+insertcols!(
    df,
    3, 
    :select => map(
