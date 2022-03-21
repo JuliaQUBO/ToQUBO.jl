@@ -17,7 +17,7 @@ To setup your own QUBO annealing/sampling system, one must implement some `MathO
 ### `Anneal.anneal(::Optimizer{T})`
 
 ```julia
-Anneal.@anew_annealer begin
-    num_reads::Int = 1_000
+Anneal.@anew begin
+    NumberOfReads::Int = 1_000
 end
 ```

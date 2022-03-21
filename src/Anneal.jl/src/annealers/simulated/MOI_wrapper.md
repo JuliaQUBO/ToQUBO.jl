@@ -7,16 +7,16 @@ This Document is intended to help keeping track of which MOI API Methods and Pro
 [jump.dev/MathOptInterface.jl/stable/tutorials/implementing/](https://jump.dev/MathOptInterface.jl/stable/tutorials/implementing/)
 
 ## Attributes
-| Property            | Type     | `get` | `set` | `supports` |
-| :------------------ | :------- | :---: | :---: | :--------: |
-| `MOI.SolverName`    | `String` |   ✔️   |   -   |     -      |
-| `MOI.SolverVersion` | `String` |   ✔️   |   -   |     -      |
-| `MOI.RawSolver`     | `String` |   ✔️   |   -   |     -      |
+| Property            | Type                      | `get` | `set` | `supports` |
+| :------------------ | :------------------------ | :---: | :---: | :--------: |
+| `MOI.SolverName`    | `::String`                |   ✔️   |   -   |     -      |
+| `MOI.SolverVersion` | `::String`                |   ✔️   |   -   |     -      |
+| `MOI.RawSolver`     | `<:MOI.AbstractOptimizer` |   ✔️   |   -   |     -      |
 
 ## Solver-specific attributes
-| Property         | Type  | `get` | `set` | `supports` |
-| :--------------- | :---- | :---: | :---: | :--------: |
-| `NumberOfSweeps` | `Int` |   ⚠️   |   ⚠️   |     -      |
+| Property         | Type    | `get` | `set` | `supports` |
+| :--------------- | :------ | :---: | :---: | :--------: |
+| `NumberOfSweeps` | `::Int` |   ✔️   |   ✔️   |     -      |
 
 ## Key
 | Symbol | Meaning                 |

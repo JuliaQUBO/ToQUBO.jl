@@ -7,36 +7,28 @@ end
 
 # -*- SolverVersion (get) -*-
 function MOI.get(::Optimizer, ::MOI.SolverVersion)
-    return "v1.0.0"
+    return v"1.0.0"
 end
 
 # -*- RawSolver (get) -*-
-function MOI.get(::Optimizer, ::MOI.RawSolver)
-    return "Random Sampler"
+function MOI.get(sampler::Optimizer, ::MOI.RawSolver)
+    return sampler
 end
 
 # -*- :: -*- Solver-specific attributes -*- :: -*-
-function MOI.get(sampler::Optimizer, ::RandomBias)
-    return sampler.settings.random_bias
-end
+# function MOI.set(sampler::Optimizer, ::RandomBias, bias::Float64)
+#     if !(0.0 <= bias <= 1.0)
+#         error("Invalid bias i.e. not in [0, 1]")
+#     end
 
-function MOI.set(sampler::Optimizer, ::RandomBias, random_bias::Float64)
-    if !(0.0 <= random_bias <= 1.0)
-        error("Invalid bias i.e. not in [0, 1]")
-    end
+#     sampler.settings.RandomBias = bias
 
-    sampler.settings.random_bias = random_bias
+#     nothing
+# end
 
-    nothing
-end
+# function MOI.set(sampler::Optimizer, ::RandomSeed, seed::Int)
+#     sampler.settings.RandomSeed = seed
+#     sampler.settings.RandomGenerator = MersenneTwister(seed)
 
-function MOI.get(sampler::Optimizer, ::RandomSeed)
-    return sampler.settings.random_seed
-end
-
-function MOI.set(sampler::Optimizer, ::RandomSeed, random_seed::Int)
-    sampler.settings.random_seed = random_seed
-    sampler.settings.random_rng = MersenneTwister(sampler.settings.random_seed)
-
-    nothing
-end
+#     nothing
+# end

@@ -18,7 +18,7 @@ To setup your own QUBO sampling system, one must implement some `MathOptInterfac
 
 
 ```julia
-Anneal.@anew_sampler begin
-    num_reads::Int = 1_000
+Anneal.@anew begin
+    NumberOfReads::Int = 1_000
 end
 ```

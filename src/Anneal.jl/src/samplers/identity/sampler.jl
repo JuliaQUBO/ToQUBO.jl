@@ -1,5 +1,5 @@
 # -*- :: Identity Sampler :: -*-
-Anneal.@anew_sampler begin end;
+Anneal.@anew begin end;
 
 function identity_sample(sampler::Optimizer{T}) where {T}
     s = Vector{Int}(undef, sampler.n)

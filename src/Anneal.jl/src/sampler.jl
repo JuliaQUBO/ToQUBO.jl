@@ -91,14 +91,12 @@ end
 # -*- :: Samplers :: -*-
 abstract type AbstractSampler{T <: Any} <: MOI.AbstractOptimizer end
 
-abstract type AbstractSamplerSettings{T <: Any} end
+const SamplerResults = Vector{Tuple{Vector{Int}, Int, Float64}}
 
-abstract type AbstractMOI{T <: Any} end
-
-const SamplingResults = Vector{Tuple{Vector{Int}, Int, Float64}}
+function sample(::AbstractSampler) end
 
 function sample!(sampler::AbstractSampler{T}) where {T}
-    result, δt = sample(sampler)::Tuple{SamplingResults, Float64}
+    result, δt = sample(sampler)::Tuple{SamplerResults, Float64}
 
     sample_set = SampleSet{Int, T}([Sample{Int, T}(sample...) for sample in result])
     
@@ -113,13 +111,11 @@ function sample!(sampler::AbstractSampler{T}) where {T}
     nothing
 end
 
-function init!(::AbstractSampler) end
-
 function energy(sampler::AbstractSampler{T}, s::Vector{Int}) where {T}
     return sum(s[i] * s[j] * Qᵢⱼ for ((i, j), Qᵢⱼ) ∈ sampler.Q; init=sampler.c)
 end
 
-Base.@kwdef mutable struct SamplerMOI{T} <: AbstractMOI{T}
+Base.@kwdef mutable struct SamplerMOI{T}
     name::String = ""
     silent::Bool = false
     time_limit_sec::Union{Nothing, Float64} = nothing
@@ -157,37 +153,47 @@ function Base.empty!(moi::SamplerMOI{T}) where {T}
     moi.objective_sense = MOI.MIN_SENSE
 end
 
-struct NumberOfReads <: MOI.AbstractOptimizerAttribute end
+function _anew_error(item::Any)
+    error("Invalid usage of @anew")
+end
 
-function __anew(kind::Symbol, expr::Expr)
+function _anew(expr::Expr)
+    # expr.head == :block
+    attrs = Tuple{Symbol, Any}[]
 
-    if !(expr.head === :block)
-        error("Invalid usage of @anew_$(lowercase(kind))")
+    for stmt ∈ expr.args
+        if stmt isa LineNumberNode
+            continue
+        elseif stmt isa Expr
+            if stmt.head === :(::) && stmt.args[1] isa Symbol
+                push!(attrs, (stmt.args[1], stmt.args[2]))
+                continue
+            elseif stmt.head === :(=)
+                stmt = stmt.args[1]
+                if stmt isa Expr && stmt.head == :(::) && stmt.args[1] isa Symbol
+                    push!(attrs, (stmt.args[1], stmt.args[2]))
+                    continue
+                end
+            end
+        end
+
+        _anew_error(stmt)
     end
 
-    settings = Symbol("$(kind)Settings")
-    
-    abstract_settings = Symbol("Abstract$(kind)Settings")
-
-    abstract = Symbol("Abstract$(kind)")
-
-    moi = Symbol("$(kind)MOI")
-
     return esc(:(
-        Base.@kwdef mutable struct $(settings){T} <: Anneal.$(abstract_settings){T}
+        Base.@kwdef mutable struct SamplerSettings{T}
             $(expr)
         end;
 
-        mutable struct Optimizer{T} <: Anneal.$(abstract){T}
-
+        mutable struct Optimizer{T} <: Anneal.AbstractSampler{T}
             x::Dict{MOI.VariableIndex, Union{Int, Nothing}}
             Q::Dict{Tuple{Int, Int}, T}
             c::T
             n::Int
 
-            settings::$(settings){T}
             sample_set::Anneal.SampleSet{Int, T}
-            moi::Anneal.$moi{T}
+            moi::Anneal.SamplerMOI{T}
+            settings::SamplerSettings{T}
 
             function Optimizer{T}(; kws...) where {T}
                 optimizer = new{T}(
@@ -195,13 +201,10 @@ function __anew(kind::Symbol, expr::Expr)
                     Dict{Tuple{Int, Int}, T}(),
                     zero(T),
                     0,
-
-                    $(settings){T}(; kws...),
                     Anneal.SampleSet{Int, T}(),
-                    Anneal.$moi{T}(),
+                    Anneal.SamplerMOI{T}(),
+                    SamplerSettings{T}(; kws...),
                 )
-
-                Anneal.init!(optimizer)
 
                 return optimizer
             end
@@ -210,9 +213,29 @@ function __anew(kind::Symbol, expr::Expr)
                 return Optimizer{Float64}(; kws...)
             end
         end;
+
+        $([
+            :(
+                struct $(attr) <: MOI.AbstractOptimizerAttribute end;
+
+                function MOI.get(sampler::Optimizer{T}, ::$(attr)) where {T}
+                    return sampler.settings.$(attr)
+                end;
+
+                function MOI.set(sampler::Optimizer{T}, ::$(attr), value::$(type)) where {T}
+                    sampler.settings.$(attr) = value
+                end;
+            ) for (attr, type) ∈ attrs
+        ]...)
     ))
 end
 
-macro anew_sampler(expr)
-    return __anew(:Sampler, expr)
+macro anew(expr)
+    expr = macroexpand(__module__, expr)
+
+    if !(expr isa Expr && expr.head === :block)
+        _anew_error(expr)
+    end
+
+    return _anew(expr)
 end

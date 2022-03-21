@@ -7,10 +7,10 @@ end
 
 # -*- SolverVersion (get) -*-
 function MOI.get(::Optimizer, ::MOI.SolverVersion)
-    return "v1.0.0"
+    return v"1.0.0"
 end
 
 # -*- RawSolver (get) -*-
-function MOI.get(model::Optimizer, ::MOI.RawSolver)
-    return model
+function MOI.get(sampler::Optimizer, ::MOI.RawSolver)
+    return sampler
 end

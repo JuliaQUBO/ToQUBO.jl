@@ -212,18 +212,10 @@ function MOI.get(sampler::AbstractSampler{T}, vp::MOI.VariablePrimal, vi::MOI.Va
 end
 
 # -*- ObjectiveFunction -*-
-MOI.supports(::AbstractSampler{T}, ::MOI.ObjectiveFunction{SQF{T}}) where T = true
-
-# -*- :: Settings :: -*-
-function MOI.get(sampler::AbstractSampler, ::NumberOfReads)
-    return sampler.settings.num_reads
-end
-
-function MOI.set(sampler::AbstractSampler, ::NumberOfReads, num_reads::Int)
-    sampler.settings.num_reads = num_reads
-
-    nothing
-end
+MOI.supports(
+    ::AbstractSampler{T},
+    ::MOI.ObjectiveFunction{SQF{T}},
+) where {T} = true
 
 function MOI.get(sampler::AbstractSampler, ::MOI.VariablePrimalStart, vi::MOI.VariableIndex)
     if !haskey(sampler.x, vi)

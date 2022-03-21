@@ -1,31 +1,31 @@
 @testset "Random Sampling" begin
     @testset "Regular UI + Attributes" begin
         sampler = RandomSampler.Optimizer{Float64}(
-            num_reads=500,
-            random_seed=999,
-            random_bias=0.9,
+            NumberOfReads=500,
+            RandomSeed=999,
+            RandomBias=0.9,
         )
 
         # -*- Attributes -*-
-        @test (MOI.get(sampler, NumberOfReads()) == 500)
+        @test (MOI.get(sampler, RandomSampler.NumberOfReads()) == 500)
 
-        MOI.set(sampler, NumberOfReads(), 1_000)
+        MOI.set(sampler, RandomSampler.NumberOfReads(), 1_000)
 
-        @test (MOI.get(sampler, NumberOfReads()) == 1_000)
-
-
-        @test (MOI.get(sampler, RandomSeed()) == 999)
-
-        MOI.set(sampler, RandomSeed(), 111)
-
-        @test (MOI.get(sampler, RandomSeed()) == 111)
+        @test (MOI.get(sampler, RandomSampler.NumberOfReads()) == 1_000)
 
 
-        @test (MOI.get(sampler, RandomBias()) == 0.9)
+        @test (MOI.get(sampler, RandomSampler.RandomSeed()) == 999)
 
-        MOI.set(sampler, RandomBias(), 0.75)
+        MOI.set(sampler, RandomSampler.RandomSeed(), 111)
 
-        @test (MOI.get(sampler, RandomBias()) == 0.75)
+        @test (MOI.get(sampler, RandomSampler.RandomSeed()) == 111)
+
+
+        @test (MOI.get(sampler, RandomSampler.RandomBias()) == 0.9)
+
+        MOI.set(sampler, RandomSampler.RandomBias(), 0.75)
+
+        @test (MOI.get(sampler, RandomSampler.RandomBias()) == 0.75)
 
         # -*- Model -*-
         @test (MOI.is_empty(sampler) == true)

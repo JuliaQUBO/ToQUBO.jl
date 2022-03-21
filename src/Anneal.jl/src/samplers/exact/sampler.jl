@@ -1,10 +1,10 @@
 # -*- :: Exact Sampler :: -*-
-Anneal.@anew_sampler begin end
+Anneal.@anew begin end
 
 function Anneal.sample(sampler::Optimizer)
     m = 2 ^ sampler.n
 
-    samples = Anneal.SamplingResults(undef, m)
+    samples = Anneal.SamplerResults(undef, m)
 
     t₀ = time()
     for k = 1:m

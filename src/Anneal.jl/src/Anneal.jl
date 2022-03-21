@@ -19,7 +19,6 @@ export NumberOfReads, NumberOfSweeps, RandomBias, RandomSeed
 include("error.jl")
 include("qubo.jl")
 include("sampler.jl")
-include("annealer.jl")
 include("MOI_wrapper.jl")
 
 # -*- Includes: Submodules -*-

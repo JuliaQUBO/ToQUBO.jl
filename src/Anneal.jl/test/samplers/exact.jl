@@ -2,13 +2,6 @@
     @testset "Regular UI + Attributes" begin
         sampler = ExactSampler.Optimizer{Float64}()
 
-        # -*- Attributes -*-
-        @test (MOI.get(sampler, NumberOfReads()) == 1)
-
-        MOI.set(sampler, NumberOfReads(), 1_000)
-
-        @test (MOI.get(sampler, NumberOfReads()) == 1)
-
         # -*- Model -*-
         @test (MOI.is_empty(sampler) == true)
 
