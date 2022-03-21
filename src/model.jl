@@ -187,7 +187,7 @@ function MOI.get(model::VirtualQUBOModel{T}, ::Tol) where {T}
 end
 
 function MOI.set(model::VirtualQUBOModel{T}, ::Tol, tol::T) where {T}
-    if !(tol > zero(T))
+    if tol <= zero(T)
         throw(DomainError(tol, "Tolerance value `tol` must be positive."))
     end
 
