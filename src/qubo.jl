@@ -66,11 +66,6 @@ isqubo(::VirtualQUBOModel) = true
     )
 
 Low-level interface to create a `::VirtualQUBOModel{T}` from `::MOI.ModelLike` instance. If provided, an `::MOI.AbstractOptimizer` is attached to the model.
-
-The `tol` parameter defines the tolerance imposed for turning the problem's coefficients into integers.
-
-!!! warning "Warning"
-    Be careful with the `tol` parameter. When equal to zero, truncates all entries.
 """
 function toqubo(T::Type, model::MOI.ModelLike, optimizer::Union{Nothing, Type{<:MOI.AbstractOptimizer}}=nothing; kws...)
     virt_model = VirtualQUBOModel{T}(optimizer; kws...)
@@ -113,7 +108,7 @@ function toqubo!(model::VirtualQUBOModel{T}) where {T}
     # -*- :: Objective Function Assembly :: -*-
     ε = convert(T, 1.0) # TODO: This should be made a parameter too?
 
-    ρᵢ = δ(model.ℍ₀) ./ ϵ.(model.ℍᵢ; tol=model.tol) .+ ε
+    ρᵢ = δ(model.ℍ₀) ./ ϵ.(model.ℍᵢ; tol=model.settings.tol) .+ ε
 
     if MOI.get(model, MOI.ObjectiveSense()) === MOI.MAX_SENSE
         ρᵢ *= -1.0
@@ -372,8 +367,8 @@ function toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}, S::Ty
             end
         end
 
-        gᵢ = PBO.discretize((gᵢ - bᵢ) ^ 2; tol=model.tol)
-        hᵢ = PBO.quadratize(gᵢ; slack = add_slack(model))
+        gᵢ = PBO.discretize((gᵢ - bᵢ) ^ 2; tol=model.settings.tol)
+        hᵢ = PBO.quadratize(gᵢ; slack = slack_factory(model))
 
         push!(model.ℍᵢ, hᵢ)
     end
@@ -399,14 +394,14 @@ function toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}, S::Ty
             end
         end
 
-        gᵢ = PBO.discretize(gᵢ - bᵢ; tol=model.tol)
+        gᵢ = PBO.discretize(gᵢ - bᵢ; tol=model.settings.tol)
     
         # -*- Introduce Slack Variable -*-
         αᵢ = sum(c for (ω, c) ∈ gᵢ if !isempty(ω) && c < zero(T); init=zero(T))
         βᵢ = -gᵢ[nothing]
 
         sᵢ = ℱ{T}(collect(slackℤ!(model; α=αᵢ, β=βᵢ, name=:s)))
-        hᵢ = PBO.quadratize((gᵢ + sᵢ) ^ 2;slack = add_slack(model))
+        hᵢ = PBO.quadratize((gᵢ + sᵢ) ^ 2;slack = slack_factory(model))
 
         push!(model.ℍᵢ, hᵢ)
     end
@@ -441,8 +436,8 @@ function toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::Ty
             end
         end
 
-        gᵢ = PBO.discretize((gᵢ - bᵢ) ^ 2; tol=model.tol)
-        hᵢ = PBO.quadratize(gᵢ; slack = add_slack(model))
+        gᵢ = PBO.discretize((gᵢ - bᵢ) ^ 2; tol=model.settings.tol)
+        hᵢ = PBO.quadratize(gᵢ; slack = slack_factory(model))
 
         push!(model.ℍᵢ, hᵢ)
     end
@@ -477,14 +472,14 @@ function toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::Ty
             end
         end
 
-        gᵢ = PBO.discretize(gᵢ - bᵢ; tol=model.tol)
+        gᵢ = PBO.discretize(gᵢ - bᵢ; tol=model.settings.tol)
 
         # -*- Introduce Slack Variable -*-
         αᵢ = sum(c for (ω, c) ∈ gᵢ if !isempty(ω) && c < zero(T); init=zero(T))
         βᵢ = -gᵢ[nothing] # PBF constant term
 
         sᵢ = ℱ{T}(collect(slackℤ!(model; α=αᵢ, β=βᵢ, name=:s)))
-        hᵢ = PBO.quadratize((gᵢ + sᵢ) ^ 2; slack = add_slack(model))
+        hᵢ = PBO.quadratize((gᵢ + sᵢ) ^ 2; slack = slack_factory(model))
 
         push!(model.ℍᵢ, hᵢ)
     end

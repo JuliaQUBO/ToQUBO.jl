@@ -3,9 +3,15 @@
     @testset "MOI UI - ILP" begin
     
     model = MOI.instantiate(
-        ()->ToQUBO.Optimizer(SimulatedAnnealer.Optimizer; tol=1e-2),
+        ()->ToQUBO.Optimizer(SimulatedAnnealer.Optimizer),
         with_bridge_type = Float64,
     )
+
+    @test MOI.get(model, ToQUBO.Tol()) ≈ 1e-6 # default value
+
+    MOI.set(model, ToQUBO.Tol(), 1e-2)
+
+    @test MOI.get(model, ToQUBO.Tol()) ≈ 1e-2
 
     @test MOI.is_empty(model)
 
@@ -46,7 +52,7 @@
     @testset "MOI UI - IQP" begin
     
     model = MOI.instantiate(
-        ()->ToQUBO.Optimizer(SimulatedAnnealer.Optimizer; tol=1e-2),
+        ()->ToQUBO.Optimizer(SimulatedAnnealer.Optimizer),
         with_bridge_type = Float64,
     )
 

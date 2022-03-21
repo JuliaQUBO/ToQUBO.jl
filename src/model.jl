@@ -99,8 +99,8 @@ mutable struct VirtualQUBOModelSettings{T}
 
     function VirtualQUBOModelSettings{T}(;
         tol::T = T(1e-6),
-        )
-        
+        ) where {T}
+
         return new{T}(
             tol,
         )
@@ -180,12 +180,18 @@ mutable struct VirtualQUBOModel{T} <: AbstractVirtualModel{T}
     end
 end
 
-function add_slack(model::AbstractVirtualModel)
-    function slack(n::Union{Nothing, Int} = nothing)
-        if n === nothing
-            return first(target(slack𝔹!(model; name=:w)))
-        else
-            return [first(target(slack𝔹!(model; name=:w))) for _ = 1:n]
-        end
+struct Tol <: MOI.AbstractModelAttribute end
+
+function MOI.get(model::VirtualQUBOModel{T}, ::Tol) where {T}
+    return model.settings.tol::T
+end
+
+function MOI.set(model::VirtualQUBOModel{T}, ::Tol, tol::T) where {T}
+    if !(tol > zero(T))
+        throw(DomainError(tol, "Tolerance value `tol` must be positive."))
     end
+
+    model.settings.tol = tol
+
+    nothing
 end

@@ -429,4 +429,14 @@ function slack𝔹!(
     ))
 end
 
+function slack_factory(model::AbstractVirtualModel; name::Symbol=:w)
+    function slack(n::Union{Nothing, Int} = nothing)
+        if n === nothing
+            return first(target(slack𝔹!(model; name=name)))
+        else
+            return [first(target(slack𝔹!(model; name=name))) for _ = 1:n]
+        end
+    end
+end
+
 end # module
