@@ -1,7 +1,7 @@
 # -*- Sample & SampleSet -*-
 mutable struct Sample{S <: Any, T <: Any}
     states::Vector{S}
-    amount::Int
+    reads::Int
     energy::T
 end
 
@@ -17,7 +17,7 @@ mutable struct SampleSet{S <: Any, T <: Any}
     end
 
     """
-    Guarantees duplicate removal and that samples are ordered by energy (<), amount (>) & states (<).
+    Guarantees duplicate removal and that samples are ordered by energy (<), reads (>) & states (<).
     """
     function SampleSet{S, T}(data::Vector{Sample{S, T}}) where {S, T}
         samples = Vector{Sample{S, T}}()
@@ -27,7 +27,7 @@ mutable struct SampleSet{S <: Any, T <: Any}
 
         for sample in data
             if haskey(mapping, sample.states)
-                samples[mapping[sample.states]].amount += sample.amount
+                samples[mapping[sample.states]].reads += sample.reads
             else
                 push!(samples, sample)
                 mapping[sample.states] = i
@@ -35,7 +35,7 @@ mutable struct SampleSet{S <: Any, T <: Any}
             end
         end
         
-        I = sortperm(samples, by=(ξ) -> (ξ.energy, -ξ.amount, ξ.states))
+        I = sortperm(samples, by=(ξ) -> (ξ.energy, -ξ.reads, ξ.states))
 
         samples = samples[I]
         mapping = Dict{Vector{S}, Int}(s => I[i] for (s, i) in mapping)
@@ -68,14 +68,14 @@ function Base.merge!(x::SampleSet{S, T}, y::SampleSet{S, T}) where {S, T}
 
     for sample in y.samples
         if haskey(x.mapping, sample.states)
-            x.samples[x.mapping[sample.states]].amount += sample.amount
+            x.samples[x.mapping[sample.states]].reads += sample.reads
         else
             push!(x.samples, sample)
             i = x.mapping[sample.states] = i + 1
         end
     end
 
-    I = sortperm(x.samples, by=(ξ) -> (ξ.energy, -ξ.amount, ξ.states))
+    I = sortperm(x.samples, by=(ξ) -> (ξ.energy, -ξ.reads, ξ.states))
 
     x.samples = x.samples[I]
     x.mapping = Dict{Vector{S}, Int}(s => I[i] for (s, i) in x.mapping)

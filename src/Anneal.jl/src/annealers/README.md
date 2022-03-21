@@ -12,9 +12,9 @@ To setup your own QUBO annealing/sampling system, one must implement some `MathO
 
 ## `Anneal`
 
-### `struct Optimizer{T} <: Anneal.AbstractAnnealer{T}`
+### `struct Optimizer{T} <: Anneal.AbstractSampler{T}`
 
-### `Anneal.anneal(::Optimizer{T})`
+### `Anneal.sample(::Optimizer{T})`
 
 ```julia
 Anneal.@anew begin

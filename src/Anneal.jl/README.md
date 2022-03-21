@@ -1,6 +1,6 @@
 # Anneal.jl
 
-Implements wrapper for QUBO Annealers, through the `AbstractAnnealer <: MOI.AbstractOptimizer` interface, for `MathOptInterface` & `JuMP` integration.
+Implements wrapper for QUBO Annealers & Samplers, through the `AbstractSampler <: MOI.AbstractOptimizer` interface, for `MathOptInterface` & `JuMP` integration.
 
 ```julia
 using Anneal

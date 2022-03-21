@@ -56,19 +56,6 @@ MOI.supports_constraint(::AbstractSampler, ::Type{<:MOI.VariableIndex}, ::Type{<
 MOI.supports_add_constrained_variable(::AbstractSampler, ::Type{<:MOI.ZeroOne}) = true
 MOI.supports_add_constrained_variables(::AbstractSampler, ::Type{<:MOI.ZeroOne}) = true
 
-# -*- :: -*-  Attributes -*- :: -*-
-function MOI.get(::AbstractSampler, ::MOI.SolverName)
-    return "Sampler"
-end
-
-function MOI.get(::AbstractSampler, ::MOI.SolverVersion)
-    return "v0.0.0"
-end
-
-function MOI.get(::AbstractSampler, ::MOI.RawSolver)
-    return "Generic Sampler"
-end
-
 # -*- Name (get, set, supports) -*-
 function MOI.get(sampler::AbstractSampler, ::MOI.Name)
     return sampler.moi.name
