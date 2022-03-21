@@ -95,14 +95,14 @@ mutable struct VirtualQUBOModelMOI{T}
 end
 
 mutable struct VirtualQUBOModelSettings{T}
-    tol::T
+    Tol::T
 
     function VirtualQUBOModelSettings{T}(;
-        tol::T = T(1e-6),
+        Tol::T = T(1e-6),
         ) where {T}
 
         return new{T}(
-            tol,
+            Tol,
         )
     end
 end
@@ -119,10 +119,7 @@ function Base.empty!(moi::VirtualQUBOModelMOI{T}) where {T}
 end
 
 @doc raw"""
-    VirtualQUBOModel{T}(
-        optimizer::Union{Nothing, Type{<:MOI.AbstractOptimizer}}=nothing;
-        tol::T = T(1e-6),
-    ) where {T}
+    VirtualQUBOModel{T}(optimizer::Union{Nothing, Type{<:MOI.AbstractOptimizer}} = nothing) where {T}
 
 This QUBO Virtual Model links the final QUBO formulation to the original one, allowing variable value retrieving and other features.
 """
@@ -149,9 +146,7 @@ mutable struct VirtualQUBOModel{T} <: AbstractVirtualModel{T}
     # -*- Settings -*-
     settings::VirtualQUBOModelSettings{T}
 
-    function VirtualQUBOModel{T}(
-            optimizer::Union{Nothing, Type{<:MOI.AbstractOptimizer}} = nothing
-        ) where {T}
+    function VirtualQUBOModel{T}(optimizer::Union{Nothing, Type{<:MOI.AbstractOptimizer}} = nothing) where {T}
 
         return new{T}(
             PreQUBOModel{T}(),
@@ -172,26 +167,23 @@ mutable struct VirtualQUBOModel{T} <: AbstractVirtualModel{T}
         )
     end
 
-    function VirtualQUBOModel(
-            optimizer::Union{Nothing, Type{<:MOI.AbstractOptimizer}} = nothing;
-            tol::Float64 = 1e-6,
-        )
-        return VirtualQUBOModel{Float64}(optimizer; tol = tol)
+    function VirtualQUBOModel(optimizer::Union{Nothing, Type{<:MOI.AbstractOptimizer}} = nothing)
+        return VirtualQUBOModel{Float64}(optimizer)
     end
 end
 
 struct Tol <: MOI.AbstractModelAttribute end
 
 function MOI.get(model::VirtualQUBOModel{T}, ::Tol) where {T}
-    return model.settings.tol::T
+    return model.settings.Tol::T
 end
 
-function MOI.set(model::VirtualQUBOModel{T}, ::Tol, tol::T) where {T}
-    if tol <= zero(T)
-        throw(DomainError(tol, "Tolerance value `tol` must be positive."))
+function MOI.set(model::VirtualQUBOModel{T}, ::Tol, Tol::T) where {T}
+    if Tol <= zero(T)
+        throw(DomainError(Tol, "Tolerance value `tol` must be positive."))
     end
 
-    model.settings.tol = tol
+    model.settings.Tol = Tol
 
     nothing
 end

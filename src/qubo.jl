@@ -108,7 +108,7 @@ function toqubo!(model::VirtualQUBOModel{T}) where {T}
     # -*- :: Objective Function Assembly :: -*-
     ε = convert(T, 1.0) # TODO: This should be made a parameter too?
 
-    ρᵢ = δ(model.ℍ₀) ./ ϵ.(model.ℍᵢ; tol=model.settings.tol) .+ ε
+    ρᵢ = δ(model.ℍ₀) ./ ϵ.(model.ℍᵢ; tol=model.settings.Tol) .+ ε
 
     if MOI.get(model, MOI.ObjectiveSense()) === MOI.MAX_SENSE
         ρᵢ *= -1.0
@@ -367,7 +367,7 @@ function toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}, S::Ty
             end
         end
 
-        gᵢ = PBO.discretize((gᵢ - bᵢ) ^ 2; tol=model.settings.tol)
+        gᵢ = PBO.discretize((gᵢ - bᵢ) ^ 2; tol=model.settings.Tol)
         hᵢ = PBO.quadratize(gᵢ; slack = slack_factory(model))
 
         push!(model.ℍᵢ, hᵢ)
@@ -394,7 +394,7 @@ function toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}, S::Ty
             end
         end
 
-        gᵢ = PBO.discretize(gᵢ - bᵢ; tol=model.settings.tol)
+        gᵢ = PBO.discretize(gᵢ - bᵢ; tol=model.settings.Tol)
     
         # -*- Introduce Slack Variable -*-
         αᵢ = sum(c for (ω, c) ∈ gᵢ if !isempty(ω) && c < zero(T); init=zero(T))
@@ -436,7 +436,7 @@ function toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::Ty
             end
         end
 
-        gᵢ = PBO.discretize((gᵢ - bᵢ) ^ 2; tol=model.settings.tol)
+        gᵢ = PBO.discretize((gᵢ - bᵢ) ^ 2; tol=model.settings.Tol)
         hᵢ = PBO.quadratize(gᵢ; slack = slack_factory(model))
 
         push!(model.ℍᵢ, hᵢ)
@@ -472,7 +472,7 @@ function toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::Ty
             end
         end
 
-        gᵢ = PBO.discretize(gᵢ - bᵢ; tol=model.settings.tol)
+        gᵢ = PBO.discretize(gᵢ - bᵢ; tol=model.settings.Tol)
 
         # -*- Introduce Slack Variable -*-
         αᵢ = sum(c for (ω, c) ∈ gᵢ if !isempty(ω) && c < zero(T); init=zero(T))
