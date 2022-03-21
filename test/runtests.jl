@@ -12,6 +12,7 @@ const VI = MOI.VariableIndex
 using ToQUBO
 using Anneal
 using LinearAlgebra
+using TOML
 
 const VM = ToQUBO.VirtualMapping
 
@@ -23,5 +24,9 @@ end
 include("./lib/pbo.jl")
 include("./lib/virtual.jl")
 
-# -*- Tests: ToQUBO UI -*-
+
+# -*- Tests: Version -*-
+include("version.jl")
+
+# -*- Tests: ToQUBO -*-
 include("toqubo.jl")
