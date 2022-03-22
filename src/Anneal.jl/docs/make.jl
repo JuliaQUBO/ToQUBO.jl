@@ -22,10 +22,10 @@ makedocs(;
         # "manual.md",
         # "examples.md",
     ],
-    workdir="../examples"
+    workdir="."
 )
 
-deploydocs(
-    repo=raw"https://github.com/psrenergy/Anneal.jl.git",
-    push_preview = true
-)
+# deploydocs(
+#     repo=raw"https://github.com/psrenergy/Anneal.jl.git",
+#     push_preview = true
+# )
