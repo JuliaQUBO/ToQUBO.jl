@@ -7,13 +7,13 @@
         with_bridge_type = Float64,
     )
 
-    @test MOI.get(model, ToQUBO.Tol()) ≈ 1e-6 # default value
+    @test MOI.is_empty(model) == true
+
+    @test_broken MOI.get(model, ToQUBO.Tol()) ≈ 1e-6 # default value
 
     MOI.set(model, ToQUBO.Tol(), 1e-2)
 
     @test MOI.get(model, ToQUBO.Tol()) ≈ 1e-2
-
-    @test MOI.is_empty(model)
 
     x = MOI.add_variables(model, 3);
     v = [1.0, 2.0, 3.0] # value

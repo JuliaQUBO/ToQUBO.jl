@@ -10,7 +10,7 @@ const VI = MOI.VariableIndex
 # -*- :: Module Exports :: -*-
 export VirtualVariable
 export VirtualMOIVariable, AbstractVirtualModel
-export mirror𝔹!, expandℤ!, expandℝ!, slack𝔹!, slackℤ!, slackℝ!
+export mirror𝔹!, expandℤ!, expandℝ!, slack𝔹!, slackℤ!, slackℝ!, slack_factory
 export name, source, target, isslack, offset
 
 @doc raw"""
@@ -150,7 +150,7 @@ struct VirtualVariable{S<:Any, T<:Any}
             )
         elseif tech === :ℝ₂
 
-            if bits === nothing
+            if isnothing(bits)
                 throw(ArgumentError("No value provided for 'bits'"))
             end
 
@@ -169,7 +169,7 @@ struct VirtualVariable{S<:Any, T<:Any}
             )
         elseif tech === :ℝ₁
 
-            if bits === nothing
+            if isnothing(bits)
                 throw(ArgumentError("No value provided for 'bits'"))
             end
 
@@ -236,7 +236,7 @@ end
 
 # -*- Variable Information -*-
 function isslack(v::VirtualVariable)
-    return v.source === nothing
+    return isnothing(v.source)
 end
 
 function name(v::VirtualVariable)
@@ -431,7 +431,7 @@ end
 
 function slack_factory(model::AbstractVirtualModel; name::Symbol=:w)
     function slack(n::Union{Nothing, Int} = nothing)
-        if n === nothing
+        if isnothing(n)
             return first(target(slack𝔹!(model; name=name)))
         else
             return [first(target(slack𝔹!(model; name=name))) for _ = 1:n]

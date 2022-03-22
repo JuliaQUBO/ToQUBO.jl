@@ -69,12 +69,29 @@ function Base.show(io::IO, model::VirtualQUBOModel)
     )
 end
 
-function MOI.copy_to(model::VirtualQUBOModel, source::MOI.ModelLike)
+function MOI.copy_to(model::VirtualQUBOModel{T}, source::MOI.ModelLike) where {T}
     if !MOI.is_empty(model)
         error("QUBO Model is not empty")
     end
 
-    index_map = MOI.copy_to(model.source_model, source)
+    # -*- Copy to PreQUBOModel + Trigger Bridges -*-
+    index_map = MOI.copy_to(
+        MOIB.full_bridge_optimizer(model.source_model, T),
+        source,
+    )
+
+    # :: Copy Attributes ::
+    # for attr in MOI.get(source, MOI.ListOfVariableAttributesSet())
+    #     if attr === Tol()
+    #         # tol = MOI.get(source, attr)
+    #         if !isnothing(tol)
+    #             println("$attr = $tol")
+    #             # MOI.set(model, attr, tol)
+    #         end
+    #     else
+    #         continue # skip any other attribute
+    #     end
+    # end
 
     toqubo!(model)
 
@@ -226,7 +243,7 @@ function MOI.set(model::VirtualQUBOModel, ::MOI.RawStatusString, str::String)
 end
 
 function MOI.get(model::VirtualQUBOModel, rc::MOI.ResultCount)
-    if model.optimizer === nothing
+    if isnothing(model.optimizer)
         return 0
     else
         return MOI.get(model.optimizer, rc)

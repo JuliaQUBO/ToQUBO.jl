@@ -12,32 +12,32 @@ MOIU.@model(PreQUBOModel,       # Name of model
 )
 
 # :: Reset Constraint Support :: #
-MOI.supports_constraint(
-    ::PreQUBOModel{T},
-    ::Type{<:MOI.AbstractFunction},
-    ::Type{<:MOI.AbstractSet},
-) where {T} = false
+# MOI.supports_constraint(
+#     ::PreQUBOModel{T},
+#     ::Type{<:MOI.AbstractFunction},
+#     ::Type{<:MOI.AbstractSet},
+# ) where {T} = false
 
 # :: VariableIndex Constraint Support ::
-MOI.supports_constraint(
-    ::PreQUBOModel{T},
-    ::Type{<:VI},
-    ::Type{<:Union{EQ{T}, LT{T}, GT{T}, MOI.Interval{T}, MOI.Integer, MOI.ZeroOne}},
-) where {T} = true
+# MOI.supports_constraint(
+#     ::PreQUBOModel{T},
+#     ::Type{<:VI},
+#     ::Type{<:Union{EQ{T}, LT{T}, GT{T}, MOI.Interval{T}, MOI.Integer, MOI.ZeroOne}},
+# ) where {T} = true
 
 # :: ScalarAffineFunction Constraint Support ::
-MOI.supports_constraint(
-    ::PreQUBOModel{T},
-    ::Type{<:SAF},
-    ::Type{<:Union{EQ{T}, LT{T}}},
-) where {T} = true
+# MOI.supports_constraint(
+#     ::PreQUBOModel{T},
+#     ::Type{<:SAF},
+#     ::Type{<:Union{EQ{T}, LT{T}}},
+# ) where {T} = true
 
 # :: ScalarQuadraticFunction Constraint Support ::
-MOI.supports_constraint(
-    ::PreQUBOModel{T},
-    ::Type{<:SQF},
-    ::Type{<:Union{EQ{T}, LT{T}}},
-) where {T} = true
+# MOI.supports_constraint(
+#     ::PreQUBOModel{T},
+#     ::Type{<:SQF},
+#     ::Type{<:Union{EQ{T}, LT{T}}},
+# ) where {T} = true
 
 # -*- Model: QUBOModel -*-
 MOIU.@model(QUBOModel,
@@ -52,19 +52,19 @@ MOIU.@model(QUBOModel,
     false,                      # is optimizer?
 )
 
-# :: Reset Constraint Support :: #
-MOI.supports_constraint(
-    ::PreQUBOModel{T},
-    ::Type{<:MOI.AbstractFunction},
-    ::Type{<:MOI.AbstractSet},
-) where {T} = false
+# # :: Reset Constraint Support :: #
+# MOI.supports_constraint(
+#     ::PreQUBOModel{T},
+#     ::Type{<:MOI.AbstractFunction},
+#     ::Type{<:MOI.AbstractSet},
+# ) where {T} = false
 
 # :: VariableIndex Constraint Support ::
-MOI.supports_constraint(
-    ::PreQUBOModel{T},
-    ::Type{<:VI},
-    ::Type{<:MOI.ZeroOne},
-) where {T} = true
+# MOI.supports_constraint(
+#     ::PreQUBOModel{T},
+#     ::Type{<:VI},
+#     ::Type{<:MOI.ZeroOne},
+# ) where {T} = true
 
 mutable struct VirtualQUBOModelMOI{T}
     objective_value::T
@@ -156,7 +156,7 @@ mutable struct VirtualQUBOModel{T} <: AbstractVirtualModel{T}
             Dict{VI, VirtualMOIVariable{T}}(),
             Dict{VI, VirtualMOIVariable{T}}(),
             
-            optimizer(),
+            isnothing(optimizer) ? nothing : optimizer(),
 
             ℱ{T}(),
             ℱ{T}(),

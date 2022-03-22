@@ -53,35 +53,21 @@ isqubo(::VirtualQUBOModel) = true
 
 # -*- toqubo: MOI.ModelLike -> QUBO.Model -*-
 @doc raw"""
-    toqubo(
-        T::Type,
-        model::MOI.ModelLike,
-        optimizer::Union{Nothing, MOI.AbstractOptimizer}=nothing;
-        kws...
-    )
-    toqubo(
-        model::MOI.ModelLike,
-        optimizer::Union{Nothing, MOI.AbstractOptimizer}=nothing;
-        kws...
-    )
+    toqubo(T::Type, source::MOI.ModelLike, optimizer::Union{Nothing, Type{<:MOI.AbstractOptimizer}} = nothing)
+    toqubo(source::MOI.ModelLike, optimizer::Union{Nothing, Type{<:MOI.AbstractOptimizer}} = nothing)
 
 Low-level interface to create a `::VirtualQUBOModel{T}` from `::MOI.ModelLike` instance. If provided, an `::MOI.AbstractOptimizer` is attached to the model.
 """
-function toqubo(T::Type, model::MOI.ModelLike, optimizer::Union{Nothing, Type{<:MOI.AbstractOptimizer}}=nothing; kws...)
-    virt_model = VirtualQUBOModel{T}(optimizer; kws...)
+function toqubo(T::Type, source::MOI.ModelLike, optimizer::Union{Nothing, Type{<:MOI.AbstractOptimizer}} = nothing)
+    model = VirtualQUBOModel{T}(optimizer)
 
-    # -*- Copy to PreQUBOModel + Trigger Bridges -*-
-    MOI.copy_to(
-        MOIB.full_bridge_optimizer(virt_model.source_model, T),
-        model,
-    )
+    MOI.copy_to(model, source)
 
-    # -*- Assemble Virtual Model -*-
-    return toqubo!(virt_model)
+    return toqubo!(model)
 end
 
-function toqubo(model::MOI.ModelLike, optimizer::Union{Nothing, Type{<:MOI.AbstractOptimizer}}=nothing; kws...)
-    return toqubo(Float64, model, optimizer; kws...)
+function toqubo(source::MOI.ModelLike, optimizer::Union{Nothing, Type{<:MOI.AbstractOptimizer}} = nothing)
+    return toqubo(Float64, source, optimizer)
 end
 
 
@@ -242,7 +228,7 @@ function toqubo_variables!(model::VirtualQUBOModel{T}) where {T}
 
     # -*- Discretize Real Ones 🤔 -*-
     for (xᵢ, (aᵢ, bᵢ)) in ℝ
-        if aᵢ === nothing || bᵢ === nothing
+        if isnothing(aᵢ) || isnothing(bᵢ) 
             error("Unbounded variable $xᵢ ∈ ℝ")
         else
             # bits = 3
@@ -267,7 +253,7 @@ function toqubo_variables!(model::VirtualQUBOModel{T}) where {T}
 
     # -*- Discretize Integer Variables 🤔 -*-
     for (xᵢ, (aᵢ, bᵢ)) in ℤ
-        if aᵢ === nothing || bᵢ === nothing
+        if isnothing(aᵢ) || isnothing(bᵢ) 
             error("Unbounded variable $xᵢ ∈ ℤ")
         else
             name = Symbol(MOI.get(model, MOI.VariableName(), xᵢ))
