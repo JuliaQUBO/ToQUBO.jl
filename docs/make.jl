@@ -1,4 +1,7 @@
 using Documenter
+using Pkg
+Pkg.develop(path=joinpath(@__DIR__, ".."))
+Pkg.develop(path=joinpath(@__DIR__, "..", "src", "Anneal.jl"))
 using ToQUBO
 
 # Set up to run docstrings with jldoctest

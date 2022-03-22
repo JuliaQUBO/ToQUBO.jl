@@ -33,6 +33,7 @@ ToQUBO.PBO.gradient
 ToQUBO.PBO.gap
 ToQUBO.PBO.sharpness
 ToQUBO.PBO.discretize
+ToQUBO.PBO.relaxed_gcd
 ```
 
 ### Quadratization

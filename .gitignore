@@ -34,3 +34,6 @@ Manifest.toml
 
 # Conda Pkg
 .CondaPkg
+
+# Knapsack data
+knapsack.csv
