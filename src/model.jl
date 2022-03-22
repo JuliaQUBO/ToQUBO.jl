@@ -172,7 +172,7 @@ mutable struct VirtualQUBOModel{T} <: AbstractVirtualModel{T}
     end
 end
 
-struct Tol <: MOI.AbstractModelAttribute end
+struct Tol <: MOI.AbstractOptimizerAttribute end
 
 function MOI.get(model::VirtualQUBOModel{T}, ::Tol) where {T}
     return model.settings.Tol::T
