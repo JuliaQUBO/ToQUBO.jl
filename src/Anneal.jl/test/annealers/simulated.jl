@@ -69,6 +69,14 @@
     
         # -*- Model -*-
         @test (MOI.is_empty(model) == true)
+
+        MOI.set(model, SimulatedAnnealer.NumberOfReads(), 500)
+
+        @test MOI.get(model, SimulatedAnnealer.NumberOfReads()) == 500
+
+        MOI.set(model, SimulatedAnnealer.NumberOfSweeps(), 500)
+
+        @test MOI.get(model, SimulatedAnnealer.NumberOfSweeps()) == 500
     
         n = 2
     
@@ -116,7 +124,7 @@
     
         MOI.optimize!(model)
 
-        ## @test_broken MOI.get.(model, MOI.VariablePrimal(), x[1:3]) == [1, 1, 0]
-        ## @test MOI.get(model, MOI.ObjectiveValue()) ≈ 2.2
+        @test MOI.get.(model, MOI.VariablePrimal(), x[1:3]) == [1, 1, 0]
+        @test MOI.get(model, MOI.ObjectiveValue()) ≈ 2.2
     end
 end

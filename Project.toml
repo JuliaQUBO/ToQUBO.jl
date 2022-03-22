@@ -4,7 +4,6 @@ authors = ["pedromxavier <pedroxavier@psr-inc.com>", "joaquimg <joaquim@psr-inc.
 version = "0.1.0"
 
 [deps]
-Anneal = "e4d9eb7f-b088-426e-aeb5-1c0dae3d8abb"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 MathOptInterface = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
 Revise = "295af30f-e4ad-537b-8983-00126c2a3abe"
