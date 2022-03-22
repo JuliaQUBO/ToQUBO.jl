@@ -52,7 +52,7 @@
         model = MOI.instantiate(IdentitySampler.Optimizer, with_bridge_type = Float64)
     
         # -*- Model -*-
-        @test (MOI.is_empty(model) == true)
+        @test MOI.is_empty(model) == true
     
         n = 2
     
@@ -79,8 +79,8 @@
     
         MOI.optimize!(model)
     
-        @test_broken MOI.get.(model, MOI.VariablePrimal(), x[1:2]) == [1, 1]
-        @test_broken MOI.get(model, MOI.ObjectiveValue()) ≈ 2.2
+        @test MOI.get.(model, MOI.VariablePrimal(), x[1:2]) == [1, 1]
+        @test MOI.get(model, MOI.ObjectiveValue()) ≈ 2.2
     end
     
     @testset "MOI UI + Extra Variable" begin
@@ -116,7 +116,7 @@
     
         MOI.optimize!(model)
     
-        @test_broken MOI.get.(model, MOI.VariablePrimal(), x[1:3]) == [1, 1, 0]
-        @test_broken MOI.get(model, MOI.ObjectiveValue()) ≈ 2.2
+        @test MOI.get.(model, MOI.VariablePrimal(), x[1:3]) == [1, 1, 0]
+        @test MOI.get(model, MOI.ObjectiveValue()) ≈ 2.2
     end
 end

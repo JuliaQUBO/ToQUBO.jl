@@ -5,15 +5,15 @@ const MOI = MathOptInterface
 const MOIU = MOI.Utilities
 
 const SQF{T} = MOI.ScalarQuadraticFunction{T}
+const SQT{T} = MOI.ScalarQuadraticTerm{T}
 const SAF{T} = MOI.ScalarAffineFunction{T}
+const SAT{T} = MOI.ScalarAffineTerm{T}
 const VI = MOI.VariableIndex
+const CI = MOI.ConstraintIndex
 
 # -*- Exports: Submodules -*-
 export ExactSampler, RandomSampler, IdentitySampler
 export SimulatedAnnealer
-
-# -*- Exports: Attributes -*-
-export NumberOfReads, NumberOfSweeps, RandomBias, RandomSeed
 
 # -*- Includes: Anneal -*-
 include("error.jl")

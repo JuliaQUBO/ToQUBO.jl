@@ -186,7 +186,8 @@ function _anew(expr::Expr)
         end;
 
         mutable struct Optimizer{T} <: Anneal.AbstractSampler{T}
-            x::Dict{MOI.VariableIndex, Union{Int, Nothing}}
+            x::Dict{VI, Union{Int, Nothing}}
+            y::Dict{Int, VI}
             Q::Dict{Tuple{Int, Int}, T}
             c::T
             n::Int
@@ -197,7 +198,8 @@ function _anew(expr::Expr)
 
             function Optimizer{T}(; kws...) where {T}
                 optimizer = new{T}(
-                    Dict{MOI.VariableIndex, Int}(),
+                    Dict{VI, Union{Int, Nothing}}(),
+                    Dict{Int, VI}(),
                     Dict{Tuple{Int, Int}, T}(),
                     zero(T),
                     0,

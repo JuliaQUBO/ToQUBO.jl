@@ -17,7 +17,7 @@ struct QUBOError <: Exception
 end
 
 function Base.showerror(io::IO, e::QUBOError)
-    if e.msg === nothing
+    if isnothing(e.msg)
         print(io, """The current model could not be converted to QUBO in a straightforward fashion.
         Consider using the ToQUBO.jl package for a sophisticated conversion framework:
             pkg> add ToQUBO""")

@@ -5,8 +5,7 @@ using PythonCall
 using Anneal
 using MathOptInterface
 const MOI = MathOptInterface
-
-export NumberOfSweeps
+const VI = MOI.VariableIndex
 
 include("annealer.jl")
 include("MOI_wrapper.jl")

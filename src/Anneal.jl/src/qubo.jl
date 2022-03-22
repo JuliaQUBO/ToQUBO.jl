@@ -63,31 +63,22 @@ function qubo_normal_form(T::Type{<:Any}, model::MOI.ModelLike)
 
     u = Vector{VI}(MOI.get(model, MOI.ListOfVariableIndices()))
     v = Set{VI}(u)
-    
-    x = Dict{VI, Union{Int, Nothing}}(xᵢ => i for (i, xᵢ) ∈ enumerate(u))
-    q = Dict{Tuple{Int, Int}, T}()
+    q = Dict{Tuple{VI, VI}, T}()
     c = zero(T)
 
     F = MOI.get(model, MOI.ObjectiveFunctionType())
     f = MOI.get(model, MOI.ObjectiveFunction{F}())
 
     if F <: VI
-
-        ii = (x[xᵢ], x[xᵢ])
-
-        q[ii] = one(T)
-
+        q[f, f] = one(T)
     elseif F <: SAF
-
         for a ∈ f.terms
-            cᵢᵢ = a.coefficient
-            xᵢᵢ = a.variable
+            cᵢ = a.coefficient
+            xᵢ = a.variable
 
-            ii = (x[xᵢᵢ], x[xᵢᵢ])
+            q[xᵢ, xᵢ] = get(q, (xᵢ, xᵢ), zero(T)) + cᵢ
 
-            q[ii] = get(q, ii, zero(T)) + cᵢᵢ
-
-            delete!(v, xᵢᵢ)
+            delete!(v, xᵢ)
         end
 
         c += f.constant
@@ -95,14 +86,12 @@ function qubo_normal_form(T::Type{<:Any}, model::MOI.ModelLike)
     elseif F <: SQF
 
         for a ∈ f.affine_terms
-            cᵢᵢ = a.coefficient
-            xᵢᵢ = a.variable
+            cᵢ = a.coefficient
+            xᵢ = a.variable
 
-            ii = (x[xᵢᵢ], x[xᵢᵢ])
+            q[xᵢ, xᵢ] = get(q, (xᵢ, xᵢ), zero(T)) + cᵢ
 
-            q[ii] = get(q, ii, zero(T)) + cᵢᵢ
-
-            delete!(v, xᵢᵢ)
+            delete!(v, xᵢ)
         end
 
         for a ∈ f.quadratic_terms
@@ -110,9 +99,7 @@ function qubo_normal_form(T::Type{<:Any}, model::MOI.ModelLike)
             xᵢ = a.variable_1
             xⱼ = a.variable_2
 
-            ij = (x[xᵢ], x[xⱼ])
-
-            q[ij] = get(q, ij, zero(T)) + cᵢⱼ
+            q[xᵢ, xⱼ] = get(q, (xᵢ, xⱼ), zero(T)) + cᵢⱼ
 
             delete!(v, xᵢ)
             delete!(v, xⱼ)
@@ -121,16 +108,22 @@ function qubo_normal_form(T::Type{<:Any}, model::MOI.ModelLike)
         c += f.constant
     end
 
-    if (MOI.get(model, MOI.ObjectiveSense()) != MOI.MIN_SENSE)
-        Q = Dict{Tuple{Int, Int}, T}(ij => -qᵢⱼ for (ij, qᵢⱼ) ∈ q if qᵢⱼ != zero(T))
-        c = -c
-    else
-        Q = Dict{Tuple{Int, Int}, T}(ij => qᵢⱼ for (ij, qᵢⱼ) ∈ q if qᵢⱼ != zero(T))
+    
+    x = Dict{VI, Union{Int, Nothing}}()
+    i = 0
+
+    for xᵢ ∈ u
+        x[xᵢ] = (xᵢ ∈ v) ? nothing : (i += 1)
     end
 
-    for xᵢ ∈ v
-        x[xᵢ] = nothing
+    if MOI.get(model, MOI.ObjectiveSense()) !== MOI.MIN_SENSE
+        s = -one(T)
+        c = -c
+    else
+        s = one(T)
     end
+
+    Q = Dict{Tuple{Int, Int}, T}((x[xᵢ], x[xⱼ]) => s * qᵢⱼ for ((xᵢ, xⱼ), qᵢⱼ) ∈ q if qᵢⱼ != zero(T))
 
     return (x, Q, c)
 end

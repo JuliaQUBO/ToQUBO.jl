@@ -9,6 +9,7 @@ Necessary methods for an AbstractOptimizer according to [1]
 function MOI.empty!(sampler::AbstractSampler{T}) where {T}
     # Variable Mapping
     empty!(sampler.x)
+    empty!(sampler.y)
 
     # QUBO Problem
     empty!(sampler.Q)
@@ -36,6 +37,7 @@ function MOI.optimize!(sampler::AbstractSampler, model::MOI.ModelLike)
         error("MOI Error: Sampler is not empty")
     end
 
+    # :: Model ::
     MOI.copy_to(sampler, model)
 
     sample!(sampler)
@@ -114,9 +116,24 @@ MOI.supports(::AbstractSampler, ::MOI.NumberOfThreads) = true
 # -*- :: -*- The copy_to Interface -*- :: -*-
 function MOI.copy_to(sampler::AbstractSampler{T}, model::MOI.ModelLike) where {T}
     sampler.x, sampler.Q, sampler.c = qubo_normal_form(T, model)
+    sampler.y = Dict{Int, VI}(i => xᵢ for (xᵢ, i) ∈ sampler.x if !isnothing(i))
     sampler.n = length(sampler.x)
 
     sampler.moi.objective_sense = MOI.get(model, MOI.ObjectiveSense())
+
+    # :: Copy Attributes ::
+    for attr in MOI.get(model, MOI.ListOfVariableAttributesSet())
+        if attr === MOI.VariablePrimalStart()
+            for xᵢ ∈ MOI.get(model, MOI.ListOfVariableIndices())
+                x₀ = MOI.get(model, attr, xᵢ)
+                if x₀ !== nothing
+                    MOI.set(sampler, attr, xᵢ, x₀)
+                end
+            end
+        else
+            continue # skip any other attribute
+        end
+    end
 
     nothing
 end
@@ -170,6 +187,25 @@ function MOI.get(sampler::AbstractSampler{T}, ov::MOI.ObjectiveValue) where {T}
     end
 end
 
+function MOI.get(::AbstractSampler{T}, ::MOI.ObjectiveFunctionType) where {T}
+    return SQF{T}
+end
+
+function MOI.get(sampler::AbstractSampler{T}, ::MOI.ObjectiveFunction{SQF{T}}) where {T}
+    Q = SQT{T}[]
+    a = SAT{T}[]
+
+    for ((i, j), qᵢⱼ) ∈ sampler.Q
+        if i == j
+            push!(a, SAT{T}(qᵢⱼ, sampler.y[i]))
+        else
+            push!(Q, SQT{T}(qᵢⱼ, sampler.y[i], sampler.y[j]))
+        end
+    end
+
+    return SQF{T}(Q, a, sampler.c)
+end
+
 # -*- SolveTimeSec -*-
 function MOI.get(sampler::AbstractSampler, ::MOI.SolveTimeSec)
     return sampler.moi.solve_time_sec
@@ -177,8 +213,7 @@ end
 
 # -*- VariablePrimal -*-
 function MOI.get(sampler::AbstractSampler{T}, vp::MOI.VariablePrimal, vi::MOI.VariableIndex) where {T}
-    n = length(sampler.x)
-
+    n = MOI.get(sampler, MOI.ResultCount())
     j = vp.result_index
 
     if !(1 <= j <= n)
@@ -191,7 +226,7 @@ function MOI.get(sampler::AbstractSampler{T}, vp::MOI.VariablePrimal, vi::MOI.Va
 
     i = sampler.x[vi]
 
-    if i === nothing
+    if isnothing(i)
         return zero(T)
     else
         return convert(T, sampler.sample_set[j].states[i])
@@ -217,7 +252,7 @@ end
 function MOI.set(sampler::AbstractSampler{T}, ::MOI.VariablePrimalStart, vi::MOI.VariableIndex, s::Union{Nothing, T}) where {T}
     if !haskey(sampler.x, vi)
         throw(MOI.InvalidIndex{MOI.VariableIndex}(vi))
-    elseif s === nothing
+    elseif isnothing(s)
         delete!(sampler.moi.variable_primal_start, vi)
     else
         sampler.moi.variable_primal_start[vi] = s
@@ -227,3 +262,27 @@ function MOI.set(sampler::AbstractSampler{T}, ::MOI.VariablePrimalStart, vi::MOI
 end
 
 MOI.supports(::AbstractSampler, ::MOI.VariablePrimalStart, ::Type{<:MOI.VariableIndex}) = true
+
+function MOI.get(::AbstractSampler, ::MOI.VariableName, v::VI)
+    return "v[$(v.value)]"
+end
+
+function MOI.get(::AbstractSampler, ::MOI.ListOfConstraintTypesPresent)
+    return [(VI, MOI.ZeroOne)]
+end
+
+function MOI.get(sampler::AbstractSampler, ::MOI.ListOfConstraintIndices{VI, MOI.ZeroOne})
+    return CI{VI, MOI.ZeroOne}[CI{VI, MOI.ZeroOne}(xᵢ.value) for xᵢ ∈ MOI.get(sampler, MOI.ListOfVariableIndices())]
+end
+
+function MOI.get(sampler::AbstractSampler, ::MOI.ListOfVariableIndices)
+    return VI[xᵢ for xᵢ ∈ keys(sampler.x)]
+end
+
+function MOI.get(::AbstractSampler, ::MOI.ConstraintFunction, i::CI{VI, MOI.ZeroOne})
+    return VI(i.value)
+end
+
+function MOI.get(::AbstractSampler, ::MOI.ConstraintSet, i::CI{VI, MOI.ZeroOne})
+    return MOI.ZeroOne()
+end

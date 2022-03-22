@@ -5,13 +5,13 @@ function identity_sample(sampler::Optimizer{T}) where {T}
     s = Vector{Int}(undef, sampler.n)
 
     for (xᵢ, i) ∈ sampler.x
-        if i === nothing
+        if isnothing(i)
             continue
         end
 
         sᵢ = MOI.get(sampler, MOI.VariablePrimalStart(), xᵢ)
 
-        s[i] = (sᵢ === nothing) ? 0 : convert(Int, sᵢ > zero(T))
+        s[i] = isnothing(sᵢ) ? 0 : convert(Int, sᵢ > zero(T))
     end
 
     return (s, 1, Anneal.energy(sampler, s))

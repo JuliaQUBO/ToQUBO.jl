@@ -1,11 +1,10 @@
 module RandomSampler
 
 using Anneal
+using Random
 using MathOptInterface
 const MOI = MathOptInterface
-using Random
-
-export RandomBias, RandomSeed
+const VI = MOI.VariableIndex
 
 include("sampler.jl")
 include("MOI_wrapper.jl")
