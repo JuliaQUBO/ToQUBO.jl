@@ -127,7 +127,7 @@ x, Q, c = ToQUBO.PBO.qubo_normal_form(Array, r)
 
 # - Reduction by Minimum Selection - 
 function slack(n::Union{Int, Nothing} = nothing)
-    if n === nothing
+    if isnothing(n)
         return :w
     elseif n == 1
         return [:w]

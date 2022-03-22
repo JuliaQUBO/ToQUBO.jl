@@ -12,7 +12,7 @@ struct QUBOError <: Exception
 end
 
 function Base.showerror(io::IO, e::QUBOError)
-    if e.msg === nothing
+    if isnothing(e.msg)
         print(io, "The current model could not be converted to QUBO")
     else
         print(io, e.msg)
