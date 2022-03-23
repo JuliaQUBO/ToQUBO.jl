@@ -903,27 +903,27 @@ function quadratize(f::PBF{S, T}; slack::Any) where {S, T}
 end
 
 function show_term(ω::Set{S}, c::T, i::Int) where {S, T}
-    return (
-        i == 1
-        ? (
-            isempty(ω)
-            ? "$c"
-            : "$c $(join(ω, "*"))"
-        )
-        : (
-            isempty(ω)
-            ? (
-                c < zero(T) 
-                ? " - $(abs(c))" 
-                : " + $(abs(c))"
-            )
-            : (
-                c < zero(T)
-                ? " - $(abs(c)) $(join(ω, "*"))" 
-                : " + $(abs(c)) $(join(ω, "*"))"
-            )
-        )
-    )
+    if i == 1
+        if isempty(ω)
+            "$c"
+        else
+            "$c $(join(ω, "*"))"
+        end
+    else
+        if isempty(ω)
+            if c < zero(T) 
+                " - $(abs(c))" 
+            else
+                " + $(abs(c))"
+            end
+        else
+            if c < zero(T)
+                " - $(abs(c)) $(join(ω, "*"))" 
+            else 
+                " + $(abs(c)) $(join(ω, "*"))"
+            end
+        end
+    end
 end
 
 function Base.show(io::IO, f::PBF{S, T}) where {S, T}
