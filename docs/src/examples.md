@@ -1,10 +1,7 @@
 # Examples
 
 ## Knapsack
-
-*Quisque auctor, quam non dignissim luctus, ipsum nisl cursus enim, id eleifend ipsum risus dapibus velit. Nunc dignissim aliquet lorem, ut fermentum diam. Sed nec lectus odio. Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Nulla ultrices ut felis a pulvinar.*
-
-### Standard Formulation
+We start with some instances of the discrete [Knapsack Problem](https://en.wikipedia.org/wiki/Knapsack_problem) whose standard formulation is
 ```math
 \begin{array}{r l}
     \max        & \mathbf{c}\, \mathbf{x} \\
@@ -14,18 +11,22 @@
 ```
 
 ### MathOptInterface
-
-*Maecenas fermentum venenatis laoreet. Sed iaculis, risus ac scelerisque consectetur, orci metus dapibus magna, sed tincidunt dolor sapien sed tortor.*
+Using [MOI](https://github.com/jump-dev/MathOptInterface.jl) directly to build a simple model is pretty straightforward. All that one has to do is to use `MOI.instantiate` and define the model as usual.
 
 ```@example moi-knapsack
 import MathOptInterface as MOI
 const MOIU = MOI.Utilities
 
-# References:
-# [1] https://jump.dev/MathOptInterface.jl/stable/tutorials/example/
+using ToQUBO
+using Anneal # <- Your favourite Annealer / Sampler / Solver here
 
-# Generic Model
-model = MOIU.Model{Float64}()
+# Example from https://jump.dev/MathOptInterface.jl/stable/tutorials/example/
+
+# Virtual QUBO Model
+model = MOI.instantiate(
+   () -> ToQUBO.Optimizer(SimulatedAnnealer.Optimizer),
+   with_bridge_type = Float64,
+)
 
 n = 3;
 c = [1.0, 2.0, 3.0]
@@ -54,106 +55,74 @@ MOI.add_constraint(
 for xᵢ in x
    MOI.add_constraint(model, xᵢ, MOI.ZeroOne())
 end
+
+# Run!
+MOI.optimize!(model)
+
+# Collect Solution
+MOI.get(model, MOI.VariablePrimal(), x)
 ```
 
-*Donec pretium finibus est, nec ultricies lectus placerat in. Aliquam efficitur quam eget consequat feugiat. Fusce tempus risus in cursus consectetur.*
+### JuMP + D-Wave Examples
+We may now fill a few more knapsacks using [JuMP](https://github.com/jump-dev/JuMP.jl). We will generate uniform random costs ``\mathbf{c}`` and weights ``\mathbf{w}`` then set the knapsack's capacity ``C`` to be a fraction of the total available weight i.e. ``80\%``.
 
-```@example moi-knapsack; continued=true
-using ToQUBO
+This example was inspired by [D-Wave's knapsack example repository](https://github.com/dwave-examples/knapsack).
 
-optimizer = SimulatedAnnealer{MOI.VariableIndex, Float64}()
-qubo_model = toqubo(model, optimizer; ϵ=0.01)
+```@setup
+using CSV
+using DataFrames
+using Random
 
-MOI.optimize!(qubo_model)
-```
+# -> Generate Data <-
+rng = MersenneTwister(1)
 
-*Fusce elit urna, fermentum ac mauris vitae, hendrerit euismod nunc. Praesent gravida urna libero.*
+df = DataFrame(
+   :cost   => rand(rng, 1:100, 16),
+   :weight => rand(rng, 1:100, 16),
+)
 
-```@example moi-knapsack
-# Annealing Status
-println(qubo_model)
-```
-
-### Extra: D-Wave Examples
-
-*Nulla ligula dui, maximus ut aliquam eu, consectetur at tellus. In hac habitasse platea dictumst. Praesent tempor porta risus. Curabitur eget vulputate est, eget ultrices libero.*
-
-```@setup dwave-knapsack
-import MathOptInterface as MOI
-const MOIU = MOI.Utilities
-using ToQUBO
+CSV.write("knapsack.csv", df)
 ```
 
 ```@example dwave-knapsack
-import CSV
-import DataFrames
+using CSV
+using DataFrames
 
-# -*- Data -*-
-df = CSV.read(
-    "./knapsack/data/small.csv",
-    DataFrames.DataFrame;
-    header=[:cost, :weight]
-)
+df = CSV.read("knapsack.csv", DataFrame)
 ```
 
-*Donec quis sollicitudin ex. Pellentesque luctus dolor sit amet lacinia lacinia.*
+```@example dwave-knapsack
+using JuMP
+using ToQUBO
+using Anneal # <- Your favourite Annealer / Sampler / Solver here
 
-```@example dwave-knapsack; continued=true
-# -*- Model -*-
-model = MOIU.Model{Float64}()
+# -> Model <-
+model = Model(() -> ToQUBO.Optimizer(SimulatedAnnealer.Optimizer))
 
 n = size(df, 1)
 c = collect(Float64, df[!, :cost])
 w = collect(Float64, df[!, :weight])
 C = round(0.8 * sum(w))
 
-# -*- Variables -*- #
-x = MOI.add_variables(model, n);
+# -> Variables <-
+@variable(model, x[i=1:n], Bin)
 
-# -*- Objective -*- #
-MOI.set(model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
+# -> Objective <-
+@objective(model, Max, c' * x)
 
-MOI.set(
-   model,
-   MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
-   MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.(c, x), 0.0),
-);
+# -> Constraint <-
+@constraint(model, w' * x <= C)
 
-# -*- Constraints -*- #
-MOI.add_constraint(
-   model,
-   MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.(w, x), 0.0),
-   MOI.LessThan(C),
-);
+# ->-> Run! ->->
+optimize!(model)
 
-for xᵢ in x
-   MOI.add_constraint(model, xᵢ, MOI.ZeroOne())
-end
-```
-
-*Sed lorem dolor, mollis non vulputate ut, dignissim vitae enim. Curabitur egestas, elit a gravida gravida, enim magna consectetur massa, eget condimentum mi libero sed neque.*
-
-```@example dwave-knapsack
-optimizer = SimulatedAnnealer{MOI.VariableIndex, Float64}()
-qubo_model = toqubo(model, optimizer; ϵ=0.01)
-
-MOI.optimize!(qubo_model)
-
-println(qubo_model)
-```
-
-## Graph Coloring
-
-*Phasellus eget mauris eu libero euismod pulvinar sollicitudin vel urna. Donec elit justo, viverra id lectus nec, faucibus vehicula justo. Nunc tincidunt magna at diam faucibus, non consequat ante finibus.*
-
-### Standard Formulation
-```math
-\begin{array}{r l}
-    \min        & \displaystyle \sum_{j = 1}^{n} \mathbf{c}_j \\
-    \text{s.t.} & \displaystyle \sum_{i = 1}^{n} \mathbf{x}_{i, k} - n\, \mathbf{c}_k \le 0  ~~ \forall k \\
-    ~           & \displaystyle \mathbf{A}_{i, j} \left({\mathbf{x}_{i, k} + \mathbf{x}_{j, k}}\right) \le 1 ~~ \forall i < j, k \\
-    ~           & \displaystyle \sum_{k = 1}^{n} \mathbf{x}_{i, k} = 1 ~~ \forall i \\
-    ~           & \displaystyle \mathbf{A}, \mathbf{x} \in \mathbb{B}^{n \times n}\\
-    ~           & \displaystyle \mathbf{c} \in \mathbb{B}^{n}
-\end{array}
+# Add Results as a new column
+insertcols!(
+   df,
+   3, 
+   :select => map(
+      (ξ) -> (ξ > 0.0) ? "Yes" : "No",
+      value.(x),
+   ),
+)
 ```

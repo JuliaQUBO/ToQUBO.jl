@@ -1,10 +1,11 @@
+@testset "PBO Module" begin
 
 # -*- Definitions -*-
-𝒮 = Symbol
-𝒯 = Float64
-ℱ = PBF{𝒮, 𝒯}
+S = Symbol
+T = Float64
+ℱ = ToQUBO.PBO.PBF{S, T}
 
-∅ = Vector{𝒮}()
+∅ = Vector{S}()
 
 p = ℱ(∅ => 0.5, [:x] => 1.0, [:x, :y] => -2.0)
 q = ℱ(∅ => 0.5, [:y] => 1.0, [:x, :y] =>  2.0)
@@ -97,40 +98,65 @@ s = ℱ(∅ => 0.0, [:x, :y, :z] => 3.0)
 )
 
 # -*- Test: qubo -*-
-x, Q, c = qubo(Dict, p)
-@test Q == Dict{Tuple{Int, Int}, 𝒯}(
+x, Q, c = ToQUBO.PBO.qubo_normal_form(Dict, p)
+@test Q == Dict{Tuple{Int, Int}, T}(
     (x[:x], x[:x]) => 1.0, (x[:x], x[:y]) => -2.0
 ) && c == 0.5
 
-x, Q, c = qubo(Dict, q)
-@test Q == Dict{Tuple{Int, Int}, 𝒯}(
+x, Q, c = ToQUBO.PBO.qubo_normal_form(Dict, q)
+@test Q == Dict{Tuple{Int, Int}, T}(
     (x[:y], x[:y]) => 1.0, (x[:x], x[:y]) => 2.0
 ) && c == 0.5
 
-x, Q, c = qubo(Dict, r)
-@test Q == Dict{Tuple{Int, Int}, 𝒯}(
+x, Q, c = ToQUBO.PBO.qubo_normal_form(Dict, r)
+@test Q == Dict{Tuple{Int, Int}, T}(
     (x[:z], x[:z]) => -1.0
 ) && c == 1.0
 
-x, Q, c = qubo(Array, p)
+x, Q, c = ToQUBO.PBO.qubo_normal_form(Array, p)
 
-@test Q == Symmetric(Array{𝒯, 2}([1.0 -1.0; -1.0 0.0])) && c == 0.5
+@test Q == Symmetric(Array{T, 2}([1.0 -1.0; -1.0 0.0])) && c == 0.5
 
-x, Q, c = qubo(Array, q)
-@test Q == Symmetric(Array{𝒯, 2}([0.0 1.0; 1.0 1.0])) && c == 0.5
+x, Q, c = ToQUBO.PBO.qubo_normal_form(Array, q)
+@test Q == Symmetric(Array{T, 2}([0.0 1.0; 1.0 1.0])) && c == 0.5
 
-x, Q, c = qubo(Array, r)
-@test Q == Symmetric(Array{𝒯, 2}([-1.0][:,:])) && c == 1.0
+x, Q, c = ToQUBO.PBO.qubo_normal_form(Array, r)
+@test Q == Symmetric(Array{T, 2}([-1.0][:,:])) && c == 1.0
 
 # -*- Test: Degree Reduction -*-
 
-# - Reduction by Substitution - 
-cache = Dict{Set{𝒮}, ℱ}()
+# - Reduction by Minimum Selection - 
+function slack(n::Union{Int, Nothing} = nothing)
+    if isnothing(n)
+        return :w
+    elseif n == 1
+        return [:w]
+    elseif n == 2
+        return [:u :v]
+    elseif n == 3
+        return [:u :v :w]
+    end
+end
 
-@test reduce_degree(s, slack=() -> :w, cache=cache) == ℱ(
-    [:z, :w] => 3.0,
-    [:x, :y] => 21.0,
-    [:x, :w] => -42.0,
-    [:y, :w] => -42.0,
-    [:w] => 63.0
+
+@test ToQUBO.PBO.quadratize(s, slack=slack) == ℱ(
+    [:w] => 3.0,
+    [:x, :w] => 3.0,
+    [:y, :w] => -3.0,
+    [:z, :w] => -3.0,
+    [:y, :z] => 3.0
 ) 
+
+@test ToQUBO.PBO.discretize(p; tol=0.1) == ℱ(
+    ∅ => 1.0, [:x] => 2.0, [:x, :y] => -4.0,
+)
+
+@test ToQUBO.PBO.discretize(q; tol=0.1) == ℱ(
+    ∅ => 1.0, [:y] => 2.0, [:x, :y] =>  4.0,
+)
+
+@test ToQUBO.PBO.discretize(r; tol=0.1) == ℱ(
+    ∅ => 1.0, [:z] => -1.0,
+)
+
+end

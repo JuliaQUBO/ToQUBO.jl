@@ -1,8 +1,8 @@
 # ToQUBO.jl 🟥🟩🟪🟦
 
 <div align="center">
-    <a href="./assets/">
-        <img src="./assets/logo.svg" width=400px alt="ToQUBO.jl" />
+    <a href="/docs/src/assets/">
+        <img src="/docs/src/assets/logo.svg" width=400px alt="ToQUBO.jl" />
     </a>  
 </div>
 
@@ -18,16 +18,16 @@
 | Mathematical Constraint | MOI Function         | MOI          | Status |
 | ----------------------- | -------------------- | ------------ | :----: |
 | **a**ᵀ**x** ≤ β         | ScalarAffineFunction | LessThan     |   ✔️    |
-| **a**ᵀ**x** ≥ α         | ScalarAffineFunction | GreaterThan  |   ✔️    |
+| **a**ᵀ**x** ≥ α         | ScalarAffineFunction | GreaterThan  |   ♻️    |
 | **a**ᵀ**x** = β         | ScalarAffineFunction | EqualTo      |   ✔️    |
-| α ≤ **a**ᵀ**x** ≤ β     | ScalarAffineFunction | Interval     |   ⌛    |
+| α ≤ **a**ᵀ**x** ≤ β     | ScalarAffineFunction | Interval     |   ♻️    |
 | **x**ᵢ ≤ β              | VariableIndex        | LessThan     |   ✔️    |
 | **x**ᵢ ≥ α              | VariableIndex        | GreaterThan  |   ✔️    |
 | **x**ᵢ = β              | VariableIndex        | EqualTo      |   ✔️    |
 | α ≤ **x**ᵢ ≤ β          | VariableIndex        | Interval     |   ✔️    |
-| A**x** + **b** ∈ ℝⁿ₊    | VectorAffineFunction | Nonnegatives |   ❌    |
-| A**x** + **b** ∈ ℝⁿ₋    | VectorAffineFunction | Nonpositives |   ❌    |
-| A**x** + **b** = 0      | VectorAffineFunction | Zeros        |   ❌    |
+| A**x** + **b** ∈ ℝⁿ₊    | VectorAffineFunction | Nonnegatives |   ♻️    |
+| A**x** + **b** ∈ ℝⁿ₋    | VectorAffineFunction | Nonpositives |   ♻️    |
+| A**x** + **b** = 0      | VectorAffineFunction | Zeros        |   ♻️    |
 
 ### Conic constraints
 | Mathematical Constraint                                       | MOI Function         | MOI Set                          | Status |
@@ -44,7 +44,7 @@
 ### Quadratic constraints
 | Mathematical                       | Constraint	MOI Function | MOI Set                     | Status |
 | ---------------------------------- | ----------------------- | --------------------------- | :----: |
-| **x**ᵀQ**x** + **a**ᵀ**x** + b ≥ 0 | ScalarQuadraticFunction | GreaterThan                 |   ✔️    |
+| **x**ᵀQ**x** + **a**ᵀ**x** + b ≥ 0 | ScalarQuadraticFunction | GreaterThan                 |   ♻️    |
 | **x**ᵀQ**x** + **a**ᵀ**x** + b ≤ 0 | ScalarQuadraticFunction | LessThan                    |   ✔️    |
 | **x**ᵀQ**x** + **a**ᵀ**x** + b = 0 | ScalarQuadraticFunction | EqualTo                     |   ✔️    |
 | Bilinear matrix inequality         | VectorQuadraticFunction | PositiveSemidefiniteCone... |   ❌    |
@@ -66,11 +66,15 @@ At most one component of **x** can be nonzero
 <a id="2">²</a>
 At most two components of **x** can be nonzero, and if so they must be adjacent components
 
-| Symbol | Meaning                         |
-| :----: | ------------------------------- |
-|   ✔️    | Available                       |
-|   ❌    | Unavailable                     |
-|   ⌛    | In Development (Available soon) |
-|   📖    | Under research                  |
+| Symbol | Meaning                          |
+| :----: | -------------------------------- |
+|   ✔️    | Available                        |
+|   ♻️    | Available through Bridges[³](#3) |
+|   ❌    | Unavailable                      |
+|   ⌛    | In Development (Available soon)  |
+|   📖    | Under research                   |
+
+<a id="3">³</a> 
+[MOI Bridges](https://jump.dev/MathOptInterface.jl/stable/submodules/Bridges/reference/) provide equivalent constraint mapping.
 
 <!-- Symbols: ✔️❌⌛📖 -->

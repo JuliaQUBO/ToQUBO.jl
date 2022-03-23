@@ -1,4 +1,7 @@
 using Documenter
+using Pkg
+Pkg.develop(path=joinpath(@__DIR__, ".."))
+Pkg.develop(path=joinpath(@__DIR__, "..", "src", "Anneal.jl"))
 using ToQUBO
 
 # Set up to run docstrings with jldoctest
@@ -16,16 +19,17 @@ makedocs(;
         sidebar_sitename=false,
     ), 
     sitename="ToQUBO.jl",
-    authors="Pedro Xavier, Tiago Andrade, and Joaquim Garcia",
+    authors="Pedro Xavier and Tiago Andrade and Joaquim Garcia and David Bernal",
     pages=[
         "Home" => "index.md",
         "manual.md",
         "examples.md",
+        "Booklet" => "booklet.md"
     ],
-    workdir="../examples"
+    workdir="."
 )
 
 deploydocs(
-        repo=raw"https://github.com/psrenergy/ToQUBO.jl.git",
-        push_preview = true
-    )
+    repo=raw"github.com/psrenergy/ToQUBO.jl.git",
+    push_preview = true
+)

@@ -1,0 +1,7 @@
+channels = ["anaconda", "conda-forge"]
+
+[deps]
+python = ">=3.7,<4"
+
+[pip.deps]
+dwave-neal = ">=0.5.6"

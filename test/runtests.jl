@@ -1,34 +1,32 @@
 using Test
-using LinearAlgebra
+using Pkg
+Pkg.develop(path=joinpath(@__DIR__, "..", "src", "Anneal.jl"))
 
+# -*- MOI -*-
 import MathOptInterface
 const MOI = MathOptInterface
 const MOIU = MOI.Utilities
 const VI = MOI.VariableIndex
 
-# -*- Imports: ToQUBO -*-
+# -*- Imports -*-
 using ToQUBO
+using Anneal
+using LinearAlgebra
+using TOML
 
-function tests()
-    # -*- Tests: Pseudo-Boolean Optimization -*-
-    @testset "Pseudo-Boolean Optimization Module" begin
-        include("./lib/pbo.jl")
-    end
+const VM = ToQUBO.VirtualMapping
 
-    # -*- Tests: Annealing -*-
-    @testset "Annealing Module" begin
-        include("./lib/anneal.jl")
-    end
-
-    # -*- Tests: Virtual Mapping -*-
-    @testset "VirtualMapping Module" begin
-        include("./lib/virtual.jl")
-    end
-
-    # -*- Tests: QUBO Model Assembly -*-
-    @testset "Models" begin
-        include("./models/models.jl")
-    end
+function Base.show(io::IO, v::VI)
+    print(io, "v[$(v.value)]")
 end
 
-tests()
+# -*- Tests: Library -*-
+include("./lib/pbo.jl")
+include("./lib/virtual.jl")
+
+
+# -*- Tests: Version -*-
+include("version.jl")
+
+# -*- Tests: ToQUBO -*-
+include("toqubo.jl")
