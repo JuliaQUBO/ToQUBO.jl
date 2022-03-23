@@ -17,8 +17,6 @@ include("qubo.jl")
 include("sampler.jl")
 include("MOI_wrapper.jl")
 
-end # module
-
 # -*- Includes: Submodules -*-
 # :: Samplers ::
 include("samplers/random/random.jl")
@@ -29,3 +27,5 @@ include("samplers/identity/identity.jl")
 
 # :: Annealers ::
 include("annealers/simulated/simulated.jl")
+
+end # module
