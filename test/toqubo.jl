@@ -122,7 +122,7 @@
         w = [0.3, 0.5, 1.0] # weight
         C = 3.2             # capacity
     
-        # will work because ToQUBO.Optimizer will know how to expand an integer variables
+        # will work because ToQUBO.Optimizer will know how to expand  integer variables
         # into binaries
         for xᵢ in x
             # MOI.add_constraint(model, xᵢ, MOI.Integer())
@@ -168,7 +168,7 @@
              0.0 0.5 1.0] # weights
         C = 6.4           # capacity
     
-        # will work because ToQUBO.Optimizer will know how to expand an integer variables
+        # will work because ToQUBO.Optimizer will know how to expand continuous variables
         # into binaries
         for xᵢ in x
             # MOI.add_constraint(model, xᵢ, MOI.Integer())
