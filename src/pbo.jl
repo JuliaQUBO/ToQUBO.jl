@@ -6,7 +6,7 @@ using Base: haslength
 
 # -*- Exports -*-
 export PBF
-export ×, ∂, Δ, δ, ϵ, Θ, ∅
+export ×, ∂, Δ, δ, ϵ, Θ, ∅, ≺
 
 # -*- Variable Terms -*-
 ×(x::S, y::S) where {S} = Set{S}([x, y])
@@ -16,6 +16,11 @@ export ×, ∂, Δ, δ, ϵ, Θ, ∅
 
 # -*- Empty Term -*-
 const ∅ = nothing
+
+# -*- VarCmp -*-
+varcmp(x::S, y::S) where {S} = isless(x, y)
+
+const ≺ = varcmp
 
 # -*- Relaxed Greatest Common Divisor -*-
 @doc raw"""
@@ -288,7 +293,7 @@ end
 
 function varmap(f::PBF{S, T}) where {S, T}
     if isempty(f.varmap)
-        for (i, x) ∈ enumerate(sort(collect(varset(f))))
+        for (i, x) ∈ enumerate(sort(collect(varset(f)); lt = varcmp))
             f.varmap[x] = i
             f.varinv[i] = x
         end
@@ -299,7 +304,7 @@ end
 
 function varinv(f::PBF{S, T}) where {S, T}
     if isempty(f.varinv)
-        for (i, x) ∈ enumerate(sort(collect(varset(f))))
+        for (i, x) ∈ enumerate(sort(collect(varset(f)); lt = varcmp))
             f.varmap[x] = i
             f.varinv[i] = x
         end
@@ -530,7 +535,7 @@ The partial derivate of function ``f \in \mathscr{F}`` with respect to the ``i``
 ```math
     \Delta_i f(\mathbf{x}) = \frac{\partial f(\mathbf{x})}{\partial \mathbf{x}_i} =
     \sum_{\omega \in \Omega\left[{f}\right] \setminus \left\{{i}\right\}}
-    c_{\omega \cup \left\{{i}\right\}} \prod_{i \in \omega} \mathbf{x}_i
+    c_{\omega \cup \left\{{i}\right\}} \prod_{k \in \omega} \mathbf{x}_k
 ```
 """
 function derivative(f::PBF{S, T}, s::S) where {S, T}
@@ -564,7 +569,7 @@ The residual of function ``f \in \mathscr{F}`` with respect to the ``i``-th vari
 ```math
     \Theta_i f(\mathbf{x}) = f(\mathbf{x}) - \mathbf{x}_i\, \Delta_i f(\mathbf{x}) =
     \sum_{\omega \in \Omega\left[{f}\right] \setminus \left\{{i}\right\}}
-    c_{\omega \cup \left\{{i}\right\}} \prod_{i \in \omega} \mathbf{x}_i
+    c_{\omega} \prod_{k \in \omega} \mathbf{x}_k
 ```
 """
 function residual(f::PBF{S, T}, i::S) where {S, T}
@@ -587,7 +592,7 @@ function qubo_normal_form(::Type{<: AbstractDict}, f::PBF{S, T}) where {S, T}
     sizehint!(Q, size(f))
 
     for (ω, a) ∈ f.Ω
-        η = sort([x[i] for i ∈ ω])
+        η = sort([x[i] for i ∈ ω]; lt = varcmp)
         k = length(η)
 
         if k == 0
@@ -617,7 +622,7 @@ function qubo_normal_form(::Type{<: AbstractArray}, f::PBF{S, T}) where {S, T}
     c = zero(T)
 
     for (ω, a) ∈ f.Ω
-        η = sort([x[i] for i ∈ ω])
+        η = sort([x[i] for i ∈ ω]; lt = varcmp)
         k = length(η)
         if k == 0
             c += a
@@ -822,7 +827,7 @@ function quadratize(::Quadratization{PTR_BG}, ω::Set{S}, c::T; slack::Any) wher
 
     # -* Variables *-
     s = slack(k - 2)::Vector{S}
-    b = sort(collect(ω))::Vector{S}
+    b = sort(collect(ω); lt = varcmp)::Vector{S}
 
     # -*- PBF & Quadratization -*-
     f = PBF{S, T}(b[k] × b[k - 1] => c)
@@ -884,7 +889,10 @@ end
 
 Quadratizes a given PBF, i.e. creates a function ``g \in \mathscr{F}^{2}`` from ``f \in \mathscr{F}^{k}, k \ge 3``.
 
-f(X ∪ Y) + f(X ∩ Y) ≤ f(X) + f(Y)  X, Y ⊂ S ⟹ Submodular
+A function ``f : 2^{S} \to \mathbb{R}`` is said to be submodular if
+```math
+f(X \cup Y) + f(X \cap Y) \le f(X) + f(Y) \forall X, Y \subset S
+```
 """
 function quadratize(f::PBF{S, T}; slack::Any) where {S, T}
     return quadratize(
@@ -895,27 +903,27 @@ function quadratize(f::PBF{S, T}; slack::Any) where {S, T}
 end
 
 function show_term(ω::Set{S}, c::T, i::Int) where {S, T}
-    if i == 1
-        if isempty(ω)
-            return "$c"
-        else
-            return "$c $(join(ω, "*"))"
-        end
-    else
-        if isempty(ω)
-            if c < zero(T)
-                return " - $(abs(c))"
-            else
-                return " + $(abs(c))"
-            end
-        else
-            if c < zero(T)
-                return " - $(abs(c)) $(join(ω, "*"))"
-            else
-                return " + $(abs(c)) $(join(ω, "*"))"
-            end
-        end
-    end
+    return (
+        i == 1
+        ? (
+            isempty(ω)
+            ? "$c"
+            : "$c $(join(ω, "*"))"
+        )
+        : (
+            isempty(ω)
+            ? (
+                c < zero(T) 
+                ? " - $(abs(c))" 
+                : " + $(abs(c))"
+            )
+            : (
+                c < zero(T)
+                ? " - $(abs(c)) $(join(ω, "*"))" 
+                : " + $(abs(c)) $(join(ω, "*"))"
+            )
+        )
+    )
 end
 
 function Base.show(io::IO, f::PBF{S, T}) where {S, T}

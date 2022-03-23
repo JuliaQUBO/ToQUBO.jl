@@ -288,9 +288,4 @@ function MOI.get(model::VirtualQUBOModel, rs::MOI.RawSolver)
     return MOI.get(model.optimizer, rs)
 end
 
-# TODO: Get rid of this type piracy example.
-Base.isless(u::VI, v::VI) = isless(u.value, v.value)
-
-# IDEA: Implement some higher-level varcmp(::S, ::S) with a
-#       fallback call to isless(::S, ::S). Then, implement
-#       varcmp(::VI, ::VI).                               □
+PBO.varcmp(x::VI, y::VI) = isless(x.value, y.value)

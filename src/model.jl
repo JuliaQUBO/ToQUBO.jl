@@ -11,33 +11,12 @@ MOIU.@model(PreQUBOModel,       # Name of model
     false,                      # is optimizer?
 )
 
-# :: Reset Constraint Support :: #
-# MOI.supports_constraint(
-#     ::PreQUBOModel{T},
-#     ::Type{<:MOI.AbstractFunction},
-#     ::Type{<:MOI.AbstractSet},
-# ) where {T} = false
-
-# :: VariableIndex Constraint Support ::
-# MOI.supports_constraint(
-#     ::PreQUBOModel{T},
-#     ::Type{<:VI},
-#     ::Type{<:Union{EQ{T}, LT{T}, GT{T}, MOI.Interval{T}, MOI.Integer, MOI.ZeroOne}},
-# ) where {T} = true
-
-# :: ScalarAffineFunction Constraint Support ::
-# MOI.supports_constraint(
-#     ::PreQUBOModel{T},
-#     ::Type{<:SAF},
-#     ::Type{<:Union{EQ{T}, LT{T}}},
-# ) where {T} = true
-
-# :: ScalarQuadraticFunction Constraint Support ::
-# MOI.supports_constraint(
-#     ::PreQUBOModel{T},
-#     ::Type{<:SQF},
-#     ::Type{<:Union{EQ{T}, LT{T}}},
-# ) where {T} = true
+# :: Drop Automatic Constraint Support :: #
+MOI.supports_constraint(
+    ::PreQUBOModel{T},
+    ::Type{<:Union{SAF, SQF}},
+    ::Type{<:Union{MOI.Integer, MOI.ZeroOne, GT}},
+) where {T} = false
 
 # -*- Model: QUBOModel -*-
 MOIU.@model(QUBOModel,
@@ -45,26 +24,19 @@ MOIU.@model(QUBOModel,
     (),                         #   typed scalar sets
     (),                         # untyped vector sets
     (),                         #   typed vector sets
-    (),                         # untyped scalar functions
+    (VI,),                         # untyped scalar functions
     (SQF,),                     #   typed scalar functions
     (),                         # untyped vector functions
     (),                         #   typed vector functions
     false,                      # is optimizer?
 )
 
-# # :: Reset Constraint Support :: #
-# MOI.supports_constraint(
-#     ::PreQUBOModel{T},
-#     ::Type{<:MOI.AbstractFunction},
-#     ::Type{<:MOI.AbstractSet},
-# ) where {T} = false
-
-# :: VariableIndex Constraint Support ::
-# MOI.supports_constraint(
-#     ::PreQUBOModel{T},
-#     ::Type{<:VI},
-#     ::Type{<:MOI.ZeroOne},
-# ) where {T} = true
+# :: Reset Constraint Support :: #
+MOI.supports_constraint(
+    ::QUBOModel{T},
+    ::Type{<:SQF},
+    ::Type{<:MOI.ZeroOne},
+) where {T} = false
 
 mutable struct VirtualQUBOModelMOI{T}
     objective_value::T
