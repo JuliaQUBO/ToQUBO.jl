@@ -2,7 +2,7 @@ module SimulatedAnnealer
 
 using PythonCall
 
-using Anneal
+using ..Anneal
 using MathOptInterface
 const MOI = MathOptInterface
 const VI = MOI.VariableIndex

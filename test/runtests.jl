@@ -1,6 +1,4 @@
 using Test
-using Pkg
-Pkg.develop(path=joinpath(@__DIR__, "..", "src", "Anneal.jl"))
 
 # -*- MOI -*-
 import MathOptInterface
@@ -10,7 +8,7 @@ const VI = MOI.VariableIndex
 
 # -*- Imports -*-
 using ToQUBO
-using Anneal
+using .Anneal
 using LinearAlgebra
 using TOML
 

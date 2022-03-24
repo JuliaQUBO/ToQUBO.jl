@@ -1,6 +1,6 @@
 module ExactSampler
 
-using Anneal
+using ..Anneal
 using MathOptInterface
 const MOI = MathOptInterface
 const VI = MOI.VariableIndex

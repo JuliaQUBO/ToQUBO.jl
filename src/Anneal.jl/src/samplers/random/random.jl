@@ -1,6 +1,6 @@
 module RandomSampler
 
-using Anneal
+using ..Anneal
 using Random
 using MathOptInterface
 const MOI = MathOptInterface
