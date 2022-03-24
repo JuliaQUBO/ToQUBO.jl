@@ -8,7 +8,6 @@ const VI = MOI.VariableIndex
 
 # -*- Imports -*-
 using ToQUBO
-include("../src/Anneal.jl/src/Anneal.jl")
 using .Anneal
 using LinearAlgebra
 using TOML
