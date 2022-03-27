@@ -5,11 +5,11 @@
         <img src="/docs/src/assets/logo.svg" width=400px alt="ToQUBO.jl" />
     </a>
     <br>
+    <a href="https://psrenergy.github.com/ToQUBO.jl/dev">
+        <img src="https://img.shields.io/badge/docs-dev-blue.svg" alt="Docs">
+    </a>
     <a href="https://github.com/psrenergy/ToQUBO.jl/actions/workflows/ci.yml">
         <img src="https://github.com/psrenergy/ToQUBO.jl/actions/workflows/ci.yml/badge.svg?branch=master" alt="CI" />
-    </a>
-    <a href="https://github.com/psrenergy/ToQUBO.jl/actions/workflows/documentation.yml">
-        <img src="https://github.com/psrenergy/ToQUBO.jl/actions/workflows/documentation.yml/badge.svg?branch=master" alt="Documentation">
     </a>
     <a href="https://zenodo.org/badge/latestdoi/430697061">
         <img src="https://zenodo.org/badge/430697061.svg" alt="DOI">
