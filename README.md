@@ -48,6 +48,12 @@ model = Model(() -> ToQUBO.Optimizer(Anneal.SimulatedAnnealer.Optimizer))
 @objective(model, Max, 1.0*x[1] + 2.0*x[2] + 3.0*x[3])
 
 optimize!(model)
+
+for i = 1:result_count(model)
+    xᵢ = value.(x, result = i)
+    yᵢ = objective_value(model, result = i)
+    println("f($xᵢ) = $yᵢ")
+end
 ```
 
 ## List of Interpretable Constraints
