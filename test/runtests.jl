@@ -8,7 +8,7 @@ const VI = MOI.VariableIndex
 
 # -*- Imports -*-
 using ToQUBO
-using .Anneal
+using Anneal
 using LinearAlgebra
 using TOML
 
