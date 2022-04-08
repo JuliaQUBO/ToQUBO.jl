@@ -21,20 +21,10 @@ jobs:
             arch: x64
     steps:
       - uses: actions/checkout@v2
-      # - uses: actions/setup-python@v1
-      #   with:
-      #     cache: 'pip'
-      # - run: pip install -r requirements.txt
       - uses: julia-actions/setup-julia@v1
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
-      - uses: julia-actions/julia-buildpkg@v1
-        with: 
-          project: "./src/Anneal.jl"
-      - uses: julia-actions/julia-runtest@v1
-        with: 
-          project: "./src/Anneal.jl"
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
       # Future: Add Code Cov
