@@ -41,7 +41,7 @@ using JuMP
 using ToQUBO
 using Anneal
 
-model = Model(() -> ToQUBO.Optimizer(Anneal.SimulatedAnnealer.Optimizer))
+model = Model(() -> ToQUBO.Optimizer(SimulatedAnnealer.Optimizer))
 
 @variable(model, x[1:3], Bin)
 @constraint(model, 0.3*x[1] + 0.5*x[2] + 1.0*x[3] <= 1.6)

@@ -47,8 +47,4 @@ include("qubo.jl")
 # -*- MOI Wrapper -*-
 include("MOI_wrapper.jl")
 
-# -*- Temporarily: Anneal -*-
-include("Anneal.jl/src/Anneal.jl")
-export Anneal
-
 end # module
