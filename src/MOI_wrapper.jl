@@ -47,7 +47,6 @@ function MOI.optimize!(model::VirtualQUBOModel)
     MOI.optimize!(model.optimizer, model.target_model)
 
     # :: Update MOI ::
-    model.moi.objective_value    = MOI.get(model.optimizer, MOI.ObjectiveValue())
     model.moi.solve_time_sec     = MOI.get(model.optimizer, MOI.SolveTimeSec())
     model.moi.termination_status = MOI.get(model.optimizer, MOI.TerminationStatus())
     model.moi.primal_status      = MOI.get(model.optimizer, MOI.PrimalStatus())
@@ -79,19 +78,6 @@ function MOI.copy_to(model::VirtualQUBOModel{T}, source::MOI.ModelLike) where {T
         MOIB.full_bridge_optimizer(model.source_model, T),
         source,
     )
-
-    # :: Copy Attributes ::
-    # for attr in MOI.get(source, MOI.ListOfVariableAttributesSet())
-    #     if attr === Tol()
-    #         # tol = MOI.get(source, attr)
-    #         if !isnothing(tol)
-    #             println("$attr = $tol")
-    #             # MOI.set(model, attr, tol)
-    #         end
-    #     else
-    #         continue # skip any other attribute
-    #     end
-    # end
 
     toqubo!(model)
 
@@ -186,13 +172,12 @@ function MOI.get(model::VirtualQUBOModel, attr::MOI.ObjectiveSense)
     return MOI.get(model.source_model, attr)
 end
 
-function MOI.get(model::VirtualQUBOModel, ::MOI.ObjectiveValue)
-    return model.moi.objective_value
-end
-
-function MOI.set(model::VirtualQUBOModel{T}, ::MOI.ObjectiveValue, value::T) where {T}
-    model.moi.objective_value = value
-    nothing
+function MOI.get(model::VirtualQUBOModel{T}, ov::MOI.ObjectiveValue) where {T}
+    if isnothing(model.optimizer)
+        zero(T)
+    else
+        MOI.get(model.optimizer, ov)
+    end
 end
 
 function MOI.get(model::VirtualQUBOModel, ::MOI.SolveTimeSec)
@@ -270,10 +255,10 @@ end
 
 function MOI.get(model::VirtualQUBOModel{T}, vp::MOI.VariablePrimal, xᵢ::VI) where {T}
     if isnothing(model.optimizer)
-        throw(ErrorException("No underlying optimizer for model"))
+        zero(T)
+    else
+        sum((prod(MOI.get(model.optimizer, vp, yⱼ) for yⱼ ∈ ωⱼ; init=one(T)) * cⱼ for (ωⱼ, cⱼ) ∈ model.source[xᵢ]); init=zero(T))
     end
-
-    return sum((prod(MOI.get(model.optimizer, vp, yⱼ) for yⱼ ∈ ωⱼ; init=one(T)) * cⱼ for (ωⱼ, cⱼ) ∈ model.source[xᵢ]); init=zero(T))
 end
 
 function MOI.get(::VirtualQUBOModel, ::MOI.SolverName)
