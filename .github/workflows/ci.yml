@@ -27,8 +27,7 @@ jobs:
           arch: ${{ matrix.arch }}
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
-      # Future: Add Code Cov
-      # - uses: julia-actions/julia-processcoverage@v1
-      # - uses: codecov/codecov-action@v1
-      #   with:
-      #     file: lcov.info
+      - uses: julia-actions/julia-processcoverage@v1
+      - uses: codecov/codecov-action@v2
+        with:
+          file: lcov.info
