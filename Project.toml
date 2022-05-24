@@ -13,8 +13,9 @@ julia = "1.6"
 
 [extras]
 Anneal = "e4d9eb7f-b088-426e-aeb5-1c0dae3d8abb"
+JuMP = "4076af6c-e467-56ae-b986-b466b2749572"
 TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Anneal", "Test", "TOML"]
+test = ["Anneal", "JuMP", "Test", "TOML"]
