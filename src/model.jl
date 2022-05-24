@@ -108,9 +108,9 @@ mutable struct VirtualQUBOModel{T} <: AbstractVirtualModel{T}
     # - Underlying Optimizer
     optimizer::Union{Nothing, MOI.AbstractOptimizer}
     
-    ℍ::ℱ{T}          # Total Energy
-    ℍ₀::ℱ{T}         # Objective
-    ℍᵢ::Vector{ℱ{T}} # Constraints
+    H::ℱ{T}          # Total Energy
+    H₀::ℱ{T}         # Objective
+    Hᵢ::Vector{ℱ{T}} # Constraints
 
     # -*- MathOptInterface -*-
     moi::VirtualQUBOModelMOI{T}

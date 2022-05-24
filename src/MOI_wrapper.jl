@@ -25,9 +25,9 @@ function MOI.empty!(model::VirtualQUBOModel)
     isnothing(model.optimizer) || MOI.empty!(model.optimizer)
 
     # -*- PBFs -*-
-    empty!(model.ℍ)
-    empty!(model.ℍ₀)
-    empty!(model.ℍᵢ)
+    empty!(model.H)
+    empty!(model.H₀)
+    empty!(model.Hᵢ)
 
     # -*- MathOptInterface -*-
     empty!(model.moi)

@@ -94,19 +94,19 @@ function toqubo!(model::VirtualQUBOModel{T}) where {T}
     # -*- :: Objective Function Assembly :: -*-
     ε = convert(T, 1.0) # TODO: This should be made a parameter too?
 
-    ρᵢ = δ(model.ℍ₀) ./ ϵ.(model.ℍᵢ; tol=model.settings.Tol) .+ ε
+    ρᵢ = δ(model.H₀) ./ ϵ.(model.Hᵢ; tol=model.settings.Tol) .+ ε
 
     if MOI.get(model, MOI.ObjectiveSense()) === MOI.MAX_SENSE
         ρᵢ *= -1.0
     end
 
-    model.ℍ = model.ℍ₀ + sum(ρᵢ .* model.ℍᵢ; init=zero(T))
+    model.H = model.H₀ + sum(ρᵢ .* model.Hᵢ; init=zero(T))
 
     Q = SQT{T}[]
     a = SAT{T}[]
     b = zero(T)
 
-    for (ω, c) in model.ℍ
+    for (ω, c) in model.H
         if length(ω) == 0
             b += c
         elseif length(ω) == 1
@@ -155,10 +155,10 @@ function toqubo_variables!(model::VirtualQUBOModel{T}) where {T}
     # ::: Variable Analysis :::
 
     # Set of all source variables
-    Ω = Set{VI}(MOI.get(model, MOI.ListOfVariableIndices()))
+    Ω = Vector{VI}(MOI.get(model, MOI.ListOfVariableIndices()))
 
     # Variable Sets and Bounds (Boolean, Integer, Real)
-    𝔹 = Set{VI}()
+    𝔹 = Vector{VI}()
     ℤ = Dict{VI, Tuple{Union{T, Nothing}, Union{T, Nothing}}}()
     ℝ = Dict{VI, Tuple{Union{T, Nothing}, Union{T, Nothing}}}()
 
@@ -280,7 +280,7 @@ function toqubo_objective!(model::VirtualQUBOModel{T}, F::Type{<:VI}) where {T}
     xᵢ = MOI.get(model, MOI.ObjectiveFunction{F}())
 
     for (ωᵢ, cᵢ) ∈ model.source[xᵢ]
-        model.ℍ₀[ωᵢ] += cᵢ
+        model.H₀[ωᵢ] += cᵢ
     end
 end
 
@@ -293,12 +293,12 @@ function toqubo_objective!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}) where 
         xᵢ = aᵢ.variable
 
         for (ωᵢ, dᵢ) ∈ model.source[xᵢ]
-            model.ℍ₀[ωᵢ] += cᵢ * dᵢ
+            model.H₀[ωᵢ] += cᵢ * dᵢ
         end
     end
 
     # -*- Constant -*-
-    model.ℍ₀ += f.constant
+    model.H₀ += f.constant
 end
 
 function toqubo_objective!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}) where {T}
@@ -311,8 +311,15 @@ function toqubo_objective!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}) where 
         xᵢ = Qᵢ.variable_1
         xⱼ = Qᵢ.variable_2
 
+        # MOI convetion is to write ScalarQuadraticFunction as
+        #     ½ x' Q x + a x + b
+        # ∴ every coefficient in the main diagonal is doubled
+        if xᵢ === xⱼ
+            cᵢ /= 2
+        end
+
         for (ωᵢ, dᵢ) ∈ model.source[xᵢ], (ωⱼ, dⱼ) ∈ model.source[xⱼ]
-            model.ℍ₀[ωᵢ × ωⱼ] += cᵢ * dᵢ * dⱼ
+            model.H₀[ωᵢ × ωⱼ] += cᵢ * dᵢ * dⱼ
         end
     end
 
@@ -321,12 +328,12 @@ function toqubo_objective!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}) where 
         xᵢ = aᵢ.variable
 
         for (ωᵢ, dᵢ) in model.source[xᵢ]
-            model.ℍ₀[ωᵢ] += cᵢ * dᵢ
+            model.H₀[ωᵢ] += cᵢ * dᵢ
         end
     end
 
     # -*- Constant -*-
-    model.ℍ₀ += f.constant
+    model.H₀ += f.constant
 end
 
 @doc raw"""
@@ -356,7 +363,7 @@ function toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}, S::Ty
         gᵢ = PBO.discretize((gᵢ - bᵢ) ^ 2; tol=model.settings.Tol)
         hᵢ = PBO.quadratize(gᵢ; slack = slack_factory(model))
 
-        push!(model.ℍᵢ, hᵢ)
+        push!(model.Hᵢ, hᵢ)
     end
 
     nothing
@@ -389,7 +396,7 @@ function toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}, S::Ty
         sᵢ = ℱ{T}(collect(slackℤ!(model; α=αᵢ, β=βᵢ, name=:s)))
         hᵢ = PBO.quadratize((gᵢ + sᵢ) ^ 2;slack = slack_factory(model))
 
-        push!(model.ℍᵢ, hᵢ)
+        push!(model.Hᵢ, hᵢ)
     end
 
     nothing
@@ -408,6 +415,10 @@ function toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::Ty
             xⱼ = Qⱼ.variable_1
             yⱼ = Qⱼ.variable_2
 
+            if xᵢ === xⱼ
+                cᵢ /= 2
+            end
+
             for (ωⱼ, dⱼ) ∈ model.source[xⱼ], (ηⱼ, eⱼ) ∈ model.source[yⱼ]
                 gᵢ[ωⱼ × ηⱼ] += cⱼ * dⱼ * eⱼ
             end
@@ -425,7 +436,7 @@ function toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::Ty
         gᵢ = PBO.discretize((gᵢ - bᵢ) ^ 2; tol=model.settings.Tol)
         hᵢ = PBO.quadratize(gᵢ; slack = slack_factory(model))
 
-        push!(model.ℍᵢ, hᵢ)
+        push!(model.Hᵢ, hᵢ)
     end
 
     nothing
@@ -443,6 +454,10 @@ function toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::Ty
             cⱼ = Qⱼ.coefficient
             xⱼ = Qⱼ.variable_1
             yⱼ = Qⱼ.variable_2
+
+            if xᵢ === xⱼ
+                cᵢ /= 2
+            end
 
             for (ωⱼ, dⱼ) ∈ model.source[xⱼ], (ηⱼ, eⱼ) ∈ model.source[yⱼ]
                 gᵢ[ωⱼ × ηⱼ] += cⱼ * dⱼ * eⱼ
@@ -467,7 +482,7 @@ function toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::Ty
         sᵢ = ℱ{T}(collect(slackℤ!(model; α=αᵢ, β=βᵢ, name=:s)))
         hᵢ = PBO.quadratize((gᵢ + sᵢ) ^ 2; slack = slack_factory(model))
 
-        push!(model.ℍᵢ, hᵢ)
+        push!(model.Hᵢ, hᵢ)
     end
 end
 

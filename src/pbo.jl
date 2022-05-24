@@ -612,9 +612,6 @@ function qubo_normal_form(::Type{<: AbstractDict}, f::PBF{S, T}) where {S, T}
 end
 
 function qubo_normal_form(::Type{<: AbstractArray}, f::PBF{S, T}) where {S, T}
-    # -* Constants *-
-    𝟐 = convert(T, 2)
-
     # -* QUBO *-
     x = varmap(f)
     n = length(x)
@@ -631,8 +628,8 @@ function qubo_normal_form(::Type{<: AbstractArray}, f::PBF{S, T}) where {S, T}
             Q[i, i] += a
         elseif k == 2
             i, j = η
-            Q[i, j] += a / 𝟐
-            Q[j, i] += a / 𝟐
+            Q[i, j] += a / 2
+            Q[j, i] += a / 2
         else
             error(DomainError, ": Can't convert Pseudo-boolean function with degree greater than 2 to QUBO format.\nTry using 'quadratize' before conversion.")
         end
@@ -646,14 +643,9 @@ function qubo_normal_form(f::PBF{S, T}) where {S, T}
     return qubo_normal_form(Dict, f)
 end
 
-function ising_normal_form(::Type{<: AbstractDict}, f::PBF{S, T}) where {S, T}
-    # -* Constants *-
-    𝟎 = zero(T)
-    𝟐 = convert(T, 2)
-    𝟒 = convert(T, 4)
-
+function ising_normal_form(::Type{<:AbstractDict}, f::PBF{S, T}) where {S, T}
     # -* QUBO *-
-    x, Q, c = qubo(Dict, f)
+    x, Q, c = qubo_normal_form(Dict, f)
 
     # -* Ising *-
     h = Dict{Int, T}()
@@ -663,18 +655,18 @@ function ising_normal_form(::Type{<: AbstractDict}, f::PBF{S, T}) where {S, T}
         i, j = ω
 
         if i == j
-            α = a / 𝟐
+            α = a / 2
 
-            h[i] = get(h, i, 𝟎) + α
+            h[i] = get(h, i, 0) + α
 
             c += α
         else
-            β = a / 𝟒
+            β = a / 4
 
             J[i, j] = β
 
-            h[i] = get(h, i, 𝟎) + β
-            h[j] = get(h, j, 𝟎) + β
+            h[i] = get(h, i, 0) + β
+            h[j] = get(h, j, 0) + β
 
             c += β
         end
@@ -684,12 +676,8 @@ function ising_normal_form(::Type{<: AbstractDict}, f::PBF{S, T}) where {S, T}
 end
 
 function ising_normal_form(::Type{<:AbstractArray}, f::PBF{S, T}) where {S, T}
-    # -* Constants *-
-    𝟐 = convert(T, 2)
-    𝟒 = convert(T, 4)
-
     # -* QUBO *-
-    x, Q, c = qubo(Dict, f)
+    x, Q, c = qubo_normal_form(Dict, f)
     
     # -* Ising *-
     n = length(x)
@@ -700,13 +688,13 @@ function ising_normal_form(::Type{<:AbstractArray}, f::PBF{S, T}) where {S, T}
         i, j = ω
 
         if i == j
-            α = a / 𝟐
+            α = a / 2
 
             h[i] += α
 
             c += α
         else
-            β = a / 𝟒
+            β = a / 4
 
             J[i, j] += β
 
@@ -775,7 +763,7 @@ end
 Defines a new quadratization technique.
 """
 macro quadratization(name, nsv, nst)
-    return :(
+    quote
         struct $(esc(name)) <: QuadratizationType end;
 
         function nsv(::Type{$(esc(name))}, k::Int)
@@ -785,7 +773,7 @@ macro quadratization(name, nsv, nst)
         function nst(::Type{$(esc(name))}, k::Int)
             return $(esc(nst))
         end;
-    )
+    end
 end
 
 @doc raw"""
