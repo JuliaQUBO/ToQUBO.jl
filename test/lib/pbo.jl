@@ -1,4 +1,4 @@
-@testset "PBO Module" begin
+@testset "PBO" begin
 
 # -*- Definitions -*-
 S = Symbol

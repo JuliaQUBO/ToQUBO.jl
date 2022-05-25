@@ -1,0 +1,3 @@
+@testset "MathOptInterface" begin
+
+end

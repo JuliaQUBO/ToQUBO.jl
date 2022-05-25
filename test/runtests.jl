@@ -7,6 +7,7 @@ const MOIU = MOI.Utilities
 const VI = MOI.VariableIndex
 
 # -*- Imports -*-
+using JuMP
 using ToQUBO
 using Anneal
 using LinearAlgebra
@@ -14,17 +15,20 @@ using TOML
 
 const VM = ToQUBO.VirtualMapping
 
-function Base.show(io::IO, v::VI)
-    print(io, "v[$(v.value)]")
-end
+# -*- Tests: Version -*-
+include("version.jl")
 
 # -*- Tests: Library -*-
 include("./lib/pbo.jl")
 include("./lib/virtual.jl")
 
+# -*- Tests: Interface -*-
+# include("./lib/moi.jl")
+# include("./lib/jump.jl")
 
-# -*- Tests: Version -*-
-include("version.jl")
-
-# -*- Tests: ToQUBO -*-
-include("toqubo.jl")
+# -*- Tests: Examples -*-
+@testset "Quantum Bridge Analytics I" begin
+    include("examples/qba2.jl")
+    include("examples/qba3_1.jl")
+    include("examples/qba3_2.jl")
+end

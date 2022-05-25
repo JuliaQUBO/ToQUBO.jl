@@ -47,4 +47,7 @@ include("qubo.jl")
 # -*- MOI Wrapper -*-
 include("MOI_wrapper.jl")
 
+
+include("analysis.jl")
+
 end # module
