@@ -24,30 +24,24 @@ const CI = MOI.ConstraintIndex
 # -*- QUBO Errors -*-
 include("error.jl")
 
-# -*- PBO Library -*-
-include("pbo.jl")
-using .PBO
+# -*- Library -*-
+include(joinpath("pbo", "PBO.jl"))
+include(joinpath("virtual", "VirtualMapping.jl"))
 
-# -*- PBO Aliases -*-
-const ℱ{T} = PBF{VI, T}
+# # -*- QUBO Model -*-
+include(joinpath("model", "models.jl"))
+include(joinpath("model", "virtual.jl"))
+include(joinpath("model", "attributes.jl"))
+# include(joinpath("model", "compiler.jl"))
+include(joinpath("model", "wrapper.jl"))
 
-# -*- Virtual Mapping -*-
-include("virtual.jl")
-using .VirtualMapping
+# # -*- -> QUBO <- -*-
+# include("qubo.jl")
 
-# -*- QUBO Model -*-
-include("model.jl")
-
-# -*- ToQUBO Aliases -*-
-const Optimizer{T} = VirtualQUBOModel{T}
-
-# -*- -> QUBO <- -*-
-include("qubo.jl")
-
-# -*- MOI Wrapper -*-
-include("MOI_wrapper.jl")
+# # -*- MOI Wrapper -*-
+# include("MOI_wrapper.jl")
 
 
-include("analysis.jl")
+# include("analysis.jl")
 
 end # module

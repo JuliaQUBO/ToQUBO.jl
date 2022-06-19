@@ -1,59 +1,60 @@
+const PBO = ToQUBO.PBO
+
 @testset "PBO" begin
 
 # -*- Definitions -*-
 S = Symbol
 T = Float64
-ℱ = ToQUBO.PBO.PBF{S, T}
 
-∅ = Vector{S}()
+∅ = nothing
 
-p = ℱ(∅ => 0.5, [:x] => 1.0, [:x, :y] => -2.0)
-q = ℱ(∅ => 0.5, [:y] => 1.0, [:x, :y] =>  2.0)
-r = ℱ(∅ => 1.0, [:z] => -1.0)
-s = ℱ(∅ => 0.0, [:x, :y, :z] => 3.0)
+p = PBO.PBF{S, T}(∅ => 0.5, [:x] => 1.0, [:x, :y] => -2.0)
+q = PBO.PBF{S, T}(∅ => 0.5, [:y] => 1.0, [:x, :y] =>  2.0)
+r = PBO.PBF{S, T}(∅ => 1.0, [:z] => -1.0)
+s = PBO.PBF{S, T}(∅ => 0.0, [:x, :y, :z] => 3.0)
 
 # -*- Arithmetic: (+) -*-
-@test (p + q) == (q + p) == ℱ(
+@test (p + q) == (q + p) == PBO.PBF{S, T}(
     ∅ => 1.0, [:x] => 1.0, [:y] => 1.0
 )
 
-@test (p + q + r) == (r + q + p) == ℱ(
+@test (p + q + r) == (r + q + p) == PBO.PBF{S, T}(
     ∅ => 2.0, [:x] => 1.0, [:y] => 1.0, [:z] => -1.0
 )
 
-@test (s + 3.0) == (3.0 + s) == ℱ(
+@test (s + 3.0) == (3.0 + s) == PBO.PBF{S, T}(
     ∅ => 3.0, [:x, :y, :z] => 3.0
 )
 
 # -*- Arithmetic: (-) -*-
-@test (p - q) == ℱ(
+@test (p - q) == PBO.PBF{S, T}(
     [:x] => 1.0, [:y] => -1.0, [:x, :y] => -4.0
 )
 
-@test (p - p) == (q - q) == (r - r) == (s - s) == ℱ()
+@test (p - p) == (q - q) == (r - r) == (s - s) == PBO.PBF{S, T}()
 
-@test (s - 3.0) == ℱ(
+@test (s - 3.0) == PBO.PBF{S, T}(
     ∅ => -3.0, [:x, :y, :z] => 3.0
 )
 
-@test (3.0 - s) == ℱ(
+@test (3.0 - s) == PBO.PBF{S, T}(
     ∅ => 3.0, [:x, :y, :z] => -3.0
 )
 
 # -*- Arithmetic: (*) -*-
-@test (p * q) == (q * p) == ℱ(
+@test (p * q) == (q * p) == PBO.PBF{S, T}(
     ∅ => 0.25, [:x] => 0.5, [:y] => 0.5, [:x, :y] => -3.0
 )
 
-@test (p * (-0.5)) == ((-0.5) * p) == ℱ(
+@test (p * (-0.5)) == ((-0.5) * p) == PBO.PBF{S, T}(
     ∅ => -0.25, [:x] => -0.5, [:x, :y] => 1.0
 )
 
-@test (0.25 * p + 0.75 * q) == ℱ(
+@test (0.25 * p + 0.75 * q) == PBO.PBF{S, T}(
     ∅ => 0.5, [:x] => 0.25, [:y] => 0.75, [:x, :y] => 1.0
 )
 
-@test ((p * q * r) - s) == ℱ(
+@test ((p * q * r) - s) == PBO.PBF{S, T}(
     ∅ => 0.25,
     [:x] => 0.5,
     [:y] => 0.5,
@@ -64,36 +65,36 @@ s = ℱ(∅ => 0.0, [:x, :y, :z] => 3.0)
 )
 
 # -*- Arithmetic: (^) -*-
-@test (p ^ 0) == (q ^ 0) == (r ^ 0) == (s ^ 0) == ℱ(1.0)
+@test (p ^ 0) == (q ^ 0) == (r ^ 0) == (s ^ 0) == PBO.PBF{S, T}(1.0)
 
 @test (p == (p ^ 1)) && (q == (q ^ 1)) && (r == (r ^ 1)) && (s == (s ^ 1))
 
-@test (p ^ 2) == ℱ(
+@test (p ^ 2) == PBO.PBF{S, T}(
     ∅ => 0.25, [:x] => 2.0, [:x, :y] => -2.0
 )
 
-@test (q ^ 2) == ℱ(
+@test (q ^ 2) == PBO.PBF{S, T}(
     ∅ => 0.25, [:y] => 2.0, [:x, :y] => 10.0
 )
 
-@test (r ^ 2) == ℱ(
+@test (r ^ 2) == PBO.PBF{S, T}(
     ∅ => 1.0, [:z] => -1.0
 )
 
-@test (s ^ 2) == ℱ(
+@test (s ^ 2) == PBO.PBF{S, T}(
     [:x, :y, :z] => 9.0
 )
 
-@test (r ^ 3) == ℱ(
+@test (r ^ 3) == PBO.PBF{S, T}(
     ∅ => 1.0, [:z] => -1.0
 )
 
 
-@test (s ^ 3) == ℱ(
+@test (s ^ 3) == PBO.PBF{S, T}(
     [:x, :y, :z] => 27.0
 )
 
-@test (r ^ 4) == ℱ(
+@test (r ^ 4) == PBO.PBF{S, T}(
     ∅ => 1.0, [:z] => -1.0
 )
 
@@ -139,7 +140,7 @@ function slack(n::Union{Int, Nothing} = nothing)
 end
 
 
-@test ToQUBO.PBO.quadratize(s, slack=slack) == ℱ(
+@test ToQUBO.PBO.quadratize(s, slack=slack) == PBO.PBF{S, T}(
     [:w] => 3.0,
     [:x, :w] => 3.0,
     [:y, :w] => -3.0,
@@ -147,15 +148,15 @@ end
     [:y, :z] => 3.0
 ) 
 
-@test ToQUBO.PBO.discretize(p; tol=0.1) == ℱ(
+@test ToQUBO.PBO.discretize(p; tol=0.1) == PBO.PBF{S, T}(
     ∅ => 1.0, [:x] => 2.0, [:x, :y] => -4.0,
 )
 
-@test ToQUBO.PBO.discretize(q; tol=0.1) == ℱ(
+@test ToQUBO.PBO.discretize(q; tol=0.1) == PBO.PBF{S, T}(
     ∅ => 1.0, [:y] => 2.0, [:x, :y] =>  4.0,
 )
 
-@test ToQUBO.PBO.discretize(r; tol=0.1) == ℱ(
+@test ToQUBO.PBO.discretize(r; tol=0.1) == PBO.PBF{S, T}(
     ∅ => 1.0, [:z] => -1.0,
 )
 

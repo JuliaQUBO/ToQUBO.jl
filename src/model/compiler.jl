@@ -346,7 +346,7 @@ end
 function toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}, S::Type{<:EQ{T}}) where {T}
     # -*- Scalar Affine Function: Ax = b 😄 -*-
     for cᵢ in MOI.get(model, MOI.ListOfConstraintIndices{F, S}())
-        gᵢ = ℱ{T}()
+        gᵢ = PBO.PBF{T}()
 
         Aᵢ = MOI.get(model, MOI.ConstraintFunction(), cᵢ)
         bᵢ = MOI.get(model, MOI.ConstraintSet(), cᵢ).value
@@ -373,7 +373,7 @@ function toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}, S::Ty
     # -*- Scalar Affine Function: Ax <= b 🤔 -*-
 
     for cᵢ in MOI.get(model, MOI.ListOfConstraintIndices{F, S}())
-        gᵢ = ℱ{T}()
+        gᵢ = PBO.PBF{T}()
 
         Aᵢ = MOI.get(model, MOI.ConstraintFunction(), cᵢ)
         bᵢ = MOI.get(model, MOI.ConstraintSet(), cᵢ).upper
@@ -393,7 +393,7 @@ function toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}, S::Ty
         αᵢ = sum(c for (ω, c) ∈ gᵢ if !isempty(ω) && c < zero(T); init=zero(T))
         βᵢ = -gᵢ[nothing]
 
-        sᵢ = ℱ{T}(collect(slackℤ!(model; α=αᵢ, β=βᵢ, name=:s)))
+        sᵢ = PBO.PBF{T}(collect(slackℤ!(model; α=αᵢ, β=βᵢ, name=:s)))
         hᵢ = PBO.quadratize((gᵢ + sᵢ) ^ 2;slack = slack_factory(model))
 
         push!(model.Hᵢ, hᵢ)
@@ -405,7 +405,7 @@ end
 function toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::Type{<:EQ{T}}) where {T}
     # -*- Scalar Quadratic Function: x Q x + a x = b 😢 -*-
     for cᵢ in MOI.get(model, MOI.ListOfConstraintIndices{F, S}())
-        gᵢ = ℱ{T}()
+        gᵢ = PBO.PBF{T}()
 
         fᵢ = MOI.get(model, MOI.ConstraintFunction(), cᵢ)
         bᵢ = MOI.get(model, MOI.ConstraintSet(), cᵢ).value
@@ -445,7 +445,7 @@ end
 function toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::Type{<:LT{T}}) where {T}
     # -*- Scalar Quadratic Function: x Q x + a x <= b 😢 -*-
     for cᵢ in MOI.get(model, MOI.ListOfConstraintIndices{F, S}())
-        gᵢ = ℱ{T}()
+        gᵢ = PBO.PBF{T}()
 
         fᵢ = MOI.get(model, MOI.ConstraintFunction(), cᵢ)
         bᵢ = MOI.get(model, MOI.ConstraintSet(), cᵢ).upper
@@ -479,7 +479,7 @@ function toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::Ty
         αᵢ = sum(c for (ω, c) ∈ gᵢ if !isempty(ω) && c < zero(T); init=zero(T))
         βᵢ = -gᵢ[nothing] # PBF constant term
 
-        sᵢ = ℱ{T}(collect(slackℤ!(model; α=αᵢ, β=βᵢ, name=:s)))
+        sᵢ = PBO.PBF{T}(collect(slackℤ!(model; α=αᵢ, β=βᵢ, name=:s)))
         hᵢ = PBO.quadratize((gᵢ + sᵢ) ^ 2; slack = slack_factory(model))
 
         push!(model.Hᵢ, hᵢ)
