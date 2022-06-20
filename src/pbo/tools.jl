@@ -1,28 +1,3 @@
-# -*- Variable Terms -*-
-×(x::S, y::S) where {S} = Set{S}([x, y])
-×(x::Set{S}, y::S) where {S} = union(x, y)
-×(x::S, y::Set{S}) where {S} = union(x, y)
-×(x::Set{S}, y::Set{S}) where {S} = union(x, y)
-
-# -*- Variable Comparison -*-
-@doc raw"""
-"""
-function varcmp end
-
-varcmp(x::S, y::S) where S = isless(x, y) # fallback
-
-function varmap(f::PBF{S, <:Any}) where S
-    Dict{S, Int}(x => i for (i, x) in enumerate(sort(collect(reduce(union, keys(f.Ω))); lt=varcmp)))
-end
-
-@doc raw"""
-"""
-function degree end
-
-function degree(f::PBF)
-    maximum(length.(keys(f.Ω)); init=0)
-end
-
 # -*- Relaxed Greatest Common Divisor -*-
 @doc raw"""
     relaxed_gcd(x::T, y::T; tol::T = T(1e-6)) where {T <: AbstractFloat}
@@ -55,6 +30,37 @@ function relaxed_gcd(a::AbstractArray{T}; tol::T = 1e-6) where {T}
     end
 end
 
+# -*- Variable Terms -*-
+varmul(x::S, y::S) where S = Set{S}([x, y])
+varmul(x::Set{S}, y::S) where S = push!(x, y)
+varmul(x::S, y::Set{S}) where S = push!(y, x)
+varmul(x::Set{S}, y::Set{S}) where S = union(x, y)
+
+const × = varmul # \times
+
+# -*- Variable Comparison -*-
+@doc raw"""
+"""
+function varcmp end 
+
+varcmp(x::S, y::S) where S = isless(x, y) # fallback
+
+const ≺ = varcmp # \prec
+
+@doc raw"""
+"""
+function varmap end # TODO: memoize
+
+function varmap(f::PBF{S, <:Any}) where S 
+    Dict{S, Int}(x => i for (i, x) in enumerate(sort(collect(reduce(union, keys(f))); lt=varcmp)))
+end
+
+@doc raw"""
+"""
+function degree end # TODO: memoize
+
+degree(f::PBF) = maximum(length.(keys(f)); init=0)
+
 # -*- Gap & Penalties -*-
 @doc raw"""
     gap(f::PBF{S, T}; bound::Symbol=:loose) where {S, T}
@@ -73,41 +79,29 @@ A simple approach, avaiable using the `bound=:loose` parameter, is to define
 M \triangleq \sum_{\omega \neq \varnothing} \left|{c_\omega}\right|
 ```
 """
-function gap(f::PBF{S, T}; bound::Symbol=:loose) where {S, T}
-    if bound === :loose
-        return sum(abs(c) for (ω, c) in f if !isempty(ω); init = zero(T))
-    elseif bound === :tight
-        error("Not Implemented: See [1] sec 5.1.1 Majorization")
-    else
-        throw(ArgumentError(": Unknown bound thightness $bound"))
-    end
+function gap end
+
+gap(f::PBF; bound::Symbol=:loose) = gap(f, Val(bound))
+
+function gap(f::PBF{<:Any, T}, ::Val{:loose}) where T
+    sum(abs(c) for (ω, c) in f if !isempty(ω); init = zero(T))
 end
+
+gap(::PBF, ::Val{:tight}) = error("Not Implemented: See [1] sec 5.1.1 Majorization")
 
 const δ = gap
 
 @doc raw"""
     sharpness(f::PBF{S, T}; bound::Symbol=:loose, tol::T = T(1e-6)) where {S, T}
 """
-function sharpness(f::PBF{S, T}; bound::Symbol=:loose, tol::T = 1e-6) where {S, T}
-    if bound === :none
-        one(T)
-    elseif bound === :loose
-        relaxed_gcd(collect(values(f.Ω)); tol = tol)::T
-    elseif bound === :tight
-        error("Not Implemented: thightness $bound")
-    else
-        throw(ArgumentError(": Unknown bound thightness $bound"))
-    end
-end
+function sharpness end
+
+sharpness(f::PBF{<:Any, T}; bound::Symbol=:loose, tol::T=1e-6) where T = sharpness(f, Val(bound), tol)
+sharpness(::PBF{<:Any, T}, ::Val{:none}, ::T) where T = one(T)
+sharpness(f::PBF{<:Any, T}, ::Val{:loose}, tol::T = 1e-6) where T = relaxed_gcd(collect(values(f.Ω)); tol = tol)::T
+sharpness(::PBF{<:Any, T}, ::Val{:tight}, ::T) where T = error("Not Implemented: 'tight' bound")
 
 const ϵ = sharpness
-
-# -*- Computations with PBF's -*-
-function terms(f::PBF{S, T}) where {S, T}
-    return keys(f.Ω)
-end
-
-const Ω = terms
 
 @doc raw"""
     derivative(f::PBF{S, T}, i::S) where {S, T}
@@ -121,13 +115,9 @@ The partial derivate of function ``f \in \mathscr{F}`` with respect to the ``i``
     c_{\omega \cup \left\{{i}\right\}} \prod_{k \in \omega} \mathbf{x}_k
 ```
 """
-function derivative(f::PBF{S, T}, s::S) where {S, T}
-    return PBF{S, T}(ω => f[ω × s] for ω ∈ Ω(f) if (s ∉ ω))
-end
+function derivative end
 
-function derivative(f::PBF{S, T}, i::Int) where {S, T}
-    return derivative(f, varinv(f)[i])
-end
+derivative(f::PBF{S, T}, s::S) where {S, T} = PBF{S, T}(ω => f[ω × s] for ω ∈ Ω(f) if (s ∉ ω))
 
 const Δ = derivative
 const ∂ = derivative
@@ -137,9 +127,7 @@ const ∂ = derivative
 
 Computes the gradient of ``f \in \mathscr{F}`` where the ``i``-th derivative is given by [`derivative`](@ref).
 """
-function gradient(f::PBF)
-    return [derivative(f, s) for (s, _) ∈ varmap(f)]
-end
+gradient(f::PBF) = [derivative(f, s) for (s, _) in varmap(f)]
 
 const ∇ = gradient
 
@@ -155,13 +143,8 @@ The residual of function ``f \in \mathscr{F}`` with respect to the ``i``-th vari
     c_{\omega} \prod_{k \in \omega} \mathbf{x}_k
 ```
 """
-function residual(f::PBF{S, T}, i::S) where {S, T}
-    return PBF{S, T}(ω => c for (ω, c) ∈ Ω(f) if (i ∉ ω))
-end
-
-function residual(f::PBF{S, T}, i::Int) where {S, T}
-    return Θ(f, varinv(f)[i])
-end
+residual(f::PBF{S, T}, i::S) where {S, T} = PBF{S, T}(ω => c for (ω, c) ∈ Ω(f) if (i ∉ ω))
+residual(f::PBF, i::Int) = residual(f, varinv(f)[i])
 
 const Θ = residual
 

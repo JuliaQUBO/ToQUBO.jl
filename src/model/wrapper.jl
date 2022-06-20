@@ -274,3 +274,6 @@ function MOI.get(model::VirtualQUBOModel, rs::MOI.RawSolver)
 end
 
 const Optimizer{T} = VirtualQUBOModel{T}
+
+PBO.showvar(x::VI) = PBO.showvar(x.value)
+PBO.varcmp(x::VI, y::VI) = PBO.varcmp(x.value, y.value)

@@ -4,8 +4,8 @@ module PBO
 using LinearAlgebra
 
 # -*- Exports -*-
-export PBF
-export ×, ∂, Δ, Θ, δ, ϵ
+# export PBF
+# export ×, ∂, Δ, Θ, δ, ϵ, Ω
 
 include("PBF.jl")
 include("tools.jl")

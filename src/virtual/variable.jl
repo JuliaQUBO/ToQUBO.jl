@@ -7,11 +7,20 @@ abstract type Encoding end
 # References:
  * [1] Chancellor, N. (2019). Domain wall encoding of discrete variables for quantum annealing and QAOA. _Quantum Science and Technology_, _4_(4), 045004. [{doi}](https://doi.org/10.1088/2058-9565/ab33c2)
 """
-struct VirtualVariable{E<:Encoding, T<:Any}
+struct VirtualVariable{E<:Encoding, T}
     x::Union{VI, Nothing}
     y::Vector{VI}
     ξ::PBO.PBF{VI, T}
     h::Union{PBO.PBF{VI, T}, Nothing}
+
+    function VirtualVariable{E, T}(
+            x::Union{VI, Nothing},
+            y::Vector{VI},
+            ξ::PBO.PBF{VI, T},
+            h::Union{PBO.PBF{VI, T}, Nothing},
+        ) where {E <: Encoding, T}
+        new{E, T}(x, y, ξ, h)
+    end
 end
 
 # -*- Variable Information -*-
@@ -21,10 +30,9 @@ isslack(v::VirtualVariable) = isnothing(source(v))
 expansion(v::VirtualVariable) = v.ξ
 penaltyfn(v::VirtualVariable) = v.h
 
-abstract type LinearEncoding end
-
+abstract type LinearEncoding <: Encoding end
+struct Mirror <: LinearEncoding end
 struct Linear <: LinearEncoding end
-
 struct Unary <: LinearEncoding end
 
 @doc raw"""
@@ -41,51 +49,56 @@ where ``n`` is the number of bits and ``y_i \in \mathbb{B}``.
 struct Binary <: LinearEncoding end
 
 function VirtualVariable{E, T}(
-        source::Union{VI, Nothing},
-        target::Vector{VI},
+        x::Union{VI, Nothing},
+        y::Vector{VI},
         γ::Vector{T},
         α::T = zero(T),
     ) where {E <: LinearEncoding, T}
-    @assert length(target) == length(γ)
+    @assert (n = length(y)) == length(γ)
     
-    new{E, T}(
-        source,
-        target,
-        (α + PBO.PBF{VI, T}(yᵢ => γᵢ for (yᵢ, γᵢ) in zip(target, γ))),
+    VirtualVariable{E, T}(
+        x,
+        y,
+        (α + PBO.PBF{VI, T}(y[i] => γᵢ for (yᵢ, γᵢ) in zip(target, γ))),
         nothing,
     )
 end
 
-struct BooleanMirror <: Encoding end
-
-function VirtualVariable{BooleanMirror, T}(source::Union{VI, Nothing}, target::Vector{VI}) where T
-    new{BooleanMirror, T}(
-        source,
-        target,
-        PBO.PBF{VI, T}(target),
-        nothing,
-    )
-end
-
-struct OneHot <: Encoding end
+struct OneHot <: LinearEncoding end
 
 function VirtualVariable{OneHot, T}(
-        source::Union{VI, Nothing},
-        target::Vector{VI},
+        x::Union{VI, Nothing},
+        y::Vector{VI},
         γ::Vector{T},
         α::T = zero(T),
-    ) where {E <: LinearEncoding, T}
-    @assert length(target) == length(γ)
+    ) where T
+    @assert (n = length(y)) == length(γ)
 
-    new{E, T}(
-        source,
-        target,
-        (α + PBO.PBF{VI, T}(yᵢ => γᵢ for (yᵢ, γᵢ) in zip(target, γ))),
-        (1 - PBO.PBF{VI, T}(target)) ^ 2,
+    VirtualVariable{OneHot, T}(
+        x,
+        y,
+        (α + PBO.PBF{VI, T}(y[i] => γ[i] for i = 1:n)),
+        (one(T) - PBO.PBF{VI, T}(y)) ^ 2,
     )
 end
 
-struct DomainWall <: Encoding end
+abstract type SequentialEncoding end
+
+struct DomainWall <: SequentialEncoding end
+
+function VirtualVariable{DomainWall, T}(
+        x::Union{VI, Nothing},
+        y::Vector{VI},
+        γ::Vector{T},
+        α::T = zero(T),
+    ) where T
+    @assert (n = length(y)) + 1 == length(γ)
+
+    ξ = PBO.PBF{VI, T}(y[i] => (γ[i] - γ[i+1]) for i = 1:n)
+    h = 2.0 * (PBO.PBF{VI, T}(y[2:n]) - PBO.PBF{VI, T}([Set{VI}([y[i], y[i-1]]) for i = 2:n]))
+
+    VirtualVariable{DomainWall, T}(x, y, ξ, h)
+end
 
 # :: Alias ::
 const VV{E, T} = VirtualVariable{E, T}

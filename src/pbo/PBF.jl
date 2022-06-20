@@ -25,7 +25,16 @@ struct PseudoBooleanFunction{S <: Any, T <: Number}
         Ω = Dict{Set{S}, T}()
 
         for (η, a) in kv
-            ω = isnothing(η) ? Set{S}() : Set{S}(η)
+            ω = if isnothing(η)
+                Set{S}()
+            elseif isiterable(typeof(η))
+                Set{S}(η)
+            elseif η isa S
+                Set{S}([η])
+            else
+                error("Invalid data $(kv) for PBF constructor")
+            end
+
             c = get(Ω, ω, zero(T)) + convert(T, a)
             if iszero(c)
                 delete!(Ω, ω)
@@ -38,7 +47,7 @@ struct PseudoBooleanFunction{S <: Any, T <: Number}
     end
 
     function PseudoBooleanFunction{S, T}(Ω::Dict{Union{Set{S}, Nothing}, T}) where {S, T}
-        new{S, T}(Dict{Set{S}, T}(isnothing(ω) ? Set{S}() : ω => c for (ω, c) in Ω if c != zero(T)))
+        new{S, T}(Dict{Set{S}, T}(isnothing(ω) ? Set{S}() : ω => c for (ω, c) in Ω if !iszero(c)))
     end
 
     # -*- Empty -*-
@@ -52,7 +61,7 @@ struct PseudoBooleanFunction{S <: Any, T <: Number}
 
     # -*- Constant -*-
     function PseudoBooleanFunction{S, T}(c::T) where {S, T}
-        if c === zero(T)
+        if iszero(c)
             new{S, T}(Dict{Set{S}, T}())
         else
             new{S, T}(Dict{Set{S}, T}(Set{S}() => c))
@@ -78,7 +87,7 @@ struct PseudoBooleanFunction{S <: Any, T <: Number}
             ω = isnothing(η) ? Set{S}() : Set{S}(η)
             c = get(Ω, ω, zero(T)) + a
 
-            if c == zero(T)
+            if iszero(c)
                 delete!(Ω, ω)
             else
                 Ω[ω] = c
@@ -101,6 +110,7 @@ const PBF{S, T} = PseudoBooleanFunction{S, T}
 Base.copy(f::PBF{S, T}) where {S, T} = PBF{S, T}(copy(f.Ω))
 
 # -*- Iterator & Length -*-
+Base.keys(f::PBF) = keys(f.Ω)
 Base.length(f::PBF) = length(f.Ω)
 Base.empty!(f::PBF) = empty!(f.Ω)
 Base.isempty(f::PBF) = isempty(f.Ω)
@@ -134,108 +144,121 @@ Base.size(f::PBF{S, T}) where {S, T} = length(f) - haskey(f.Ω, Set{S}())
 Base.:(==)(f::PBF{S, T}, g::PBF{S, T}) where {S, T} = f.Ω == g.Ω
 Base.:(!=)(f::PBF{S, T}, g::PBF{S, T}) where {S, T} = f.Ω != g.Ω
 
+Base.iszero(f::PBF) = isempty(f)
+Base.zero(::Type{<:PBF{S, T}}) where {S, T} = PBF{S, T}()
+Base.one(::Type{<:PBF{S, T}}) where {S, T} = PBF{S, T}(one(T))
+Base.round(f::PBF{S, T}; digits::Integer = 0) where {S, T} = PBF{S, T}(ω => round(c; digits=digits) for (ω, c) ∈ f)
 
 # -*- Arithmetic: (+) -*-
 function Base.:(+)(f::PBF{S, T}, g::PBF{S, T}) where {S, T}
     h = copy(f)
-    for (ω, c) in g.Ω
+    for (ω, c) in g
         h[ω] += c
     end
-    return h
+    h
 end
 
-function Base.:(+)(f::PBF{S, T}, c::T) where {S, T}
-    g = copy(f)
-    g[nothing] += c
-    return g
+function Base.:(+)(f::PBF{<:Any, T}, c::T) where T
+    if iszero(c)
+        copy(f)
+    else
+        g = copy(f)
+        g[nothing] += c
+        g
+    end
 end
 
-function Base.:(+)(c::T, f::PBF{S, T}) where {S, T}
-    return +(f, c)
+function Base.:(+)(c::T, f::PBF{<:Any, T}) where T
+    +(f, c)
 end
 
 # -*- Arithmetic: (-) -*-
 function Base.:(-)(f::PBF{S, T}) where {S, T}
-    return PBF{S, T}(Dict{Set{S}, T}(ω => -c for (ω, c) in f.Ω))
+    PBF{S, T}(Dict{Set{S}, T}(ω => -c for (ω, c) in f.Ω))
 end
 
-function Base.:(-)(f::PBF{S, T}, g::PBF{S, T})::PBF{S, T} where {S, T}
+function Base.:(-)(f::PBF{S, T}, g::PBF{S, T}) where {S, T}
     h = copy(f)
-    for (ω, c) in g.Ω
+    for (ω, c) in g
         h[ω] -= c
     end
-    return h
+    h
 end
 
-function Base.:(-)(f::PBF{S, T}, c::T)::PBF{S, T} where {S, T}
-    g = copy(f)
-    g[nothing] -= c
-    return g
+function Base.:(-)(f::PBF{<:Any, T}, c::T) where T
+    if iszero(c)
+        copy(f)
+    else
+        g = copy(f)
+        g[nothing] -= c
+        g
+    end
 end
 
-function Base.:(-)(c::T, f::PBF{S, T})::PBF{S, T} where {S, T}
-    g = -(f)
-    g[nothing] += c
-    return g
+function Base.:(-)(c::T, f::PBF{<:Any, T}) where T
+    if iszero(c)
+        -(f)
+    else
+        g = -(f)
+        g[nothing] += c
+        g
+    end
 end
 
 # -*- Arithmetic: (*) -*-
 function Base.:(*)(f::PBF{S, T}, g::PBF{S, T}) where {S, T}
     if isempty(f) || isempty(g)
         PBF{S, T}()
+    else
+        h = PBF{S, T}()
+        for (ωᵢ, cᵢ) in f, (ωⱼ, cⱼ) in g
+            h[union(ωᵢ, ωⱼ)] += cᵢ * cⱼ
+        end
+        h
     end
-
-    h = PBF{S, T}()
-
-    for (ωᵢ, cᵢ) in f.Ω, (ωⱼ, cⱼ) in g.Ω
-        h[union(ωᵢ, ωⱼ)] += cᵢ * cⱼ
-    end
-
-    h
 end
 
-function Base.:(*)(f::PBF{S, T}, c::T) where {S, T}
-    if iszero(c)
+function Base.:(*)(f::PBF{S, T}, a::T) where {S, T}
+    if iszero(a)
         PBF{S, T}()
     else
-        PBF{S, T}(ω => a * c for (ω, a) ∈ f.Ω)
+        PBF{S, T}(ω => c * a for (ω, c) ∈ f.Ω)
     end
 end
 
-function Base.:(*)(c::T, f::PBF{<:Any, T}) where T
-    *(f, c)
+function Base.:(*)(a::T, f::PBF{<:Any, T}) where T
+    *(f, a)
 end
 
 # -*- Arithmetic: (/) -*-
-function Base.:(/)(f::PBF{S, T}, c::T) where {S, T}
-    if iszero(c)
+function Base.:(/)(f::PBF{S, T}, a::T) where {S, T}
+    if iszero(a)
         error(DivideError, ": division by zero") 
     else
-        PBF{S, T}(Dict(ω => a / c for (ω, a) ∈ f.Ω))
+        PBF{S, T}(Dict(ω => c / a for (ω, c) in f))
     end
 end
 
 # -*- Arithmetic: (^) -*-
-function Base.:(^)(f::PBF{S, T}, n::Int) where {S, T}
+function Base.:(^)(f::PBF{S, T}, n::Integer) where {S, T}
     if n < 0
         error(DivideError, ": Can't raise Pseudo-boolean function to a negative power")
     elseif n == 0
-        return one(PBF{S, T})
+        one(PBF{S, T})
     elseif n == 1
-        return copy(f)
+        copy(f)
     else 
         g = PBF{S, T}(one(T))
         for _ = 1:n
             g *= f
         end
-        return g
+        g
     end
 end
 
 # -*- Arithmetic: Evaluation -*-
 function (f::PBF{S, T})(x::Dict{S, <:Integer}) where {S, T}
     g = PBF{S, T}()
-    
     for (ω, c) in f
         η = Set{S}()
         for j in ω
@@ -250,33 +273,18 @@ function (f::PBF{S, T})(x::Dict{S, <:Integer}) where {S, T}
         end
         g[η] += c
     end
-
-    return g
+    g
 end
 
-function (f::PBF{S, T})(x::Pair{S, <:Integer}...) where {S, T}
-    return f(Dict{S, <:Integer}(x...))
-end
+(f::PBF{S, <:Any})(x::Pair{S, <:Integer}...) where {S} = f(Dict{S, <:Integer}(x...))
 
 # -*- Type conversion -*-
-function Base.convert(U::Type{<:T}, f::PBF{S, T}) where {S, T}
+function Base.convert(U::Type{<:T}, f::PBF{<:Any, T}) where {T}
     if isempty(f)
-        return zero(U)
+        zero(U)
     elseif degree(f) == 0
-        return convert(U, f[nothing])
+        convert(U, f[nothing])
     else
         error("Can't convert non-constant Pseudo-boolean Function to scalar type $U")
     end
-end
-
-function Base.zero(::Type{<:PBF{S, T}}) where {S, T}
-    PBF{S, T}()
-end
-
-function Base.one(::Type{<:PBF{S, T}}) where {S, T}
-    PBF{S, T}(one(T))
-end
-
-function Base.round(f::PBF{S, T}; digits::Integer = 0) where {S, T}
-    PBF{S, T}(ω => round(c; digits=digits) for (ω, c) ∈ f)
 end

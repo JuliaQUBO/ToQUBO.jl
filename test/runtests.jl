@@ -5,10 +5,11 @@ import MathOptInterface
 const MOI = MathOptInterface
 const MOIU = MOI.Utilities
 const VI = MOI.VariableIndex
+const CI = MOI.ConstraintIndex
 
 # -*- Imports -*-
 # using JuMP
-using ToQUBO
+using ToQUBO: ToQUBO, PBO, VirtualMapping
 # using Anneal
 using LinearAlgebra
 using TOML
@@ -18,7 +19,7 @@ include("version.jl")
 
 # -*- Tests: Library -*-
 include(joinpath("lib", "pbo.jl"))
-# include(joinpath("lib", "virtual.jl"))
+include(joinpath("lib", "virtual.jl"))
 
 # -*- Tests: Interface -*-
 # include(joinpath("interface", "moi.jl"))

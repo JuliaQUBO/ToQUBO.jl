@@ -1,8 +1,6 @@
-const PBO = ToQUBO.PBO
-
 @testset "PBO" begin
 
-# -*- Definitions -*-
+    # -*- Definitions -*-
 S = Symbol
 T = Float64
 
