@@ -51,8 +51,8 @@ const ≺ = varcmp # \prec
 """
 function varmap end # TODO: memoize
 
-function varmap(f::PBF{S, <:Any}) where S 
-    Dict{S, Int}(x => i for (i, x) in enumerate(sort(collect(reduce(union, keys(f))); lt=varcmp)))
+function varmap(f::PBF{S, <:Any}) where S
+    Dict{S, Int}(x => i for (i, x) in enumerate(sort(collect(reduce(union, keys(f); init=Set{S}())); lt=varcmp)))
 end
 
 @doc raw"""
@@ -62,6 +62,12 @@ function degree end # TODO: memoize
 degree(f::PBF) = maximum(length.(keys(f)); init=0)
 
 # -*- Gap & Penalties -*-
+sup(f::PBF; bound::Symbol=:loose) = sup(f, Val(bound))
+sup(f::PBF{<:Any, T}, ::Val{:loose}) where T = sum(c > zero(T) || isempty(ω) ? c : zero(T) for (ω, c) in f)
+
+inf(f::PBF; bound::Symbol=:loose) = inf(f, Val(bound))
+inf(f::PBF{<:Any, T}, ::Val{:loose}) where T = sum(c < zero(T) || isempty(ω) ? c : zero(T) for (ω, c) in f)
+
 @doc raw"""
     gap(f::PBF{S, T}; bound::Symbol=:loose) where {S, T}
 
@@ -82,11 +88,7 @@ M \triangleq \sum_{\omega \neq \varnothing} \left|{c_\omega}\right|
 function gap end
 
 gap(f::PBF; bound::Symbol=:loose) = gap(f, Val(bound))
-
-function gap(f::PBF{<:Any, T}, ::Val{:loose}) where T
-    sum(abs(c) for (ω, c) in f if !isempty(ω); init = zero(T))
-end
-
+gap(f::PBF{<:Any, T}, ::Val{:loose}) where T = sum(abs(c) for (ω, c) in f if !isempty(ω); init = zero(T))
 gap(::PBF, ::Val{:tight}) = error("Not Implemented: See [1] sec 5.1.1 Majorization")
 
 const δ = gap
@@ -168,5 +170,5 @@ This is done by rationalizing every coefficient ``c_\omega`` according to some t
 
 """
 function discretize(f::PBF{<:Any, T}; tol::T = 1e-6) where {T}
-    round(f / ϵ(f; bound = :loose, tol = tol)::T; digits=0)
+    round(f / sharpness(f; bound = :loose, tol = tol); digits=0)
 end

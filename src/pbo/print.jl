@@ -1,6 +1,8 @@
+@doc raw"""
+"""
 function showvar end
 
-showvar(x::Any) = print(x)
+showvar(x::Any) = x
 showvar(x::Integer, v::Symbol = :x) = join([v; Char(0x2080) .+ reverse(digits(x))])
 
 function showterm(ω::Set{S}, c::T, isfirst::Bool) where {S, T}

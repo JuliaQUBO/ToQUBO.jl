@@ -18,7 +18,7 @@ optimize!(model)
 
 vqm = unsafe_backend(model)
 
-_, Q, c = ToQUBO.Analysis.qubo_normal_form(vqm)
+_, Q, c = ToQUBO.PBO.qubo_normal_form(vqm)
 
 x̂ = value.(x)
 ŷ = objective_value(model)

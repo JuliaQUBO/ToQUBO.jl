@@ -9,7 +9,7 @@ Maps newly created virtual variable `v` within the virtual model structure. It f
 """
 function encode! end
 
-function encode!(model::AbstractVirtualModel{T}, v::VirtualVariable{<:Any, T}) where T
+function encode!(model::AbstractVirtualModel{T}, v::VV{<:Any, T}) where T
     if !isslack(v)
         x = source(v)
         MOI.set(model, Source(), x, v)
@@ -31,11 +31,15 @@ function encode!(E::Type{<:Encoding}, model::AbstractVirtualModel{T}, x::Union{V
     y = MOI.add_variables(MOI.get(model, TargetModel()), n)
     v = VirtualVariable{E, T}(x, y, γ, α)
 
-    return (encode!(model, v), y)
+    encode!(model, v)
 end
 
 function encode!(E::Type{<:Linear}, model::AbstractVirtualModel{T}, x::Union{VI, Nothing}, Γ::Function, n::Integer) where T
     encode!(E, model, x, T[Γ(i) for i = 1:n])
+end
+
+function encode!(E::Type{<:Mirror}, model::AbstractVirtualModel{T}, x::Union{VI, Nothing}) where T
+    encode!(E, model, x, ones(T, 1))
 end
 
 function encode!(E::Type{<:Unary}, model::AbstractVirtualModel{T}, x::Union{VI, Nothing}, a::T, b::T) where T

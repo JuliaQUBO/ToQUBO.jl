@@ -1,9 +1,21 @@
 import Base: isiterable
 
 @doc raw"""
-    PseudoBooleanFunction{S, T}(c::T)
-    PseudoBooleanFunction{S, T}(ps::Pair{Vector{S}, T}...)
+"""
+function parseterm end
 
+parseterm(::Type{S}, ::Type{T}, x::Any) where {S, T} = error("Invalid term '$(x)'") # fallback
+parseterm(::Type{S}, ::Type{T}, ::Nothing) where {S, T} = (Set{S}(), one(T))
+parseterm(::Type{S}, ::Type{T}, x::T) where {S, T} = (Set{S}(), x)
+parseterm(::Type{S}, ::Type{T}, x::S) where {S, T} = (Set{S}([x]), one(T))
+parseterm(::Type{S}, ::Type{T}, x::Union{Vector{S}, Set{S}}) where {S, T} = (Set{S}(x), one(T))
+parseterm(::Type{S}, ::Type{T}, x::Pair{Nothing, T}) where {S, T} = (Set{S}(), last(x))
+parseterm(::Type{S}, ::Type{T}, x::Tuple{Nothing, T}) where {S, T} = (Set{S}(), last(x))
+parseterm(::Type{S}, ::Type{T}, x::Union{Pair{S, T}, Tuple{S, T}}) where {S, T} = (Set{S}([first(x)]), last(x))
+parseterm(::Type{S}, ::Type{T}, x::Pair{<:Union{Vector{S}, Set{S}}, T}) where {S, T} = (Set{S}(first(x)), last(x))
+parseterm(::Type{S}, ::Type{T}, x::Tuple{<:Union{Vector{S}, Set{S}}, T}) where {S, T} = (Set{S}(first(x)), last(x))
+
+@doc raw"""
 A Pseudo-Boolean Function ``f \in \mathscr{F}`` over some field ``\mathbb{T}`` takes the form
 
 ```math
@@ -16,90 +28,30 @@ Variables ``\mathbf{x}_i`` are indeed boolean, thus ``f : \mathbb{B}^{n} \to \ma
 ## References
  * [1] Endre Boros, Peter L. Hammer, Pseudo-Boolean optimization, Discrete Applied Mathematics, 2002 [{doi}](https://doi.org/10.1016/S0166-218X(01)00341-9)
 """
-struct PseudoBooleanFunction{S <: Any, T <: Number}
+struct PseudoBooleanFunction{S, T}
     Ω::Dict{Set{S}, T}
 
-    function PseudoBooleanFunction{S, T}(kv::Any) where {S, T}
-        @assert isiterable(typeof(kv))
-
-        Ω = Dict{Set{S}, T}()
-
-        for (η, a) in kv
-            ω = if isnothing(η)
-                Set{S}()
-            elseif isiterable(typeof(η))
-                Set{S}(η)
-            elseif η isa S
-                Set{S}([η])
-            else
-                error("Invalid data $(kv) for PBF constructor")
-            end
-
-            c = get(Ω, ω, zero(T)) + convert(T, a)
-            if iszero(c)
-                delete!(Ω, ω)
-            else
-                Ω[ω] = c
-            end
-        end
-        
-        new{S, T}(Ω)
-    end
-
-    function PseudoBooleanFunction{S, T}(Ω::Dict{Union{Set{S}, Nothing}, T}) where {S, T}
+    function PseudoBooleanFunction{S, T}(Ω::Dict{<:Union{Set{S}, Nothing}, T}) where {S, T}
         new{S, T}(Dict{Set{S}, T}(isnothing(ω) ? Set{S}() : ω => c for (ω, c) in Ω if !iszero(c)))
     end
 
-    # -*- Empty -*-
-    function PseudoBooleanFunction{S, T}() where {S, T}
-        new{S, T}(Dict{Set{S}, T}())
-    end
-
-    function PseudoBooleanFunction{S, T}(::Nothing) where {S, T}
-        new{S, T}(Dict{Set{S}, T}())
-    end
-
-    # -*- Constant -*-
-    function PseudoBooleanFunction{S, T}(c::T) where {S, T}
-        if iszero(c)
-            new{S, T}(Dict{Set{S}, T}())
-        else
-            new{S, T}(Dict{Set{S}, T}(Set{S}() => c))
-        end
-    end
-
-    # -*- Terms -*-
-    function PseudoBooleanFunction{S, T}(ω::Set{S}) where {S, T}
-        new{S, T}(Dict{Set{S}, T}(ω => one(T)))
-    end
-
-    function PseudoBooleanFunction{S, T}(ω::Vararg{S}) where {S, T}
-        new{S, T}(Dict{Set{S}, T}(Set{S}(ω) => one(T)))
-    end
-
-    # -*- Pairs (Vectors) -*-
-    function PseudoBooleanFunction{S, T}(
-            ps::Vararg{Union{Pair{Vector{S}, T}, Pair{Set{S}, T}, Pair{Nothing, T}}}
-        ) where {S, T}
+    function PseudoBooleanFunction{S, T}(v::Vector) where {S, T}
         Ω = Dict{Set{S}, T}()
 
-        for (η, a) in ps
-            ω = isnothing(η) ? Set{S}() : Set{S}(η)
-            c = get(Ω, ω, zero(T)) + a
-
-            if iszero(c)
-                delete!(Ω, ω)
-            else
-                Ω[ω] = c
-            end
+        for x in v  
+            ω, a = parseterm(S, T, x)
+            Ω[ω] = get(Ω, ω, zero(T)) + a
         end
-
-        new{S, T}(Ω)
+        
+        PseudoBooleanFunction{S, T}(Ω)
     end
 
-    # -*- Default -*-
-    function PseudoBooleanFunction(args...)
-        PseudoBooleanFunction{Int, Float64}(args...)
+    function PseudoBooleanFunction{S, T}(x::Base.Generator) where {S, T}
+        PseudoBooleanFunction{S, T}(collect(x))
+    end
+
+    function PseudoBooleanFunction{S, T}(x::Vararg{Any}) where {S, T}
+        PseudoBooleanFunction{S, T}(collect(x))
     end
 end
 
@@ -116,6 +68,9 @@ Base.empty!(f::PBF) = empty!(f.Ω)
 Base.isempty(f::PBF) = isempty(f.Ω)
 Base.iterate(f::PBF) = iterate(f.Ω)
 Base.iterate(f::PBF, i::Int) = iterate(f.Ω, i)
+Base.haskey(f::PBF{S, <:Any}, k::Set{S}) where S = haskey(f.Ω, k)
+Base.haskey(f::PBF{S, <:Any}, k::S) where S = haskey(f, Set{S}([k]))
+Base.haskey(f::PBF{S, <:Any}, ::Nothing) where S = haskey(f, Set{S}())
 
 # -*- Indexing: Get -*-
 Base.getindex(f::PBF{S, T}, ω::Set{S}) where {S, T} = get(f.Ω, ω, zero(T))
@@ -143,6 +98,7 @@ Base.size(f::PBF{S, T}) where {S, T} = length(f) - haskey(f.Ω, Set{S}())
 # -*- Comparison: (==, !=, ===, !==)
 Base.:(==)(f::PBF{S, T}, g::PBF{S, T}) where {S, T} = f.Ω == g.Ω
 Base.:(!=)(f::PBF{S, T}, g::PBF{S, T}) where {S, T} = f.Ω != g.Ω
+Base.:(≈)(f::PBF{S, T}, g::PBF{S, T}) where {S, T} = all(haskey(g, ω) && isapprox(g[ω], c) for (ω, c) in f)
 
 Base.iszero(f::PBF) = isempty(f)
 Base.zero(::Type{<:PBF{S, T}}) where {S, T} = PBF{S, T}()
@@ -233,7 +189,7 @@ end
 # -*- Arithmetic: (/) -*-
 function Base.:(/)(f::PBF{S, T}, a::T) where {S, T}
     if iszero(a)
-        error(DivideError, ": division by zero") 
+        throw(DivideError()) 
     else
         PBF{S, T}(Dict(ω => c / a for (ω, c) in f))
     end

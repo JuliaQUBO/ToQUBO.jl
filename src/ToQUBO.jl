@@ -21,27 +21,13 @@ const CI = MOI.ConstraintIndex
 
 # -*- :: Library Imports :: -*-
 
-# -*- QUBO Errors -*-
+# -*- Error -*-
 include("error.jl")
 
 # -*- Library -*-
 include(joinpath("pbo", "PBO.jl"))
 include(joinpath("virtual", "VirtualMapping.jl"))
-
-# # -*- QUBO Model -*-
-include(joinpath("model", "models.jl"))
-include(joinpath("model", "virtual.jl"))
-include(joinpath("model", "attributes.jl"))
-# include(joinpath("model", "compiler.jl"))
-include(joinpath("model", "wrapper.jl"))
-
-# # -*- -> QUBO <- -*-
-# include("qubo.jl")
-
-# # -*- MOI Wrapper -*-
-# include("MOI_wrapper.jl")
-
-
-# include("analysis.jl")
+include(joinpath("model", "model.jl"))
+include(joinpath("analysis", "Analysis.jl"))
 
 end # module

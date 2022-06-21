@@ -45,7 +45,7 @@ function isqubo(model::MOI.ModelLike)
         return false
     end
 
-    return true
+    true
 end
 
 isqubo(::QUBOModel) = true
@@ -58,77 +58,49 @@ isqubo(::VirtualQUBOModel) = true
 
 Low-level interface to create a `::VirtualQUBOModel{T}` from `::MOI.ModelLike` instance. If provided, an `::MOI.AbstractOptimizer` is attached to the model.
 """
-function toqubo(T::Type, source::MOI.ModelLike, optimizer::Union{Nothing, Type{<:MOI.AbstractOptimizer}} = nothing)
-    model = VirtualQUBOModel{T}(optimizer)
+function toqubo(T::Type, source::MOI.ModelLike, Optimizer::Union{Type{<:MOI.AbstractOptimizer}, Nothing} = nothing)
+    model = VirtualQUBOModel{T}(Optimizer)
 
     MOI.copy_to(model, source)
 
-    return toqubo!(model)
+    toqubo!(model)
 end
 
-function toqubo(source::MOI.ModelLike, optimizer::Union{Nothing, Type{<:MOI.AbstractOptimizer}} = nothing)
-    return toqubo(Float64, source, optimizer)
+function toqubo(source::MOI.ModelLike, Optimizer::Union{Type{<:MOI.AbstractOptimizer}, Nothing} = nothing)
+    toqubo(Float64, source, Optimizer)
 end
-
 
 @doc raw"""
     toqubo!(model::VirtualQUBOModel{T}) where {T}
 """
+function toqubo! end
+
 function toqubo!(model::VirtualQUBOModel{T}) where {T}
     # :: Problem Variables ::
     toqubo_variables!(model)
 
     # :: Objective Analysis ::
-    F = MOI.get(model, MOI.ObjectiveFunctionType())
-
-    toqubo_objective!(model, F)
+    let F = MOI.get(model, MOI.ObjectiveFunctionType())
+        toqubo_objective!(model, F)
+    end
 
     # :: Constraint Analysis ::
-    for (F, S) ∈ MOI.get(model, MOI.ListOfConstraintTypesPresent())
-        toqubo_constraint!(model, F, S)
+    for (F, S) in MOI.get(model, MOI.ListOfConstraintTypesPresent())
+        toqubo_constraints!(model, F, S)
     end
 
     # :: Objective Sense ::
     toqubo_sense!(model)
 
-    # -*- :: Objective Function Assembly :: -*-
-    ε = convert(T, 1.0) # TODO: This should be made a parameter too?
+    # :: Add Encoding Constraints ::
+    toqubo_encoding_constraints!(model)
 
-    ρᵢ = δ(model.H₀) ./ ϵ.(model.Hᵢ; tol=model.settings.Tol) .+ ε
+    # :: Compute penalties ::
+    toqubo_penalties!(model)
 
-    if MOI.get(model, MOI.ObjectiveSense()) === MOI.MAX_SENSE
-        ρᵢ *= -1.0
-    end
+    toqubo_moi!(model)
 
-    model.H = model.H₀ + sum(ρᵢ .* model.Hᵢ; init=zero(T))
-
-    Q = SQT{T}[]
-    a = SAT{T}[]
-    b = zero(T)
-
-    for (ω, c) in model.H
-        if length(ω) == 0
-            b += c
-        elseif length(ω) == 1
-            push!(a, SAT{T}(c, ω...))
-        elseif length(ω) == 2
-            push!(Q, SQT{T}(c, ω...))
-        else
-            # NOTE: This should never happen in production.
-            # During implementation of new quadratization methods and constraint reformulation
-            # higher degree terms might be introduced by mistake. That's why it's important to 
-            # have this condition here.
-            throw(QUBOError("Quadratization failed"))
-        end
-    end
-
-    MOI.set(
-        model.target_model,
-        MOI.ObjectiveFunction{SQF{T}}(),
-        SQF{T}(Q, a, b)
-    )
-
-    return model
+    model
 end
 
 @doc raw"""
@@ -136,6 +108,8 @@ end
 
 Copies `MOI.ObjectiveSense` from `model.source_model` to `model.target_model`.
 """
+function toqubo_sense! end
+
 function toqubo_sense!(model::VirtualQUBOModel)
     MOI.set(
         model.target_model, MOI.ObjectiveSense(),
@@ -151,6 +125,8 @@ end
 @doc raw"""
     toqubo_variables!(model::VirtualQUBOModel{T}) where {T}
 """
+function toqubo_variables! end
+
 function toqubo_variables!(model::VirtualQUBOModel{T}) where {T}
     # ::: Variable Analysis :::
 
@@ -162,76 +138,75 @@ function toqubo_variables!(model::VirtualQUBOModel{T}) where {T}
     ℤ = Dict{VI, Tuple{Union{T, Nothing}, Union{T, Nothing}}}()
     ℝ = Dict{VI, Tuple{Union{T, Nothing}, Union{T, Nothing}}}()
 
-    for cᵢ in MOI.get(model, MOI.ListOfConstraintIndices{VI, MOI.ZeroOne}())
+    for ci in MOI.get(model, MOI.ListOfConstraintIndices{VI, MOI.ZeroOne}())
         # -*- Binary Variable 😄 -*-
-        xᵢ = MOI.get(model, MOI.ConstraintFunction(), cᵢ)
+        x = MOI.get(model, MOI.ConstraintFunction(), ci)
 
         # Add to set
-        push!(𝔹, xᵢ)
+        push!(𝔹, x)
     end
 
-    for cᵢ in MOI.get(model, MOI.ListOfConstraintIndices{VI, MOI.Integer}())
+    for ci in MOI.get(model, MOI.ListOfConstraintIndices{VI, MOI.Integer}())
         # -*- Integer Variable 🤔 -*-
-        xᵢ = MOI.get(model, MOI.ConstraintFunction(), cᵢ)
+        x = MOI.get(model, MOI.ConstraintFunction(), ci)
 
         # Add to dict as unbounded
-        ℤ[xᵢ] = (nothing, nothing)
+        ℤ[x] = (nothing, nothing)
     end
 
-    for xᵢ in setdiff(Ω, 𝔹, keys(ℤ))
+    for x in setdiff(Ω, 𝔹, keys(ℤ))
         # -*- Real Variable 😢 -*-
-        ℝ[xᵢ] = (nothing, nothing)
+        ℝ[x] = (nothing, nothing)
     end
 
-    for cᵢ in MOI.get(model, MOI.ListOfConstraintIndices{VI, MOI.Interval{T}}())
+    for ci in MOI.get(model, MOI.ListOfConstraintIndices{VI, MOI.Interval{T}}())
         # -*- Interval 😄 -*-
-        xᵢ = MOI.get(model, MOI.ConstraintFunction(), cᵢ)
-        Iᵢ = MOI.get(model, MOI.ConstraintSet(), cᵢ) 
+        x = MOI.get(model, MOI.ConstraintFunction(), ci)
+        I = MOI.get(model, MOI.ConstraintSet(), ci) 
 
-        aᵢ = Iᵢ.lower
-        bᵢ = Iᵢ.upper
+        a = I.lower
+        b = I.upper
 
-        if haskey(ℤ, xᵢ)
-            ℤ[xᵢ] = (aᵢ, bᵢ)
-        elseif haskey(ℝ, xᵢ)
-            ℝ[xᵢ] = (aᵢ, bᵢ)
+        if haskey(ℤ, x)
+            ℤ[x] = (a, b)
+        elseif haskey(ℝ, x)
+            ℝ[x] = (a, b)
         end
     end
 
-    for cᵢ in MOI.get(model, MOI.ListOfConstraintIndices{VI, LT{T}}())
+    for ci in MOI.get(model, MOI.ListOfConstraintIndices{VI, LT{T}}())
         # -*- Upper Bound 🤔 -*-
-        xᵢ = MOI.get(model, MOI.ConstraintFunction(), cᵢ)
-        Iᵢ = MOI.get(model, MOI.ConstraintSet(), cᵢ) 
+        x = MOI.get(model, MOI.ConstraintFunction(), ci)
+        I = MOI.get(model, MOI.ConstraintSet(), ci)
 
-        bᵢ = Iᵢ.upper
+        b = I.upper
 
-        if haskey(ℤ, xᵢ)
-            ℤ[xᵢ] = (ℤ[xᵢ][1], bᵢ)
+        if haskey(ℤ, x)
+            ℤ[x] = (first(ℤ[x]), b)
         elseif haskey(ℝ, xᵢ)
-            ℝ[xᵢ] = (ℝ[xᵢ][1], bᵢ)
+            ℝ[x] = (first(ℝ[x]), b)
         end
     end
 
-    for cᵢ in MOI.get(model, MOI.ListOfConstraintIndices{VI, GT{T}}())
+    for ci in MOI.get(model, MOI.ListOfConstraintIndices{VI, GT{T}}())
         # -*- Lower Bound 🤔 -*-
-        xᵢ = MOI.get(model, MOI.ConstraintFunction(), cᵢ)
-        Iᵢ = MOI.get(model, MOI.ConstraintSet(), cᵢ)
+        x = MOI.get(model, MOI.ConstraintFunction(), ci)
+        I = MOI.get(model, MOI.ConstraintSet(), ci)
 
-        aᵢ = Iᵢ.lower
+        a = I.lower
 
-        if haskey(ℤ, xᵢ)
-            ℤ[xᵢ] = (aᵢ, ℤ[xᵢ][2])
-        elseif haskey(ℝ, xᵢ)
-            ℝ[xᵢ] = (aᵢ, ℝ[xᵢ][2])
+        if haskey(ℤ, x)
+            ℤ[x] = (a, last(ℤ[x]))
+        elseif haskey(ℝ, x)
+            ℝ[x] = (a, last(ℝ[x]))
         end
     end
 
     # -*- Discretize Real Ones 🤔 -*-
-    for (xᵢ, (aᵢ, bᵢ)) in ℝ
-        if isnothing(aᵢ) || isnothing(bᵢ) 
-            error("Unbounded variable $xᵢ ∈ ℝ")
+    for (x, (a, b)) in ℝ
+        if isnothing(a) || isnothing(b) 
+            error("Unbounded variable $(x) ∈ ℝ")
         else
-            # bits = 3
             # TODO: Solve this bit-guessing magic???
             # IDEA: 
             #     Let x̂ ~ U[a, b], K = 2ᴺ, γ = [a, b]
@@ -244,27 +219,22 @@ function toqubo_variables!(model::VirtualQUBOModel{T}) where {T}
             #
             # where τ is the (absolute) tolerance
             τ = 0.25 # TODO: Add τ as parameter
-                    
-            bits = ceil(Int, log2(1 + abs(bᵢ - aᵢ) / 4τ))
-            name = Symbol(MOI.get(model, MOI.VariableName(), xᵢ))
-            expandℝ!(model, xᵢ; α=aᵢ, β=bᵢ, name=name, bits=bits)
+            VM.encode!(VM.Binary, model, x, a, b, τ)
         end
     end
 
     # -*- Discretize Integer Variables 🤔 -*-
-    for (xᵢ, (aᵢ, bᵢ)) in ℤ
-        if isnothing(aᵢ) || isnothing(bᵢ) 
-            error("Unbounded variable $xᵢ ∈ ℤ")
+    for (x, (a, b)) in ℤ
+        if isnothing(a) || isnothing(b) 
+            error("Unbounded variable $(x) ∈ ℤ")
         else
-            name = Symbol(MOI.get(model, MOI.VariableName(), xᵢ))
-            expandℤ!(model, xᵢ; α=aᵢ, β=bᵢ, name=name)
+            VM.encode!(VM.Binary, model, x, a, b)
         end
     end
 
     # -*- Mirror Boolean Variables 😄 -*-
-    for xᵢ in 𝔹
-        name = Symbol(MOI.get(model, MOI.VariableName(), xᵢ))
-        mirror𝔹!(model, xᵢ; name=name)
+    for x in 𝔹
+        VM.encode!(VM.Mirror, model, x)
     end
 
     nothing
@@ -275,219 +245,306 @@ end
     toqubo_objective!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}) where {T}
     toqubo_objective!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}) where {T}
 """
-function toqubo_objective!(model::VirtualQUBOModel{T}, F::Type{<:VI}) where {T}
-    # -*- Single Variable -*-
-    xᵢ = MOI.get(model, MOI.ObjectiveFunction{F}())
+function toqubo_objective! end
 
-    for (ωᵢ, cᵢ) ∈ model.source[xᵢ]
-        model.H₀[ωᵢ] += cᵢ
+function toqubo_objective!(model::VirtualQUBOModel{T}, F::Type{<:VI}) where T
+    x = MOI.get(model, MOI.ObjectiveFunction{F}())
+
+    for (ω, c) in VM.expansion(MOI.get(model, VM.Source(), x))
+        model.f[ω] += c
     end
+
+    nothing
 end
 
-function toqubo_objective!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}) where {T}
-    # -*- Affine Terms -*-
+function toqubo_objective!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}) where T
     f = MOI.get(model, MOI.ObjectiveFunction{F}())
 
-    for aᵢ in f.terms
-        cᵢ = aᵢ.coefficient
-        xᵢ = aᵢ.variable
+    for t in f.terms
+        c = t.coefficient
+        x = t.variable
 
-        for (ωᵢ, dᵢ) ∈ model.source[xᵢ]
-            model.H₀[ωᵢ] += cᵢ * dᵢ
+        for (ω, d) in VM.expansion(MOI.get(model, VM.Source(), x))
+            model.f[ω] += c * d
         end
     end
 
-    # -*- Constant -*-
-    model.H₀ += f.constant
+    model.f[nothing] += f.constant
+
+    nothing
 end
 
-function toqubo_objective!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}) where {T}
-    # -*- Affine Terms -*-
+function toqubo_objective!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}) where T
     f = MOI.get(model, MOI.ObjectiveFunction{F}())
 
-    # Quadratic Terms
-    for Qᵢ ∈ f.quadratic_terms
-        cᵢ = Qᵢ.coefficient
-        xᵢ = Qᵢ.variable_1
-        xⱼ = Qᵢ.variable_2
+    for q in f.quadratic_terms
+        c = q.coefficient
+        xᵢ = q.variable_1
+        xⱼ = q.variable_2
 
         # MOI convetion is to write ScalarQuadraticFunction as
         #     ½ x' Q x + a x + b
         # ∴ every coefficient in the main diagonal is doubled
         if xᵢ === xⱼ
-            cᵢ /= 2
+            c /= 2
         end
 
-        for (ωᵢ, dᵢ) ∈ model.source[xᵢ], (ωⱼ, dⱼ) ∈ model.source[xⱼ]
-            model.H₀[ωᵢ × ωⱼ] += cᵢ * dᵢ * dⱼ
-        end
-    end
-
-    for aᵢ ∈ f.affine_terms
-        cᵢ = aᵢ.coefficient
-        xᵢ = aᵢ.variable
-
-        for (ωᵢ, dᵢ) in model.source[xᵢ]
-            model.H₀[ωᵢ] += cᵢ * dᵢ
+        for (ωᵢ, dᵢ) in VM.expansion(MOI.get(model, VM.Source(), xᵢ))
+            for (ωⱼ, dⱼ) in VM.expansion(MOI.get(model, VM.Source(), xⱼ))
+                model.f[union(ωᵢ, ωⱼ)] += c * dᵢ * dⱼ
+            end
         end
     end
 
-    # -*- Constant -*-
-    model.H₀ += f.constant
+    for a in f.affine_terms
+        c = a.coefficient
+        x = a.variable
+
+        for (ω, d) in VM.expansion(MOI.get(model, VM.Source(), x))
+            model.f[ω] += c * d
+        end
+    end
+
+    model.f[nothing] += f.constant
+
+    nothing
 end
 
 @doc raw"""
-    toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}, S::Type{<:EQ{T}}) where {T}
-    toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}, S::Type{<:LT{T}}) where {T}
-    toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::Type{<:EQ{T}}) where {T}
-    toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::Type{<:LT{T}}) where {T}
-    toqubo_constraint!(::VirtualQUBOModel{T}, ::Type{<:VI}, ::Type{<:Union{MOI.ZeroOne, MOI.Integer, MOI.Interval{T}, MOI.LessThan{T}, MOI.GreaterThan{T}}}) where {T}
+    toqubo_constraints!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}, S::Type{<:EQ{T}}) where {T}
+    toqubo_constraints!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}, S::Type{<:LT{T}}) where {T}
+    toqubo_constraints!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::Type{<:EQ{T}}) where {T}
+    toqubo_constraints!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::Type{<:LT{T}}) where {T}
+    toqubo_constraints!(::VirtualQUBOModel{T}, ::Type{<:VI}, ::Type{<:Union{MOI.ZeroOne, MOI.Integer, MOI.Interval{T}, MOI.LessThan{T}, MOI.GreaterThan{T}}}) where {T}
 """
-function toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}, S::Type{<:EQ{T}}) where {T}
+function toqubo_constraints! end
+
+function toqubo_constraints!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}, S::Type{<:EQ{T}}) where {T}
     # -*- Scalar Affine Function: Ax = b 😄 -*-
-    for cᵢ in MOI.get(model, MOI.ListOfConstraintIndices{F, S}())
-        gᵢ = PBO.PBF{T}()
+    for ci in MOI.get(model, MOI.ListOfConstraintIndices{F, S}())
+        g = PBO.PBF{T}()
 
-        Aᵢ = MOI.get(model, MOI.ConstraintFunction(), cᵢ)
-        bᵢ = MOI.get(model, MOI.ConstraintSet(), cᵢ).value
+        f = MOI.get(model, MOI.ConstraintFunction(), ci)
+        b = MOI.get(model, MOI.ConstraintSet(), ci).value
 
-        for aⱼ ∈ Aᵢ.terms
-            cⱼ = aⱼ.coefficient
-            xⱼ = aⱼ.variable
+        for a in f.terms
+            c = a.coefficient
+            x = a.variable
 
-            for (yⱼ, dⱼ) ∈ model.source[xⱼ]
-                gᵢ[yⱼ] += cⱼ * dⱼ
+            for (ω, d) in VM.expansion(MOI.get(model, VM.Source(), x))
+                g[ω] += c * d
             end
         end
 
-        gᵢ = PBO.discretize((gᵢ - bᵢ) ^ 2; tol=model.settings.Tol)
-        hᵢ = PBO.quadratize(gᵢ; slack = slack_factory(model))
+        g[nothing] -= b
 
-        push!(model.Hᵢ, hᵢ)
+        model.g[ci] = g ^ 2
     end
 
     nothing
 end
 
-function toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}, S::Type{<:LT{T}}) where {T}
+function toqubo_constraints!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}, S::Type{<:LT{T}}) where T
     # -*- Scalar Affine Function: Ax <= b 🤔 -*-
+    for ci in MOI.get(model, MOI.ListOfConstraintIndices{F, S}())
+        g = PBO.PBF{T}()
 
-    for cᵢ in MOI.get(model, MOI.ListOfConstraintIndices{F, S}())
-        gᵢ = PBO.PBF{T}()
+        f = MOI.get(model, MOI.ConstraintFunction(), ci)
+        b = MOI.get(model, MOI.ConstraintSet(), ci).upper
 
-        Aᵢ = MOI.get(model, MOI.ConstraintFunction(), cᵢ)
-        bᵢ = MOI.get(model, MOI.ConstraintSet(), cᵢ).upper
+        for a in f.terms
+            c = a.coefficient
+            x = a.variable
 
-        for aⱼ ∈ Aᵢ.terms
-            cⱼ = aⱼ.coefficient
-            xⱼ = aⱼ.variable
-
-            for (yⱼ, dⱼ) ∈ model.source[xⱼ]
-                gᵢ[yⱼ] += cⱼ * dⱼ
+            for (ω, d) in VM.expansion(MOI.get(model, VM.Source(), x))
+                g[ω] += c * d
             end
         end
 
-        gᵢ = PBO.discretize(gᵢ - bᵢ; tol=model.settings.Tol)
+        g[nothing] -= b
+
+        g = PBO.discretize(g)
     
         # -*- Introduce Slack Variable -*-
-        αᵢ = sum(c for (ω, c) ∈ gᵢ if !isempty(ω) && c < zero(T); init=zero(T))
-        βᵢ = -gᵢ[nothing]
+        v = VM.encode!(VM.Binary, model, nothing, zero(T), PBO.sup(g))
+        s = VM.expansion(v)
 
-        sᵢ = PBO.PBF{T}(collect(slackℤ!(model; α=αᵢ, β=βᵢ, name=:s)))
-        hᵢ = PBO.quadratize((gᵢ + sᵢ) ^ 2;slack = slack_factory(model))
-
-        push!(model.Hᵢ, hᵢ)
+        model.g[ci] = (g - s) ^ 2
     end
 
     nothing
 end
 
-function toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::Type{<:EQ{T}}) where {T}
+function toqubo_constraints!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::Type{<:EQ{T}}) where {T}
     # -*- Scalar Quadratic Function: x Q x + a x = b 😢 -*-
-    for cᵢ in MOI.get(model, MOI.ListOfConstraintIndices{F, S}())
-        gᵢ = PBO.PBF{T}()
+    for ci in MOI.get(model, MOI.ListOfConstraintIndices{F, S}())
+        g = PBO.PBF{T}()
 
-        fᵢ = MOI.get(model, MOI.ConstraintFunction(), cᵢ)
-        bᵢ = MOI.get(model, MOI.ConstraintSet(), cᵢ).value
+        f = MOI.get(model, MOI.ConstraintFunction(), ci)
+        b = MOI.get(model, MOI.ConstraintSet(), ci).value
 
-        for Qⱼ ∈ fᵢ.quadratic_terms
-            cⱼ = Qⱼ.coefficient
-            xⱼ = Qⱼ.variable_1
-            yⱼ = Qⱼ.variable_2
+        for q in f.quadratic_terms
+            c = q.coefficient
+            xᵢ = q.variable_1
+            xⱼ = q.variable_2
 
             if xᵢ === xⱼ
-                cᵢ /= 2
+                ci /= 2
             end
 
-            for (ωⱼ, dⱼ) ∈ model.source[xⱼ], (ηⱼ, eⱼ) ∈ model.source[yⱼ]
-                gᵢ[ωⱼ × ηⱼ] += cⱼ * dⱼ * eⱼ
-            end
-        end
-
-        for aⱼ ∈ fᵢ.affine_terms
-            cⱼ = aⱼ.coefficient
-            xⱼ = aⱼ.variable
-
-            for (ωⱼ, dⱼ) ∈ model.source[xⱼ]
-                gᵢ[ωⱼ] += cⱼ * dⱼ
+            for (ωᵢ, dᵢ) in VM.expansion(MOI.get(model, VM.Source(), xᵢ))
+                for (ωⱼ, dⱼ) in VM.expansion(MOI.get(model, VM.Source(), xⱼ))
+                    g[union(ωᵢ, ωⱼ)] += c * dᵢ * dⱼ
+                end
             end
         end
 
-        gᵢ = PBO.discretize((gᵢ - bᵢ) ^ 2; tol=model.settings.Tol)
-        hᵢ = PBO.quadratize(gᵢ; slack = slack_factory(model))
+        for a in f.affine_terms
+            c = a.coefficient
+            x = a.variable
 
-        push!(model.Hᵢ, hᵢ)
+            for (ω, d) in VM.expansion(MOI.get(model, VM.Source(), x))
+                g[ω] += c * d
+            end
+        end
+
+        g[nothing] -= b
+
+        g = PBO.discretize(g)
+
+        model.g[ci] = g ^ 2
     end
 
     nothing
 end
 
-function toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::Type{<:LT{T}}) where {T}
+function toqubo_constraints!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::Type{<:LT{T}}) where {T}
     # -*- Scalar Quadratic Function: x Q x + a x <= b 😢 -*-
-    for cᵢ in MOI.get(model, MOI.ListOfConstraintIndices{F, S}())
-        gᵢ = PBO.PBF{T}()
+    for ci in MOI.get(model, MOI.ListOfConstraintIndices{F, S}())
+        g = PBO.PBF{T}()
 
-        fᵢ = MOI.get(model, MOI.ConstraintFunction(), cᵢ)
-        bᵢ = MOI.get(model, MOI.ConstraintSet(), cᵢ).upper
+        f = MOI.get(model, MOI.ConstraintFunction(), ci)
+        b = MOI.get(model, MOI.ConstraintSet(), ci).value
 
-        for Qⱼ ∈ fᵢ.quadratic_terms
-            cⱼ = Qⱼ.coefficient
-            xⱼ = Qⱼ.variable_1
-            yⱼ = Qⱼ.variable_2
+        for q in f.quadratic_terms
+            c = q.coefficient
+            xᵢ = q.variable_1
+            xⱼ = q.variable_2
 
             if xᵢ === xⱼ
-                cᵢ /= 2
+                ci /= 2
             end
 
-            for (ωⱼ, dⱼ) ∈ model.source[xⱼ], (ηⱼ, eⱼ) ∈ model.source[yⱼ]
-                gᵢ[ωⱼ × ηⱼ] += cⱼ * dⱼ * eⱼ
-            end
-        end
-
-        for aⱼ ∈ fᵢ.affine_terms
-            cⱼ = aⱼ.coefficient
-            xⱼ = aⱼ.variable
-
-            for (ωⱼ, dⱼ) ∈ model.source[xⱼ]
-                gᵢ[ωⱼ] += cⱼ * dⱼ
+            for (ωᵢ, dᵢ) in VM.expansion(MOI.get(model, VM.Source(), xᵢ))
+                for (ωⱼ, dⱼ) in VM.expansion(MOI.get(model, VM.Source(), xⱼ))
+                    g[union(ωᵢ, ωⱼ)] += c * dᵢ * dⱼ
+                end
             end
         end
 
-        gᵢ = PBO.discretize(gᵢ - bᵢ; tol=model.settings.Tol)
+        for a in f.affine_terms
+            c = a.coefficient
+            x = a.variable
 
+            for (ω, d) in VM.expansion(MOI.get(model, VM.Source(), x))
+                g[ω] += c * d
+            end
+        end
+
+        g[nothing] -= b
+
+        g = PBO.discretize(g)
+    
         # -*- Introduce Slack Variable -*-
-        αᵢ = sum(c for (ω, c) ∈ gᵢ if !isempty(ω) && c < zero(T); init=zero(T))
-        βᵢ = -gᵢ[nothing] # PBF constant term
+        v = VM.encode!(VM.Binary, model, nothing, zero(T), PBO.sup(g))
+        s = VM.expansion(v)
 
-        sᵢ = PBO.PBF{T}(collect(slackℤ!(model; α=αᵢ, β=βᵢ, name=:s)))
-        hᵢ = PBO.quadratize((gᵢ + sᵢ) ^ 2; slack = slack_factory(model))
-
-        push!(model.Hᵢ, hᵢ)
+        model.g[ci] = (g - s) ^ 2
     end
+
+    nothing
 end
 
-function toqubo_constraint!(
+function toqubo_constraints!(
     ::VirtualQUBOModel{T},
     ::Type{<:VI},
     ::Type{<:Union{MOI.ZeroOne, MOI.Integer, MOI.Interval{T}, MOI.LessThan{T}, MOI.GreaterThan{T}}}
-) where {T} end
+) where T end
+
+function toqubo_encoding_constraints!(model::VirtualQUBOModel{T}) where T
+    for v in MOI.get(model, VM.Variables())
+        h = if VM.isslack(v)
+            nothing
+        else
+            VM.penaltyfn(v)
+        end
+        
+        if !isnothing(h)
+            x = VM.source(v)
+            model.h[x] = h
+        end
+    end
+end
+
+function toqubo_penalties!(model::VirtualQUBOModel{T}) where T
+    # -*- :: Invert Sign::  -*- #
+    s = MOI.get(model, MOI.ObjectiveSense()) === MOI.MAX_SENSE ? -1 : 1
+
+    β = one(T) # TODO: This should be made a parameter too? Yes!
+    δ = PBO.gap(model.f)
+
+    for (vi, g) in model.g
+        model.ρ[vi] = s * (δ / PBO.sharpness(g) + β)
+    end
+
+    for (ci, h) in model.h
+        model.ρ[ci] = s * (δ / PBO.sharpness(h) + β)
+    end
+end
+
+function toqubo_moi!(model::VirtualQUBOModel{T}) where T
+    # -*- Assemble Objective Function -*-
+    H = PBO.PBF{VI, T}()
+
+    for (vi, g) in model.g
+        H += model.ρ[vi] * g
+    end
+
+    for (ci, h) in model.h
+        H += model.ρ[ci] * h
+    end
+
+    H = PBO.quadratize(
+        H;
+        slack = (n::Integer) -> (
+        MOI.add_variables(MOI.get(model, VM.TargetModel()), n)
+        )
+    )
+
+    # -*- Write to MathOptInterface -*-
+    Q = SQT{T}[]
+    a = SAT{T}[]
+    b = zero(T)
+
+    for (ω, c) in H
+        if isempty(ω)
+            b += c
+        elseif length(ω) == 1
+            push!(a, SAT{T}(c, ω...))
+        elseif length(ω) == 2
+            push!(Q, SQT{T}(c, ω...))
+        else
+            # NOTE: This should never happen in production.
+            # During implementation of new quadratization methods and constraint reformulation
+            # higher degree terms might be introduced by mistake. That's why it's important to 
+            # have this condition here.
+            throw(QUBOError("Quadratization failed"))
+        end
+    end
+
+    MOI.set(
+        MOI.get(model, VM.TargetModel()),
+        MOI.ObjectiveFunction{SQF{T}}(),
+        SQF{T}(Q, a, b)
+    )
+end

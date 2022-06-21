@@ -51,7 +51,7 @@ optimize!(model)
 vqm = unsafe_backend(model)
 
 # Here we may need some introspection tools!
-_, Q, c = ToQUBO.Analysis.qubo_normal_form(vqm)
+_, Q, c = ToQUBO.PBO.qubo_normal_form(vqm)
 
 x̂ = value.(x)
 ŷ = objective_value(model)

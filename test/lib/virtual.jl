@@ -1,5 +1,3 @@
-const VM = VirtualMapping
-
 @testset "VirtualMapping Module" verbose = true begin
 
 struct VirtualModel{T} <: VM.AbstractVirtualModel{T}
@@ -46,39 +44,151 @@ end
         γ = [1.0, 2.0, 3.0]
         α = 1.0
 
-        v, y = VM.encode!(VM.Linear, model, x, γ, α)
+        v = VM.encode!(VM.Linear, model, x, γ, α)
+        y = VM.target(v)
+
+        @test length(y) == 3
 
         @test VM.source(v) == x
-        @test VM.target(v) == y
+        @test VM.expansion(v) == PBO.PBF{VI, Float64}(
+            y[1] => γ[1],
+            y[2] => γ[2],
+            y[3] => γ[3],
+            nothing => α,
+        )
+        @test VM.penaltyfn(v) |> isnothing
 
         @test MOI.get(model, VM.Variables()) == [v]
         @test MOI.get(model, VM.Source(), VM.source(v)) == v
         @test MOI.get.(model, VM.Target(), VM.target(v)) == [v, v, v]
-        
-        
+    end
+
+    @testset "Mirror" begin
+        model = VirtualModel()
+
+        x = MOI.add_variable(MOI.get(model, VM.SourceModel()))
+
+        v = VM.encode!(VM.Mirror, model, x)
+        y = VM.target(v)
+
+        @test length(y) == 1
+
+        @test VM.source(v) == x
+        @test VM.expansion(v) == PBO.PBF{VI, Float64}(y[1])
+        @test VM.penaltyfn(v) |> isnothing
+
+        @test MOI.get(model, VM.Variables()) == [v]
+        @test MOI.get(model, VM.Source(), VM.source(v)) == v
+        @test MOI.get.(model, VM.Target(), VM.target(v)) == [v]
+    end
+
+    @testset "Unary - Integer" begin
+        model = VirtualModel()
+
+        x = MOI.add_variable(MOI.get(model, VM.SourceModel()))
+        a = -2.0
+        b =  2.0
+
+        v = VM.encode!(VM.Unary, model, x, a, b)
+        y = VM.target(v)
+
+        @test length(y) == 4
+
+        @test VM.source(v) == x
+        @test VM.expansion(v) == PBO.PBF{VI, Float64}(
+            y[1] => 1.0,
+            y[2] => 1.0,
+            y[3] => 1.0,
+            y[4] => 1.0,
+            nothing => a,
+        )
+        @test VM.penaltyfn(v) |> isnothing
+
+        @test MOI.get(model, VM.Variables()) == [v]
+        @test MOI.get(model, VM.Source(), VM.source(v)) == v
+        @test MOI.get.(model, VM.Target(), VM.target(v)) == [v, v, v, v]
+    end
+
+    @testset "Unary - Real" begin
+        model = VirtualModel()
+
+        x = MOI.add_variable(MOI.get(model, VM.SourceModel()))
+        a = -2.0
+        b =  2.0
+        n = 4
+
+        v = VM.encode!(VM.Unary, model, x, a, b, n)
+        y = VM.target(v)
+
+        @test length(y) == n
+
+        @test VM.source(v) == x
+        @test VM.expansion(v) ≈ PBO.PBF{VI, Float64}(
+            y[1] => 1.0,
+            y[2] => 1.0,
+            y[3] => 1.0,
+            y[4] => 1.0,
+            nothing => a,
+        )
+        @test VM.penaltyfn(v) |> isnothing
+
+        @test MOI.get(model, VM.Variables()) == [v]
+        @test MOI.get(model, VM.Source(), VM.source(v)) == v
+        @test MOI.get.(model, VM.Target(), VM.target(v)) == [v, v, v, v]
+    end
+
+    @testset "Binary - Integer" begin
+        model = VirtualModel()
+
+        x = MOI.add_variable(MOI.get(model, VM.SourceModel()))
+        a = -2.0
+        b =  2.0
+
+        v = VM.encode!(VM.Binary, model, x, a, b)
+        y = VM.target(v)
+
+        @test length(y) == 3
+
+        @test VM.source(v) == x
+        @test VM.expansion(v) == PBO.PBF{VI, Float64}(
+            y[1] => 1.0,
+            y[2] => 2.0,
+            y[3] => 1.0,
+            nothing => a,
+        )
+        @test VM.penaltyfn(v) |> isnothing
+
+        @test MOI.get(model, VM.Variables()) == [v]
+        @test MOI.get(model, VM.Source(), VM.source(v)) == v
+        @test MOI.get.(model, VM.Target(), VM.target(v)) == [v, v, v]
+    end
+
+    @testset "Binary - Real" begin
+        model = VirtualModel()
+
+        x = MOI.add_variable(MOI.get(model, VM.SourceModel()))
+        a = -2.0
+        b =  2.0
+        n = 3
+
+        v = VM.encode!(VM.Unary, model, x, a, b, n)
+        y = VM.target(v)
+
+        @test length(y) == n
+
+        @test VM.source(v) == x
+        @test VM.expansion(v) ≈ PBO.PBF{VI, Float64}(
+            y[1] => 4 / 3,
+            y[2] => 4 / 3,
+            y[3] => 4 / 3,
+            nothing => a,
+        )
+        @test VM.penaltyfn(v) |> isnothing
+
+        @test MOI.get(model, VM.Variables()) == [v]
+        @test MOI.get(model, VM.Source(), VM.source(v)) == v
+        @test MOI.get.(model, VM.Target(), VM.target(v)) == [v, v, v]
     end
 end
-
-# @test collect(model.varvec[1]) == Dict{Set{VI}, Float64}(
-#     Set{VI}()          => -3.0,
-#     Set{VI}([y[1][1]]) =>  1.0,
-#     Set{VI}([y[1][2]]) =>  2.0,
-#     Set{VI}([y[1][3]]) =>  4.0,
-#     Set{VI}([y[1][4]]) =>  1.0,
-# )
-
-# @test collect(model.varvec[2]) == Dict{Set{VI}, Float64}(
-#     Set{VI}()          => -1.0,
-#     Set{VI}([y[2][2]]) =>  1.0,
-#     Set{VI}([y[2][1]]) =>  1.0,
-# )
-
-# @test collect(model.varvec[3]) == Dict{Set{VI}, Float64}(
-#     Set{VI}()          =>  0.0,
-#     Set{VI}([y[3][1]]) =>  1.0,
-#     Set{VI}([y[3][2]]) =>  2.0,
-#     Set{VI}([y[3][3]]) =>  4.0,
-#     Set{VI}([y[3][4]]) =>  1.0,
-# )
 
 end
