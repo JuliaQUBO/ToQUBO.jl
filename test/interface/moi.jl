@@ -1,50 +1,55 @@
 @testset "MathOptInterface" verbose = true begin
-@testset "MOI :: Optimizer" begin end
-@testset "MOI :: Models" begin
-# @testset "MOI UI - ILP" begin
+@testset "MOI :: Optimizer" verbose = true begin
+@testset "Attributes" begin
+    model = ToQUBO.Optimizer{Float64}()
 
-# model = MOI.instantiate(
-# ()->ToQUBO.Optimizer(SimulatedAnnealer.Optimizer),
-# with_bridge_type = Float64,
-# )
+    @test MOI.is_empty(model)
+    @test MOI.get(model, ToQUBO.Tol()) ≈ 1e-6
 
-# @test MOI.is_empty(model) == true
+    MOI.set(model, ToQUBO.Tol(), 1e-2)
+    @test MOI.get(model, ToQUBO.Tol()) ≈ 1e-2
 
-# @test MOI.get(model, ToQUBO.Tol()) ≈ 1e-6 # default value
+    MOI.empty!(model)
+    @test MOI.get(model, ToQUBO.Tol()) ≈ 1e-6
+end
+@testset "Instantiate" begin
+    model = MOI.instantiate(
+        () -> ToQUBO.Optimizer{Float64}(ExactSampler.Optimizer{Float64}),
+        with_bridge_type = Float64,
+    )
+    @test MOI.is_empty(model)
+end
+end
+@testset "MOI :: Models" verbose = true begin
+    @testset "Binary Knapsack" begin
+        model = MOI.instantiate(
+            () -> ToQUBO.Optimizer{Float64}(ExactSampler.Optimizer{Float64}),
+            with_bridge_type = Float64,
+        )
+        n = 3
+        x, _ = MOI.add_constrained_variables(model, repeat([MOI.ZeroOne()], n))
+        v = [1.0, 2.0, 3.0] # value
+        w = [0.3, 0.5, 1.0] # weight
+        C = 3.2             # capacity
 
-# MOI.set(model, ToQUBO.Tol(), 1e-2)
+        @test length(x) == length(v) == n
 
-# @test MOI.get(model, ToQUBO.Tol()) ≈ 1e-2
+        MOI.set(model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
+        MOI.set(
+            model,
+            MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
+            MOI.ScalarAffineFunction{Float64}(MOI.ScalarAffineTerm{Float64}.(v, x), 0.0),
+        )
+        MOI.add_constraint(
+            model,
+            MOI.ScalarAffineFunction{Float64}(MOI.ScalarAffineTerm{Float64}.(w, x), 0.0),
+            MOI.LessThan{Float64}(C),
+        )
 
-# x = MOI.add_variables(model, 3);
-# v = [1.0, 2.0, 3.0] # value
-# w = [0.3, 0.5, 1.0] # weight
-# C = 3.2             # capacity
-
-# # will work because ToQUBO.Optimizer will know how to expand an integer variables
-# # into binaries
-# for xᵢ in x
-# MOI.add_constraint(model, xᵢ, MOI.Integer())
-# MOI.add_constraint(model, xᵢ, MOI.Interval{Float64}(0.0, 5.0))
-# end
-
-# MOI.set(model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
-
-# MOI.set(
-# model,
-# MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
-# MOI.ScalarAffineFunction{Float64}(MOI.ScalarAffineTerm{Float64}.(v, x), 0.0),
-# );
-
-# MOI.add_constraint(
-# model,
-# MOI.ScalarAffineFunction{Float64}(MOI.ScalarAffineTerm{Float64}.(w, x), 0.0),
-# MOI.LessThan{Float64}(C),
-# )
-
-# MOI.optimize!(model)
-
-# sol = MOI.get.(model, MOI.VariablePrimal(), x)
+        MOI.optimize!(model)
+        
+        @test MOI.get.(model, MOI.VariablePrimal(), x) ≈ [1.0, 1.0, 1.0]
+    end
 
 # @test sol ≈ [2.0, 5.0, 0.0] || sol ≈ [4.0, 4.0, 0.0]
 
@@ -97,7 +102,7 @@
 
 # MOI.optimize!(model)
 
-# sol = MOI.get.(model, MOI.VariablePrimal(), x)
+# sol = 
 
 # @test sol ≈ [2.0, 2.0, 1.0] || sol ≈ [2.0, 0.0, 2.0]
 

@@ -322,7 +322,7 @@ function toqubo_constraints! end
 function toqubo_constraints!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}, S::Type{<:EQ{T}}) where {T}
     # -*- Scalar Affine Function: Ax = b 😄 -*-
     for ci in MOI.get(model, MOI.ListOfConstraintIndices{F, S}())
-        g = PBO.PBF{T}()
+        g = PBO.PBF{VI, T}()
 
         f = MOI.get(model, MOI.ConstraintFunction(), ci)
         b = MOI.get(model, MOI.ConstraintSet(), ci).value
@@ -338,6 +338,8 @@ function toqubo_constraints!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}, S::T
 
         g[nothing] -= b
 
+        g = PBO.discretize(g)
+
         model.g[ci] = g ^ 2
     end
 
@@ -347,7 +349,7 @@ end
 function toqubo_constraints!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}, S::Type{<:LT{T}}) where T
     # -*- Scalar Affine Function: Ax <= b 🤔 -*-
     for ci in MOI.get(model, MOI.ListOfConstraintIndices{F, S}())
-        g = PBO.PBF{T}()
+        g = PBO.PBF{VI, T}()
 
         f = MOI.get(model, MOI.ConstraintFunction(), ci)
         b = MOI.get(model, MOI.ConstraintSet(), ci).upper
@@ -365,11 +367,19 @@ function toqubo_constraints!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}, S::T
 
         g = PBO.discretize(g)
     
-        # -*- Introduce Slack Variable -*-
-        v = VM.encode!(VM.Binary, model, nothing, zero(T), PBO.sup(g))
-        s = VM.expansion(v)
+        # -*- Bounds & Slack Variable -*-
+        l, u = PBO.bounds(g)
 
-        model.g[ci] = (g - s) ^ 2
+        s = if u < zero(T) # Always feasible
+            @warn "Always-feasible constraint detected: ignoring"
+            continue
+        elseif l > zero(T) # Infeasible
+            @warn "Infeasible constraint detected"
+        else
+            VM.expansion(VM.encode!(VM.Binary, model, nothing, zero(T), abs(l)))
+        end
+
+        model.g[ci] = (g + s) ^ 2
     end
 
     nothing
@@ -378,7 +388,7 @@ end
 function toqubo_constraints!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::Type{<:EQ{T}}) where {T}
     # -*- Scalar Quadratic Function: x Q x + a x = b 😢 -*-
     for ci in MOI.get(model, MOI.ListOfConstraintIndices{F, S}())
-        g = PBO.PBF{T}()
+        g = PBO.PBF{VI, T}()
 
         f = MOI.get(model, MOI.ConstraintFunction(), ci)
         b = MOI.get(model, MOI.ConstraintSet(), ci).value
@@ -412,6 +422,16 @@ function toqubo_constraints!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::T
 
         g = PBO.discretize(g)
 
+        # -*- Bounds & Slack Variable -*-
+        l, u = PBO.bounds(g)
+
+        if u < zero(T) # Always feasible
+            @warn "Always-feasible constraint detected: ignoring"
+            continue
+        elseif l > zero(T) # Infeasible
+            @warn "Infeasible constraint detected"
+        end
+
         model.g[ci] = g ^ 2
     end
 
@@ -421,7 +441,7 @@ end
 function toqubo_constraints!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::Type{<:LT{T}}) where {T}
     # -*- Scalar Quadratic Function: x Q x + a x <= b 😢 -*-
     for ci in MOI.get(model, MOI.ListOfConstraintIndices{F, S}())
-        g = PBO.PBF{T}()
+        g = PBO.PBF{VI, T}()
 
         f = MOI.get(model, MOI.ConstraintFunction(), ci)
         b = MOI.get(model, MOI.ConstraintSet(), ci).value
@@ -455,11 +475,19 @@ function toqubo_constraints!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::T
 
         g = PBO.discretize(g)
     
-        # -*- Introduce Slack Variable -*-
-        v = VM.encode!(VM.Binary, model, nothing, zero(T), PBO.sup(g))
-        s = VM.expansion(v)
+        # -*- Bounds & Slack Variable -*-
+        l, u = PBO.bounds(g)
 
-        model.g[ci] = (g - s) ^ 2
+        s = if u < zero(T) # Always feasible
+            @warn "Always-feasible constraint detected: ignoring"
+            continue
+        elseif l > zero(T) # Infeasible
+            @warn "Infeasible constraint detected"
+        else
+            VM.expansion(VM.encode!(VM.Binary, model, nothing, zero(T), abs(l)))
+        end
+
+        model.g[ci] = (g + s) ^ 2
     end
 
     nothing
@@ -504,21 +532,18 @@ end
 
 function toqubo_moi!(model::VirtualQUBOModel{T}) where T
     # -*- Assemble Objective Function -*-
-    H = PBO.PBF{VI, T}()
-
-    for (vi, g) in model.g
-        H += model.ρ[vi] * g
-    end
-
-    for (ci, h) in model.h
-        H += model.ρ[ci] * h
-    end
+    H = sum(
+        [
+            model.f;
+            [model.ρ[ci] * g for (ci, g) in model.g];
+            [model.ρ[vi] * h for (vi, h) in model.h]
+        ];
+        init=zero(PBO.PBF{VI, T})
+    )
 
     H = PBO.quadratize(
-        H;
-        slack = (n::Integer) -> (
-        MOI.add_variables(MOI.get(model, VM.TargetModel()), n)
-        )
+        H,
+        (n::Integer) -> MOI.add_variables(MOI.get(model, VM.TargetModel()), n)
     )
 
     # -*- Write to MathOptInterface -*-

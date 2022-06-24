@@ -62,11 +62,17 @@ function degree end # TODO: memoize
 degree(f::PBF) = maximum(length.(keys(f)); init=0)
 
 # -*- Gap & Penalties -*-
-sup(f::PBF; bound::Symbol=:loose) = sup(f, Val(bound))
-sup(f::PBF{<:Any, T}, ::Val{:loose}) where T = sum(c > zero(T) || isempty(ω) ? c : zero(T) for (ω, c) in f)
-
-inf(f::PBF; bound::Symbol=:loose) = inf(f, Val(bound))
-inf(f::PBF{<:Any, T}, ::Val{:loose}) where T = sum(c < zero(T) || isempty(ω) ? c : zero(T) for (ω, c) in f)
+@doc raw"""
+""" function lowerbound end
+lowerbound(f::PBF; bound::Symbol=:loose) = lowerbound(f, Val(bound))
+lowerbound(f::PBF{<:Any, T}, ::Val{:loose}) where T = sum(c < zero(T) || isempty(ω) ? c : zero(T) for (ω, c) in f)
+@doc raw"""
+""" function upperbound end
+upperbound(f::PBF; bound::Symbol=:loose) = upperbound(f, Val(bound))
+upperbound(f::PBF{<:Any, T}, ::Val{:loose}) where T = sum(c > zero(T) || isempty(ω) ? c : zero(T) for (ω, c) in f)
+@doc raw"""
+""" function bounds end
+bounds(f::PBF; bound::Symbol=:loose) = (lowerbound(f; bound = bound), upperbound(f; bound = bound))
 
 @doc raw"""
     gap(f::PBF{S, T}; bound::Symbol=:loose) where {S, T}

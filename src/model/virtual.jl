@@ -34,6 +34,7 @@ struct VirtualQUBOModel{T} <: VM.AbstractVirtualModel{T}
 
     # -*- Attributes -*-
     attrs::VirtualQUBOModelAttributes{T}
+    flags::Dict{Symbol, Bool}
 
     function VirtualQUBOModel{T}(Optimizer::Union{Type{<:MOI.AbstractOptimizer}, Function, Nothing} = nothing) where T
         new{T}(
@@ -54,6 +55,7 @@ struct VirtualQUBOModel{T} <: VM.AbstractVirtualModel{T}
             Dict{Union{CI, VI}, T}(),
             
             VirtualQUBOModelAttributes{T}(),
+            Dict{Symbol, Bool}(),
         )
     end
 

@@ -29,7 +29,7 @@ function MOI.optimize!(model::VirtualQUBOModel)
 
     MOI.optimize!(model.optimizer, MOI.get(model, VM.TargetModel()))
 
-    (MOIU.identity_index_map(model.source_model), false)
+    (MOIU.identity_index_map(MOI.get(model, VM.SourceModel())), false)
 end
 
 function MOI.copy_to(model::VirtualQUBOModel{T}, source::MOI.ModelLike) where {T}
@@ -82,7 +82,11 @@ function MOI.get(
         MOI.RawStatusString,
     }
     )
-    MOI.get(model.optimizer, attr)
+    if !isnothing(model.optimizer)
+        MOI.get(model.optimizer, attr)
+    else
+        nothing
+    end
 end
 
 function MOI.set(
@@ -111,18 +115,6 @@ end
 
 MOI.supports(::VirtualQUBOModel, ::MOI.ResultCount) = true
 
-function MOI.get(model::VirtualQUBOModel, attr::Union{MOI.ConstraintFunction, MOI.ConstraintSet}, ci::MOI.ConstraintIndex)
-    MOI.get(MOI.get(model, VM.SourceModel()), attr, ci)
-end
-
-function MOI.get(model::VirtualQUBOModel, attr::MOI.VariableName, x::VI)
-    MOI.get(MOI.get(model, VM.SourceModel()), attr, x)
-end
-
-function MOI.get(model::VirtualQUBOModel, of::MOI.ObjectiveFunction)
-    MOI.get(MOI.get(model, VM.SourceModel()), of)
-end
-
 function MOI.get(model::VirtualQUBOModel{T}, ov::MOI.ObjectiveValue) where {T}
     if isnothing(model.optimizer)
         zero(T)
@@ -135,10 +127,14 @@ function MOI.get(model::VirtualQUBOModel{T}, vp::MOI.VariablePrimal, x::VI) wher
     if isnothing(model.optimizer)
         zero(T)
     else
-        sum(
-            c * prod(MOI.get(model.optimizer, vp, y) for y in ω; init=one(T))
-            for (ω, c) in VM.expansion(MOI.get(model, VM.Source(), x)); init=zero(T)
-        )
+        s = zero(T)
+        for (ω, c) in VM.expansion(MOI.get(model, VM.Source(), x))
+            for y in ω
+                c *= MOI.get(model.optimizer, vp, y)
+            end
+            s += c
+        end
+        s
     end
 end
 

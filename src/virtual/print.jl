@@ -3,9 +3,9 @@ function Base.show(io::IO, model::AbstractVirtualModel)
     """
     Virtual Model
     with source:
-    $(MOI.get(model, VM.SourceModel()))
+    $(MOI.get(model, SourceModel()))
     with target:
-    $(MOI.get(model, VM.TargetModel()))
+    $(MOI.get(model, TargetModel()))
     """
     )
 end

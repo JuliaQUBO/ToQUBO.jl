@@ -33,6 +33,27 @@ function MOI.get(
     MOI.get(MOI.get(model, SourceModel()), attr)
 end
 
-function MOI.set(model::AbstractVirtualModel, attr::MOI.Name, name::String)
-    MOI.set(MOI.get(model, SourceModel()), attr, name)
+function MOI.get(
+    model::AbstractVirtualModel,
+    attr::Union{
+        MOI.ConstraintFunction,
+        MOI.ConstraintSet,
+    },
+    ci::MOI.ConstraintIndex,
+    )
+    MOI.get(MOI.get(model, SourceModel()), attr, ci)
+end
+
+function MOI.set(
+    model::AbstractVirtualModel,
+    attr::Union{
+        MOI.ObjectiveFunction,
+        MOI.ObjectiveSense,
+    },
+    value::Any)
+    MOI.get(MOI.get(model, SourceModel()), attr, value)
+end
+
+function MOI.get(model::AbstractVirtualModel, attr::MOI.VariableName, x::VI)
+    MOI.get(MOI.get(model, VM.SourceModel()), attr, x)
 end

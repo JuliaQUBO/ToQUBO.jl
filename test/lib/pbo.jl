@@ -42,6 +42,7 @@ s = PBO.PBF{S, T}(
 )
 
 @testset "PBF :: Constructors" begin
+    @test PBO.PBF{S, T}(Set{S}() => 0.0) == PBO.PBF{S, T}() == zero(PBO.PBF{S, T})
     @test f == PBO.PBF{S, T}(
         nothing => 0.5,
         :x => 1.0,
@@ -165,9 +166,9 @@ end
 @testset "PBF :: Ising" begin end
 
 @testset "PBF :: Calculus" begin
-@test PBO.gap(f; bound=:loose) == (PBO.sup(f; bound=:loose) - PBO.inf(f; bound=:loose))
-@test PBO.gap(g; bound=:loose) == (PBO.sup(g; bound=:loose) - PBO.inf(g; bound=:loose))
-@test PBO.gap(h; bound=:loose) == (PBO.sup(h; bound=:loose) - PBO.inf(h; bound=:loose))
+@test PBO.gap(f; bound=:loose) == (PBO.upperbound(f; bound=:loose) - PBO.lowerbound(f; bound=:loose))
+@test PBO.gap(g; bound=:loose) == (PBO.upperbound(g; bound=:loose) - PBO.lowerbound(g; bound=:loose))
+@test PBO.gap(h; bound=:loose) == (PBO.upperbound(h; bound=:loose) - PBO.lowerbound(h; bound=:loose))
 end
 
 @testset "PBF :: Quadratization" begin end

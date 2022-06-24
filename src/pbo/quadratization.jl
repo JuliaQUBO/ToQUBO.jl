@@ -39,6 +39,17 @@ macro quadratization(name, nsv, nst)
 end
 
 @doc raw"""
+    quadratize(f::PBF{S, T}; slack::Function) where {S, T}
+
+Quadratizes a given PBF, i.e. creates a function ``g \in \mathscr{F}^{2}`` from ``f \in \mathscr{F}^{k}, k \ge 3``.
+
+A function ``f : 2^{S} \to \mathbb{R}`` is said to be submodular if
+```math
+f(X \cup Y) + f(X \cap Y) \le f(X) + f(Y) \forall X, Y \subset S
+```
+""" function quadratize end
+
+@doc raw"""
     TBT_QUAD(::Int)
 
 Term-by-term quadratization
@@ -54,13 +65,13 @@ NTR-KZFD (Kolmogorov & Zabih, 2004; Freedman & Drineas, 2005)
 
 @quadratization NTR_KZFD 1 0
 
-function quadratize(::Quadratization{NTR_KZFD}, ω::Set{S}, c::T; slack::Any) where {S, T}
+function quadratize(::Quadratization{NTR_KZFD}, ω::Set{S}, c::T, slack::Function) where {S, T}
     # -* Degree *-
     k = length(ω)
 
     s = slack()::S
 
-    return PBF{S, T}(Set{S}([s]) => -c * convert(T, k - 1), (i × s => c for i ∈ ω)...)
+    PBF{S, T}(Set{S}([s]) => -c * convert(T, k - 1), (i × s => c for i ∈ ω)...)
 end
 
 @doc raw"""
@@ -71,7 +82,7 @@ PTR-BG (Boros & Gruber, 2014)
 
 @quadratization PTR_BG k - 2 k - 1
 
-function quadratize(::Quadratization{PTR_BG}, ω::Set{S}, c::T; slack::Any) where {S, T}
+function quadratize(::Quadratization{PTR_BG}, ω::Set{S}, c::T, slack::Function) where {S, T}
     # -* Degree *-
     k = length(ω)
 
@@ -95,25 +106,25 @@ function quadratize(::Quadratization{PTR_BG}, ω::Set{S}, c::T; slack::Any) wher
     return f
 end
 
-function quadratize(ω::Set{S}, c::T; slack::Any) where {S, T}
+function quadratize(ω::Set{S}, c::T, slack::Function) where {S, T}
     if c < zero(T)
-        return quadratize(
+        quadratize(
             Quadratization{NTR_KZFD}(length(ω)),
             ω,
-            c;
-            slack=slack,
+            c,
+            slack,
         )
     else
-        return quadratize(
+        quadratize(
             Quadratization{PTR_BG}(length(ω)),    
             ω,
-            c;
-            slack=slack,
+            c,
+            slack,
         )
     end
 end
 
-function quadratize(::Quadratization{TBT_QUAD}, f::PBF{S, T}; slack::Any) where {S, T}
+function quadratize(::Quadratization{TBT_QUAD}, f::PBF{S, T}, slack::Function) where {S, T}
     g = PBF{S, T}()
 
     for (ω, c) ∈ f.Ω
@@ -123,8 +134,8 @@ function quadratize(::Quadratization{TBT_QUAD}, f::PBF{S, T}; slack::Any) where 
             for (η, a) ∈ quadratize(
                     Quadratization{PTR_BG}(length(ω)),
                     ω,
-                    c;
-                    slack=slack,
+                    c,
+                    slack,
                 )
                 g[η] += a
             end
@@ -134,22 +145,10 @@ function quadratize(::Quadratization{TBT_QUAD}, f::PBF{S, T}; slack::Any) where 
     return g
 end
 
-@doc raw"""
-    quadratize(f::PBF{S, T}; slack::Any) where {S, T}
-
-Quadratizes a given PBF, i.e. creates a function ``g \in \mathscr{F}^{2}`` from ``f \in \mathscr{F}^{k}, k \ge 3``.
-
-A function ``f : 2^{S} \to \mathbb{R}`` is said to be submodular if
-```math
-f(X \cup Y) + f(X \cap Y) \le f(X) + f(Y) \forall X, Y \subset S
-```
-"""
-function quadratize end
-
-function quadratize(f::PBF{S, T}; slack::Any) where {S, T}
+function quadratize(f::PBF, slack::Function)
     quadratize(
         Quadratization{TBT_QUAD}(degree(f)),
-        f;
-        slack=slack,
+        f,
+        slack,
     )
 end
