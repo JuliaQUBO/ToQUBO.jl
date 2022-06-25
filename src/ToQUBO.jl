@@ -28,6 +28,6 @@ include("error.jl")
 include(joinpath("pbo", "PBO.jl"))
 include(joinpath("virtual", "VirtualMapping.jl"))
 include(joinpath("model", "model.jl"))
-include(joinpath("analysis", "Analysis.jl"))
+include(joinpath("analysis", "analysis.jl"))
 
 end # module
