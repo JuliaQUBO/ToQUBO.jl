@@ -1,5 +1,5 @@
 @testset "MathOptInterface" verbose = true begin
-@testset "MOI :: Optimizer" verbose = true begin
+@testset "Optimizer" verbose = true begin
 @testset "Attributes" begin
     model = ToQUBO.Optimizer{Float64}()
 
@@ -20,7 +20,7 @@ end
     @test MOI.is_empty(model)
 end
 end
-@testset "MOI :: Models" verbose = true begin
+@testset "Models" verbose = true begin
     @testset "Binary Knapsack" begin
         model = MOI.instantiate(
             () -> ToQUBO.Optimizer{Float64}(ExactSampler.Optimizer{Float64}),

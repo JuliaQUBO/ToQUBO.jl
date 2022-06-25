@@ -10,7 +10,7 @@ using LinearAlgebra
 include("PBF.jl")
 include("tools.jl")
 include("forms.jl")
-include("print.jl")
 include("quadratization.jl")
+include("print.jl")
 
 end # module

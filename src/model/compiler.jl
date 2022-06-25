@@ -340,6 +340,17 @@ function toqubo_constraints!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}, S::T
 
         g = PBO.discretize(g)
 
+        # -*- Bounds & Slack Variable -*-
+        l, u = PBO.bounds(g)
+
+        if u < zero(T) # Always feasible
+            @warn "Always-feasible constraint detected"
+            continue
+        elseif l > zero(T) # Infeasible
+            @warn "Infeasible constraint detected"
+            error()
+        end
+
         model.g[ci] = g ^ 2
     end
 
@@ -371,10 +382,11 @@ function toqubo_constraints!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}, S::T
         l, u = PBO.bounds(g)
 
         s = if u < zero(T) # Always feasible
-            @warn "Always-feasible constraint detected: ignoring"
+            @warn "Always-feasible constraint detected"
             continue
         elseif l > zero(T) # Infeasible
             @warn "Infeasible constraint detected"
+            error()
         else
             VM.expansion(VM.encode!(VM.Binary, model, nothing, zero(T), abs(l)))
         end

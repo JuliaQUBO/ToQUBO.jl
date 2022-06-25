@@ -35,7 +35,7 @@ function encode!(E::Type{<:Encoding}, model::AbstractVirtualModel{T}, x::Union{V
 end
 
 function encode!(E::Type{<:Linear}, model::AbstractVirtualModel{T}, x::Union{VI, Nothing}, Γ::Function, n::Integer) where T
-    encode!(E, model, x, T[Γ(i) for i = 1:n])
+    encode!(E, model, x, T[Γ(i) for i = 1:n], zero(T))
 end
 
 function encode!(E::Type{<:Mirror}, model::AbstractVirtualModel{T}, x::Union{VI, Nothing}) where T
@@ -61,8 +61,8 @@ function encode!(E::Type{<:Unary}, model::AbstractVirtualModel{T}, x::Union{VI, 
 end
 
 function encode!(E::Type{<:Unary}, model::AbstractVirtualModel{T}, x::Union{VI, Nothing}, a::T, b::T, τ::T) where T
-    @warn "The computation method for number of bits is still unverified in this case!"
-    n = ceil(Int, log2(1 + abs(b - a) / 4τ))
+    @warn "The computation method the for number of bits is still unverified in this case!"
+    n = ceil(Int, (1 + abs(b - a) / 4τ))
     encode!(E, model, x, a, b, n) 
 end
 
@@ -77,12 +77,12 @@ function encode!(E::Type{<:Binary}, model::AbstractVirtualModel{T}, x::Union{VI,
     M = trunc(Int, β - α)
     N = ceil(Int, log2(M + 1))
 
-    encode!(E, model, x, T[[2^(i - 1) for i = 1:N-1];[M - 2^(N-1) + 1]], α)
+    encode!(E, model, x, T[[2^i for i = 0:N-2];[M - 2^(N-1) + 1]], α)
 end
 
 function encode!(E::Type{<:Binary}, model::AbstractVirtualModel{T}, x::Union{VI, Nothing}, a::T, b::T, n::Integer) where T
     Γ = (b - a) / (2^n - 1)
-    encode!(E, model, x, Γ * T[[2^(i - 1) for i = 1:n]], a)
+    encode!(E, model, x, Γ * 2 .^ collect(T, 0:n-1), a)
 end
 
 
@@ -90,3 +90,29 @@ function encode!(E::Type{<:Binary}, model::AbstractVirtualModel{T}, x::Union{VI,
     n = ceil(Int, log2(1 + abs(b - a) / 4τ))
     encode!(E, model, x, a, b, n)
 end
+
+function encode!(E::Type{<:OneHot}, model::AbstractVirtualModel{T}, x::Union{VI, Nothing}, a::T, b::T) where T
+    α, β = if a < b
+        ceil(a), floor(b)
+    else
+        ceil(b), floor(a)
+    end
+
+    # assumes: β - α > 0
+    encode!(E, model, x, collect(T, α:β), zero(T))
+end
+
+function encode!(E::Type{<:OneHot}, model::AbstractVirtualModel{T}, x::Union{VI, Nothing}, a::T, b::T, n::Integer) where T
+    Γ = (b - a) / (n - 1)
+    encode!(E, model, x, a .+ Γ * collect(T, 0:n-1), zero(T))
+end
+
+function encode!(E::Type{<:OneHot}, model::AbstractVirtualModel{T}, x::Union{VI, Nothing}, a::T, b::T, τ::T) where T
+    @warn "The computation method for the number of bits is still unverified in this case!"
+    n = ceil(Int, (1 + abs(b - a) / 4τ))
+    encode!(E, model, x, a, b, n) 
+end
+
+# function encode!(E::Type{<:DomainWall}, model::AbstractVirtualModel{T}, x::Union{VI, Nothing}, a::T, b::T, n::Integer) where T
+
+# end

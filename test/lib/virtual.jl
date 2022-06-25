@@ -1,4 +1,4 @@
-@testset "VirtualMapping Module" verbose = true begin
+@testset "VirtualMapping" verbose = true begin
 
 struct VirtualModel{T} <: VM.AbstractVirtualModel{T}
     source_model::MOIU.Model{T}
@@ -86,8 +86,7 @@ end
         model = VirtualModel()
 
         x = MOI.add_variable(MOI.get(model, VM.SourceModel()))
-        a = -2.0
-        b =  2.0
+        a, b = (-2.0, 2.0)
 
         v = VM.encode!(VM.Unary, model, x, a, b)
         y = VM.target(v)
@@ -113,8 +112,7 @@ end
         model = VirtualModel()
 
         x = MOI.add_variable(MOI.get(model, VM.SourceModel()))
-        a = -2.0
-        b =  2.0
+        a, b = (-2.0, 2.0)
         n = 4
 
         v = VM.encode!(VM.Unary, model, x, a, b, n)
@@ -141,8 +139,7 @@ end
         model = VirtualModel()
 
         x = MOI.add_variable(MOI.get(model, VM.SourceModel()))
-        a = -2.0
-        b =  2.0
+        a, b = (-2.0, 2.0)
 
         v = VM.encode!(VM.Binary, model, x, a, b)
         y = VM.target(v)
@@ -167,8 +164,7 @@ end
         model = VirtualModel()
 
         x = MOI.add_variable(MOI.get(model, VM.SourceModel()))
-        a = -2.0
-        b =  2.0
+        a, b = (-2.0, 2.0)
         n = 3
 
         v = VM.encode!(VM.Unary, model, x, a, b, n)
@@ -189,6 +185,83 @@ end
         @test MOI.get(model, VM.Source(), VM.source(v)) == v
         @test MOI.get.(model, VM.Target(), VM.target(v)) == [v, v, v]
     end
+
+    @testset "One Hot - Linear" begin
+        model = VirtualModel()
+
+        x = MOI.add_variable(MOI.get(model, VM.SourceModel()))
+        γ = [-1.0, -0.5, 0.0, 0.5, 1.0]
+
+        v = VM.encode!(VM.OneHot, model, x, γ)
+        y = VM.target(v)
+
+        @test length(y) == length(γ)
+
+        @test VM.source(v) == x
+        @test VM.expansion(v) ≈ PBO.PBF{VI, Float64}(
+            y[1] => -1.0,
+            y[2] => -0.5,
+            y[4] =>  0.5,
+            y[5] =>  1.0,
+        )
+        @test VM.penaltyfn(v) ≈ (PBO.PBF{VI, Float64}(-1.0, y...) ^ 2)
+
+        @test MOI.get(model, VM.Variables()) == [v]
+        @test MOI.get(model, VM.Source(), VM.source(v)) == v
+        @test MOI.get.(model, VM.Target(), VM.target(v)) == [v, v, v, v, v]
+    end
+
+    @testset "One Hot - Integer" begin
+        model = VirtualModel()
+
+        x = MOI.add_variable(MOI.get(model, VM.SourceModel()))
+        a, b = (-2.0, 2.0)
+
+        v = VM.encode!(VM.OneHot, model, x, a, b)
+        y = VM.target(v)
+
+        @test length(y) == 5
+
+        @test VM.source(v) == x
+        @test VM.expansion(v) ≈ PBO.PBF{VI, Float64}(
+            y[1] => -2.0,
+            y[2] => -1.0,
+            y[4] =>  1.0,
+            y[5] =>  2.0,
+        )
+        @test VM.penaltyfn(v) ≈ (PBO.PBF{VI, Float64}(-1.0, y...) ^ 2)
+
+        @test MOI.get(model, VM.Variables()) == [v]
+        @test MOI.get(model, VM.Source(), VM.source(v)) == v
+        @test MOI.get.(model, VM.Target(), VM.target(v)) == [v, v, v, v, v]
+    end
+    @testset "One Hot - Real" begin
+        model = VirtualModel()
+
+        x = MOI.add_variable(MOI.get(model, VM.SourceModel()))
+        a, b = (-2.0, 2.0)
+        n = 5
+
+        v = VM.encode!(VM.OneHot, model, x, a, b, n)
+        y = VM.target(v)
+
+        @test length(y) == n
+
+        @test VM.source(v) == x
+        @test VM.expansion(v) ≈ PBO.PBF{VI, Float64}(
+            y[1] => -2.0,
+            y[2] => -1.0,
+            y[4] =>  1.0,
+            y[5] =>  2.0,
+        )
+        @test VM.penaltyfn(v) ≈ (PBO.PBF{VI, Float64}(-1.0, y...) ^ 2)
+
+        @test MOI.get(model, VM.Variables()) == [v]
+        @test MOI.get(model, VM.Source(), VM.source(v)) == v
+        @test MOI.get.(model, VM.Target(), VM.target(v)) == [v, v, v, v, v]
+    end
+    @testset "Domain Wall - Integer" begin end
+    @testset "Domain Wall - Real" begin end
 end
 
 end

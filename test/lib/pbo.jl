@@ -41,7 +41,7 @@ s = PBO.PBF{S, T}(
     Set{S}([:x, :y, :z]) => 3.0,
 )
 
-@testset "PBF :: Constructors" begin
+@testset "Constructors" begin
     @test PBO.PBF{S, T}(Set{S}() => 0.0) == PBO.PBF{S, T}() == zero(PBO.PBF{S, T})
     @test f == PBO.PBF{S, T}(
         nothing => 0.5,
@@ -61,7 +61,7 @@ s = PBO.PBF{S, T}(
     @test s == PBO.PBF{S, T}(S[] => 0.0, Set{S}([:x, :y, :z]) => 3.0)
 end
 
-@testset "PBF :: Arithmetic" verbose = true begin
+@testset "Arithmetic" verbose = true begin
 
 @testset "+" begin
 @test (p + q) == (q + p) == PBO.PBF{S, T}(
@@ -134,7 +134,7 @@ end
 
 end
 
-@testset "PBF :: QUBO" begin
+@testset "QUBO" begin
 x, Q, c = PBO.qubo_normal_form(Dict, p)
 @test Q == Dict{Tuple{Int, Int}, T}(
     (x[:x], x[:x]) => 1.0, (x[:x], x[:y]) => -2.0
@@ -163,17 +163,17 @@ x, Q, c = PBO.qubo_normal_form(Array, r)
 @test_throws Exception PBO.qubo_normal_form(Array, s)
 end
 
-@testset "PBF :: Ising" begin end
+@testset "Ising" begin end
 
-@testset "PBF :: Calculus" begin
+@testset "Calculus" begin
 @test PBO.gap(f; bound=:loose) == (PBO.upperbound(f; bound=:loose) - PBO.lowerbound(f; bound=:loose))
 @test PBO.gap(g; bound=:loose) == (PBO.upperbound(g; bound=:loose) - PBO.lowerbound(g; bound=:loose))
 @test PBO.gap(h; bound=:loose) == (PBO.upperbound(h; bound=:loose) - PBO.lowerbound(h; bound=:loose))
 end
 
-@testset "PBF :: Quadratization" begin end
+@testset "Quadratization" begin end
 
-@testset "PBF :: Discretization" begin
+@testset "Discretization" begin
 @test PBO.discretize(p; tol=0.1) == PBO.PBF{S, T}(
     nothing => 1.0, :x => 2.0, [:x, :y] => -4.0,
 )
@@ -183,6 +183,11 @@ end
 @test PBO.discretize(r; tol=0.1) == PBO.PBF{S, T}(
     nothing => 1.0, :z => -1.0,
 )
+end
+
+@testset "Print" begin
+    @test "$(r)" == "1.0 - 1.0z" || "$(r)" == "-1.0z + 1.0"
+    @test "$(s)" == "3.0x*y*z"
 end
 
 end
