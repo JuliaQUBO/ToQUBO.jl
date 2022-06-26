@@ -82,7 +82,7 @@ end
         @test MOI.get.(model, VM.Target(), VM.target(v)) == [v]
     end
 
-    @testset "Unary - Integer" begin
+    @testset "Unary ℤ" begin
         model = VirtualModel()
 
         x = MOI.add_variable(MOI.get(model, VM.SourceModel()))
@@ -108,7 +108,7 @@ end
         @test MOI.get.(model, VM.Target(), VM.target(v)) == [v, v, v, v]
     end
 
-    @testset "Unary - Real" begin
+    @testset "Unary ℝ" begin
         model = VirtualModel()
 
         x = MOI.add_variable(MOI.get(model, VM.SourceModel()))
@@ -135,7 +135,7 @@ end
         @test MOI.get.(model, VM.Target(), VM.target(v)) == [v, v, v, v]
     end
 
-    @testset "Binary - Integer" begin
+    @testset "Binary ℤ" begin
         model = VirtualModel()
 
         x = MOI.add_variable(MOI.get(model, VM.SourceModel()))
@@ -160,7 +160,7 @@ end
         @test MOI.get.(model, VM.Target(), VM.target(v)) == [v, v, v]
     end
 
-    @testset "Binary - Real" begin
+    @testset "Binary ℝ" begin
         model = VirtualModel()
 
         x = MOI.add_variable(MOI.get(model, VM.SourceModel()))
@@ -186,7 +186,7 @@ end
         @test MOI.get.(model, VM.Target(), VM.target(v)) == [v, v, v]
     end
 
-    @testset "One Hot - Linear" begin
+    @testset "One Hot" begin
         model = VirtualModel()
 
         x = MOI.add_variable(MOI.get(model, VM.SourceModel()))
@@ -211,7 +211,7 @@ end
         @test MOI.get.(model, VM.Target(), VM.target(v)) == [v, v, v, v, v]
     end
 
-    @testset "One Hot - Integer" begin
+    @testset "One Hot ℤ" begin
         model = VirtualModel()
 
         x = MOI.add_variable(MOI.get(model, VM.SourceModel()))
@@ -235,7 +235,7 @@ end
         @test MOI.get(model, VM.Source(), VM.source(v)) == v
         @test MOI.get.(model, VM.Target(), VM.target(v)) == [v, v, v, v, v]
     end
-    @testset "One Hot - Real" begin
+    @testset "One Hot ℝ" begin
         model = VirtualModel()
 
         x = MOI.add_variable(MOI.get(model, VM.SourceModel()))
@@ -260,8 +260,70 @@ end
         @test MOI.get(model, VM.Source(), VM.source(v)) == v
         @test MOI.get.(model, VM.Target(), VM.target(v)) == [v, v, v, v, v]
     end
-    @testset "Domain Wall - Integer" begin end
-    @testset "Domain Wall - Real" begin end
+    @testset "Domain Wall ℤ" begin
+        model = VirtualModel()
+
+        x = MOI.add_variable(MOI.get(model, VM.SourceModel()))
+        a, b = (-2.0, 2.0)
+
+        v = VM.encode!(VM.DomainWall, model, x, a, b)
+        y = VM.target(v)
+
+        @test length(y) == 4
+
+        @test VM.source(v) == x
+        @test VM.expansion(v) ≈ PBO.PBF{VI, Float64}(
+            y[1] => -1.0,
+            y[2] => -1.0,
+            y[3] => -1.0,
+            y[4] => -1.0,
+        )
+        @test VM.penaltyfn(v) ≈ PBO.PBF{VI, Float64}(
+            y[2] => 2.0,
+            y[3] => 2.0,
+            y[4] => 2.0,
+            [y[1], y[2]] => -2.0,
+            [y[2], y[3]] => -2.0,
+            [y[3], y[4]] => -2.0,
+        )
+
+        @test MOI.get(model, VM.Variables()) == [v]
+        @test MOI.get(model, VM.Source(), VM.source(v)) == v
+        @test MOI.get.(model, VM.Target(), VM.target(v)) == [v, v, v, v]
+    end
+        
+    @testset "Domain Wall ℝ" begin
+        model = VirtualModel()
+
+        x = MOI.add_variable(MOI.get(model, VM.SourceModel()))
+        a, b = (-2.0, 2.0)
+        n = 5
+
+        v = VM.encode!(VM.DomainWall, model, x, a, b, n)
+        y = VM.target(v)
+
+        @test length(y) == n - 1
+
+        @test VM.source(v) == x
+        @test VM.expansion(v) ≈ PBO.PBF{VI, Float64}(
+            y[1] => -1.0,
+            y[2] => -1.0,
+            y[3] => -1.0,
+            y[4] => -1.0,
+        )
+        @test VM.penaltyfn(v) ≈ PBO.PBF{VI, Float64}(
+            y[2] => 2.0,
+            y[3] => 2.0,
+            y[4] => 2.0,
+            [y[1], y[2]] => -2.0,
+            [y[2], y[3]] => -2.0,
+            [y[3], y[4]] => -2.0,
+        )
+
+        @test MOI.get(model, VM.Variables()) == [v]
+        @test MOI.get(model, VM.Source(), VM.source(v)) == v
+        @test MOI.get.(model, VM.Target(), VM.target(v)) == [v, v, v, v]
+    end
 end
 
 end

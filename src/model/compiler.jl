@@ -553,6 +553,7 @@ function toqubo_moi!(model::VirtualQUBOModel{T}) where T
         init=zero(PBO.PBF{VI, T})
     )
 
+    # -*- Quadratization Step -*-
     H = PBO.quadratize(
         H,
         (n::Integer) -> MOI.add_variables(MOI.get(model, VM.TargetModel()), n)

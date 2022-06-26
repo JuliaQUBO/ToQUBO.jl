@@ -26,7 +26,7 @@ function encode!(model::AbstractVirtualModel{T}, v::VV{<:Any, T}) where T
     return v
 end
 
-function encode!(E::Type{<:Encoding}, model::AbstractVirtualModel{T}, x::Union{VI, Nothing}, γ::Vector{T}, α::T=zero(T)) where T
+function encode!(E::Type{<:LinearEncoding}, model::AbstractVirtualModel{T}, x::Union{VI, Nothing}, γ::Vector{T}, α::T=zero(T)) where T
     n = length(γ)
     y = MOI.add_variables(MOI.get(model, TargetModel()), n)
     v = VirtualVariable{E, T}(x, y, γ, α)
@@ -113,6 +113,30 @@ function encode!(E::Type{<:OneHot}, model::AbstractVirtualModel{T}, x::Union{VI,
     encode!(E, model, x, a, b, n) 
 end
 
-# function encode!(E::Type{<:DomainWall}, model::AbstractVirtualModel{T}, x::Union{VI, Nothing}, a::T, b::T, n::Integer) where T
 
-# end
+function encode!(E::Type{<:SequentialEncoding}, model::AbstractVirtualModel{T}, x::Union{VI, Nothing}, γ::Vector{T}, α::T=zero(T)) where T
+    n = length(γ)
+    y = MOI.add_variables(MOI.get(model, TargetModel()), n - 1)
+    v = VirtualVariable{E, T}(x, y, γ, α)
+
+    encode!(model, v)
+end
+
+function encode!(E::Type{<:DomainWall}, model::AbstractVirtualModel{T}, x::Union{VI, Nothing}, a::T, b::T) where T
+    α, β = if a < b
+        ceil(a), floor(b)
+    else
+        ceil(b), floor(a)
+    end
+
+    # assumes: β - α > 0
+    M = trunc(Int, β - α)
+
+    encode!(E, model, x, α .+ T[i for i = 0:M], zero(T))
+end
+
+
+function encode!(E::Type{<:DomainWall}, model::AbstractVirtualModel{T}, x::Union{VI, Nothing}, a::T, b::T, n::Integer) where T
+    Γ = (b - a) / (n - 1)
+    encode!(E, model, x, a .+ Γ * collect(T, 0:n-1), zero(T))
+end

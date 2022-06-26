@@ -15,7 +15,7 @@ using LinearAlgebra
 using TOML
 
 
-@testset "ToQUBO.jl" verbose = true begin
+@testset ":: -*- :: ToQUBO.jl :: -*- ::" verbose = true begin
 # -*- Tests: Version -*-
 include("version.jl")
 
@@ -28,5 +28,5 @@ include(joinpath("interface", "moi.jl"))
 include(joinpath("interface", "jump.jl"))
 
 # -*- Tests: Examples -*-
-# include(joinpath("examples", "qba.jl"))
+include(joinpath("examples", "qba.jl"))
 end
