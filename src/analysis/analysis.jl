@@ -7,7 +7,11 @@ function PBO.PBF{VI, T}(model::VirtualQUBOModel{T}) where T
         xᵢ = q.variable_1
         xⱼ = q.variable_2
 
-        Ω[Set{VI}([xᵢ, xⱼ])] = c
+        Ω[Set{VI}([xᵢ, xⱼ])] = if xᵢ == xⱼ
+            c / 2
+        else
+            c
+        end
     end
 
     for a in f.affine_terms
