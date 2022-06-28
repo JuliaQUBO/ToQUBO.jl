@@ -21,33 +21,13 @@ const CI = MOI.ConstraintIndex
 
 # -*- :: Library Imports :: -*-
 
-# -*- QUBO Errors -*-
+# -*- Error -*-
 include("error.jl")
 
-# -*- PBO Library -*-
-include("pbo.jl")
-using .PBO
-
-# -*- PBO Aliases -*-
-const ℱ{T} = PBF{VI, T}
-
-# -*- Virtual Mapping -*-
-include("virtual.jl")
-using .VirtualMapping
-
-# -*- QUBO Model -*-
-include("model.jl")
-
-# -*- ToQUBO Aliases -*-
-const Optimizer{T} = VirtualQUBOModel{T}
-
-# -*- -> QUBO <- -*-
-include("qubo.jl")
-
-# -*- MOI Wrapper -*-
-include("MOI_wrapper.jl")
-
-
-include("analysis.jl")
+# -*- Library -*-
+include(joinpath("pbo", "PBO.jl"))
+include(joinpath("virtual", "VirtualMapping.jl"))
+include(joinpath("model", "model.jl"))
+include(joinpath("analysis", "analysis.jl"))
 
 end # module

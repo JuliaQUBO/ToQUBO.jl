@@ -5,30 +5,28 @@ import MathOptInterface
 const MOI = MathOptInterface
 const MOIU = MOI.Utilities
 const VI = MOI.VariableIndex
+const CI = MOI.ConstraintIndex
 
 # -*- Imports -*-
 using JuMP
-using ToQUBO
+using ToQUBO: ToQUBO, PBO, VM
 using Anneal
 using LinearAlgebra
 using TOML
 
-const VM = ToQUBO.VirtualMapping
 
+@testset ":: -*- :: ToQUBO.jl :: -*- ::" verbose = true begin
 # -*- Tests: Version -*-
 include("version.jl")
 
 # -*- Tests: Library -*-
-include("./lib/pbo.jl")
-include("./lib/virtual.jl")
+include(joinpath("lib", "pbo.jl"))
+include(joinpath("lib", "virtual.jl"))
 
 # -*- Tests: Interface -*-
-# include("./lib/moi.jl")
-# include("./lib/jump.jl")
+include(joinpath("interface", "moi.jl"))
+include(joinpath("interface", "jump.jl"))
 
 # -*- Tests: Examples -*-
-@testset "Quantum Bridge Analytics I" begin
-    include("examples/qba2.jl")
-    include("examples/qba3_1.jl")
-    include("examples/qba3_2.jl")
+include(joinpath("examples", "qba.jl"))
 end
