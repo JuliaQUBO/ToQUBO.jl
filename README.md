@@ -80,9 +80,9 @@ Below, we present a list containing all[⁴](#4) MOI constraint types and their 
 ### Conic constraints
 | Mathematical Constraint                                       | MOI Function         | MOI Set                          | Status |
 | ------------------------------------------------------------- | -------------------- | -------------------------------- | :----: |
-| ∥A**x** + **b**∥₂ ≤ **c**ᵀ**x** + d                           | VectorAffineFunction | SecondOrderCone                  |   ❌    |
-| y ≥ ∥**x**∥₂                                                  | VectorOfVariables    | SecondOrderCone                  |   ❌    |
-| 2yz ≥ ∥**x**∥₂², y, z ≥ 0                                     | VectorOfVariables    | RotatedSecondOrderCone           |   ❌    |
+| ∥A**x** + **b**∥₂ ≤ **c**ᵀ**x** + d                           | VectorAffineFunction | SecondOrderCone                  |   📖    |
+| y ≥ ∥**x**∥₂                                                  | VectorOfVariables    | SecondOrderCone                  |   📖    |
+| 2yz ≥ ∥**x**∥₂², y, z ≥ 0                                     | VectorOfVariables    | RotatedSecondOrderCone           |   📖    |
 | (**a**₁ᵀ**x** + b₁, **a**₂ᵀ**x** + b₂, **a**₃ᵀ**x** + b₃) ∈ E | VectorAffineFunction | ExponentialCone                  |   ❌    |
 | A(**x**) ∈ S₊                                                 | VectorAffineFunction | PositiveSemidefiniteConeTriangle |   ❌    |
 | B(**x**) ∈ S₊                                                 | VectorAffineFunction | PositiveSemidefiniteConeSquare   |   ❌    |
@@ -102,11 +102,11 @@ Below, we present a list containing all[⁴](#4) MOI constraint types and their 
 | ---------------------------------- | -------------------- | -------------- | :----: |
 | **x**ᵢ ∈ ℤ                         | VariableIndex        | Integer        |   ✔️    |
 | **x**ᵢ ∈ {0,1}                     | VariableIndex        | ZeroOne        |   ✔️    |
-| **x**ᵢ ∈ {0} ∪ \[l, u\]            | VariableIndex        | Semicontinuous |   ❌    |
-| **x**ᵢ ∈ {0} ∪ {l, l+1, …, u−1, u} | VariableIndex        | Semiinteger    |   ❌    |
-| [¹](#1)                            | VectorOfVariables    | SOS1           |   ❌    |
-| [²](#2)                            | VectorOfVariables    | SOS2           |   ❌    |
-| y = 1 ⟹ **a**ᵀ**x** ∈ S            | VectorAffineFunction | Indicator      |   ❌    |
+| **x**ᵢ ∈ {0} ∪ \[l, u\]            | VariableIndex        | Semicontinuous |   ⌛    |
+| **x**ᵢ ∈ {0} ∪ {l, l+1, …, u−1, u} | VariableIndex        | Semiinteger    |   ⌛    |
+| [¹](#1)                            | VectorOfVariables    | SOS1           |   📖    |
+| [²](#2)                            | VectorOfVariables    | SOS2           |   📖    |
+| y = 1 ⟹ **a**ᵀ**x** ∈ S            | VectorAffineFunction | Indicator      |   📖    |
 
 <a id="1">¹</a> 
 At most one component of **x** can be nonzero
@@ -114,13 +114,13 @@ At most one component of **x** can be nonzero
 <a id="2">²</a>
 At most two components of **x** can be nonzero, and if so they must be adjacent components
 
-| Symbol | Meaning                          |
-| :----: | -------------------------------- |
-|   ✔️    | Available                        |
-|   ♻️    | Available through Bridges[³](#3) |
-|   ❌    | Unavailable                      |
-|   ⌛    | In Development (Available soon)  |
-|   📖    | Under research                   |
+| Symbol | Meaning                            |
+| :----: | ---------------------------------- |
+|   ✔️    | Available                          |
+|   ♻️    | Available through Bridges[³](#3)   |
+|   ❌    | Unavailable                        |
+|   ⌛    | Under Development (Available soon) |
+|   📖    | Under Research                     |
 
 <a id="3">³</a> 
 [MOI Bridges](https://jump.dev/MathOptInterface.jl/stable/submodules/Bridges/reference/) provide equivalent constraint mapping.
@@ -128,4 +128,17 @@ At most two components of **x** can be nonzero, and if so they must be adjacent 
 <a id="4">⁴</a>
 If you think this list is incomplete, consider creating an [Issue](https://github.com/psrenergy/ToQUBO.jl/issues) or opening a [Pull Request](https://github.com/psrenergy/ToQUBO.jl/pulls).
 
-<!-- Symbols: ✔️❌⌛📖 -->
+## Citing ToQUBO.jl
+If you use `ToQUBO.jl` in your work, we kindly ask you to include the following citation:
+```tex
+@software{toqubo:2022,
+  author       = {Pedro Xavier and Tiago Andrade and Joaquim Garcia and David Bernal},
+  title        = {{ToQUBO.jl}},
+  month        = mar,
+  year         = 2022,
+  publisher    = {Zenodo},
+  version      = {v0.1.0},
+  doi          = {10.5281/zenodo.6387592},
+  url          = {https://doi.org/10.5281/zenodo.6387592}
+}
+```
