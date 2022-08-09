@@ -324,6 +324,8 @@ end
         @test MOI.get(model, VM.Source(), VM.source(v)) == v
         @test MOI.get.(model, VM.Target(), VM.target(v)) == [v, v, v, v]
     end
+
+    @testset "Bipartite"
 end
 
 end

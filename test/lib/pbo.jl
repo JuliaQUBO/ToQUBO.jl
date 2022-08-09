@@ -163,7 +163,37 @@ x, Q, c = PBO.qubo_normal_form(Array, r)
 @test_throws Exception PBO.qubo_normal_form(Array, s)
 end
 
-@testset "Ising" begin end
+@testset "Evaluation" begin
+    for x = 0:1, y = 0:1, z = 0:1
+        @test f(:x => x, :y => y, :z => z) == 0.5 + (x + y + z == 1.0)
+    end
+
+    @test g() == 1.0
+
+    for x = 0:1, y = 0:1, z = 0:1, w = 0:1
+        @test h(:x => x, :y => y, :z => z, :w => w) == 1.0 + x + y + z + w
+    end
+
+    x = Set{Symbol}([:x])
+    y = Set{Symbol}([:y])
+    z = Set{Symbol}([:z])
+
+    @test p(x) == 1.5
+    @test p(y) == 0.5
+    @test p(z) == 0.5
+
+    @test q(x) == 0.5
+    @test q(y) == 1.5
+    @test q(z) == 0.5
+
+    @test r(x) == 1.0
+    @test r(y) == 1.0
+    @test r(z) == 0.0
+
+    @test s(x) == 0.0
+    @test s(y) == 0.0
+    @test s(z) == 0.0
+end
 
 @testset "Calculus" begin
 @test PBO.gap(f; bound=:loose) == (PBO.upperbound(f; bound=:loose) - PBO.lowerbound(f; bound=:loose))
@@ -171,7 +201,20 @@ end
 @test PBO.gap(h; bound=:loose) == (PBO.upperbound(h; bound=:loose) - PBO.lowerbound(h; bound=:loose))
 end
 
-@testset "Quadratization" begin end
+@testset "Quadratization" begin
+    slack = (n::Union{Integer, Nothing} = nothing) -> isnothing(n) ? :w : [:w, :t, :u, :v][1:n]
+
+    @test PBO.quadratize(p, slack) == p
+    @test PBO.quadratize(q, slack) == q
+    @test PBO.quadratize(r, slack) == r
+    @test PBO.quadratize(s, slack) == PBO.PBF{S, T}(
+        :w => 3.0,
+        [:x, :w] => 3.0,
+        [:y, :w] => -3.0,
+        [:z, :w] => -3.0,
+        [:y, :z] => 3.0,
+    )
+end
 
 @testset "Discretization" begin
 @test PBO.discretize(p; tol=0.1) == PBO.PBF{S, T}(
