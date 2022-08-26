@@ -80,9 +80,9 @@ Below, we present a list containing all[⁴](#4) MOI constraint types and their 
 ### Conic constraints
 | Mathematical Constraint                                       | MOI Function         | MOI Set                          | Status |
 | ------------------------------------------------------------- | -------------------- | -------------------------------- | :----: |
-| ∥A**x** + **b**∥₂ ≤ **c**ᵀ**x** + d                           | VectorAffineFunction | SecondOrderCone                  |   ❌    |
-| y ≥ ∥**x**∥₂                                                  | VectorOfVariables    | SecondOrderCone                  |   ❌    |
-| 2yz ≥ ∥**x**∥₂², y, z ≥ 0                                     | VectorOfVariables    | RotatedSecondOrderCone           |   ❌    |
+| ∥A**x** + **b**∥₂ ≤ **c**ᵀ**x** + d                           | VectorAffineFunction | SecondOrderCone                  |   📖    |
+| y ≥ ∥**x**∥₂                                                  | VectorOfVariables    | SecondOrderCone                  |   📖    |
+| 2yz ≥ ∥**x**∥₂², y, z ≥ 0                                     | VectorOfVariables    | RotatedSecondOrderCone           |   📖    |
 | (**a**₁ᵀ**x** + b₁, **a**₂ᵀ**x** + b₂, **a**₃ᵀ**x** + b₃) ∈ E | VectorAffineFunction | ExponentialCone                  |   ❌    |
 | A(**x**) ∈ S₊                                                 | VectorAffineFunction | PositiveSemidefiniteConeTriangle |   ❌    |
 | B(**x**) ∈ S₊                                                 | VectorAffineFunction | PositiveSemidefiniteConeSquare   |   ❌    |
@@ -102,11 +102,11 @@ Below, we present a list containing all[⁴](#4) MOI constraint types and their 
 | ---------------------------------- | -------------------- | -------------- | :----: |
 | **x**ᵢ ∈ ℤ                         | VariableIndex        | Integer        |   ✔️    |
 | **x**ᵢ ∈ {0,1}                     | VariableIndex        | ZeroOne        |   ✔️    |
-| **x**ᵢ ∈ {0} ∪ \[l, u\]            | VariableIndex        | Semicontinuous |   ❌    |
-| **x**ᵢ ∈ {0} ∪ {l, l+1, …, u−1, u} | VariableIndex        | Semiinteger    |   ❌    |
-| [¹](#1)                            | VectorOfVariables    | SOS1           |   ❌    |
-| [²](#2)                            | VectorOfVariables    | SOS2           |   ❌    |
-| y = 1 ⟹ **a**ᵀ**x** ∈ S            | VectorAffineFunction | Indicator      |   ❌    |
+| **x**ᵢ ∈ {0} ∪ \[l, u\]            | VariableIndex        | Semicontinuous |   ⌛    |
+| **x**ᵢ ∈ {0} ∪ {l, l+1, …, u−1, u} | VariableIndex        | Semiinteger    |   ⌛    |
+| [¹](#1)                            | VectorOfVariables    | SOS1           |   ⌛    |
+| [²](#2)                            | VectorOfVariables    | SOS2           |   ⌛    |
+| y = 1 ⟹ **a**ᵀ**x** ∈ S            | VectorAffineFunction | Indicator      |   ⌛    |
 
 <a id="1">¹</a> 
 At most one component of **x** can be nonzero
