@@ -63,6 +63,7 @@ end
 Below, we present a list containing all[⁴](#4) MOI constraint types and their current reformulation support by ToQUBO.
 
 ### Linear constraints
+
 | Mathematical Constraint                      | MOI Function         | MOI Set      | Status |
 | -------------------------------------------- | -------------------- | ------------ | :----: |
 | $\vec{a} \cdot \vec{x} \le \beta$            | ScalarAffineFunction | LessThan     |   ✔️    |
@@ -78,6 +79,7 @@ Below, we present a list containing all[⁴](#4) MOI constraint types and their 
 | $A \vec{x} + b = 0$                          | VectorAffineFunction | Zeros        |   ♻️    |
 
 ### Conic constraints
+
 | Mathematical Constraint                                                                                           | MOI Function         | MOI Set                          | Status |
 | ----------------------------------------------------------------------------------------------------------------- | -------------------- | -------------------------------- | :----: |
 | $\left\lVert{}{A \vec{x} + b}\right\rVert{}_{2} \le \vec{c} \cdot \vec{x} + d$                                    | VectorAffineFunction | SecondOrderCone                  |   📖    |
@@ -90,6 +92,7 @@ Below, we present a list containing all[⁴](#4) MOI constraint types and their 
 | $\vec{x} \in S_{+}$                                                                                               | VectorOfVariables    | PositiveSemidefiniteConeSquare   |   ❌    |
 
 ### Quadratic constraints
+
 | Mathematical Constraint                               | MOI Function            | MOI Set                  | Status |
 | ----------------------------------------------------- | ----------------------- | ------------------------ | :----: |
 | $\vec{x} Q \vec{x} + \vec{a} \cdot \vec{x} + b \ge 0$ | ScalarQuadraticFunction | GreaterThan              |   ♻️    |
@@ -98,6 +101,7 @@ Below, we present a list containing all[⁴](#4) MOI constraint types and their 
 | Bilinear matrix inequality                            | VectorQuadraticFunction | PositiveSemidefiniteCone |   ❌    |
 
 ### Discrete and logical constraints
+
 | Mathematical Constraint                                                              | MOI Function         | MOI Set        | Status |
 | ------------------------------------------------------------------------------------ | -------------------- | -------------- | :----: |
 | $x_i  \in \mathbb{Z}$                                                                | VariableIndex        | Integer        |   ✔️    |
@@ -106,7 +110,7 @@ Below, we present a list containing all[⁴](#4) MOI constraint types and their 
 | $x_i \in \left\lbrace{0}\right\rbrace \cup \left[{l, l + 1, \dots, u - 1, u}\right]$ | VariableIndex        | Semiinteger    |   ⌛    |
 | [¹](#1)                                                                              | VectorOfVariables    | SOS1           |   📖    |
 | [²](#2)                                                                              | VectorOfVariables    | SOS2           |   📖    |
-| $y = 1 \implies \vec{a} \cdot \vec{x} \in S$                                         | VectorAffineFunction | Indicator      |   📖    |
+| $y = 1 \implies \vec{a} \cdot \vec{x} \in S$                                         | VectorAffineFunction | Indicator      |   📖    |//////
 
 <a id="1">¹</a> 
 At most one component of **x** can be nonzero
