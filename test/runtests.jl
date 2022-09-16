@@ -1,32 +1,40 @@
 using Test
 
-# -*- MOI -*-
-import MathOptInterface
-const MOI = MathOptInterface
+# -*- Imports: JuMP + MOI -*-
+using JuMP
 const MOIU = MOI.Utilities
 const VI = MOI.VariableIndex
 const CI = MOI.ConstraintIndex
 
 # -*- Imports -*-
-using JuMP
 using ToQUBO: ToQUBO, PBO, VM
 using Anneal
 using LinearAlgebra
 using TOML
 
-
-@testset ":: -*- :: ToQUBO.jl :: -*- ::" verbose = true begin
 # -*- Tests: Version -*-
-include("version.jl")
+include("lib/version.jl")
 
 # -*- Tests: Library -*-
-include(joinpath("lib", "pbo.jl"))
-include(joinpath("lib", "virtual.jl"))
+include("lib/pbo.jl")
+include("lib/virtual.jl")
 
 # -*- Tests: Interface -*-
-include(joinpath("interface", "moi.jl"))
-include(joinpath("interface", "jump.jl"))
+include("interface/moi.jl")
+include("interface/jump.jl")
 
 # -*- Tests: Examples -*-
-include(joinpath("examples", "qba.jl"))
+include("examples/qba.jl")
+
+function main()
+    @testset ":: -*- :: ToQUBO.jl :: -*- ::" verbose = true begin
+        test_version()
+        test_pbo()
+        test_virtual()
+        test_moi()
+        test_jump()
+        test_qba()
+    end
 end
+
+main() # Here we go!

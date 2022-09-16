@@ -97,13 +97,25 @@ Base.size(f::PBF{S, T}) where {S, T} = length(f) - haskey(f.Ω, Set{S}())
 
 # -*- Comparison: (==, !=, ===, !==)
 Base.:(==)(f::PBF{S, T}, g::PBF{S, T}) where {S, T} = f.Ω == g.Ω
+Base.:(==)(f::PBF{<:Any, T}, a::T) where T = isscalar(f) && (f[nothing] == a)
 Base.:(!=)(f::PBF{S, T}, g::PBF{S, T}) where {S, T} = f.Ω != g.Ω
-Base.:(≈)(f::PBF{S, T}, g::PBF{S, T}) where {S, T} = all(haskey(g, ω) && isapprox(g[ω], c) for (ω, c) in f)
+Base.:(!=)(f::PBF{<:Any, T}, a::T) where T = !isscalar(f) || (f[nothing] != a)
+function Base.isapprox(f::PBF{S, T}, g::PBF{S, T}; kw...) where {S, T}
+    (length(f) == length(g)) && all(haskey(g, ω) && isapprox(g[ω], f[ω]; kw...) for ω in keys(f))
+end
+function Base.isapprox(f::PBF{<:Any, T}, a::T; kw...) where T
+    isscalar(f) && isapprox(f[nothing], a; kw...)
+end
+
+function isscalar(f::PBF{S, <:Any}) where S
+    isempty(f) || (length(f) == 1 && haskey(f, nothing))
+end
 
 Base.iszero(f::PBF) = isempty(f)
+Base.isone(f::PBF) = isscalar(f) && isone(f[nothing])
 Base.zero(::Type{<:PBF{S, T}}) where {S, T} = PBF{S, T}()
 Base.one(::Type{<:PBF{S, T}}) where {S, T} = PBF{S, T}(one(T))
-Base.round(f::PBF{S, T}; digits::Integer = 0) where {S, T} = PBF{S, T}(ω => round(c; digits=digits) for (ω, c) ∈ f)
+Base.round(f::PBF{S, T}; kw...) where {S, T} = PBF{S, T}(ω => round(c; kw...) for (ω, c) in f)
 
 # -*- Arithmetic: (+) -*-
 function Base.:(+)(f::PBF{S, T}, g::PBF{S, T}) where {S, T}
@@ -219,7 +231,7 @@ function (f::PBF{S, T})(x::Dict{S, <:Integer}) where {S, T}
         η = Set{S}()
         for j in ω
             if haskey(x, j)
-                if !(x[j] > 0)
+                if iszero(x[j])
                     c = zero(T)
                     break
                 end
@@ -232,7 +244,13 @@ function (f::PBF{S, T})(x::Dict{S, <:Integer}) where {S, T}
     g
 end
 
-(f::PBF{S, <:Any})(x::Pair{S, <:Integer}...) where {S} = f(Dict{S, <:Integer}(x...))
+function (f::PBF{S, T})(η::Set{S}) where {S, T}
+    sum(c for (ω, c) in f if ω ⊆ η; init=zero(T))
+end
+
+function (f::PBF{S, <:Any})(x::Pair{S, <:Integer}...) where {S}
+    (f)(Dict{S, Int}(x...))
+end
 
 # -*- Type conversion -*-
 function Base.convert(U::Type{<:T}, f::PBF{<:Any, T}) where {T}

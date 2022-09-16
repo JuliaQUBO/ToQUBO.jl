@@ -63,50 +63,54 @@ end
 Below, we present a list containing all[⁴](#4) MOI constraint types and their current reformulation support by ToQUBO.
 
 ### Linear constraints
-| Mathematical Constraint | MOI Function         | MOI          | Status |
-| ----------------------- | -------------------- | ------------ | :----: |
-| **a**ᵀ**x** ≤ β         | ScalarAffineFunction | LessThan     |   ✔️    |
-| **a**ᵀ**x** ≥ α         | ScalarAffineFunction | GreaterThan  |   ♻️    |
-| **a**ᵀ**x** = β         | ScalarAffineFunction | EqualTo      |   ✔️    |
-| α ≤ **a**ᵀ**x** ≤ β     | ScalarAffineFunction | Interval     |   ♻️    |
-| **x**ᵢ ≤ β              | VariableIndex        | LessThan     |   ✔️    |
-| **x**ᵢ ≥ α              | VariableIndex        | GreaterThan  |   ✔️    |
-| **x**ᵢ = β              | VariableIndex        | EqualTo      |   ✔️    |
-| α ≤ **x**ᵢ ≤ β          | VariableIndex        | Interval     |   ✔️    |
-| A**x** + **b** ∈ ℝⁿ₊    | VectorAffineFunction | Nonnegatives |   ♻️    |
-| A**x** + **b** ∈ ℝⁿ₋    | VectorAffineFunction | Nonpositives |   ♻️    |
-| A**x** + **b** = 0      | VectorAffineFunction | Zeros        |   ♻️    |
+
+| Mathematical Constraint                      | MOI Function         | MOI Set      | Status |
+| -------------------------------------------- | -------------------- | ------------ | :----: |
+| $\vec{a} \cdot \vec{x} \le \beta$            | ScalarAffineFunction | LessThan     |   ✔️    |
+| $\vec{a} \cdot \vec{x} \ge \alpha$           | ScalarAffineFunction | GreaterThan  |   ♻️    |
+| $\vec{a} \cdot \vec{x} = \beta$              | ScalarAffineFunction | EqualTo      |   ✔️    |
+| $\alpha \le \vec{a} \cdot \vec{x} \le \beta$ | ScalarAffineFunction | Interval     |   ♻️    |
+| $x_i \le \beta$                              | VariableIndex        | LessThan     |   ✔️    |
+| $x_i \ge \alpha$                             | VariableIndex        | GreaterThan  |   ✔️    |
+| $x_i = \beta$                                | VariableIndex        | EqualTo      |   ✔️    |
+| $\alpha \le x_i \le \beta$                   | VariableIndex        | Interval     |   ✔️    |
+| $A \vec{x} + b \in \mathbb{R}_{+}^{n}$       | VectorAffineFunction | Nonnegatives |   ♻️    |
+| $A \vec{x} + b \in \mathbb{R}_{-}^{n}$       | VectorAffineFunction | Nonpositives |   ♻️    |
+| $A \vec{x} + b = 0$                          | VectorAffineFunction | Zeros        |   ♻️    |
 
 ### Conic constraints
-| Mathematical Constraint                                       | MOI Function         | MOI Set                          | Status |
-| ------------------------------------------------------------- | -------------------- | -------------------------------- | :----: |
-| ∥A**x** + **b**∥₂ ≤ **c**ᵀ**x** + d                           | VectorAffineFunction | SecondOrderCone                  |   📖    |
-| y ≥ ∥**x**∥₂                                                  | VectorOfVariables    | SecondOrderCone                  |   📖    |
-| 2yz ≥ ∥**x**∥₂², y, z ≥ 0                                     | VectorOfVariables    | RotatedSecondOrderCone           |   📖    |
-| (**a**₁ᵀ**x** + b₁, **a**₂ᵀ**x** + b₂, **a**₃ᵀ**x** + b₃) ∈ E | VectorAffineFunction | ExponentialCone                  |   ❌    |
-| A(**x**) ∈ S₊                                                 | VectorAffineFunction | PositiveSemidefiniteConeTriangle |   ❌    |
-| B(**x**) ∈ S₊                                                 | VectorAffineFunction | PositiveSemidefiniteConeSquare   |   ❌    |
-| **x** ∈ S₊                                                    | VectorOfVariables    | PositiveSemidefiniteConeTriangle |   ❌    |
-| **x** ∈ S₊                                                    | VectorOfVariables    | PositiveSemidefiniteConeSquare   |   ❌    |
+
+| Mathematical Constraint                                                                                           | MOI Function         | MOI Set                          | Status |
+| ----------------------------------------------------------------------------------------------------------------- | -------------------- | -------------------------------- | :----: |
+| $\left\lVert{}{A \vec{x} + b}\right\rVert{}_{2} \le \vec{c} \cdot \vec{x} + d$                                    | VectorAffineFunction | SecondOrderCone                  |   📖    |
+| $y \ge \left\lVert{}{\vec{x}}\right\rVert{}_{2}$                                                                  | VectorOfVariables    | SecondOrderCone                  |   📖    |
+| $2 y z \ge \left\lVert{}{\vec{x}}\right\rVert{}_{2}^{2}; y, z \ge 0$                                              | VectorOfVariables    | RotatedSecondOrderCone           |   📖    |
+| $(\vec{a}_{1} \cdot \vec{x} + b_{1}, \vec{a}_{2} \cdot \vec{x} + b_{2}, \vec{a}_{3} \cdot \vec{x} + b_{3}) \in E$ | VectorAffineFunction | ExponentialCone                  |   ❌    |
+| $A(\vec{x}) \in S_{+}$                                                                                            | VectorAffineFunction | PositiveSemidefiniteConeTriangle |   ❌    |
+| $B(\vec{x}) \in S_{+}$                                                                                            | VectorAffineFunction | PositiveSemidefiniteConeSquare   |   ❌    |
+| $\vec{x} \in S_{+}$                                                                                               | VectorOfVariables    | PositiveSemidefiniteConeTriangle |   ❌    |
+| $\vec{x} \in S_{+}$                                                                                               | VectorOfVariables    | PositiveSemidefiniteConeSquare   |   ❌    |
 
 ### Quadratic constraints
-| Mathematical                       | Constraint	MOI Function | MOI Set                     | Status |
-| ---------------------------------- | ----------------------- | --------------------------- | :----: |
-| **x**ᵀQ**x** + **a**ᵀ**x** + b ≥ 0 | ScalarQuadraticFunction | GreaterThan                 |   ♻️    |
-| **x**ᵀQ**x** + **a**ᵀ**x** + b ≤ 0 | ScalarQuadraticFunction | LessThan                    |   ✔️    |
-| **x**ᵀQ**x** + **a**ᵀ**x** + b = 0 | ScalarQuadraticFunction | EqualTo                     |   ✔️    |
-| Bilinear matrix inequality         | VectorQuadraticFunction | PositiveSemidefiniteCone... |   ❌    |
+
+| Mathematical Constraint                               | MOI Function            | MOI Set                  | Status |
+| ----------------------------------------------------- | ----------------------- | ------------------------ | :----: |
+| $\vec{x} Q \vec{x} + \vec{a} \cdot \vec{x} + b \ge 0$ | ScalarQuadraticFunction | GreaterThan              |   ♻️    |
+| $\vec{x} Q \vec{x} + \vec{a} \cdot \vec{x} + b \le 0$ | ScalarQuadraticFunction | LessThan                 |   ✔️    |
+| $\vec{x} Q \vec{x} + \vec{a} \cdot \vec{x} + b = 0$   | ScalarQuadraticFunction | EqualTo                  |   ✔️    |
+| Bilinear matrix inequality                            | VectorQuadraticFunction | PositiveSemidefiniteCone |   ❌    |
 
 ### Discrete and logical constraints
-| Mathematical Constraint            | MOI Function         | MOI Set        | Status |
-| ---------------------------------- | -------------------- | -------------- | :----: |
-| **x**ᵢ ∈ ℤ                         | VariableIndex        | Integer        |   ✔️    |
-| **x**ᵢ ∈ {0,1}                     | VariableIndex        | ZeroOne        |   ✔️    |
-| **x**ᵢ ∈ {0} ∪ \[l, u\]            | VariableIndex        | Semicontinuous |   ⌛    |
-| **x**ᵢ ∈ {0} ∪ {l, l+1, …, u−1, u} | VariableIndex        | Semiinteger    |   ⌛    |
-| [¹](#1)                            | VectorOfVariables    | SOS1           |   ⌛    |
-| [²](#2)                            | VectorOfVariables    | SOS2           |   ⌛    |
-| y = 1 ⟹ **a**ᵀ**x** ∈ S            | VectorAffineFunction | Indicator      |   ⌛    |
+
+| Mathematical Constraint                                                              | MOI Function         | MOI Set        | Status |
+| ------------------------------------------------------------------------------------ | -------------------- | -------------- | :----: |
+| $x_i  \in \mathbb{Z}$                                                                | VariableIndex        | Integer        |   ✔️    |
+| $x_i \in \left\lbrace{0, 1}\right\rbrace$                                            | VariableIndex        | ZeroOne        |   ✔️    |
+| $x_i \in \left\lbrace{0}\right\rbrace \cup \left[{l, u}\right]$                      | VariableIndex        | Semicontinuous |   ⌛    |
+| $x_i \in \left\lbrace{0}\right\rbrace \cup \left[{l, l + 1, \dots, u - 1, u}\right]$ | VariableIndex        | Semiinteger    |   ⌛    |
+| [¹](#1)                                                                              | VectorOfVariables    | SOS1           |   📖    |
+| [²](#2)                                                                              | VectorOfVariables    | SOS2           |   📖    |
+| $y = 1 \implies \vec{a} \cdot \vec{x} \in S$                                         | VectorAffineFunction | Indicator      |   📖    |//////
 
 <a id="1">¹</a> 
 At most one component of **x** can be nonzero
@@ -114,13 +118,13 @@ At most one component of **x** can be nonzero
 <a id="2">²</a>
 At most two components of **x** can be nonzero, and if so they must be adjacent components
 
-| Symbol | Meaning                          |
-| :----: | -------------------------------- |
-|   ✔️    | Available                        |
-|   ♻️    | Available through Bridges[³](#3) |
-|   ❌    | Unavailable                      |
-|   ⌛    | In Development (Available soon)  |
-|   📖    | Under research                   |
+| Symbol | Meaning                            |
+| :----: | ---------------------------------- |
+|   ✔️    | Available                          |
+|   ♻️    | Available through Bridges[³](#3)   |
+|   ❌    | Unavailable                        |
+|   ⌛    | Under Development (Available soon) |
+|   📖    | Under Research                     |
 
 <a id="3">³</a> 
 [MOI Bridges](https://jump.dev/MathOptInterface.jl/stable/submodules/Bridges/reference/) provide equivalent constraint mapping.
@@ -128,4 +132,17 @@ At most two components of **x** can be nonzero, and if so they must be adjacent 
 <a id="4">⁴</a>
 If you think this list is incomplete, consider creating an [Issue](https://github.com/psrenergy/ToQUBO.jl/issues) or opening a [Pull Request](https://github.com/psrenergy/ToQUBO.jl/pulls).
 
-<!-- Symbols: ✔️❌⌛📖 -->
+## Citing ToQUBO.jl
+If you use `ToQUBO.jl` in your work, we kindly ask you to include the following citation:
+```tex
+@software{toqubo:2022,
+  author       = {Pedro Xavier and Tiago Andrade and Joaquim Garcia and David Bernal},
+  title        = {{ToQUBO.jl}},
+  month        = {mar},
+  year         = {2022},
+  publisher    = {Zenodo},
+  version      = {v0.1.0},
+  doi          = {10.5281/zenodo.6387592},
+  url          = {https://doi.org/10.5281/zenodo.6387592}
+}
+```

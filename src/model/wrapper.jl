@@ -24,12 +24,17 @@ end
 
 function MOI.optimize!(model::VirtualQUBOModel)
     if isnothing(model.optimizer)
-        error("No Optimizer attached")
+        error("No optimizer attached")
     end
 
-    MOI.optimize!(model.optimizer, MOI.get(model, VM.TargetModel()))
+    source_model = MOI.get(model, VM.SourceModel())
+    target_model = MOI.get(model, VM.TargetModel())
 
-    (MOIU.identity_index_map(MOI.get(model, VM.SourceModel())), false)
+    MOI.optimize!(model.optimizer, target_model)
+
+    index_map = MOIU.identity_index_map(source_model)
+
+    return (index_map, false)
 end
 
 function MOI.copy_to(model::VirtualQUBOModel{T}, source::MOI.ModelLike) where {T}
@@ -38,14 +43,16 @@ function MOI.copy_to(model::VirtualQUBOModel{T}, source::MOI.ModelLike) where {T
     end
 
     # -*- Copy to PreQUBOModel + Trigger Bridges -*-
+    source_model = MOI.get(model, VM.SourceModel())
+
     index_map = MOI.copy_to(
-        MOIB.full_bridge_optimizer(MOI.get(model, VM.SourceModel()), T),
+        MOIB.full_bridge_optimizer(source_model, T),
         source,
     )
 
-    toqubo!(model)
+    ToQUBO.toqubo!(model)
 
-    index_map
+    return index_map
 end
 
 # -*- :: Objective Function Support :: -*- #
@@ -81,7 +88,7 @@ function MOI.get(
         MOI.TerminationStatus,
         MOI.RawStatusString,
     }
-    )
+)
     if !isnothing(model.optimizer)
         MOI.get(model.optimizer, attr)
     else
@@ -99,17 +106,17 @@ function MOI.set(
         MOI.RawStatusString,
     },
     value::Any,
-    )
-    MOI.set(model.optimizer, attr, value)
+)
+    return MOI.set(model.optimizer, attr, value)
 end
 
 MOI.supports(::VirtualQUBOModel, ::MOI.SolveTimeSec) = true
 
 function MOI.get(model::VirtualQUBOModel, rc::MOI.ResultCount)
     if isnothing(model.optimizer)
-        0
+        return 0
     else
-        MOI.get(model.optimizer, rc)
+        return MOI.get(model.optimizer, rc)
     end
 end
 
@@ -117,24 +124,27 @@ MOI.supports(::VirtualQUBOModel, ::MOI.ResultCount) = true
 
 function MOI.get(model::VirtualQUBOModel{T}, ov::MOI.ObjectiveValue) where {T}
     if isnothing(model.optimizer)
-        zero(T)
+        return zero(T)
     else
-        MOI.get(model.optimizer, ov)
+        return MOI.get(model.optimizer, ov)
     end
 end
 
 function MOI.get(model::VirtualQUBOModel{T}, vp::MOI.VariablePrimal, x::VI) where {T}
     if isnothing(model.optimizer)
-        zero(T)
+        return zero(T)
     else
         s = zero(T)
+        
         for (ω, c) in VM.expansion(MOI.get(model, VM.Source(), x))
             for y in ω
                 c *= MOI.get(model.optimizer, vp, y)
             end
+            
             s += c
         end
-        s
+        
+        return s
     end
 end
 

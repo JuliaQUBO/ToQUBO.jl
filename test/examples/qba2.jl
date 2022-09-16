@@ -1,34 +1,44 @@
-@testset "Illustrative Example" begin
+function test_qba2()
+    @testset "Illustrative Example" begin
+        Q̄ = [
+            -5  2  4  0
+             2 -3  1  0
+             4  1 -8  5
+             0  0  5 -6
+        ]
 
-Q̄ = [-5  2  4  0
-      2 -3  1  0
-      4  1 -8  5 
-      0  0  5 -6 ]
+        c̄ = 0
+        x̄ = [1, 0, 0, 1]
+        ȳ = -11
 
-c̄ = 0
-x̄ = [1, 0, 0, 1]
-ȳ = -11
+        model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
 
-model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
+        @variable(model, x[i = 1:4], Bin)
+        @objective(
+            model,
+            Min,
+            -5x[1] - 3x[2] - 8x[3] - 6x[4] +
+            4x[1] * x[2] +
+            8x[1] * x[3] +
+            2x[2] * x[3] +
+            10x[3] * x[4]
+        )
 
-@variable(model, x[i = 1:4], Bin)
-@objective(model, Min, -5x[1] - 3x[2] - 8x[3] - 6x[4] + 4x[1] * x[2] + 8x[1] * x[3] + 2x[2] * x[3] + 10x[3] * x[4])
+        optimize!(model)
 
-optimize!(model)
+        vqm = unsafe_backend(model)
 
-vqm = unsafe_backend(model)
+        _, Q, c = ToQUBO.PBO.qubo_normal_form(vqm)
 
-_, Q, c = ToQUBO.PBO.qubo_normal_form(vqm)
+        x̂ = value.(x)
+        ŷ = objective_value(model)
 
-x̂ = value.(x)
-ŷ = objective_value(model)
+        # :: Reformulation ::
+        @test c == c̄
+        @test Q == Q̄
 
-# :: Reformulation ::
-@test c == c̄
-@test Q == Q̄
-
-# :: Solution ::
-@test x̂ == x̄
-@test ŷ == ȳ
-
+        # :: Solution ::
+        @test x̂ == x̄
+        @test ŷ == ȳ
+    end
 end
