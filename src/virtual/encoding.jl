@@ -74,31 +74,12 @@ end
 
 abstract type ConstantEncoding <: Encoding end
 
-function VirtualVariable{ConstantEncoding, T}(x::Union{VI, Nothing}, β::T)
+function VirtualVariable{ConstantEncoding, T}(x::Union{VI, Nothing}, β::T) where {T}
     VirtualVariable{ConstantEncoding, T}(
         x,
         VI[],
         PBO.PBF{VI, T}(β),
         nothing,
-    )
-end
-
-abstract type PartialEncoding <: Encoding end
-
-struct BipartiteEncoding{A <: Encoding, B <: Encoding} <: PartialEncoding end
-
-function VirtualVariable{BipartiteEncoding{A, B}, T}(
-        u::VirtualVariable{A, T},
-        v::VirtualVariable{B, T},
-        z::VI,
-    ) where {A <: Encoding, B <: Encoding, T}
-    @assert source(u) === source(v)
-
-    VirtualVariable{BipartiteEncoding{A, B}, T}(
-        source(u),
-        VI[target(u); target(v)],
-        PBO.PBF{VI, T}(nothing, z => -1.0) * expansion(v) + PBO.PBF{VI, T}(z) * expansion(u),
-        penaltyfn(u) + penaltyfn(v),
     )
 end
 
@@ -243,13 +224,4 @@ end
 function encode!(E::Type{<:DomainWall}, model::AbstractVirtualModel{T}, x::Union{VI, Nothing}, a::T, b::T, n::Integer) where T
     Γ = (b - a) / (n - 1)
     encode!(E, model, x, a .+ Γ * collect(T, 0:n-1), zero(T))
-end
-
-function encode!(
-    E::Type{<:BipartiteEncoding},
-    model::AbstractVirtualModel{T},
-    x::Union{VI, Nothing},
-    
-    )
-
 end
