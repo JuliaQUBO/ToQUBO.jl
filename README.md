@@ -66,10 +66,10 @@ Below, we present a list containing all[⁴](#4) MOI constraint types and their 
 
 | Mathematical Constraint                      | MOI Function         | MOI Set      | Status |
 | -------------------------------------------- | -------------------- | ------------ | :----: |
-| $\vec{a} \cdot \vec{x} \le \beta$            | ScalarAffineFunction | LessThan     |   ✔️    |
-| $\vec{a} \cdot \vec{x} \ge \alpha$           | ScalarAffineFunction | GreaterThan  |   ♻️    |
-| $\vec{a} \cdot \vec{x} = \beta$              | ScalarAffineFunction | EqualTo      |   ✔️    |
-| $\alpha \le \vec{a} \cdot \vec{x} \le \beta$ | ScalarAffineFunction | Interval     |   ♻️    |
+| $\vec{a}' \vec{x} \le \beta$            | ScalarAffineFunction | LessThan     |   ✔️    |
+| $\vec{a}' \vec{x} \ge \alpha$           | ScalarAffineFunction | GreaterThan  |   ♻️    |
+| $\vec{a}' \vec{x} = \beta$              | ScalarAffineFunction | EqualTo      |   ✔️    |
+| $\alpha \le \vec{a}' \vec{x} \le \beta$ | ScalarAffineFunction | Interval     |   ♻️    |
 | $x_i \le \beta$                              | VariableIndex        | LessThan     |   ✔️    |
 | $x_i \ge \alpha$                             | VariableIndex        | GreaterThan  |   ✔️    |
 | $x_i = \beta$                                | VariableIndex        | EqualTo      |   ✔️    |
@@ -82,10 +82,10 @@ Below, we present a list containing all[⁴](#4) MOI constraint types and their 
 
 | Mathematical Constraint                                                                                           | MOI Function         | MOI Set                          | Status |
 | ----------------------------------------------------------------------------------------------------------------- | -------------------- | -------------------------------- | :----: |
-| $\left\lVert{}{A \vec{x} + b}\right\rVert{}_{2} \le \vec{c} \cdot \vec{x} + d$                                    | VectorAffineFunction | SecondOrderCone                  |   📖    |
+| $\left\lVert{}{A \vec{x} + b}\right\rVert{}_{2} \le \vec{c}' \vec{x} + d$                                    | VectorAffineFunction | SecondOrderCone                  |   📖    |
 | $y \ge \left\lVert{}{\vec{x}}\right\rVert{}_{2}$                                                                  | VectorOfVariables    | SecondOrderCone                  |   📖    |
 | $2 y z \ge \left\lVert{}{\vec{x}}\right\rVert{}_{2}^{2}; y, z \ge 0$                                              | VectorOfVariables    | RotatedSecondOrderCone           |   📖    |
-| $(\vec{a}_{1} \cdot \vec{x} + b_{1}, \vec{a}_{2} \cdot \vec{x} + b_{2}, \vec{a}_{3} \cdot \vec{x} + b_{3}) \in E$ | VectorAffineFunction | ExponentialCone                  |   ❌    |
+| $\left( \vec{a}'_1 \vec{x} + b_1,\vec{a}'_2 \vec{x} + b_2,\vec{a}'_3 \vec{x} + b_3 \right) \in E$ | VectorAffineFunction | ExponentialCone                  |   ❌    |
 | $A(\vec{x}) \in S_{+}$                                                                                            | VectorAffineFunction | PositiveSemidefiniteConeTriangle |   ❌    |
 | $B(\vec{x}) \in S_{+}$                                                                                            | VectorAffineFunction | PositiveSemidefiniteConeSquare   |   ❌    |
 | $\vec{x} \in S_{+}$                                                                                               | VectorOfVariables    | PositiveSemidefiniteConeTriangle |   ❌    |
@@ -95,9 +95,9 @@ Below, we present a list containing all[⁴](#4) MOI constraint types and their 
 
 | Mathematical Constraint                               | MOI Function            | MOI Set                  | Status |
 | ----------------------------------------------------- | ----------------------- | ------------------------ | :----: |
-| $\vec{x} Q \vec{x} + \vec{a} \cdot \vec{x} + b \ge 0$ | ScalarQuadraticFunction | GreaterThan              |   ♻️    |
-| $\vec{x} Q \vec{x} + \vec{a} \cdot \vec{x} + b \le 0$ | ScalarQuadraticFunction | LessThan                 |   ✔️    |
-| $\vec{x} Q \vec{x} + \vec{a} \cdot \vec{x} + b = 0$   | ScalarQuadraticFunction | EqualTo                  |   ✔️    |
+| $\vec{x} Q \vec{x} + \vec{a}' \vec{x} + b \ge 0$      | ScalarQuadraticFunction | GreaterThan              |   ♻️    |
+| $\vec{x} Q \vec{x} + \vec{a}' \vec{x} + b \le 0$      | ScalarQuadraticFunction | LessThan                 |   ✔️    |
+| $\vec{x} Q \vec{x} + \vec{a}' \vec{x} + b = 0$        | ScalarQuadraticFunction | EqualTo                  |   ✔️    |
 | Bilinear matrix inequality                            | VectorQuadraticFunction | PositiveSemidefiniteCone |   ❌    |
 
 ### Discrete and logical constraints
@@ -110,7 +110,7 @@ Below, we present a list containing all[⁴](#4) MOI constraint types and their 
 | $x_i \in \left\lbrace{0}\right\rbrace \cup \left[{l, l + 1, \dots, u - 1, u}\right]$ | VariableIndex        | Semiinteger    |   ⌛    |
 | [¹](#1)                                                                              | VectorOfVariables    | SOS1           |   📖    |
 | [²](#2)                                                                              | VectorOfVariables    | SOS2           |   📖    |
-| $y = 1 \implies \vec{a} \cdot \vec{x} \in S$                                         | VectorAffineFunction | Indicator      |   📖    |//////
+| $y = 1 \implies \vec{a}' \vec{x} \in S$                                              | VectorAffineFunction | Indicator      |   📖    |//////
 
 <a id="1">¹</a> 
 At most one component of **x** can be nonzero
