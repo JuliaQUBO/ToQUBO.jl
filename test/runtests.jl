@@ -24,7 +24,8 @@ include("interface/moi.jl")
 include("interface/jump.jl")
 
 # -*- Tests: Examples -*-
-include("examples/qba.jl")
+include("examples/qba/qba.jl")
+include("examples/linear/linear.jl")
 
 function main()
     @testset ":: -*- :: ToQUBO.jl :: -*- ::" verbose = true begin
@@ -34,6 +35,7 @@ function main()
         test_moi()
         test_jump()
         test_qba()
+        test_linear()
     end
 end
 

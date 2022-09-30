@@ -45,7 +45,7 @@ function isqubo(model::MOI.ModelLike)
         return false
     end
 
-    true
+    return true
 end
 
 isqubo(::QUBOModel) = true
@@ -63,11 +63,11 @@ function toqubo(T::Type, source::MOI.ModelLike, Optimizer::Union{Type{<:MOI.Abst
 
     MOI.copy_to(model, source)
 
-    toqubo!(model)
+    return toqubo!(model)
 end
 
 function toqubo(source::MOI.ModelLike, Optimizer::Union{Type{<:MOI.AbstractOptimizer}, Nothing} = nothing)
-    toqubo(Float64, source, Optimizer)
+    return toqubo(Float64, source, Optimizer)
 end
 
 @doc raw"""
@@ -100,7 +100,7 @@ function toqubo!(model::VirtualQUBOModel{T}) where {T}
 
     toqubo_moi!(model)
 
-    model
+    return model
 end
 
 @doc raw"""
@@ -119,7 +119,7 @@ function toqubo_sense!(model::VirtualQUBOModel)
         )
     )
 
-    nothing
+    return nothing
 end
 
 @doc raw"""
@@ -237,7 +237,7 @@ function toqubo_variables!(model::VirtualQUBOModel{T}) where {T}
         VM.encode!(VM.Mirror, model, x)
     end
 
-    nothing
+    return nothing
 end
 
 @doc raw"""
@@ -254,7 +254,7 @@ function toqubo_objective!(model::VirtualQUBOModel{T}, F::Type{<:VI}) where T
         model.f[ω] += c
     end
 
-    nothing
+    return nothing
 end
 
 function toqubo_objective!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}) where T
@@ -271,7 +271,7 @@ function toqubo_objective!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}) where 
 
     model.f[nothing] += f.constant
 
-    nothing
+    return nothing
 end
 
 function toqubo_objective!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}) where T
@@ -307,7 +307,7 @@ function toqubo_objective!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}) where 
 
     model.f[nothing] += f.constant
 
-    nothing
+    return nothing
 end
 
 @doc raw"""
@@ -354,7 +354,7 @@ function toqubo_constraints!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}, S::T
         model.g[ci] = g ^ 2
     end
 
-    nothing
+    return nothing
 end
 
 function toqubo_constraints!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}, S::Type{<:LT{T}}) where T
@@ -394,7 +394,7 @@ function toqubo_constraints!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}, S::T
         model.g[ci] = (g + s) ^ 2
     end
 
-    nothing
+    return nothing
 end
 
 function toqubo_constraints!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::Type{<:EQ{T}}) where {T}
@@ -447,7 +447,7 @@ function toqubo_constraints!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::T
         model.g[ci] = g ^ 2
     end
 
-    nothing
+    return nothing
 end
 
 function toqubo_constraints!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::Type{<:LT{T}}) where {T}
@@ -502,7 +502,7 @@ function toqubo_constraints!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::T
         model.g[ci] = (g + s) ^ 2
     end
 
-    nothing
+    return nothing
 end
 
 function toqubo_constraints!(
@@ -524,22 +524,30 @@ function toqubo_encoding_constraints!(model::VirtualQUBOModel{T}) where T
             model.h[x] = h
         end
     end
+
+    return nothing
 end
 
 function toqubo_penalties!(model::VirtualQUBOModel{T}) where T
-    # -*- :: Invert Sign::  -*- #
+    # -*- :: Invert Sign? ::  -*- #
     s = MOI.get(model, MOI.ObjectiveSense()) === MOI.MAX_SENSE ? -1 : 1
 
     β = one(T) # TODO: This should be made a parameter too? Yes!
     δ = PBO.gap(model.f)
 
     for (vi, g) in model.g
-        model.ρ[vi] = s * (δ / PBO.sharpness(g) + β)
+        ϵi = PBO.sharpness(g)
+
+        model.ρ[vi] = s * (δ / ϵi + β)
     end
 
     for (ci, h) in model.h
-        model.ρ[ci] = s * (δ / PBO.sharpness(h) + β)
+        ϵi = PBO.sharpness(h)
+
+        model.ρ[ci] = s * (δ / ϵi + β)
     end
+
+    return nothing
 end
 
 function toqubo_moi!(model::VirtualQUBOModel{T}) where T
@@ -585,4 +593,6 @@ function toqubo_moi!(model::VirtualQUBOModel{T}) where T
         MOI.ObjectiveFunction{SQF{T}}(),
         SQF{T}(Q, a, b)
     )
+
+    return nothing
 end
