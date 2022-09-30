@@ -9,14 +9,17 @@ We define two real numbers ``x`` and ``y`` to be ``\tau``-comensurable if, for s
 ```
 """
 function relaxed_gcd(x::T, y::T; tol::T = 1e-6) where {T}
-    if abs(x) < abs(y)
-        relaxed_gcd(y, x; tol=tol)::T
-    elseif abs(y) < tol
-        x
-    elseif abs(x) < tol
-        y
+    x_ = abs(x)
+    y_ = abs(y)
+
+    if x_ < y_
+        return relaxed_gcd(y_, x_; tol=tol)::T
+    elseif y_ < tol
+        return x_
+    elseif x_ < tol
+        return y_
     else
-        (x / numerator(rationalize(x / y; tol=tol)))::T
+        return (x_ / numerator(rationalize(x_ / y_; tol=tol)))::T
     end
 end
 
