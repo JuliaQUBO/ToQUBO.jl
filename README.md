@@ -146,3 +146,16 @@ If you use `ToQUBO.jl` in your work, we kindly ask you to include the following 
   url          = {https://doi.org/10.5281/zenodo.6387592}
 }
 ```
+
+<div align="center">
+    <h2>PSR Quantum Optimization Toolchain</h2>
+    <a href="https://github.com/psrenergy/ToQUBO.jl">
+        <img width="200px" src="https://raw.githubusercontent.com/psrenergy/ToQUBO.jl/master/docs/src/assets/logo.svg" alt="ToQUBO.jl" />
+    </a>
+    <a href="https://github.com/psrenergy/Anneal.jl">
+        <img width="200px" src="https://raw.githubusercontent.com/psrenergy/Anneal.jl/master/docs/src/assets/logo.svg" alt="Anneal.jl" />
+    </a>
+    <a href="https://github.com/psrenergy/QUBOTools.jl">
+        <img width="200px" src="https://raw.githubusercontent.com/psrenergy/QUBOTools.jl/main/docs/src/assets/logo.svg" alt="QUBOTools.jl" />
+    </a>
+</div>
