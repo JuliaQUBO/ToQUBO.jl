@@ -28,7 +28,7 @@ include("examples/qba/qba.jl")
 include("examples/linear/linear.jl")
 
 function main()
-    @testset ":: -*- :: ToQUBO.jl :: -*- ::" verbose = true begin
+    @testset ":: -*- :: ~*~ ToQUBO.jl ~*~ :: -*- ::" verbose = true begin
         test_version()
         test_pbo()
         test_virtual()
