@@ -25,9 +25,15 @@ const CI = MOI.ConstraintIndex
 include("error.jl")
 
 # -*- Library -*-
-include(joinpath("pbo", "PBO.jl"))
-include(joinpath("virtual", "VirtualMapping.jl"))
-include(joinpath("model", "model.jl"))
-include(joinpath("analysis", "analysis.jl"))
+include("pbo/PBO.jl")
+include("virtual/VirtualMapping.jl")
+include("model/model.jl")
+
+# ~*~ Compiler ~*~ #
+include("compiler/architectures.jl")
+include("compiler/interface.jl")
+include("compiler/compiler.jl")
+
+include("analysis/analysis.jl")
 
 end # module

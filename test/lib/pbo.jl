@@ -198,14 +198,18 @@ function test_pbo()
         end
 
         @testset "Quadratization" begin
-            slack =
-                (n::Union{Integer,Nothing} = nothing) ->
-                    isnothing(n) ? :w : [:w, :t, :u, :v][1:n]
+            function aux(n::Union{Integer,Nothing})
+                if isnothing(n)
+                    return :w
+                else
+                    return [:w, :t, :u, :v][1:n]
+                end
+            end
 
-            @test PBO.quadratize(p, slack) == p
-            @test PBO.quadratize(q, slack) == q
-            @test PBO.quadratize(r, slack) == r
-            @test PBO.quadratize(s, slack) == PBO.PBF{S,T}(
+            @test PBO.quadratize(aux, p) == p
+            @test PBO.quadratize(aux, q) == q
+            @test PBO.quadratize(aux, r) == r
+            @test PBO.quadratize(aux, s) == PBO.PBF{S,T}(
                 :w => 3.0,
                 [:x, :w] => 3.0,
                 [:y, :w] => -3.0,

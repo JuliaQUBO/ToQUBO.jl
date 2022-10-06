@@ -35,8 +35,8 @@ end
 
 # -*- Variable Terms -*-
 varmul(x::S, y::S) where S = Set{S}([x, y])
-varmul(x::Set{S}, y::S) where S = push!(x, y)
-varmul(x::S, y::Set{S}) where S = push!(y, x)
+varmul(x::Set{S}, y::S) where S = push!(copy(x), y)
+varmul(x::S, y::Set{S}) where S = push!(copy(y), x)
 varmul(x::Set{S}, y::Set{S}) where S = union(x, y)
 
 const × = varmul # \times
@@ -128,7 +128,9 @@ The partial derivate of function ``f \in \mathscr{F}`` with respect to the ``i``
 """
 function derivative end
 
-derivative(f::PBF{S, T}, s::S) where {S, T} = PBF{S, T}(ω => f[ω × s] for ω ∈ Ω(f) if (s ∉ ω))
+function derivative(f::PBF{S, T}, s::S) where {S, T}
+    return PBF{S, T}(ω => f[ω × s] for ω ∈ keys(f) if (s ∉ ω))
+end
 
 const Δ = derivative
 const ∂ = derivative
@@ -154,7 +156,7 @@ The residual of function ``f \in \mathscr{F}`` with respect to the ``i``-th vari
     c_{\omega} \prod_{k \in \omega} \mathbf{x}_k
 ```
 """
-residual(f::PBF{S, T}, i::S) where {S, T} = PBF{S, T}(ω => c for (ω, c) ∈ Ω(f) if (i ∉ ω))
+residual(f::PBF{S, T}, i::S) where {S, T} = PBF{S, T}(ω => c for (ω, c) ∈ keys(f) if (i ∉ ω))
 residual(f::PBF, i::Int) = residual(f, varinv(f)[i])
 
 const Θ = residual
