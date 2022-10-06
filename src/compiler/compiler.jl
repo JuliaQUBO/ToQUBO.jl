@@ -397,7 +397,7 @@ function toqubo_constraints!(
             xⱼ = q.variable_2
 
             if xᵢ === xⱼ
-                ci /= 2
+                c /= 2
             end
 
             for (ωᵢ, dᵢ) in VM.expansion(MOI.get(model, VM.Source(), xᵢ))
@@ -447,7 +447,7 @@ function toqubo_constraints!(
         g = PBO.PBF{VI,T}()
 
         f = MOI.get(model, MOI.ConstraintFunction(), ci)
-        b = MOI.get(model, MOI.ConstraintSet(), ci).value
+        b = MOI.get(model, MOI.ConstraintSet(), ci).upper
 
         for q in f.quadratic_terms
             c = q.coefficient
@@ -455,7 +455,7 @@ function toqubo_constraints!(
             xⱼ = q.variable_2
 
             if xᵢ === xⱼ
-                ci /= 2
+                c /= 2
             end
 
             for (ωᵢ, dᵢ) in VM.expansion(MOI.get(model, VM.Source(), xᵢ))
@@ -527,15 +527,19 @@ function toqubo_penalties!(model::VirtualQUBOModel{T}, ::AbstractArchitecture) w
     # -*- :: Invert Sign::  -*- #
     s = MOI.get(model, MOI.ObjectiveSense()) === MOI.MAX_SENSE ? -1 : 1
 
-    Δ = PBO.gap(model.f)
-    δ = one(T) # TODO: This should be made a parameter too? Yes!
+    β = one(T) # TODO: This should be made a parameter too? Yes!
+    δ = PBO.gap(model.f)
 
     for (vi, g) in model.g
-        model.ρ[vi] = s * (Δ / PBO.sharpness(g) + δ)
+        ϵ = PBO.sharpness(g)
+
+        model.ρ[vi] = s * (δ / ϵ + β)
     end
 
     for (ci, h) in model.h
-        model.ρ[ci] = s * (Δ / PBO.sharpness(h) + δ)
+        ϵ = PBO.sharpness(h)
+
+        model.ρ[ci] = s * (δ / ϵ + β)
     end
 
     return nothing
@@ -553,8 +557,13 @@ function toqubo_moi!(model::VirtualQUBOModel{T}, ::AbstractArchitecture) where {
     )
 
     # -*- Quadratization Step -*-
-    PBO.quadratize(H) do n::Integer
-        MOI.add_variables(MOI.get(model, VM.TargetModel()), n)
+    H = PBO.quadratize(H) do n::Integer
+        m = MOI.get(model, VM.TargetModel())
+        w = MOI.add_variables(m, n)
+
+        MOI.add_constraint.(m, w, MOI.ZeroOne())
+
+        return w
     end
 
     # -*- Write to MathOptInterface -*-
