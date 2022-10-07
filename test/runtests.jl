@@ -20,22 +20,18 @@ include("lib/pbo.jl")
 include("lib/virtual.jl")
 
 # -*- Tests: Interface -*-
-include("interface/moi.jl")
-include("interface/jump.jl")
+include("interface/interface.jl")
 
 # -*- Tests: Examples -*-
-include("examples/qba/qba.jl")
-include("examples/linear/linear.jl")
+include("examples/examples.jl")
 
 function main()
-    @testset ":: -*- :: ToQUBO.jl :: -*- ::" verbose = true begin
+    @testset ":: -*- :: ~*~ ToQUBO.jl ~*~ :: -*- ::" verbose = true begin
         test_version()
         test_pbo()
         test_virtual()
-        test_moi()
-        test_jump()
-        test_qba()
-        test_linear()
+        test_interface()
+        test_examples()
     end
 end
 
