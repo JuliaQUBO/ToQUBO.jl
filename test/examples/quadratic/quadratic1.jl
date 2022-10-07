@@ -38,7 +38,11 @@ function test_quadratic1()
 
         c̄ = -576
 
-        x̄ = Set{Vector{Int}}([[0, 1, 1]])
+        x̄ = Set{Vector{Int}}([
+            [0, 1, 1],
+            [1, 0, 1],
+            [1, 1, 0]
+        ])
 
         ȳ = 2
 
