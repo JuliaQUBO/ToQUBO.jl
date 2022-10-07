@@ -1,5 +1,5 @@
 function test_linear2()
-    @testset "2 ~ 11 variables, 3 constraints" begin
+    @testset "11 variables, 3 constraints" begin
         # ~*~ Problem Data ~*~ #
         n = 11
         A = [1 0 0 1 1 1 0 1 1 1 1; 0 1 0 1 0 1 1 0 1 1 1; 0 0 1 0 1 0 1 1 1 1 1]

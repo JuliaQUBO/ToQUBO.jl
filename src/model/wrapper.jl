@@ -74,6 +74,12 @@ MOI.supports_constraint(
     ::Type{<:Union{MOI.EqualTo{T},MOI.LessThan{T}}},
 ) where {T} = true
 
+MOI.supports_constraint(
+    ::VirtualQUBOModel{T},
+    ::Type{<:MOI.VectorOfVariables},
+    ::Type{<:MOI.SOS1},
+) where {T} = true
+
 MOI.supports_add_constrained_variable(
     ::VirtualQUBOModel{T},
     ::Type{<:Union{MOI.ZeroOne,MOI.Integer,MOI.Interval{T}}},
