@@ -49,7 +49,7 @@ function test_quadratic1()
         # ~*~ Model ~*~ #
         model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
 
-        @variable(model, x[1:3], Bin)
+        @variable(model, x[1:n], Bin)
         @objective(model, Max, x'A * x)
         @constraint(model, x'A * x <= b)
 
@@ -64,7 +64,7 @@ function test_quadratic1()
         # :: Reformulation ::
         @test all(ρ .== ρ̄)
 
-        @show c ≈ c̄
+        @test c ≈ c̄
         @test Q ≈ Q̄
 
         # :: Solutions ::

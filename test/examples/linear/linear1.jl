@@ -1,5 +1,5 @@
 function test_linear1()
-    @testset "1 ~ 3 variables, 1 constraint" begin
+    @testset "3 variables, 1 constraint" begin
         # ~*~ Problem Data ~*~ #
         n = 3
         a = [0.3, 0.5, 1.0]

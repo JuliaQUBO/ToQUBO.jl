@@ -35,8 +35,6 @@ include("virtual/VirtualMapping.jl")
 include("model/model.jl")
 
 # ~*~ Compiler ~*~ #
-include("compiler/architectures.jl")
-include("compiler/interface.jl")
 include("compiler/compiler.jl")
 
 include("analysis/analysis.jl")

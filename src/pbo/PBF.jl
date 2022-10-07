@@ -61,6 +61,12 @@ const PBF{S, T} = PseudoBooleanFunction{S, T}
 #-*- Copy -*-
 Base.copy(f::PBF{S, T}) where {S, T} = PBF{S, T}(copy(f.Ω))
 
+function Base.copy!(f::PBF{S, T}, g::PBF{S, T}) where {S, T}
+    copy!(f.Ω, g.Ω)
+
+    return f
+end
+
 # -*- Iterator & Length -*-
 Base.keys(f::PBF) = keys(f.Ω)
 Base.length(f::PBF) = length(f.Ω)

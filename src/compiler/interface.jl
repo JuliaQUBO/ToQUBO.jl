@@ -37,39 +37,49 @@ Copies `MOI.ObjectiveSense` from `model.source_model` to `model.target_model`.
 """ function toqubo_variables! end
 
 @doc raw"""
-    toqubo_objective!(model::VirtualQUBOModel{T}, F::Type{<:VI}, ::AbstractArchitecture) where {T}
-    toqubo_objective!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}, ::AbstractArchitecture) where {T}
-    toqubo_objective!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, ::AbstractArchitecture) where {T}
+    toqubo_variables(model::VirtualQUBOModel{T}) where {T}
+""" function toqubo_variable end
+
+@doc raw"""
+    toqubo_objective!(model::VirtualQUBOModel, ::AbstractArchitecture)
 """ function toqubo_objective! end
 
 @doc raw"""
-    toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}, S::Type{<:EQ{T}}, ::AbstractArchitecture) where {T}
-    toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SAF{T}}, S::Type{<:LT{T}}, ::AbstractArchitecture) where {T}
-    toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::Type{<:EQ{T}}, ::AbstractArchitecture) where {T}
-    toqubo_constraint!(model::VirtualQUBOModel{T}, F::Type{<:SQF{T}}, S::Type{<:LT{T}}, ::AbstractArchitecture) where {T}
-    toqubo_constraint!(
+    toqubo_objective(model::VirtualQUBOModel, F::VI, ::AbstractArchitecture)
+    toqubo_objective(model::VirtualQUBOModel{T}, F::SAF{T}, ::AbstractArchitecture) where {T}
+    toqubo_objective(model::VirtualQUBOModel{T}, F::SQF{T}, ::AbstractArchitecture) where {T}
+""" function toqubo_objective end
+
+@doc raw"""
+    toqubo_constraints!(model::VirtualQUBOModel, ::AbstractArchitecture)
+""" function toqubo_constraints! end
+
+@doc raw"""
+    toqubo_constraint(model::VirtualQUBOModel{T}, f::SAF{T}, s::EQ{T}, ::AbstractArchitecture) where {T}
+    toqubo_constraint(model::VirtualQUBOModel{T}, f::SAF{T}, s::LT{T}, ::AbstractArchitecture) where {T}
+    toqubo_constraint(model::VirtualQUBOModel{T}, f::SQF{T}, s::EQ{T}, ::AbstractArchitecture) where {T}
+    toqubo_constraint(model::VirtualQUBOModel{T}, f::SQF{T}, s::LT{T}, ::AbstractArchitecture) where {T}
+    toqubo_constraint(
         ::VirtualQUBOModel{T},
-        ::Type{<:VI},
-        ::Type{
-            <:Union{
-                MOI.ZeroOne,
-                MOI.Integer,
-                MOI.Interval{T},
-                MOI.LessThan{T},
-                MOI.GreaterThan{T}
-            }
+        ::VI,
+        ::Union{
+            MOI.ZeroOne,
+            MOI.Integer,
+            MOI.Interval{T},
+            MOI.LessThan{T},
+            MOI.GreaterThan{T}
         },
         ::AbstractArchitecture
     ) where {T}
-
-Encondes some constraint given by F-in-S.
-""" function toqubo_constraint! end
+""" function toqubo_constraint end
 
 @doc raw"""
-    toqubo_penalties!(model::VirtualQUBOModel{T}, ::AbstractArchitecture) where {T}
-
-Computes penalties
+    toqubo_penalties!(model::VirtualQUBOModel, ::AbstractArchitecture)
 """ function toqubo_penalties! end
 
 @doc raw"""
-""" function toqubo_moi! end
+""" function toqubo_penalty end
+
+@doc raw"""
+    toqubo_build!(model::VirtualQUBOModel, ::AbstractArchitecture)
+""" function toqubo_build! end
