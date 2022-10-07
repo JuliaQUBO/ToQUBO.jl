@@ -13,7 +13,9 @@ julia> Pkg.add("ToQUBO")
 
 ### Running
 ```julia
-using JuMP, ToQUBO, Anneal
+using JuMP
+using ToQUBO
+using Anneal
 
 model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
 
