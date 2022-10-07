@@ -1,12 +1,17 @@
 module ToQUBO
 
-# -*- :: External Imports :: -*-
+# -*- :: Base Imports & Constants :: -*- #
+using TOML
+const PROJECT_FILE_PATH = joinpath(@__DIR__, "..", "Project.toml")
+const PROJECT_VERSION   = VersionNumber(getindex(TOML.parsefile(PROJECT_FILE_PATH), "version"))
+
+# -*- :: External Imports :: -*- #
 using MathOptInterface
 const MOI = MathOptInterface
 const MOIU = MOI.Utilities
 const MOIB = MOI.Bridges
 
-# -*- MOI Aliases -*-
+# -*- MOI Aliases -*- #
 const SAF{T} = MOI.ScalarAffineFunction{T}
 const SQF{T} = MOI.ScalarQuadraticFunction{T}
 const SAT{T} = MOI.ScalarAffineTerm{T}
@@ -19,15 +24,21 @@ const GT{T} = MOI.GreaterThan{T}
 const VI = MOI.VariableIndex
 const CI = MOI.ConstraintIndex
 
-# -*- :: Library Imports :: -*-
+# -*- :: Library Imports :: -*- #
 
-# -*- Error -*-
+# -*- Error -*- #
 include("error.jl")
 
-# -*- Library -*-
-include(joinpath("pbo", "PBO.jl"))
-include(joinpath("virtual", "VirtualMapping.jl"))
-include(joinpath("model", "model.jl"))
-include(joinpath("analysis", "analysis.jl"))
+# -*- Library -*- #
+include("pbo/PBO.jl")
+include("virtual/VirtualMapping.jl")
+include("model/model.jl")
+
+# ~*~ Compiler ~*~ #
+include("compiler/architectures.jl")
+include("compiler/interface.jl")
+include("compiler/compiler.jl")
+
+include("analysis/analysis.jl")
 
 end # module
