@@ -8,7 +8,7 @@ function test_qba2()
         ]
 
         c̄ = 0
-        x̄ = [1, 0, 0, 1]
+        x̄ = Set{Vector{Int}}([[1, 0, 0, 1]])
         ȳ = -11
 
         model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
@@ -34,11 +34,11 @@ function test_qba2()
         ŷ = objective_value(model)
 
         # :: Reformulation ::
-        @test c == c̄
-        @test Q == Q̄
+        @test c ≈ c̄
+        @test Q ≈ Q̄
 
         # :: Solution ::
-        @test x̂ == x̄
-        @test ŷ == ȳ
+        @test x̂ ∈ x̄
+        @test ŷ ≈ ȳ
     end
 end

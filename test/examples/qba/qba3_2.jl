@@ -61,8 +61,8 @@ function test_qba3_2()
         _, Q, c = ToQUBO.PBO.qubo_normal_form(virtual_model)
 
         # :: Reformulation ::
-        @test c == c̄
-        @test Q == Q̄
+        @test c ≈ c̄
+        @test Q ≈ Q̄
 
         # :: Solutions ::
         x̂ = trunc.(Int, value.(x))

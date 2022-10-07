@@ -45,8 +45,8 @@ function test_linear1()
         # :: Reformulation ::
         @test all(ρ .≈ ρ̄)
 
-        @test c == c̄
-        @test Q == Q̄
+        @test c ≈ c̄
+        @test Q ≈ Q̄
 
         # :: Solutions ::
         x̂ = trunc.(Int, value.(x))
