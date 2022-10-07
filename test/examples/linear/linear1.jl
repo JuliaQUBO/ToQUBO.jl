@@ -28,7 +28,6 @@ function test_linear1()
         ȳ = 5
 
         # ~*~ Model ~*~ #
-
         model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
 
         @variable(model, x[1:n], Bin)
