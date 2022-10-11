@@ -208,7 +208,14 @@ function toqubo_constraint(
     ::AbstractArchitecture,
 ) where {T}
     # -*- Special Ordered Set of Type 1: ∑ x <= 1 😄 -*-
-    g = PBO.PBF{VI,T}(v.variables)
+    g = PBO.PBF{VI,T}()
+
+    for vi in v.variables
+        for (ωi, _) in VM.expansion(MOI.get(model, VM.Source(), vi))
+            g[ωi] = one(T)
+        end
+    end
+
     z = VM.expansion(VM.encode!(VM.Mirror, model, nothing))
 
     return (g + z - one(T))^2 # one-hot approach
