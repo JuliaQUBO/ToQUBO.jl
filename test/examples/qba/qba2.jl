@@ -7,7 +7,7 @@ function test_qba2()
              0  0  5 -6
         ]
 
-        c̄ = 0
+        β̄ = 0
         x̄ = Set{Vector{Int}}([[1, 0, 0, 1]])
         ȳ = -11
 
@@ -26,15 +26,13 @@ function test_qba2()
 
         optimize!(model)
 
-        vqm = unsafe_backend(model)
-
-        _, Q, c = ToQUBO.PBO.qubo_normal_form(vqm)
+        Q, _, β = ToQUBO.PBO.qubo(unsafe_backend(model))
 
         x̂ = value.(x)
         ŷ = objective_value(model)
 
         # :: Reformulation ::
-        @test c ≈ c̄
+        @test β ≈ β̄
         @test Q ≈ Q̄
 
         # :: Solution ::

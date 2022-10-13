@@ -1,13 +1,13 @@
 module PBO
 
 # -*- Imports -*-
-using LinearAlgebra
+import QUBOTools: varcmp, qubo
 
 # -*- Exports -*-
 # export PBF
 # export ×, ∂, Δ, Θ, δ, ϵ, Ω
 
-include("PBF.jl")
+include("pbf.jl")
 include("tools.jl")
 include("forms.jl")
 include("quadratization.jl")

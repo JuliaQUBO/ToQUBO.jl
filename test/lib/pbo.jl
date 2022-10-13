@@ -130,30 +130,30 @@ function test_pbo()
         end
 
         @testset "QUBO" begin
-            x, Q, c = PBO.qubo_normal_form(Dict, p)
+            x, Q, c = PBO.qubo(p, Dict)
             @test Q ==
                   Dict{Tuple{Int,Int},T}((x[:x], x[:x]) => 1.0, (x[:x], x[:y]) => -2.0) &&
                   c == 0.5
 
-            x, Q, c = PBO.qubo_normal_form(Dict, q)
+            x, Q, c = PBO.qubo(q, Dict)
             @test Q ==
                   Dict{Tuple{Int,Int},T}((x[:y], x[:y]) => 1.0, (x[:x], x[:y]) => 2.0) &&
                   c == 0.5
 
-            x, Q, c = PBO.qubo_normal_form(Dict, r)
+            x, Q, c = PBO.qubo(r, Dict)
             @test Q == Dict{Tuple{Int,Int},T}((x[:z], x[:z]) => -1.0) && c == 1.0
 
-            x, Q, c = PBO.qubo_normal_form(Array, p)
-            @test Q == Symmetric(Array{T,2}([1.0 -1.0; -1.0 0.0])) && c == 0.5
+            x, Q, c = PBO.qubo(p, Matrix)
+            @test Q == Matrix{T}([1.0 -1.0; -1.0 0.0]) && c == 0.5
 
-            x, Q, c = PBO.qubo_normal_form(Array, q)
-            @test Q == Symmetric(Array{T,2}([0.0 1.0; 1.0 1.0])) && c == 0.5
+            x, Q, c = PBO.qubo(q, Matrix)
+            @test Q == Matrix{T}([0.0 1.0; 1.0 1.0]) && c == 0.5
 
-            x, Q, c = PBO.qubo_normal_form(Array, r)
-            @test Q == Symmetric(Array{T,2}([-1.0][:, :])) && c == 1.0
+            x, Q, c = PBO.qubo(r, Matrix)
+            @test Q == Matrix{T}([-1.0][:, :]) && c == 1.0
 
-            @test_throws Exception PBO.qubo_normal_form(Dict, s)
-            @test_throws Exception PBO.qubo_normal_form(Array, s)
+            @test_throws Exception PBO.qubo(s, Dict)
+            @test_throws Exception PBO.qubo(s, Matrix)
         end
 
         @testset "Evaluation" begin
