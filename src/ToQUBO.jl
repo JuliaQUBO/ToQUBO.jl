@@ -25,14 +25,12 @@ const VI = MOI.VariableIndex
 const CI = MOI.ConstraintIndex
 
 # -*- :: QUBOTools :: -*- #
-using QUBOTools
+import QUBOTools: QUBOTools, qubo, backend
 
-# -*- :: Library Imports :: -*- #
-
-# -*- Error -*- #
-include("lib/error.jl")
+# -*- :: Library Icludes :: -*- #
 
 # -*- Library -*- #
+include("lib/error.jl")
 include("pbo/PBO.jl")
 include("virtual/VirtualMapping.jl")
 include("model/model.jl")

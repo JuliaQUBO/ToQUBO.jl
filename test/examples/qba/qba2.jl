@@ -7,13 +7,13 @@ function test_qba2()
              0  0  5 -6
         ]
 
-        β̄ = 0
+        c̄ = 0
         x̄ = Set{Vector{Int}}([[1, 0, 0, 1]])
         ȳ = -11
 
         model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
 
-        @variable(model, x[i = 1:4], Bin)
+        @variable(model, x[1:4], Bin)
         @objective(
             model,
             Min,
@@ -26,13 +26,13 @@ function test_qba2()
 
         optimize!(model)
 
-        Q, _, β = ToQUBO.PBO.qubo(unsafe_backend(model))
+        Q, _, c = ToQUBO.qubo(unsafe_backend(model), Matrix)
 
         x̂ = value.(x)
         ŷ = objective_value(model)
 
         # :: Reformulation ::
-        @test β ≈ β̄
+        @test c ≈ c̄
         @test Q ≈ Q̄
 
         # :: Solution ::

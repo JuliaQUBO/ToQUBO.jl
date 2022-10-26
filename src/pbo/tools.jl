@@ -44,14 +44,6 @@ const ≺ = varcmp # \prec, from QUBOTools
 
 @doc raw"""
 """
-function varmap end # TODO: memoize
-
-function varmap(f::PBF{S, <:Any}) where S
-    Dict{S, Int}(x => i for (i, x) in enumerate(sort(collect(reduce(union, keys(f); init=Set{S}())); lt=varcmp)))
-end
-
-@doc raw"""
-"""
 function degree end # TODO: memoize
 
 degree(f::PBF) = maximum(length.(keys(f)); init=0)

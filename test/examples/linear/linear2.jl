@@ -42,12 +42,11 @@ function test_linear2()
 
         optimize!(model)
 
-        Q, _, β = ToQUBO.PBO.qubo(unsafe_backend(model))
+        Q, _, β = ToQUBO.PBO.qubo(unsafe_backend(model), Matrix)
 
-        v = _variable_indices(unsafe_backend(model))
         c = _constraint_indices(unsafe_backend(model))
 
-        ρ = MOI.get.(model, ToQUBO.Penalty(), [v; c])
+        ρ = MOI.get.(unsafe_backend(model), ToQUBO.Penalty(), c)
 
         # :: Reformulation ::
         @test all(ρ .≈ ρ̄)

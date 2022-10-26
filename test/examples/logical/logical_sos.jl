@@ -19,7 +19,7 @@ function test_logical_sos1()
             -16.0 -16.0 -16.0  16.0
         ]
 
-        β̄ = -16
+        c̄ = -16
 
         x̄ = Set{Vector{Int}}([[0, 0, 0]])
 
@@ -34,7 +34,7 @@ function test_logical_sos1()
 
         optimize!(model)
 
-        Q, _, β = ToQUBO.PBO.qubo(unsafe_backend(model))
+        Q, _, c = ToQUBO.qubo(unsafe_backend(model), Matrix)
 
         v = _variable_indices(unsafe_backend(model))
         c = _constraint_indices(unsafe_backend(model))
@@ -44,7 +44,7 @@ function test_logical_sos1()
         # :: Reformulation ::
         @test all(ρ .== ρ̄)
 
-        @test β ≈ β̄
+        @test c ≈ c̄
         @test Q ≈ Q̄
 
         # :: Solutions ::

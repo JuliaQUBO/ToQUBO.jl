@@ -130,27 +130,35 @@ function test_pbo()
         end
 
         @testset "QUBO" begin
-            x, Q, c = PBO.qubo(p, Dict)
-            @test Q ==
-                  Dict{Tuple{Int,Int},T}((x[:x], x[:x]) => 1.0, (x[:x], x[:y]) => -2.0) &&
-                  c == 0.5
+            x       = PBO.variable_map(p)
+            Q, α, β = PBO.qubo(p, Dict)
+            @test Q == Dict{Tuple{Int,Int},T}((x[:x], x[:x]) => 1.0, (x[:x], x[:y]) => -2.0)
+            @test α == 1.0
+            @test β == 0.5
 
-            x, Q, c = PBO.qubo(q, Dict)
-            @test Q ==
-                  Dict{Tuple{Int,Int},T}((x[:y], x[:y]) => 1.0, (x[:x], x[:y]) => 2.0) &&
-                  c == 0.5
+            x       = PBO.variable_map(q)
+            Q, α, β = PBO.qubo(q, Dict)
+            @test Q == Dict{Tuple{Int,Int},T}((x[:y], x[:y]) => 1.0, (x[:x], x[:y]) => 2.0)
+            @test α == 1.0
+            @test β == 0.5
 
-            x, Q, c = PBO.qubo(r, Dict)
-            @test Q == Dict{Tuple{Int,Int},T}((x[:z], x[:z]) => -1.0) && c == 1.0
+            x       = PBO.variable_map(r)
+            Q, α, β = PBO.qubo(r, Dict)
+            @test Q == Dict{Tuple{Int,Int},T}((x[:z], x[:z]) => -1.0)
+            @test α == 1.0
+            @test β == 1.0
 
-            x, Q, c = PBO.qubo(p, Matrix)
-            @test Q == Matrix{T}([1.0 -1.0; -1.0 0.0]) && c == 0.5
+            Q, α, β = PBO.qubo(p, Matrix)
+            @test Q == Matrix{T}([1.0 -1.0; -1.0 0.0])
+            @test β == 0.5
 
-            x, Q, c = PBO.qubo(q, Matrix)
-            @test Q == Matrix{T}([0.0 1.0; 1.0 1.0]) && c == 0.5
+            Q, α, β = PBO.qubo(q, Matrix)
+            @test Q == Matrix{T}([0.0 1.0; 1.0 1.0])
+            @test β == 0.5
 
-            x, Q, c = PBO.qubo(r, Matrix)
-            @test Q == Matrix{T}([-1.0][:, :]) && c == 1.0
+            Q, α, β = PBO.qubo(r, Matrix)
+            @test Q == Matrix{T}([-1.0][:, :])
+            @test β == 1.0
 
             @test_throws Exception PBO.qubo(s, Dict)
             @test_throws Exception PBO.qubo(s, Matrix)

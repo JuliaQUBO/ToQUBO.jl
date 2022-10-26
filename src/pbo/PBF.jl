@@ -291,8 +291,12 @@ function (f::PBF{S,T})(η::Set{S}) where {S,T}
     return sum(c for (ω, c) in f if ω ⊆ η; init = zero(T))
 end
 
-function (f::PBF{S,<:Any})(x::Pair{S,U}...) where {S,U<:Integer}
+function (f::PBF{S})(x::Pair{S,U}...) where {S,U<:Integer}
     return f(Dict{S,U}(x...))
+end
+
+function (f::PBF{S})() where {S}
+    return f(Dict{S,Int}())
 end
 
 # -*- Type conversion -*-

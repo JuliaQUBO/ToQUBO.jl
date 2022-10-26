@@ -50,15 +50,12 @@ function test_qba3_2()
         # :: Model ::
         model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
 
-        @variable(model, x[i = 1:m], Bin)
+        @variable(model, x[1:m], Bin)
         @objective(model, Max, sum(Gᵢⱼ * (x[i] ⊻ x[j]) for ((i, j), Gᵢⱼ) in G))
 
         optimize!(model)
 
-        virtual_model = unsafe_backend(model)
-
-        # Here we may need some introspection tools! TODO: QUBOTools!!
-        _, Q, c = ToQUBO.PBO.qubo_normal_form(virtual_model)
+        Q, _, c = ToQUBO.qubo(unsafe_backend(model), Matrix)
 
         # :: Reformulation ::
         @test c ≈ c̄

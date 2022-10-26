@@ -24,7 +24,7 @@ function test_qba3_1()
               250    70   130   310   420   170   210 -1560
         ]
 
-        β̄ = 27_556
+        c̄ = 27_556
 
         x̄ = Set{Vector{Int}}([
             [0, 0, 0, 1, 1, 0, 0, 1],
@@ -42,10 +42,10 @@ function test_qba3_1()
 
         optimize!(model)
 
-        Q, _, β = ToQUBO.PBO.qubo(unsafe_backend(model))
+        Q, _, c = ToQUBO.qubo(unsafe_backend(model), Matrix)
 
         # :: Reformulation ::
-        @test β ≈ β̄
+        @test c ≈ c̄
         @test Q ≈ 4Q̄
 
         # :: Solution ::
@@ -53,6 +53,6 @@ function test_qba3_1()
         ŷ = objective_value(model)
 
         @test x̂ ∈ x̄
-        @test ŷ ≈ 4ȳ + β̄
+        @test ŷ ≈ 4ȳ + c̄
     end
 end

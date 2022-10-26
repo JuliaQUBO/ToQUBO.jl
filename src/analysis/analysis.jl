@@ -1,30 +1,35 @@
-function PBO.PBF{VI,T}(model::VirtualQUBOModel{T}) where {T}
-    Ω = Dict{Set{VI},T}()
+function QUBOTools.backend(model::VirtualQUBOModel{T}) where {T}
+    L = Dict{VI,T}()
+    Q = Dict{Tuple{VI,VI},T}()
     f = MOI.get(
         MOI.get(model, VM.TargetModel()),
         MOI.ObjectiveFunction{MOI.ScalarQuadraticFunction{T}}(),
     )
 
     for q in f.quadratic_terms
-        c = q.coefficient
+        c  = q.coefficient
         xi = q.variable_1
         xj = q.variable_2
 
-        Ω[Set{VI}([xi, xj])] = xi == xj ? c / 2 : c
+        if xi == xj
+            L[xi] = get(L, xi, zero(T)) + c / 2
+        else
+            Q[(xi, xj)] = get(Q, (xi, xj), zero(T)) + c
+        end
     end
 
     for a in f.affine_terms
         c = a.coefficient
         x = a.variable
 
-        Ω[Set{VI}([x])] = c
+        L[x] =  get(L, x, zero(T)) + c
     end
 
-    Ω[Set{VI}()] = f.constant
+    offset = f.constant
 
-    return PBO.PBF{VI,T}(Ω)
-end
-
-function PBO.qubo(model::VirtualQUBOModel{T}, S::Type = Matrix) where {T}
-    return PBO.qubo(PBO.PBF{VI,T}(model), S)
+    return QUBOTools.StandardQUBOModel{QUBOTools.𝔹,VI,T,Int}(
+        L,
+        Q;
+        offset=offset,
+    )
 end

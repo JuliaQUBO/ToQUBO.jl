@@ -1,7 +1,7 @@
 module PBO
 
 # -*- Imports -*-
-import QUBOTools: varcmp, qubo
+import QUBOTools: varcmp, qubo, variables, variable_map, variable_set, variable_inv
 
 # -*- Exports -*-
 # export PBF
@@ -9,7 +9,7 @@ import QUBOTools: varcmp, qubo
 
 include("pbf.jl")
 include("tools.jl")
-include("forms.jl")
+include("wrapper.jl")
 include("quadratization.jl")
 include("print.jl")
 

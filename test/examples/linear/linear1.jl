@@ -4,7 +4,7 @@ function test_linear1()
         n = 3
         a = [0.3, 0.5, 1.0]
         b = 1.6
-        β = [1.0, 2.0, 3.0]
+        c = [1.0, 2.0, 3.0]
 
         # Penalty Choice
         ρ̄ = -7
@@ -21,7 +21,7 @@ function test_linear1()
              -21  -35  -70  -7  -14  -28  -56 217
         ]
 
-        β̄ = -1792
+        c̄ = -1792
 
         x̄ = Set{Vector{Int}}([[0, 1, 1]])
 
@@ -31,22 +31,19 @@ function test_linear1()
         model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
 
         @variable(model, x[1:n], Bin)
-        @objective(model, Max, β'x)
-        @constraint(model, a'x <= b)
+        @objective(model, Max, c'x)
+        @constraint(C1, model, a'x <= b)
 
         optimize!(model)
 
-        Q, _, β = ToQUBO.PBO.qubo(unsafe_backend(model))
+        Q, _, c = ToQUBO.PBO.qubo(unsafe_backend(model), Matrix)
 
-        v = _variable_indices(unsafe_backend(model))
-        c = _constraint_indices(unsafe_backend(model))
-
-        ρ = MOI.get.(model, ToQUBO.Penalty(), [v; c])
+        ρ = MOI.get.(unsafe_backend(model), ToQUBO.Penalty(), [C1])
 
         # :: Reformulation ::
         @test all(ρ .≈ ρ̄)
 
-        @test β ≈ β̄
+        @test c ≈ c̄
         @test Q ≈ Q̄
 
         # :: Solutions ::

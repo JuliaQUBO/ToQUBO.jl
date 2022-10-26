@@ -55,9 +55,7 @@ function test_quadratic1()
 
         optimize!(model)
 
-        vqm = unsafe_backend(model)
-
-        _, Q, c = ToQUBO.PBO.qubo_normal_form(vqm)
+        Q, _, c = ToQUBO.qubo(unsafe_backend(model))
 
         ρ = last.(collect(vqm.ρ))
 
