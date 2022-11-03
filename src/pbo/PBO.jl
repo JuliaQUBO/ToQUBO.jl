@@ -7,7 +7,7 @@ import QUBOTools: varcmp, qubo, variables, variable_map, variable_set, variable_
 # export PBF
 # export ×, ∂, Δ, Θ, δ, ϵ, Ω
 
-include("pbf.jl")
+include("PBF.jl")
 include("tools.jl")
 include("wrapper.jl")
 include("quadratization.jl")
