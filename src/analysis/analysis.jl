@@ -22,7 +22,7 @@ function QUBOTools.backend(model::VirtualQUBOModel{T}) where {T}
         c = a.coefficient
         x = a.variable
 
-        L[x] =  get(L, x, zero(T)) + c
+        L[x] = get(L, x, zero(T)) + c
     end
 
     offset = f.constant

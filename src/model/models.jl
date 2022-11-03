@@ -14,8 +14,8 @@ MOIU.@model(PreQUBOModel,       # Name of model
 # :: Drop Automatic Constraint Support :: #
 MOI.supports_constraint(
     ::PreQUBOModel{T},
-    ::Type{<:Union{SAF, SQF}},
-    ::Type{<:Union{MOI.Integer, MOI.ZeroOne, GT}},
+    ::Type{<:Union{SAF{T}, SQF{T}}},
+    ::Type{<:Union{GT{T}}},
 ) where {T} = false
 
 # -*- Model: QUBOModel -*-
