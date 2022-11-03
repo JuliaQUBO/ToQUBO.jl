@@ -12,17 +12,20 @@ using Anneal
 using LinearAlgebra
 using TOML
 
-# -*- Tests: Version -*-
+# -*- Test Tools -*- # 
+include("tools.jl")
+
+# -*- Tests: Version -*- #
 include("lib/version.jl")
 
-# -*- Tests: Library -*-
+# -*- Tests: Library -*- #
 include("lib/pbo.jl")
 include("lib/virtual.jl")
 
-# -*- Tests: Interface -*-
+# -*- Tests: Interface -*- #
 include("interface/interface.jl")
 
-# -*- Tests: Examples -*-
+# -*- Tests: Examples -*- #
 include("examples/examples.jl")
 
 function main()

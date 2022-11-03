@@ -11,20 +11,21 @@ function test_linear2()
 
         # ~*~ Solution Data ~*~ #
         Q̄ = [
-            -46    0    0   48   48   48    0   48   48   48   48
-              0  -44    0   48    0   48   48    0   48   48   48
-              0    0  -44    0   48    0   48   48   48   48   48
-             48   48    0  -92   48   96   48   48   96   96   96
-             48    0   48   48  -92   48   48   96   96   96   96
-             48   48    0   96   48  -92   48   48   96   96   96
-              0   48   48   48   48   48  -91   48   96   96   96
-             48    0   48   48   96   48   48  -92   96   96   96
-             48   48   48   96   96   96   96   96 -139  144  144
-             48   48   48   96   96   96   96   96  144 -138  144
-             48   48   48   96   96   96   96   96  144  144 -139
+            -46    0    0   96   96   96    0   96   96   96   96
+              0  -44    0   96    0   96   96    0   96   96   96
+              0    0  -44    0   96    0   96   96   96   96   96
+              0    0    0  -92   96  192   96   96  192  192  192
+              0    0    0    0  -92   96   96  192  192  192  192
+              0    0    0    0    0  -92   96   96  192  192  192
+              0    0    0    0    0    0  -91   96  192  192  192
+              0    0    0    0    0    0    0  -92  192  192  192
+              0    0    0    0    0    0    0    0 -139  288  288
+              0    0    0    0    0    0    0    0    0 -138  288
+              0    0    0    0    0    0    0    0    0    0 -139
         ]
 
-        c̄ = 144
+        ᾱ = 1
+        β̄ = 144
 
         x̄ = Set{Vector{Int}}([
             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
@@ -38,20 +39,21 @@ function test_linear2()
 
         @variable(model, x[1:n], Bin)
         @objective(model, Min, c'x)
-        @constraint(model, A * x .== b)
+        @constraint(model, k, A * x .== b)
 
         optimize!(model)
 
-        vqm = unsafe_backend(model)
-
-        ρ = last.(collect(vqm.ρ))
-
-        _, Q, c = ToQUBO.PBO.qubo_normal_form(vqm)
-
         # :: Reformulation ::
+        qubo_model = unsafe_backend(model)
+
+        k = [ki.index for ki in k]
+        ρ = MOI.get.(qubo_model, ToQUBO.Penalty(), k)
+        Q, α, β = ToQUBO.PBO.qubo(qubo_model, Matrix)
+
         @test all(ρ .≈ ρ̄)
         
-        @test c ≈ c̄
+        @test α ≈ ᾱ
+        @test β ≈ β̄
         @test Q ≈ Q̄
 
         # :: Solutions ::

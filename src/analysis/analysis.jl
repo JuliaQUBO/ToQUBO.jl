@@ -1,16 +1,20 @@
-function PBO.PBF{VI, T}(model::VirtualQUBOModel{T}) where T
-    Ω = Dict{Set{VI}, T}()
-    f = MOI.get(MOI.get(model, VM.TargetModel()), MOI.ObjectiveFunction{MOI.ScalarQuadraticFunction{T}}())
+function QUBOTools.backend(model::VirtualQUBOModel{T}) where {T}
+    L = Dict{VI,T}()
+    Q = Dict{Tuple{VI,VI},T}()
+    f = MOI.get(
+        MOI.get(model, VM.TargetModel()),
+        MOI.ObjectiveFunction{MOI.ScalarQuadraticFunction{T}}(),
+    )
 
     for q in f.quadratic_terms
-        c = q.coefficient
-        xᵢ = q.variable_1
-        xⱼ = q.variable_2
+        c  = q.coefficient
+        xi = q.variable_1
+        xj = q.variable_2
 
-        Ω[Set{VI}([xᵢ, xⱼ])] = if xᵢ == xⱼ
-            c / 2
+        if xi == xj
+            L[xi] = get(L, xi, zero(T)) + c / 2
         else
-            c
+            Q[(xi, xj)] = get(Q, (xi, xj), zero(T)) + c
         end
     end
 
@@ -18,18 +22,14 @@ function PBO.PBF{VI, T}(model::VirtualQUBOModel{T}) where T
         c = a.coefficient
         x = a.variable
 
-        Ω[Set{VI}([x])] = c
+        L[x] = get(L, x, zero(T)) + c
     end
 
-    Ω[Set{VI}()] = f.constant
+    offset = f.constant
 
-    PBO.PBF{VI, T}(Ω)
-end
-
-function PBO.qubo_normal_form(model::VirtualQUBOModel{T}) where T
-    PBO.qubo_normal_form(Array, PBO.PBF{VI, T}(model))
-end
-
-function PBO.qubo_normal_form(A::Type, model::VirtualQUBOModel{T}) where T
-    PBO.qubo_normal_form(A, PBO.PBF{VI, T}(model))
+    return QUBOTools.StandardQUBOModel{QUBOTools.𝔹,VI,T,Int}(
+        L,
+        Q;
+        offset=offset,
+    )
 end

@@ -1,7 +1,7 @@
 module PBO
 
 # -*- Imports -*-
-using LinearAlgebra
+import QUBOTools: varcmp, qubo, variables, variable_map, variable_set, variable_inv
 
 # -*- Exports -*-
 # export PBF
@@ -9,7 +9,7 @@ using LinearAlgebra
 
 include("PBF.jl")
 include("tools.jl")
-include("forms.jl")
+include("wrapper.jl")
 include("quadratization.jl")
 include("print.jl")
 

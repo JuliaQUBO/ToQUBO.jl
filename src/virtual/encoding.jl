@@ -163,7 +163,13 @@ function encode!(E::Type{<:Binary}, model::AbstractVirtualModel{T}, x::Union{VI,
     M = trunc(Int, β - α)
     N = ceil(Int, log2(M + 1))
 
-    encode!(E, model, x, T[[2^i for i = 0:N-2];[M - 2^(N-1) + 1]], α)
+    γ = if N == 0
+        T[M + 1/2]
+    else
+        T[[2^i for i = 0:N-2];[M - 2^(N-1) + 1]]
+    end
+
+    encode!(E, model, x, γ, α)
 end
 
 function encode!(E::Type{<:Binary}, model::AbstractVirtualModel{T}, x::Union{VI, Nothing}, a::T, b::T, n::Integer) where T

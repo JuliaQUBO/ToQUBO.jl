@@ -24,19 +24,19 @@ const GT{T} = MOI.GreaterThan{T}
 const VI = MOI.VariableIndex
 const CI = MOI.ConstraintIndex
 
-# -*- :: Library Imports :: -*- #
+# -*- :: QUBOTools :: -*- #
+import QUBOTools: QUBOTools, qubo, backend
 
-# -*- Error -*- #
-include("error.jl")
+# -*- :: Library Icludes :: -*- #
 
 # -*- Library -*- #
+include("lib/error.jl")
 include("pbo/PBO.jl")
 include("virtual/VirtualMapping.jl")
 include("model/model.jl")
 
-# ~*~ Compiler ~*~ #
+# ~*~ Compiler & Analysis ~*~ #
 include("compiler/compiler.jl")
-
 include("analysis/analysis.jl")
 
 end # module

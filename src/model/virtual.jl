@@ -30,7 +30,7 @@ struct VirtualQUBOModel{T} <: VM.AbstractVirtualModel{T}
     f::PBO.PBF{VI, T}           # Objective Function
     g::Dict{CI, PBO.PBF{VI, T}} # Problem Constraints
     h::Dict{VI, PBO.PBF{VI, T}} # Variable Encoding Constraints
-    ρ::Dict{Union{CI, VI}, T} # Penalties
+    ρ::Dict{Union{CI, VI}, T}   # Penalties
 
     # -*- Attributes -*-
     attrs::VirtualQUBOModelAttributes{T}
@@ -67,9 +67,11 @@ end
 MOI.get(model::VirtualQUBOModel, ::VM.Source) = model.source
 MOI.get(model::VirtualQUBOModel, ::VM.Source, x::VI) = model.source[x]
 MOI.set(model::VirtualQUBOModel{T}, ::VM.Source, x::VI, v::VM.VV{<:Any, T}) where T = (model.source[x] = v)
+
 MOI.get(model::VirtualQUBOModel, ::VM.Target) = model.target
 MOI.get(model::VirtualQUBOModel, ::VM.Target, y::VI) = model.target[y]
 MOI.set(model::VirtualQUBOModel{T}, ::VM.Target, y::VI, v::VM.VV{<:Any, T}) where T = (model.target[y] = v)
-MOI.get(model::VirtualQUBOModel, ::VM.Variables) = model.variables
+
+MOI.get(model::VirtualQUBOModel, ::VM.Variables)   = model.variables
 MOI.get(model::VirtualQUBOModel, ::VM.SourceModel) = model.source_model
 MOI.get(model::VirtualQUBOModel, ::VM.TargetModel) = model.target_model

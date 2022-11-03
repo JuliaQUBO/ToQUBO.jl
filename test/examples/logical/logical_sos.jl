@@ -13,16 +13,16 @@ function test_logical_sos1()
 
         # ~*~ Solution Data ~*~ #
         Q̄ = [
-             15.0 -14.0 -14.0 -16.0
-            -14.0  15.0 -14.0 -16.0
-            -14.0 -14.0  15.0 -16.0
-            -16.0 -16.0 -16.0  16.0
+             15 -28 -28 -32
+              0  15 -28 -32
+              0   0  15 -32
+              0   0   0  16
         ]
 
-        c̄ = -16
+        ᾱ = 1
+        β̄ = -16
 
         x̄ = Set{Vector{Int}}([[0, 0, 0]])
-
         ȳ = 0
 
         # ~*~ Model ~*~ #
@@ -30,20 +30,19 @@ function test_logical_sos1()
 
         @variable(model, x[1:n], Bin)
         @objective(model, Max, x'A * x)
-        @constraint(model, x ∈ SOS1())
+        @constraint(model, c1, x ∈ SOS1())
 
         optimize!(model)
 
-        vqm = unsafe_backend(model)
-
-        _, Q, c = ToQUBO.PBO.qubo_normal_form(vqm)
-
-        ρ = last.(collect(vqm.ρ))
-
         # :: Reformulation ::
-        @test all(ρ .== ρ̄)
+        qubo_model = unsafe_backend(model)
 
-        @test c ≈ c̄
+        ρ       = MOI.get(qubo_model, ToQUBO.Penalty(), c1.index)
+        Q, α, β = ToQUBO.qubo(qubo_model, Matrix)
+
+        @test ρ ≈ ρ̄
+        @test α ≈ ᾱ
+        @test β ≈ β̄
         @test Q ≈ Q̄
 
         # :: Solutions ::

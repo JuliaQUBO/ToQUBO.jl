@@ -11,20 +11,20 @@ function test_linear1()
 
         # ~*~ Solution Data ~*~ #
         Q̄ = [
-             610 -105 -210 -21  -42  -84 -168 -21
-            -105  947 -350 -35  -70 -140 -280 -35
-            -210 -350 1543 -70 -140 -280 -560 -70
-             -21  -35  -70 217  -14  -28  -56  -7
-             -42  -70 -140 -14  420  -56 -112 -14
-             -84 -140 -280 -28  -56  784 -224 -28
-            -168 -280 -560 -56 -112 -224 1344 -56
-             -21  -35  -70  -7  -14  -28  -56 217
+            610 -210 -420  -42  -84 -168  -336  -42
+              0  947 -700  -70 -140 -280  -560  -70
+              0    0 1543 -140 -280 -560 -1120 -140
+              0    0    0  217  -28  -56  -112  -14
+              0    0    0    0  420 -112  -224  -28
+              0    0    0    0    0  784  -448  -56
+              0    0    0    0    0    0  1344 -112
+              0    0    0    0    0    0     0  217
         ]
 
-        c̄ = -1792
+        ᾱ = 1
+        β̄ = -1792
 
         x̄ = Set{Vector{Int}}([[0, 1, 1]])
-
         ȳ = 5
 
         # ~*~ Model ~*~ #
@@ -32,20 +32,19 @@ function test_linear1()
 
         @variable(model, x[1:n], Bin)
         @objective(model, Max, c'x)
-        @constraint(model, a'x <= b)
+        @constraint(model, c1, a'x <= b)
 
         optimize!(model)
 
-        vqm = unsafe_backend(model)
-
-        _, Q, c = ToQUBO.PBO.qubo_normal_form(vqm)
-
-        ρ = last.(collect(vqm.ρ))
-
         # :: Reformulation ::
-        @test all(ρ .≈ ρ̄)
+        qubo_model = unsafe_backend(model)
 
-        @test c ≈ c̄
+        ρ       = MOI.get(qubo_model, ToQUBO.Penalty(), c1.index)
+        Q, α, β = ToQUBO.qubo(qubo_model, Matrix)
+
+        @test ρ ≈ ρ̄
+        @test α ≈ ᾱ
+        @test β ≈ β̄
         @test Q ≈ Q̄
 
         # :: Solutions ::

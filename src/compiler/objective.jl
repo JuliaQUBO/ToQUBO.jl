@@ -1,5 +1,10 @@
 function toqubo_sense!(model::VirtualQUBOModel, ::AbstractArchitecture)
-    MOI.set(model.target_model, MOI.ObjectiveSense(), MOI.get(model, MOI.ObjectiveSense()))
+    if MOI.get(model, MOI.ObjectiveSense()) === MOI.MAX_SENSE
+        MOI.set(model.target_model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
+    else
+        # Feasibility is interpreted as minimization
+        MOI.set(model.target_model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+    end
 
     return nothing
 end

@@ -40,23 +40,7 @@ varmul(x::S, y::Set{S}) where S = push!(copy(y), x)
 varmul(x::Set{S}, y::Set{S}) where S = union(x, y)
 
 const × = varmul # \times
-
-# -*- Variable Comparison -*-
-@doc raw"""
-"""
-function varcmp end 
-
-varcmp(x::S, y::S) where S = isless(x, y) # fallback
-
-const ≺ = varcmp # \prec
-
-@doc raw"""
-"""
-function varmap end # TODO: memoize
-
-function varmap(f::PBF{S, <:Any}) where S
-    Dict{S, Int}(x => i for (i, x) in enumerate(sort(collect(reduce(union, keys(f); init=Set{S}())); lt=varcmp)))
-end
+const ≺ = varcmp # \prec, from QUBOTools
 
 @doc raw"""
 """
@@ -135,51 +119,15 @@ end
 const Δ = derivative
 const ∂ = derivative
 
-@doc raw"""
-    gradient(f::PBF)
-
-Computes the gradient of ``f \in \mathscr{F}`` where the ``i``-th derivative is given by [`derivative`](@ref).
-"""
-gradient(f::PBF) = [derivative(f, s) for (s, _) in varmap(f)]
+function gradient(f::PBF{S, <:Any}, x::Vector{S}) where {S}
+    return [derivative(f, x) for (s, _) in varmap(f)]
+end
 
 const ∇ = gradient
 
-@doc raw"""
-    residual(f::PBF{S, T}, i::S) where {S, T}
-    residual(f::PBF{S, T}, i::Int) where {S, T}
-
-The residual of function ``f \in \mathscr{F}`` with respect to the ``i``-th variable.
-
-```math
-    \Theta_i f(\mathbf{x}) = f(\mathbf{x}) - \mathbf{x}_i\, \Delta_i f(\mathbf{x}) =
-    \sum_{\omega \in \Omega\left[{f}\right] \setminus \left\{{i}\right\}}
-    c_{\omega} \prod_{k \in \omega} \mathbf{x}_k
-```
-"""
 residual(f::PBF{S, T}, i::S) where {S, T} = PBF{S, T}(ω => c for (ω, c) ∈ keys(f) if (i ∉ ω))
 residual(f::PBF, i::Int) = residual(f, varinv(f)[i])
 
-const Θ = residual
-
-# -*- Integer Coefficients -*-
-@doc raw"""
-    discretize(f::PBF{S, T}; tol::T) where {S, T}
-
-For a given function ``f \in \mathscr{F}`` written as
-
-```math
-    f\left({\mathbf{x}}\right) = \sum_{\omega \in \Omega\left[{f}\right]} c_\omega \prod_{i \in \omega} \mathbf{x}_i
-```
-
-computes an approximate function  ``g : \mathbb{B}^{n} \to \mathbb{Z}`` such that
-
-```math
-    \argmin_{\mathbf{x} \in \mathbb{B}^{n}} g\left({\mathbf{x}}\right) = \argmin_{\mathbf{x} \in \mathbb{B}^{n}} f\left({\mathbf{x}}\right)
-```
-
-This is done by rationalizing every coefficient ``c_\omega`` according to some tolerance `tol`.
-
-"""
 function discretize(f::PBF{<:Any, T}; tol::T = 1e-6) where {T}
     round(f / sharpness(f; bound = :loose, tol = tol); digits=0)
 end

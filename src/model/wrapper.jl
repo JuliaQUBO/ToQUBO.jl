@@ -29,10 +29,9 @@ function MOI.optimize!(model::VirtualQUBOModel)
 
     source_model = MOI.get(model, VM.SourceModel())
     target_model = MOI.get(model, VM.TargetModel())
+    index_map    = MOIU.identity_index_map(source_model)
 
     MOI.optimize!(model.optimizer, target_model)
-
-    index_map = MOIU.identity_index_map(source_model)
 
     return (index_map, false)
 end
@@ -42,14 +41,14 @@ function MOI.copy_to(model::VirtualQUBOModel{T}, source::MOI.ModelLike) where {T
         error("QUBO Model is not empty")
     end
 
-    # -*- Copy to PreQUBOModel + Trigger Bridges -*-
+    # -*- Copy to PreQUBOModel + Add Bridges -*- #
     source_model = MOI.get(model, VM.SourceModel())
+    bridge_model = MOIB.full_bridge_optimizer(source_model, T)
 
-    index_map = MOI.copy_to(
-        MOIB.full_bridge_optimizer(source_model, T),
-        source,
-    )
+    # -*- Copy to source using bridges - *- #
+    index_map = MOI.copy_to(bridge_model, source)
 
+    # -*- JuMP to QUBO Compilation -*- #
     ToQUBO.toqubo!(model)
 
     return index_map
@@ -64,13 +63,19 @@ MOI.supports(
 # -*- :: Constraint Support :: -*- #
 MOI.supports_constraint(
     ::VirtualQUBOModel{T},
-    ::Type{<:VI},
-    ::Type{<:Union{MOI.ZeroOne,MOI.Integer,MOI.Interval{T}}},
+    ::Type{VI},
+    ::Type{<:Union{
+        MOI.ZeroOne,
+        MOI.Integer,
+        MOI.Interval{T},
+        MOI.LessThan{T},
+        MOI.GreaterThan{T},
+    }},
 ) where {T} = true
 
 MOI.supports_constraint(
     ::VirtualQUBOModel{T},
-    ::Type{<:Union{VI,SAF{T},SQF{T}}},
+    ::Type{<:Union{SAF{T},SQF{T}}},
     ::Type{<:Union{MOI.EqualTo{T},MOI.LessThan{T}}},
 ) where {T} = true
 
@@ -82,7 +87,13 @@ MOI.supports_constraint(
 
 MOI.supports_add_constrained_variable(
     ::VirtualQUBOModel{T},
-    ::Type{<:Union{MOI.ZeroOne,MOI.Integer,MOI.Interval{T}}},
+    ::Type{<:Union{
+        MOI.ZeroOne,
+        MOI.Integer,
+        MOI.Interval{T},
+        MOI.LessThan{T},
+        MOI.GreaterThan{T},
+    }},
 ) where {T} = true
 
 function MOI.get(
@@ -140,9 +151,10 @@ function MOI.get(model::VirtualQUBOModel{T}, vp::MOI.VariablePrimal, x::VI) wher
     if isnothing(model.optimizer)
         return zero(T)
     else
+        v = MOI.get(model, VM.Source(), x)
         s = zero(T)
-        
-        for (ω, c) in VM.expansion(MOI.get(model, VM.Source(), x))
+
+        for (ω, c) in VM.expansion(v)
             for y in ω
                 c *= MOI.get(model.optimizer, vp, y)
             end
@@ -154,11 +166,11 @@ function MOI.get(model::VirtualQUBOModel{T}, vp::MOI.VariablePrimal, x::VI) wher
     end
 end
 
-MOI.get(::VirtualQUBOModel, ::MOI.SolverName) = "Virtual QUBO Model"
-MOI.get(::VirtualQUBOModel, ::MOI.SolverVersion) = PROJECT_VERSION
+MOI.get(::VirtualQUBOModel, ::MOI.SolverName)       = "Virtual QUBO Model"
+MOI.get(::VirtualQUBOModel, ::MOI.SolverVersion)    = PROJECT_VERSION
 MOI.get(model::VirtualQUBOModel, rs::MOI.RawSolver) = MOI.get(model.optimizer, rs)
 
-PBO.showvar(x::VI) = PBO.showvar(x.value)
+PBO.showvar(x::VI)       = PBO.showvar(x.value)
 PBO.varcmp(x::VI, y::VI) = PBO.varcmp(x.value, y.value)
 
 const Optimizer{T} = VirtualQUBOModel{T}
