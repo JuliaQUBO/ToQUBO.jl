@@ -1,5 +1,8 @@
 import Base: isiterable
 
+using MutableArithmetics
+const MA = MutableArithmetics
+
 @doc raw"""
 """
 function _parseterm end
@@ -309,3 +312,246 @@ function Base.convert(U::Type{<:T}, f::PBF{<:Any,T}) where {T}
         error("Can't convert non-constant Pseudo-boolean Function to scalar type '$U'")
     end
 end
+
+
+# -*- MA Mutable Arithmetics -*-
+
+MA.mutability(::Type{<:PBF{S,T}}) where {S,T} = MA.IsMutable()
+
+
+# -*- MA Mutable Copy: -*-
+function MA.mutable_copy(f::PBF{S,T}) where{S,T}
+    f_copy = PBO.PBF{S,T}()
+    for (ω,c) in f
+        f_copy[ω] = MA.copy_if_mutable(f[ω])
+    end
+    return f_copy
+end
+
+# -*- MA isequal_canonical: -*-
+function MA.isequal_canonical(
+    f::PBF{S,T},
+    g::PBF{S,T}
+    ) where {S,T}
+    
+    return f == g
+    
+end
+
+
+# -*- MA Arithmetic: zero,one -*-
+function MA.operate!(
+    op::typeof(zero),
+    f::PBF{S,T}
+    ) where {S,T}
+
+    empty!(f)
+    
+    return f
+end
+
+function MA.operate!(
+    op::typeof(one),
+    f::PBF{S,T}
+    ) where {S,T}
+
+    empty!(f)
+    f[nothing] = one(T)
+
+    return f
+end
+
+
+# -*- MA Arithmetic: (+) -*-
+
+function MA.operate!(
+    op::typeof(+),
+    f::PBF{S,T}, 
+    g::PBF{S,T}
+    ) where {S,T}
+
+    for(ω, c) in g
+        f[ω] += c
+    end
+    
+    return f
+end
+
+function MA.operate!(
+    op::typeof(+),
+    f::PBF{<:Any,T}, 
+    c::T
+    ) where {T}
+    if iszero(c)
+        return f
+    end
+    
+    f[nothing] += c
+
+    return f
+end
+
+# -*- MA Arithmetic: (-) -*-
+
+
+function MA.operate!(
+    op::typeof(-),
+    f::PBF{S,T}
+    ) where {S,T}
+
+    for(ω, c) in f
+        f[ω] = -c 
+    end
+    
+    return f
+end
+
+function MA.operate!(
+    op::typeof(-),
+    f::PBF{S,T}, 
+    g::PBF{S,T}
+    ) where {S,T}
+
+    for(ω, c) in g
+        f[ω] -= c
+    end
+
+    return f
+end
+
+
+function MA.operate!(
+    op::typeof(-),
+    f::PBF{<:Any,T}, 
+    c::T
+    ) where {T}
+    if iszero(c)
+        return f
+    end
+    
+    f[nothing] -= c
+
+    return f
+end
+
+# -*- MA Arithmetic: (*) -*-
+
+function MA.operate!(
+    op::typeof(*),
+    f::PBF{S,T}, 
+    g::PBF{S,T}
+    ) where {S,T}
+
+    h = PBF{S,T}()
+
+    if isempty(f) || isempty(g)
+        return h
+    else
+        for (ωᵢ, cᵢ) in f, (ωⱼ, cⱼ) in g
+            h[union(ωᵢ, ωⱼ)] += cᵢ * cⱼ
+        end
+
+        return h
+    end
+
+end
+
+function MA.operate!(
+    op::typeof(*),
+    f::PBF{S,T}, 
+    a::T
+    ) where {S,T}
+
+    if iszero(a)
+        empty!(f)
+    else
+        for(ω, c) in f
+            f[ω] = c*a
+        end
+    end
+
+    return f
+end
+
+# -*- MA Arithmetic: (add_mul) -*-
+function MA.operate!(
+    op::typeof(add_mul),
+    f::PBF{S,T},
+    m::T,
+    g::PBF{S,T}
+    ) where {S,T}
+
+    for(ω, c) in g
+        f[ω] += m*c
+    end
+    return f
+    
+end
+
+# -*- MA Arithmetic: (/) -*-
+
+function MA.operate!(
+    op::typeof(/),
+    f::PBF{S,T}, 
+    a::T
+    ) where {S,T}
+
+    if iszero(a)
+        throw(DivideError())
+    else
+        for(ω, c) in f
+            f[ω] = c / a
+        end
+    end
+
+    return f
+end
+
+# -*- MA Arithmetic: (^) -*-
+# function MA.operate!(
+#     op::typeof(^),
+#     f::PBF{S,T}, 
+#     n::Integer
+#     ) where {S,T}
+
+#     if n < 0
+#         throw(DivideError())
+#     elseif n == 0
+#         return one(PBF{S,T})
+#     elseif n == 1
+#         return f
+#     elseif n == 2
+#         return f * f
+#     else    
+#         g = f * f
+
+#         if iseven(n)
+#             return g^(n ÷ 2)
+#         else
+#             return g^(n ÷ 2) * f
+#         end
+#     end
+# end
+
+
+function MA.operate_to!(
+    output::PBF{S,T},
+    op::Union{typeof(+),typeof(-)},
+    f::PBF{S,T},
+    g::PBF{S,T},
+) where {S,T}
+    empty!(output)
+    MA.operate!(+, output, f)
+    MA.operate!(op, output, g)
+    return output
+end
+
+
+
+# -*- MA Arithmetic: Evaluation -*-
+
+
+
+# -*- MA Type conversion -*-
+
+    
