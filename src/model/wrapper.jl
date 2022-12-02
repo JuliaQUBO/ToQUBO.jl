@@ -20,19 +20,28 @@ function MOI.empty!(model::VirtualQUBOModel)
     empty!(model.ρ)
     empty!(model.θ)
 
-    nothing
+    return nothing
 end
 
-function MOI.optimize!(model::VirtualQUBOModel)
-    if isnothing(model.optimizer)
-        error("No optimizer attached")
-    end
+# Notes on the optimize! interface
+# After `JuMP.optimize!(model)` there are a few layers before reaching
+#   1. `MOI.optimize!(::VirtualQUBOModel, ::MOI.ModelLike)`
+# Then, 
+#   2. `MOI.copy_to(::VirtualQUBOModel, ::MOI.ModelLike)`
+#   3. `MOI.optimize!(::VirtualQUBOModel)`
+# is called.
 
+function MOI.optimize!(model::VirtualQUBOModel)
     source_model = MOI.get(model, SourceModel())
     target_model = MOI.get(model, TargetModel())
     index_map    = MOIU.identity_index_map(source_model)
 
-    MOI.optimize!(model.optimizer, target_model)
+    # -*- JuMP to QUBO Compilation -*- #
+    ToQUBO.toqubo!(model)
+
+    if !isnothing(model.optimizer)
+        MOI.optimize!(model.optimizer, target_model)
+    end
 
     return (index_map, false)
 end
@@ -47,12 +56,7 @@ function MOI.copy_to(model::VirtualQUBOModel{T}, source::MOI.ModelLike) where {T
     bridge_model = MOIB.full_bridge_optimizer(source_model, T)
 
     # -*- Copy to source using bridges - *- #
-    index_map = MOI.copy_to(bridge_model, source)
-
-    # -*- JuMP to QUBO Compilation -*- #
-    ToQUBO.toqubo!(model)
-
-    return index_map
+    return MOI.copy_to(bridge_model, source) # index_map
 end
 
 # -*- :: Objective Function Support :: -*- #
