@@ -6,6 +6,10 @@ const MOIU = MOI.Utilities
 const VI = MOI.VariableIndex
 const CI = MOI.ConstraintIndex
 
+# -*- Imports: JuMP + MOI -*-
+using MutableArithmetics
+const MA = MutableArithmetics
+
 # -*- Imports -*-
 using ToQUBO: ToQUBO, PBO
 using Anneal
@@ -17,6 +21,7 @@ include("lib/version.jl")
 
 # -*- Tests: Library -*- #
 include("lib/pbo.jl")
+include("lib/pbo_ma.jl")
 include("lib/virtual.jl")
 
 # -*- Tests: Interface -*- #
@@ -29,6 +34,7 @@ function main()
     @testset ":: -*- :: ~*~ ToQUBO.jl ~*~ :: -*- ::" verbose = true begin
         test_version()
         test_pbo()
+        test_pbo_ma()
         test_virtual()
         test_interface()
         test_examples()

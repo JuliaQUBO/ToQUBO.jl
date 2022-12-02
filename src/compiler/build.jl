@@ -1,12 +1,12 @@
+using MutableArithmetics
+const MA = MutableArithmetics
+
 function toqubo_build!(model::VirtualQUBOModel{T}, ::AbstractArchitecture) where {T}
     # -*- Assemble Objective Function -*-
-    H = sum(
-        [
-            model.f
-            [model.ρ[ci] * g for (ci, g) in model.g]
-            [model.θ[vi] * h for (vi, h) in model.h]
-        ];
-        init = zero(PBO.PBF{VI,T}),
+    H = MA.@rewrite(
+    model.f + 
+    sum(model.ρ[ci] * g for (ci, g) in model.g; init = zero(PBO.PBF{VI,T})) + 
+    sum(model.ρ[vi] * h for (vi, h) in model.h; init = zero(PBO.PBF{VI,T}))
     )
 
     # -*- Quadratization Step -*-
@@ -23,6 +23,9 @@ function toqubo_build!(model::VirtualQUBOModel{T}, ::AbstractArchitecture) where
     Q = SQT{T}[]
     a = SAT{T}[]
     b = zero(T)
+
+    # ve tamanho do H e faz sizehint
+
 
     for (ω, c) in H
         if isempty(ω)
