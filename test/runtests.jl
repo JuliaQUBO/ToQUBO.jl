@@ -7,13 +7,10 @@ const VI = MOI.VariableIndex
 const CI = MOI.ConstraintIndex
 
 # -*- Imports -*-
-using ToQUBO: ToQUBO, PBO, VM
+using ToQUBO: ToQUBO, PBO
 using Anneal
 using LinearAlgebra
 using TOML
-
-# -*- Test Tools -*- # 
-include("tools.jl")
 
 # -*- Tests: Version -*- #
 include("lib/version.jl")

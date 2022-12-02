@@ -14,7 +14,7 @@ function toqubo_penalties!(model::VirtualQUBOModel{T}, ::AbstractArchitecture) w
     for (ci, h) in model.h
         ϵ = PBO.sharpness(h)
 
-        model.ρ[ci] = s * (δ / ϵ + β)
+        model.θ[ci] = s * (δ / ϵ + β)
     end
 
     return nothing

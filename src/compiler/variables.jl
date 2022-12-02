@@ -87,8 +87,13 @@ function toqubo_variables!(model::VirtualQUBOModel{T}, ::AbstractArchitecture) w
             #       N ≥ log₂(1 + |b - a| / 4τ)
             #
             # where τ is the (absolute) tolerance
-            τ = 0.25 # TODO: Add τ as parameter
-            VM.encode!(VM.Binary, model, x, a, b, τ)
+            # TODO: Add τ as parameter
+            let
+                τ = MOI.get(model, Tol(), x)
+                e = MOI.get(model, VariableEncoding(), x)
+
+                encode!(e, model, x, a, b, τ)
+            end 
         end
     end
 
@@ -97,13 +102,15 @@ function toqubo_variables!(model::VirtualQUBOModel{T}, ::AbstractArchitecture) w
         if isnothing(a) || isnothing(b)
             error("Unbounded variable $(x) ∈ ℤ")
         else
-            VM.encode!(VM.Binary, model, x, a, b)
+            let e = MOI.get(model, VariableEncoding(), x)
+                encode!(e, model, x, a, b)
+            end
         end
     end
 
     # -*- Mirror Boolean Variables 😄 -*-
     for x in 𝔹
-        VM.encode!(VM.Mirror, model, x)
+        encode!(Mirror(), model, x)
     end
 
     return nothing

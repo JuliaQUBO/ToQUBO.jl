@@ -4,14 +4,14 @@ function toqubo_build!(model::VirtualQUBOModel{T}, ::AbstractArchitecture) where
         [
             model.f
             [model.ρ[ci] * g for (ci, g) in model.g]
-            [model.ρ[vi] * h for (vi, h) in model.h]
+            [model.θ[vi] * h for (vi, h) in model.h]
         ];
         init = zero(PBO.PBF{VI,T}),
     )
 
     # -*- Quadratization Step -*-
     H = PBO.quadratize(H) do n::Integer
-        m = MOI.get(model, VM.TargetModel())
+        m = MOI.get(model, TargetModel())
         w = MOI.add_variables(m, n)
 
         MOI.add_constraint.(m, w, MOI.ZeroOne())
@@ -41,7 +41,7 @@ function toqubo_build!(model::VirtualQUBOModel{T}, ::AbstractArchitecture) where
     end
 
     MOI.set(
-        MOI.get(model, VM.TargetModel()),
+        MOI.get(model, TargetModel()),
         MOI.ObjectiveFunction{SQF{T}}(),
         SQF{T}(Q, a, b),
     )

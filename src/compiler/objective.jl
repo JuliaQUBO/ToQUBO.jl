@@ -25,7 +25,7 @@ function toqubo_objective(
 ) where {T}
     f = PBO.PBF{VI,T}()
 
-    for (ω, c) in VM.expansion(MOI.get(model, VM.Source(), vi))
+    for (ω, c) in expansion(MOI.get(model, Source(), vi))
         f[ω] += c
     end
 
@@ -43,7 +43,7 @@ function toqubo_objective(
         c = t.coefficient
         x = t.variable
 
-        for (ω, d) in VM.expansion(MOI.get(model, VM.Source(), x))
+        for (ω, d) in expansion(MOI.get(model, Source(), x))
             f[ω] += c * d
         end
     end
@@ -62,18 +62,18 @@ function toqubo_objective(
 
     for q in sqf.quadratic_terms
         c = q.coefficient
-        xᵢ = q.variable_1
-        xⱼ = q.variable_2
+        xi = q.variable_1
+        xj = q.variable_2
 
         # MOI convetion is to write ScalarQuadraticFunction as
         #     ½ x' Q x + a x + b
         # ∴ every coefficient in the main diagonal is doubled
-        if xᵢ === xⱼ
+        if xi === xj
             c /= 2
         end
 
-        for (ωᵢ, dᵢ) in VM.expansion(MOI.get(model, VM.Source(), xᵢ))
-            for (ωⱼ, dⱼ) in VM.expansion(MOI.get(model, VM.Source(), xⱼ))
+        for (ωᵢ, dᵢ) in expansion(MOI.get(model, Source(), xi))
+            for (ωⱼ, dⱼ) in expansion(MOI.get(model, Source(), xj))
                 f[union(ωᵢ, ωⱼ)] += c * dᵢ * dⱼ
             end
         end
@@ -83,7 +83,7 @@ function toqubo_objective(
         c = a.coefficient
         x = a.variable
 
-        for (ω, d) in VM.expansion(MOI.get(model, VM.Source(), x))
+        for (ω, d) in expansion(MOI.get(model, Source(), x))
             f[ω] += c * d
         end
     end

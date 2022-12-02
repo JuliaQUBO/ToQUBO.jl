@@ -81,21 +81,23 @@ function Base.copy(f::PBF{S,T}) where {S,T}
 end
 
 # -*- Iterator & Length -*-
-Base.keys(f::PBF) = keys(f.Ω)
-Base.length(f::PBF) = length(f.Ω)
-Base.empty!(f::PBF) = empty!(f.Ω)
-Base.isempty(f::PBF) = isempty(f.Ω)
-Base.iterate(f::PBF) = iterate(f.Ω)
+Base.keys(f::PBF)            = keys(f.Ω)
+Base.values(f::PBF)          = values(f.Ω)
+Base.length(f::PBF)          = length(f.Ω)
+Base.empty!(f::PBF)          = empty!(f.Ω)
+Base.isempty(f::PBF)         = isempty(f.Ω)
+Base.iterate(f::PBF)         = iterate(f.Ω)
 Base.iterate(f::PBF, i::Int) = iterate(f.Ω, i)
-Base.haskey(f::PBF{S,<:Any}, k::Set{S}) where {S} = haskey(f.Ω, k)
-Base.haskey(f::PBF{S,<:Any}, k::S) where {S} = haskey(f, Set{S}([k]))
-Base.haskey(f::PBF{S,<:Any}, ::Nothing) where {S} = haskey(f, Set{S}())
+
+Base.haskey(f::PBF{S}, k::Set{S}) where {S} = haskey(f.Ω, k)
+Base.haskey(f::PBF{S}, k::S) where {S}      = haskey(f, Set{S}([k]))
+Base.haskey(f::PBF{S}, ::Nothing) where {S} = haskey(f, Set{S}())
 
 # -*- Indexing: Get -*-
 Base.getindex(f::PBF{S,T}, ω::Set{S}) where {S,T} = get(f.Ω, ω, zero(T))
-Base.getindex(f::PBF{S,<:Any}, η::Vector{S}) where {S} = getindex(f, Set{S}(η))
-Base.getindex(f::PBF{S,<:Any}, ξ::S...) where {S} = getindex(f, Set{S}(ξ))
-Base.getindex(f::PBF{S,<:Any}, ::Nothing) where {S} = getindex(f, Set{S}())
+Base.getindex(f::PBF{S}, η::Vector{S}) where {S}  = getindex(f, Set{S}(η))
+Base.getindex(f::PBF{S}, ξ::S...) where {S}       = getindex(f, Set{S}(ξ))
+Base.getindex(f::PBF{S}, ::Nothing) where {S}     = getindex(f, Set{S}())
 
 # -*- Indexing: Set -*-
 function Base.setindex!(f::PBF{S,T}, c::T, ω::Set{S}) where {S,T}
@@ -109,8 +111,8 @@ function Base.setindex!(f::PBF{S,T}, c::T, ω::Set{S}) where {S,T}
 end
 
 Base.setindex!(f::PBF{S,T}, c::T, η::Vector{S}) where {S,T} = setindex!(f, c, Set{S}(η))
-Base.setindex!(f::PBF{S,T}, c::T, ξ::S...) where {S,T} = setindex!(f, c, Set{S}(ξ))
-Base.setindex!(f::PBF{S,T}, c::T, ::Nothing) where {S,T} = setindex!(f, c, Set{S}())
+Base.setindex!(f::PBF{S,T}, c::T, ξ::S...) where {S,T}      = setindex!(f, c, Set{S}(ξ))
+Base.setindex!(f::PBF{S,T}, c::T, ::Nothing) where {S,T}    = setindex!(f, c, Set{S}())
 
 # -*- Properties -*-
 Base.size(f::PBF{S,T}) where {S,T} = length(f) - haskey(f.Ω, Set{S}())
@@ -121,22 +123,22 @@ function Base.sizehint!(f::PBF, n::Integer)
     return f
 end
 
-# -*- Comparison: (==, !=, ===, !==)
+# -*- Comparison: (==, !=, ===, !==) -*- #
 Base.:(==)(f::PBF{S,T}, g::PBF{S,T}) where {S,T} = f.Ω == g.Ω
-Base.:(==)(f::PBF{<:Any,T}, a::T) where {T}      = isscalar(f) && (f[nothing] == a)
+Base.:(==)(f::PBF{S,T}, a::T) where {S,T}        = isscalar(f) && (f[nothing] == a)
 Base.:(!=)(f::PBF{S,T}, g::PBF{S,T}) where {S,T} = f.Ω != g.Ω
-Base.:(!=)(f::PBF{<:Any,T}, a::T) where {T}      = !isscalar(f) || (f[nothing] != a)
+Base.:(!=)(f::PBF{S,T}, a::T) where {S,T}        = !isscalar(f) || (f[nothing] != a)
 
 function Base.isapprox(f::PBF{S,T}, g::PBF{S,T}; kw...) where {S,T}
     return (length(f) == length(g)) &&
            all(haskey(g, ω) && isapprox(g[ω], f[ω]; kw...) for ω in keys(f))
 end
 
-function Base.isapprox(f::PBF{<:Any,T}, a::T; kw...) where {T}
+function Base.isapprox(f::PBF{S,T}, a::T; kw...) where {S,T}
     return isscalar(f) && isapprox(f[nothing], a; kw...)
 end
 
-function isscalar(f::PBF{S,<:Any}) where {S}
+function isscalar(f::PBF{S}) where {S}
     return isempty(f) || (length(f) == 1 && haskey(f, nothing))
 end
 
@@ -157,7 +159,7 @@ function Base.:(+)(f::PBF{S,T}, g::PBF{S,T}) where {S,T}
     return h
 end
 
-function Base.:(+)(f::PBF{<:Any,T}, c::T) where {T}
+function Base.:(+)(f::PBF{S,T}, c::T) where {S,T}
     if iszero(c)
         copy(f)
     else
@@ -169,11 +171,12 @@ function Base.:(+)(f::PBF{<:Any,T}, c::T) where {T}
     end
 end
 
-Base.:(+)(c::T, f::PBF{<:Any,T}) where {T} = +(f, c)
+Base.:(+)(f::PBF{S,T}, c) where {S,T} = +(f, convert(T, c))
+Base.:(+)(c, f::PBF)                  = +(f, c)
 
 # -*- Arithmetic: (-) -*-
 function Base.:(-)(f::PBF{S,T}) where {S,T}
-    PBF{S,T}(Dict{Set{S},T}(ω => -c for (ω, c) in f.Ω))
+    return PBF{S,T}(Dict{Set{S},T}(ω => -c for (ω, c) in f))
 end
 
 function Base.:(-)(f::PBF{S,T}, g::PBF{S,T}) where {S,T}
@@ -186,7 +189,7 @@ function Base.:(-)(f::PBF{S,T}, g::PBF{S,T}) where {S,T}
     return h
 end
 
-function Base.:(-)(f::PBF{<:Any,T}, c::T) where {T}
+function Base.:(-)(f::PBF{S,T}, c::T) where {S,T}
     if iszero(c)
         copy(f)
     else
@@ -198,7 +201,7 @@ function Base.:(-)(f::PBF{<:Any,T}, c::T) where {T}
     end
 end
 
-function Base.:(-)(c::T, f::PBF{<:Any,T}) where {T}
+function Base.:(-)(c::T, f::PBF{S,T}) where {S,T}
     g = -f
 
     if !iszero(c)
@@ -207,6 +210,9 @@ function Base.:(-)(c::T, f::PBF{<:Any,T}) where {T}
 
     return g
 end
+
+Base.:(-)(c, f::PBF{S,T}) where {S,T} = -(convert(T, c), f)
+Base.:(-)(f::PBF{S,T}, c) where {S,T} = -(f, convert(T, c))
 
 # -*- Arithmetic: (*) -*-
 function Base.:(*)(f::PBF{S,T}, g::PBF{S,T}) where {S,T}
@@ -231,7 +237,8 @@ function Base.:(*)(f::PBF{S,T}, a::T) where {S,T}
     end
 end
 
-Base.:(*)(a::T, f::PBF{<:Any,T}) where {T} = *(f, a)
+Base.:(*)(f::PBF{S,T}, a) where {S,T} = *(f, convert(T, a))
+Base.:(*)(a, f::PBF)                  = *(f, a)
 
 # -*- Arithmetic: (/) -*-
 function Base.:(/)(f::PBF{S,T}, a::T) where {S,T}
@@ -241,6 +248,8 @@ function Base.:(/)(f::PBF{S,T}, a::T) where {S,T}
         return PBF{S,T}(Dict(ω => c / a for (ω, c) in f))
     end
 end
+
+Base.:(/)(f::PBF{S,T}, a) where {S,T} = /(f, convert(T, a))
 
 # -*- Arithmetic: (^) -*-
 function Base.:(^)(f::PBF{S,T}, n::Integer) where {S,T}

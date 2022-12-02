@@ -5,13 +5,13 @@ function test_moi()
                 model = ToQUBO.Optimizer{Float64}()
 
                 @test MOI.is_empty(model)
-                @test MOI.get(model, ToQUBO.Tol()) ≈ 1e-6
+                @test MOI.get(model, ToQUBO.Tol()) ≈ 1E-2
 
-                MOI.set(model, ToQUBO.Tol(), 1e-2)
-                @test MOI.get(model, ToQUBO.Tol()) ≈ 1e-2
+                MOI.set(model, ToQUBO.Tol(), 1E-3)
+                @test MOI.get(model, ToQUBO.Tol()) ≈ 1E-3
 
                 MOI.empty!(model)
-                @test MOI.get(model, ToQUBO.Tol()) ≈ 1e-6
+                @test MOI.get(model, ToQUBO.Tol()) ≈ 1E-3
             end
             @testset "Instantiate" begin
                 model = MOI.instantiate(
