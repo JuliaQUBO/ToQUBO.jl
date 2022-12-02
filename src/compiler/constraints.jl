@@ -35,7 +35,7 @@ function toqubo_constraint(
         c = a.coefficient
         x = a.variable
 
-        for (ω, d) in VM.expansion(MOI.get(model, VM.Source(), x))
+        for (ω, d) in expansion(MOI.get(model, Source(), x))
             g[ω] += c * d
         end
     end
@@ -71,7 +71,7 @@ function toqubo_constraint(
         c = a.coefficient
         x = a.variable
 
-        for (ω, d) in VM.expansion(MOI.get(model, VM.Source(), x))
+        for (ω, d) in expansion(MOI.get(model, Source(), x))
             g[ω] += c * d
         end
     end
@@ -89,7 +89,7 @@ function toqubo_constraint(
     elseif l > zero(T) # Infeasible
         @warn "Infeasible constraint detected"
     else
-        VM.expansion(VM.encode!(VM.Binary, model, nothing, zero(T), abs(l)))
+        expansion(encode!(Binary(), model, nothing, zero(T), abs(l)))
     end
 
     return (g + z)^2
@@ -114,8 +114,8 @@ function toqubo_constraint(
             c /= 2
         end
 
-        for (ωᵢ, dᵢ) in VM.expansion(MOI.get(model, VM.Source(), xᵢ))
-            for (ωⱼ, dⱼ) in VM.expansion(MOI.get(model, VM.Source(), xⱼ))
+        for (ωᵢ, dᵢ) in expansion(MOI.get(model, Source(), xᵢ))
+            for (ωⱼ, dⱼ) in expansion(MOI.get(model, Source(), xⱼ))
                 g[union(ωᵢ, ωⱼ)] += c * dᵢ * dⱼ
             end
         end
@@ -125,7 +125,7 @@ function toqubo_constraint(
         c = a.coefficient
         x = a.variable
 
-        for (ω, d) in VM.expansion(MOI.get(model, VM.Source(), x))
+        for (ω, d) in expansion(MOI.get(model, Source(), x))
             g[ω] += c * d
         end
     end
@@ -166,8 +166,8 @@ function toqubo_constraint(
             c /= 2
         end
 
-        for (ωᵢ, dᵢ) in VM.expansion(MOI.get(model, VM.Source(), xᵢ))
-            for (ωⱼ, dⱼ) in VM.expansion(MOI.get(model, VM.Source(), xⱼ))
+        for (ωᵢ, dᵢ) in expansion(MOI.get(model, Source(), xᵢ))
+            for (ωⱼ, dⱼ) in expansion(MOI.get(model, Source(), xⱼ))
                 g[union(ωᵢ, ωⱼ)] += c * dᵢ * dⱼ
             end
         end
@@ -177,7 +177,7 @@ function toqubo_constraint(
         c = a.coefficient
         x = a.variable
 
-        for (ω, d) in VM.expansion(MOI.get(model, VM.Source(), x))
+        for (ω, d) in expansion(MOI.get(model, Source(), x))
             g[ω] += c * d
         end
     end
@@ -195,7 +195,7 @@ function toqubo_constraint(
     elseif l > zero(T) # Infeasible
         @warn "Infeasible constraint detected"
     else
-        VM.expansion(VM.encode!(VM.Binary, model, nothing, zero(T), abs(l)))
+        expansion(encode!(Binary(), model, nothing, zero(T), abs(l)))
     end
 
     return (g + z)^2
@@ -211,12 +211,12 @@ function toqubo_constraint(
     g = PBO.PBF{VI,T}()
 
     for vi in v.variables
-        for (ωi, _) in VM.expansion(MOI.get(model, VM.Source(), vi))
+        for (ωi, _) in expansion(MOI.get(model, Source(), vi))
             g[ωi] = one(T)
         end
     end
 
-    z = VM.expansion(VM.encode!(VM.Mirror, model, nothing))
+    z = expansion(encode!(Mirror(), model, nothing))
 
     return (g + z - one(T))^2 # one-hot approach
 end
@@ -225,15 +225,15 @@ function toqubo_encoding_constraints!(
     model::VirtualQUBOModel{T},
     ::AbstractArchitecture,
 ) where {T}
-    for v in MOI.get(model, VM.Variables())
-        h = if VM.isslack(v)
+    for v in MOI.get(model, Variables())
+        h = if is_aux(v)
             nothing
         else
-            VM.penaltyfn(v)
+            penaltyfn(v)
         end
 
         if !isnothing(h)
-            vi = VM.source(v)
+            vi = source(v)
 
             model.h[vi] = h
         end

@@ -11,13 +11,10 @@ using MutableArithmetics
 const MA = MutableArithmetics
 
 # -*- Imports -*-
-using ToQUBO: ToQUBO, PBO, VM
+using ToQUBO: ToQUBO, PBO
 using Anneal
 using LinearAlgebra
 using TOML
-
-# -*- Test Tools -*- # 
-include("tools.jl")
 
 # -*- Tests: Version -*- #
 include("lib/version.jl")
