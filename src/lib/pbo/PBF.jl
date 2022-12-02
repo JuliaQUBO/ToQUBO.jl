@@ -350,7 +350,7 @@ end
 
 # -*- MA Arithmetic: zero,one -*-
 function MA.operate!(
-    op::typeof(zero),
+    ::typeof(zero),
     f::PBF{S,T}
     ) where {S,T}
 
@@ -360,7 +360,7 @@ function MA.operate!(
 end
 
 function MA.operate!(
-    op::typeof(one),
+    ::typeof(one),
     f::PBF{S,T}
     ) where {S,T}
 
@@ -374,7 +374,7 @@ end
 # -*- MA Arithmetic: (+) -*-
 
 function MA.operate!(
-    op::typeof(+),
+    ::typeof(+),
     f::PBF{S,T}, 
     g::PBF{S,T}
     ) where {S,T}
@@ -387,7 +387,7 @@ function MA.operate!(
 end
 
 function MA.operate!(
-    op::typeof(+),
+    ::typeof(+),
     f::PBF{<:Any,T}, 
     c::T
     ) where {T}
@@ -404,7 +404,7 @@ end
 
 
 function MA.operate!(
-    op::typeof(-),
+    ::typeof(-),
     f::PBF{S,T}
     ) where {S,T}
 
@@ -416,7 +416,7 @@ function MA.operate!(
 end
 
 function MA.operate!(
-    op::typeof(-),
+    ::typeof(-),
     f::PBF{S,T}, 
     g::PBF{S,T}
     ) where {S,T}
@@ -430,7 +430,7 @@ end
 
 
 function MA.operate!(
-    op::typeof(-),
+    ::typeof(-),
     f::PBF{<:Any,T}, 
     c::T
     ) where {T}
@@ -446,7 +446,7 @@ end
 # -*- MA Arithmetic: (*) -*-
 
 function MA.operate!(
-    op::typeof(*),
+    ::typeof(*),
     f::PBF{S,T}, 
     g::PBF{S,T}
     ) where {S,T}
@@ -466,7 +466,7 @@ function MA.operate!(
 end
 
 function MA.operate!(
-    op::typeof(*),
+    ::typeof(*),
     f::PBF{S,T}, 
     a::T
     ) where {S,T}
@@ -484,7 +484,7 @@ end
 
 # -*- MA Arithmetic: (add_mul) -*-
 function MA.operate!(
-    op::typeof(add_mul),
+    ::typeof(add_mul),
     f::PBF{S,T},
     m::T,
     g::PBF{S,T}
@@ -500,7 +500,7 @@ end
 # -*- MA Arithmetic: (/) -*-
 
 function MA.operate!(
-    op::typeof(/),
+    ::typeof(/),
     f::PBF{S,T}, 
     a::T
     ) where {S,T}
@@ -517,30 +517,34 @@ function MA.operate!(
 end
 
 # -*- MA Arithmetic: (^) -*-
-# function MA.operate!(
-#     op::typeof(^),
-#     f::PBF{S,T}, 
-#     n::Integer
-#     ) where {S,T}
+function MA.operate!(
+    ::typeof(^),
+    f::PBF{S,T}, 
+    n::Integer
+    ) where {S,T}
 
-#     if n < 0
-#         throw(DivideError())
-#     elseif n == 0
-#         return one(PBF{S,T})
-#     elseif n == 1
-#         return f
-#     elseif n == 2
-#         return f * f
-#     else    
-#         g = f * f
+    if n < 0
+        throw(DivideError())
+    elseif n == 0
+        return MA.operate!(one, f)
+    elseif n == 1
+        return f
+    elseif n == 2
+        for (ω,c) in f
+            f[ω] = c*c
+        end
+    else    
+        for (ω,c) in f
+            f[ω] = c*c
+        end
 
-#         if iseven(n)
-#             return g^(n ÷ 2)
-#         else
-#             return g^(n ÷ 2) * f
-#         end
-#     end
-# end
+        if iseven(n)
+            return f^(n ÷ 2)
+        else
+            return f^(n ÷ 2) * f
+        end
+    end
+end
 
 
 function MA.operate_to!(
