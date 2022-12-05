@@ -461,6 +461,7 @@ struct VirtualQUBOModel{T} <: AbstractVirtualModel{T}
     h::Dict{VI,PBO.PBF{VI,T}} # Variable Functions
     ρ::Dict{CI,T}             # Constraint Penalties
     θ::Dict{VI,T}             # Variable Penalties
+    H::PBO.PBF{VI,T}          # Final Hamiltonian
 
     # -*- Settings -*-
     settings::VirtualQUBOModelSettings{T}
@@ -502,6 +503,7 @@ struct VirtualQUBOModel{T} <: AbstractVirtualModel{T}
             Dict{VI,PBO.PBF{VI,T}}(), # Variable Functions
             Dict{CI,T}(),             # Constraint Penalties
             Dict{VI,T}(),             # Variable Penalties
+            PBO.PBF{VI,T}(),          # Final Hamiltonian
 
             # -*- Settings -*-
             VirtualQUBOModelSettings{T}(; kws...),

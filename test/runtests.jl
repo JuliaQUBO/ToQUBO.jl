@@ -7,7 +7,7 @@ const VI = MOI.VariableIndex
 const CI = MOI.ConstraintIndex
 
 # -*- Imports: JuMP + MOI -*-
-using MutableArithmetics
+import MutableArithmetics
 const MA = MutableArithmetics
 
 # -*- Imports -*-

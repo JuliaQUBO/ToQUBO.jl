@@ -1,16 +1,30 @@
 using MutableArithmetics
 const MA = MutableArithmetics
 
-function toqubo_build!(model::VirtualQUBOModel{T}, ::AbstractArchitecture) where {T}
-    # -*- Assemble Objective Function -*-
-    H = MA.@rewrite(
-    model.f + 
-    sum(model.ρ[ci] * g for (ci, g) in model.g; init = zero(PBO.PBF{VI,T})) + 
-    sum(model.ρ[vi] * h for (vi, h) in model.h; init = zero(PBO.PBF{VI,T}))
-    )
+function toqubo_hamiltonian!(model::VirtualQUBOModel{T}, ::AbstractArchitecture) where {T}
+    copy!(model.H, model.f)
 
-    # -*- Quadratization Step -*-
-    H = PBO.quadratize(H) do n::Integer
+    for (ci, g) in model.g
+        ρ = model.ρ[ci]
+
+        for (ω, c) in g
+            model.H[ω] += ρ * c
+        end
+    end
+
+    for (vi, h) in model.h
+        θ = model.θ[vi]
+
+        for (ω, c) in h
+            model.H[ω] += θ * c
+        end
+    end
+
+    return nothing
+end
+
+function toqubo_quadratize!(model::VirtualQUBOModel{T}, ::AbstractArchitecture) where {T}
+    Q = PBO.quadratize(model.H) do n::Integer
         m = MOI.get(model, TargetModel())
         w = MOI.add_variables(m, n)
 
@@ -19,15 +33,17 @@ function toqubo_build!(model::VirtualQUBOModel{T}, ::AbstractArchitecture) where
         return w
     end
 
-    # -*- Write to MathOptInterface -*-
+    copy!(model.H, Q)
+
+    return nothing
+end
+
+function toqubo_output!(model::VirtualQUBOModel{T}, ::AbstractArchitecture) where {T}
     Q = SQT{T}[]
     a = SAT{T}[]
     b = zero(T)
 
-    # ve tamanho do H e faz sizehint
-
-
-    for (ω, c) in H
+    for (ω, c) in model.H
         if isempty(ω)
             b += c
         elseif length(ω) == 1
@@ -48,6 +64,19 @@ function toqubo_build!(model::VirtualQUBOModel{T}, ::AbstractArchitecture) where
         MOI.ObjectiveFunction{SQF{T}}(),
         SQF{T}(Q, a, b),
     )
+
+    return nothing
+end
+
+function toqubo_build!(model::VirtualQUBOModel{T}, arch::AbstractArchitecture) where {T}
+    # -*- Assemble Objective Function -*-
+    toqubo_hamiltonian!(model, arch)
+
+    # -*- Quadratization Step -*-
+    toqubo_quadratize!(model, arch)
+
+    # -*- Write to MathOptInterface -*-
+    toqubo_output!(model, arch)
 
     return nothing
 end
