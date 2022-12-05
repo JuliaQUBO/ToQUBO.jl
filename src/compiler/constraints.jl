@@ -227,10 +227,12 @@ function toqubo_encoding_constraints!(
 ) where {T}
     for v in MOI.get(model, Variables())
         if !is_aux(v)
-            h  = penaltyfn(v)
-            vi = source(v)
+            h = penaltyfn(v)
             
-            model.h[vi] = h
+            if !isnothing(h)
+                vi = source(v)
+                model.h[vi] = h
+            end
         end
     end
 

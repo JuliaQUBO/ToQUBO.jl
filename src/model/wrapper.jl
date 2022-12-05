@@ -173,7 +173,14 @@ end
 
 MOI.get(::VirtualQUBOModel, ::MOI.SolverName)       = "Virtual QUBO Model"
 MOI.get(::VirtualQUBOModel, ::MOI.SolverVersion)    = PROJECT_VERSION
-MOI.get(model::VirtualQUBOModel, rs::MOI.RawSolver) = MOI.get(model.optimizer, rs)
+
+function MOI.get(model::VirtualQUBOModel, rs::MOI.RawSolver)
+    if isnothing(model.optimizer)
+        return nothing
+    else
+        return MOI.get(model.optimizer, rs)
+    end
+end
 
 PBO.showvar(x::VI)       = PBO.showvar(x.value)
 PBO.varcmp(x::VI, y::VI) = PBO.varcmp(x.value, y.value)
