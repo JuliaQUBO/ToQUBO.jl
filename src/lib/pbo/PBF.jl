@@ -497,6 +497,21 @@ function MA.operate!(
     
 end
 
+# -*- MA Arithmetic: (sub_mul) -*-
+function MA.operate!(
+    ::typeof(sub_mul),
+    f::PBF{S,T},
+    m::T,
+    g::PBF{S,T}
+    ) where {S,T}
+
+    for(ω, c) in g
+        f[ω] -= m*c
+    end
+    return f
+    
+end
+
 # -*- MA Arithmetic: (/) -*-
 
 function MA.operate!(
@@ -567,4 +582,3 @@ end
 
 # -*- MA Type conversion -*-
 
-    
