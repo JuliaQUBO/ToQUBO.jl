@@ -226,15 +226,10 @@ function toqubo_encoding_constraints!(
     ::AbstractArchitecture,
 ) where {T}
     for v in MOI.get(model, Variables())
-        h = if is_aux(v)
-            nothing
-        else
-            penaltyfn(v)
-        end
-
-        if !isnothing(h)
+        if !is_aux(v)
+            h  = penaltyfn(v)
             vi = source(v)
-
+            
             model.h[vi] = h
         end
     end
