@@ -25,22 +25,12 @@ function toqubo_constraint(
     model::VirtualQUBOModel{T},
     f::SAF{T},
     s::EQ{T},
-    ::AbstractArchitecture,
+    arch::AbstractArchitecture,
 ) where {T}
-    # -*- Scalar Affine Function: Ax = b ~ 😄 -*-
-    b = s.value
-    g = PBO.PBF{VI,T}(-b)
-
-    for a in f.terms
-        c = a.coefficient
-        x = a.variable
-
-        for (ω, d) in expansion(MOI.get(model, Source(), x))
-            g[ω] += c * d
-        end
-    end
-
-    g = PBO.discretize(g)
+    # -*- Scalar Affine Function: g(x) = a'x - b = 0 ~ 😄 -*-
+    g = toqubo_parse(model, f, s, arch)
+    
+    PBO.discretize!(g)
 
     # -*- Bounds & Slack Variable -*-
     l, u = PBO.bounds(g)
@@ -59,22 +49,12 @@ function toqubo_constraint(
     model::VirtualQUBOModel{T},
     f::SAF{T},
     s::LT{T},
-    ::AbstractArchitecture,
+    arch::AbstractArchitecture,
 ) where {T}
-    # -*- Scalar Affine Function: Ax <= b 🤔 -*-
-    b = s.upper
-    g = PBO.PBF{VI,T}(-b)
+    # -*- Scalar Affine Function: g(x) = Ax - b ≤ 0 🤔 -*-
+    g = toqubo_parse(model, f, s, arch)
 
-    for a in f.terms
-        c = a.coefficient
-        x = a.variable
-
-        for (ω, d) in expansion(MOI.get(model, Source(), x))
-            g[ω] += c * d
-        end
-    end
-
-    g = PBO.discretize(g)
+    PBO.discretize!(g)
 
     # -*- Bounds & Slack Variable -*-
     l, u = PBO.bounds(g)
@@ -86,47 +66,26 @@ function toqubo_constraint(
         @warn "Infeasible constraint detected"
     end
 
-    z = expansion(encode!(Binary(), model, nothing, zero(T), abs(l)))
+    # Slack Variable
+    z = encode!(Binary(), model, nothing, zero(T), abs(l))
 
-    return (g + z)^2
+    for (ω, c) in expansion(z)
+        g[ω] += c
+    end
+
+    return g^2
 end
 
 function toqubo_constraint(
     model::VirtualQUBOModel{T},
     f::SQF{T},
     s::EQ{T},
-    ::AbstractArchitecture,
+    arch::AbstractArchitecture,
 ) where {T}
-    # -*- Scalar Quadratic Function: x Q x + a x = b 😢 -*-
-    b = s.value
-    g = PBO.PBF{VI,T}(-b)
+    # -*- Scalar Quadratic Function: g(x) = x Q x + a x - b = 0 😢 -*-
+    g = toqubo_parse(model, f, s, arch)
 
-    for q in f.quadratic_terms
-        c  = q.coefficient
-        xi = q.variable_1
-        xj = q.variable_2
-
-        if xi === xj
-            c /= 2
-        end
-
-        for (ωi, di) in expansion(MOI.get(model, Source(), xi))
-            for (ωj, dj) in expansion(MOI.get(model, Source(), xj))
-                g[union(ωi, ωj)] += c * di * dj
-            end
-        end
-    end
-
-    for a in f.affine_terms
-        c = a.coefficient
-        x = a.variable
-
-        for (ω, d) in expansion(MOI.get(model, Source(), x))
-            g[ω] += c * d
-        end
-    end
-
-    g = PBO.discretize(g)
+    PBO.discretize!(g)
 
     # -*- Bounds & Slack Variable -*-
     l, u = PBO.bounds(g)
@@ -145,38 +104,12 @@ function toqubo_constraint(
     model::VirtualQUBOModel{T},
     f::SQF{T},
     s::LT{T},
-    ::AbstractArchitecture,
+    arch::AbstractArchitecture,
 ) where {T}
-    # -*- Scalar Quadratic Function: x Q x + a x <= b 😢 -*-
-    b = s.upper
-    g = PBO.PBF{VI,T}(-b)
-
-    for q in f.quadratic_terms
-        c  = q.coefficient
-        xi = q.variable_1
-        xj = q.variable_2
-
-        if xi === xj
-            c /= 2
-        end
-
-        for (ωi, di) in expansion(MOI.get(model, Source(), xi))
-            for (ωj, dj) in expansion(MOI.get(model, Source(), xj))
-                g[union(ωi, ωj)] += c * di * dj
-            end
-        end
-    end
-
-    for a in f.affine_terms
-        c = a.coefficient
-        x = a.variable
-
-        for (ω, d) in expansion(MOI.get(model, Source(), x))
-            g[ω] += c * d
-        end
-    end
-
-    g = PBO.discretize(g)
+    # -*- Scalar Quadratic Function: g(x) = x Q x + a x - b ≤ 0 😢 -*-
+    g = toqubo_parse(model, f, s, arch)
+    
+    PBO.discretize!(g)
 
     # -*- Bounds & Slack Variable -*-
     l, u = PBO.bounds(g)
@@ -188,9 +121,13 @@ function toqubo_constraint(
         @warn "Infeasible constraint detected"
     end
 
-    z = expansion(encode!(Binary(), model, nothing, zero(T), abs(l)))
+    z = encode!(Binary(), model, nothing, zero(T), abs(l))
 
-    return (g + z)^2
+    for (ω, c) in expansion(z)
+        g[ω] += c
+    end
+
+    return g^2
 end
 
 function toqubo_constraint(

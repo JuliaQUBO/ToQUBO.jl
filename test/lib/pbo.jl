@@ -238,5 +238,22 @@ function test_pbo()
             @test "$(r)" == "1.0 - 1.0z" || "$(r)" == "-1.0z + 1.0"
             @test "$(s)" == "3.0x*y*z"
         end
+
+        @testset "QUBOTools Interface" begin
+            @test PBO.variable_map(f) == Dict{Symbol,Int}(:x => 1, :y => 2, :z => 3)
+            @test PBO.variable_inv(f) == Dict{Int,Symbol}(1 => :x, 2 => :y, 3 => :z)
+            @test PBO.variable_set(f) == Set{Symbol}([:x, :y, :z])
+            @test PBO.variables(f)    == Symbol[:x, :y, :z]
+
+            @test PBO.variable_map(g) == Dict{Symbol,Int}()
+            @test PBO.variable_inv(g) == Dict{Int,Symbol}()
+            @test PBO.variable_set(g) == Set{Symbol}([])
+            @test PBO.variables(g)    == Symbol[]
+
+            @test PBO.variable_map(h) == Dict{Symbol,Int}(:x => 2, :y => 3, :z => 4, :w => 1)
+            @test PBO.variable_inv(h) == Dict{Int,Symbol}(2 => :x, 3 => :y, 4 => :z, 1 => :w)
+            @test PBO.variable_set(h) == Set{Symbol}([:x, :y, :z, :w])
+            @test PBO.variables(h)    == Symbol[:w, :x, :y, :z]
+        end
     end
 end

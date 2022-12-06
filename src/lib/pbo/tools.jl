@@ -145,5 +145,15 @@ residual(f::PBF{S,T}, i::S) where {S,T} = PBF{S,T}(ω => c for (ω, c) ∈ keys(
 residual(f::PBF, i::Int) = residual(f, varinv(f)[i])
 
 function discretize(f::PBF{S,T}; tol::T = 1E-6) where {S,T}
-    return round(f / sharpness(f; bound = :loose, tol = tol); digits = 0)
+    return discretize!(copy(f); tol = tol)
+end
+
+function discretize!(f::PBF{S,T}; tol::T = 1E-6) where {S,T}
+    ε = sharpness(f; bound = :loose, tol = tol)
+
+    for (ω, c) in f
+        f[ω] = round(c / ε; digits = 0)
+    end
+
+    return f
 end

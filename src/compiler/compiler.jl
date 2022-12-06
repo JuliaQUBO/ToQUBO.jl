@@ -1,6 +1,7 @@
 include("architectures.jl")
 include("interface.jl")
 include("validation.jl")
+include("parse.jl")
 include("variables.jl")
 include("objective.jl")
 include("constraints.jl")

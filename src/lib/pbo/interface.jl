@@ -30,7 +30,7 @@ For a given function ``f \in \mathscr{F}`` written as
 computes an approximate function  ``g : \mathbb{B}^{n} \to \mathbb{Z}`` such that
 
 ```math
-    \argmin_{\mathbf{x} \in \mathbb{B}^{n}} g\left({\mathbf{x}}\right) = \argmin_{\mathbf{x} \in \mathbb{B}^{n}} f\left({\mathbf{x}}\right)
+    \text{argmin}_{\mathbf{x} \in \mathbb{B}^{n}} g\left({\mathbf{x}}\right) = \text{argmin}_{\mathbf{x} \in \mathbb{B}^{n}} f\left({\mathbf{x}}\right)
 ```
 
 This is done by rationalizing every coefficient ``c_\omega`` according to some tolerance `tol`.
