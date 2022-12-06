@@ -28,8 +28,8 @@ function toqubo_constraint(
     ::AbstractArchitecture,
 ) where {T}
     # -*- Scalar Affine Function: Ax = b ~ 😄 -*-
-    g = PBO.PBF{VI,T}()
     b = s.value
+    g = PBO.PBF{VI,T}(-b)
 
     for a in f.terms
         c = a.coefficient
@@ -39,8 +39,6 @@ function toqubo_constraint(
             g[ω] += c * d
         end
     end
-
-    g[nothing] -= b
 
     g = PBO.discretize(g)
 
@@ -64,8 +62,8 @@ function toqubo_constraint(
     ::AbstractArchitecture,
 ) where {T}
     # -*- Scalar Affine Function: Ax <= b 🤔 -*-
-    g = PBO.PBF{VI,T}()
     b = s.upper
+    g = PBO.PBF{VI,T}(-b)
 
     for a in f.terms
         c = a.coefficient
@@ -76,21 +74,19 @@ function toqubo_constraint(
         end
     end
 
-    g[nothing] -= b
-
     g = PBO.discretize(g)
 
     # -*- Bounds & Slack Variable -*-
     l, u = PBO.bounds(g)
 
-    z = if u < zero(T) # Always feasible
+    if u < zero(T) # Always feasible
         @warn "Always-feasible constraint detected"
         return nothing
     elseif l > zero(T) # Infeasible
         @warn "Infeasible constraint detected"
-    else
-        expansion(encode!(Binary(), model, nothing, zero(T), abs(l)))
     end
+
+    z = expansion(encode!(Binary(), model, nothing, zero(T), abs(l)))
 
     return (g + z)^2
 end
@@ -102,21 +98,21 @@ function toqubo_constraint(
     ::AbstractArchitecture,
 ) where {T}
     # -*- Scalar Quadratic Function: x Q x + a x = b 😢 -*-
-    g = PBO.PBF{VI,T}()
     b = s.value
+    g = PBO.PBF{VI,T}(-b)
 
     for q in f.quadratic_terms
-        c = q.coefficient
-        xᵢ = q.variable_1
-        xⱼ = q.variable_2
+        c  = q.coefficient
+        xi = q.variable_1
+        xj = q.variable_2
 
-        if xᵢ === xⱼ
+        if xi === xj
             c /= 2
         end
 
-        for (ωᵢ, dᵢ) in expansion(MOI.get(model, Source(), xᵢ))
-            for (ωⱼ, dⱼ) in expansion(MOI.get(model, Source(), xⱼ))
-                g[union(ωᵢ, ωⱼ)] += c * dᵢ * dⱼ
+        for (ωi, di) in expansion(MOI.get(model, Source(), xi))
+            for (ωj, dj) in expansion(MOI.get(model, Source(), xj))
+                g[union(ωi, ωj)] += c * di * dj
             end
         end
     end
@@ -129,8 +125,6 @@ function toqubo_constraint(
             g[ω] += c * d
         end
     end
-
-    g[nothing] -= b
 
     g = PBO.discretize(g)
 
@@ -154,21 +148,21 @@ function toqubo_constraint(
     ::AbstractArchitecture,
 ) where {T}
     # -*- Scalar Quadratic Function: x Q x + a x <= b 😢 -*-
-    g = PBO.PBF{VI,T}()
     b = s.upper
+    g = PBO.PBF{VI,T}(-b)
 
     for q in f.quadratic_terms
-        c = q.coefficient
-        xᵢ = q.variable_1
-        xⱼ = q.variable_2
+        c  = q.coefficient
+        xi = q.variable_1
+        xj = q.variable_2
 
-        if xᵢ === xⱼ
+        if xi === xj
             c /= 2
         end
 
-        for (ωᵢ, dᵢ) in expansion(MOI.get(model, Source(), xᵢ))
-            for (ωⱼ, dⱼ) in expansion(MOI.get(model, Source(), xⱼ))
-                g[union(ωᵢ, ωⱼ)] += c * dᵢ * dⱼ
+        for (ωi, di) in expansion(MOI.get(model, Source(), xi))
+            for (ωj, dj) in expansion(MOI.get(model, Source(), xj))
+                g[union(ωi, ωj)] += c * di * dj
             end
         end
     end
@@ -182,21 +176,19 @@ function toqubo_constraint(
         end
     end
 
-    g[nothing] -= b
-
     g = PBO.discretize(g)
 
     # -*- Bounds & Slack Variable -*-
     l, u = PBO.bounds(g)
 
-    z = if u < zero(T) # Always feasible
+    if u < zero(T) # Always feasible
         @warn "Always-feasible constraint detected"
         return nothing
     elseif l > zero(T) # Infeasible
         @warn "Infeasible constraint detected"
-    else
-        expansion(encode!(Binary(), model, nothing, zero(T), abs(l)))
     end
+
+    z = expansion(encode!(Binary(), model, nothing, zero(T), abs(l)))
 
     return (g + z)^2
 end
@@ -207,7 +199,7 @@ function toqubo_constraint(
     ::MOI.SOS1{T},
     ::AbstractArchitecture,
 ) where {T}
-    # -*- Special Ordered Set of Type 1: ∑ x <= 1 😄 -*-
+    # -*- Special Ordered Set of Type 1: ∑ x <= min x 😄 -*-
     g = PBO.PBF{VI,T}()
 
     for vi in v.variables
@@ -226,13 +218,14 @@ function toqubo_encoding_constraints!(
     ::AbstractArchitecture,
 ) where {T}
     for v in MOI.get(model, Variables())
-        if !is_aux(v)
-            h = penaltyfn(v)
-            
-            if !isnothing(h)
-                vi = source(v)
-                model.h[vi] = h
-            end
+        if is_aux(v)
+            continue
+        end
+        
+        h = penaltyfn(v)
+
+        if !isnothing(h)
+            model.h[source(v)] = h
         end
     end
 

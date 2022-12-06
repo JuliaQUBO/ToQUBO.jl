@@ -6,7 +6,7 @@ function qubo(f::PBF{S,T}, ::Type{Dict}) where {S,T}
     α = one(T)
     β = zero(T)
 
-    sizehint!(Q, size(f))
+    sizehint!(Q, length(f))
 
     for (ω, a) in f
         η = sort([x[i] for i ∈ ω]; lt = varcmp)

@@ -84,17 +84,17 @@ function Base.copy(f::PBF{S,T}) where {S,T}
 end
 
 # -*- Iterator & Length -*-
-Base.keys(f::PBF)            = keys(f.Ω)
-Base.values(f::PBF)          = values(f.Ω)
-Base.length(f::PBF)          = length(f.Ω)
-Base.empty!(f::PBF)          = empty!(f.Ω)
-Base.isempty(f::PBF)         = isempty(f.Ω)
-Base.iterate(f::PBF)         = iterate(f.Ω)
-Base.iterate(f::PBF, i::Int) = iterate(f.Ω, i)
+Base.keys(f::PBF)                = keys(f.Ω)
+Base.values(f::PBF)              = values(f.Ω)
+Base.length(f::PBF)              = length(f.Ω)
+Base.empty!(f::PBF)              = empty!(f.Ω)
+Base.isempty(f::PBF)             = isempty(f.Ω)
+Base.iterate(f::PBF)             = iterate(f.Ω)
+Base.iterate(f::PBF, i::Integer) = iterate(f.Ω, i)
 
 Base.haskey(f::PBF{S}, k::Set{S}) where {S} = haskey(f.Ω, k)
-Base.haskey(f::PBF{S}, k::S) where {S}      = haskey(f, Set{S}([k]))
-Base.haskey(f::PBF{S}, ::Nothing) where {S} = haskey(f, Set{S}())
+Base.haskey(f::PBF{S}, k::S) where {S}      = haskey(f.Ω, Set{S}([k]))
+Base.haskey(f::PBF{S}, ::Nothing) where {S} = haskey(f.Ω, Set{S}())
 
 # -*- Indexing: Get -*-
 Base.getindex(f::PBF{S,T}, ω::Set{S}) where {S,T} = get(f.Ω, ω, zero(T))
@@ -118,7 +118,7 @@ Base.setindex!(f::PBF{S,T}, c::T, ξ::S...) where {S,T}      = setindex!(f, c, S
 Base.setindex!(f::PBF{S,T}, c::T, ::Nothing) where {S,T}    = setindex!(f, c, Set{S}())
 
 # -*- Properties -*-
-Base.size(f::PBF{S,T}) where {S,T} = length(f) - haskey(f.Ω, Set{S}())
+Base.size(f::PBF{S,T}) where {S,T} = (length(f),)
 
 function Base.sizehint!(f::PBF, n::Integer)
     sizehint!(f.Ω, n)
@@ -145,10 +145,10 @@ function isscalar(f::PBF{S}) where {S}
     return isempty(f) || (length(f) == 1 && haskey(f, nothing))
 end
 
-Base.zero(::Type{<:PBF{S,T}}) where {S,T} = PBF{S,T}()
-Base.iszero(f::PBF) = isempty(f)
-Base.one(::Type{<:PBF{S,T}}) where {S,T} = PBF{S,T}(one(T))
-Base.isone(f::PBF) = isscalar(f) && isone(f[nothing])
+Base.zero(::Type{PBF{S,T}}) where {S,T}    = PBF{S,T}()
+Base.iszero(f::PBF)                        = isempty(f)
+Base.one(::Type{PBF{S,T}}) where {S,T}     = PBF{S,T}(one(T))
+Base.isone(f::PBF)                         = isscalar(f) && isone(f[nothing])
 Base.round(f::PBF{S,T}; kw...) where {S,T} = PBF{S,T}(ω => round(c; kw...) for (ω, c) in f)
 
 # -*- Arithmetic: (+) -*-
@@ -219,11 +219,13 @@ Base.:(-)(f::PBF{S,T}, c) where {S,T} = -(f, convert(T, c))
 
 # -*- Arithmetic: (*) -*-
 function Base.:(*)(f::PBF{S,T}, g::PBF{S,T}) where {S,T}
-    h = PBF{S,T}()
-
-    if isempty(f) || isempty(g)
-        return h
+    if iszero(f) || iszero(g)
+        return zero(PBF{S,T})
     else
+        h = PBF{S,T}()
+        
+        sizehint!(h, length(f) * length(g))
+
         for (ωᵢ, cᵢ) in f, (ωⱼ, cⱼ) in g
             h[union(ωᵢ, ωⱼ)] += cᵢ * cⱼ
         end
@@ -234,9 +236,9 @@ end
 
 function Base.:(*)(f::PBF{S,T}, a::T) where {S,T}
     if iszero(a)
-        PBF{S,T}()
+        return PBF{S,T}()
     else
-        PBF{S,T}(ω => c * a for (ω, c) ∈ f.Ω)
+        return PBF{S,T}(ω => c * a for (ω, c) ∈ f)
     end
 end
 
