@@ -16,29 +16,26 @@ using Anneal
 using LinearAlgebra
 using TOML
 
-# -*- Tests: Version -*- #
-include("lib/version.jl")
+# -*- Test Assets -*- #
+include("assets/assets.jl")
 
-# -*- Tests: Library -*- #
-include("lib/pbo.jl")
-include("lib/pbo_ma.jl")
-include("lib/virtual.jl")
+# -*- Unit Tests -*- #
+include("unit/unit.jl")
 
-# -*- Tests: Interface -*- #
-include("interface/interface.jl")
+# -*- Integration Tests -*- #
+include("integration/integration.jl")
 
-# -*- Tests: Examples -*- #
+# -*- Examples -*- #
 include("examples/examples.jl")
 
 function main()
-    @testset ":: -*- :: ~*~ ToQUBO.jl ~*~ :: -*- ::" verbose = true begin
-        test_version()
-        test_pbo()
-        test_pbo_ma()
-        test_virtual()
-        test_interface()
+    @testset ":: -*- :: ~*~ :: ToQUBO.jl :: ~*~ :: -*- ::" verbose = true begin
+        test_unit()
+        test_integration()
         test_examples()
     end
+
+    return nothing
 end
 
 main() # Here we go!

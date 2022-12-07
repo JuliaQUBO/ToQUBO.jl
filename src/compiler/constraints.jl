@@ -51,7 +51,7 @@ function toqubo_constraint(
     s::LT{T},
     arch::AbstractArchitecture,
 ) where {T}
-    # -*- Scalar Affine Function: g(x) = Ax - b ≤ 0 🤔 -*-
+    # -*- Scalar Affine Function: g(x) = a'x - b ≤ 0 🤔 -*-
     g = toqubo_parse(model, f, s, arch)
 
     PBO.discretize!(g)

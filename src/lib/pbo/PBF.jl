@@ -219,12 +219,31 @@ Base.:(-)(f::PBF{S,T}, c) where {S,T} = -(f, convert(T, c))
 
 # -*- Arithmetic: (*) -*-
 function Base.:(*)(f::PBF{S,T}, g::PBF{S,T}) where {S,T}
+    h = zero(PBF{S,T})
+    n = length(f)
+
     if iszero(f) || iszero(g)
-        return zero(PBF{S,T})
-    else
-        h = PBF{S,T}()
-        
-        sizehint!(h, length(f) * length(g))
+        return h
+    elseif f === g # T(n) = O(n) + O(n^2 / 2)
+        k = collect(f)
+
+        # sizehint!(h, n^2 ÷ 2)
+
+        for i = 1:n
+            ωi, ci = k[i]
+
+            h[ωi] += ci * ci
+
+            for j = (i+1):n
+                ωj, cj = k[j]
+
+                h[union(ωi, ωj)] += 2 * ci * cj
+            end
+        end
+
+        return h
+    else # T(n) = O(n^2)
+        # sizehint!(h, n^2)
 
         for (ωᵢ, cᵢ) in f, (ωⱼ, cⱼ) in g
             h[union(ωᵢ, ωⱼ)] += cᵢ * cⱼ
@@ -263,7 +282,7 @@ function Base.:(^)(f::PBF{S,T}, n::Integer) where {S,T}
     elseif n == 0
         return one(PBF{S,T})
     elseif n == 1
-        return f
+        return copy(f)
     elseif n == 2
         return f * f
     else
