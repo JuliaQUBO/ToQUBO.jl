@@ -220,7 +220,8 @@ Base.:(-)(f::PBF{S,T}, c) where {S,T} = -(f, convert(T, c))
 # -*- Arithmetic: (*) -*-
 function Base.:(*)(f::PBF{S,T}, g::PBF{S,T}) where {S,T}
     h = zero(PBF{S,T})
-    n = length(f)
+    m = length(f)
+    n = length(g)
 
     if iszero(f) || iszero(g) # T(n) = O(1)
         return h
@@ -242,8 +243,8 @@ function Base.:(*)(f::PBF{S,T}, g::PBF{S,T}) where {S,T}
         end
 
         return h
-    else # T(n) = O(n^2)
-        sizehint!(h, n^2)
+    else # T(n) = O(m n)
+        sizehint!(h, m * n)
 
         for (ωᵢ, cᵢ) in f, (ωⱼ, cⱼ) in g
             h[union(ωᵢ, ωⱼ)] += cᵢ * cⱼ
