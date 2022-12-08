@@ -48,14 +48,6 @@ function toqubo_quadratize!(model::VirtualQUBOModel, arch::AbstractArchitecture)
         return toqubo_aux(model, n, arch)
     end
 
-    if !(model.H === H)
-        touch("quadratization.txt")
-
-        open("quadratization.txt", "a") do io
-            println(io, "XXX = $(H.Ω)\n")
-        end
-    end
-
     copy!(model.H, H)
 
     return nothing
