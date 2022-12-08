@@ -23,17 +23,40 @@ function toqubo_hamiltonian!(model::VirtualQUBOModel{T}, ::AbstractArchitecture)
     return nothing
 end
 
-function toqubo_quadratize!(model::VirtualQUBOModel{T}, ::AbstractArchitecture) where {T}
-    Q = PBO.quadratize(model.H) do n::Integer
-        m = MOI.get(model, TargetModel())
-        w = MOI.add_variables(m, n)
+function toqubo_aux(model::VirtualQUBOModel, ::Nothing, ::AbstractArchitecture)
+    target_model = MOI.get(model, TargetModel())
 
-        MOI.add_constraint.(m, w, MOI.ZeroOne())
+    w = MOI.add_variable(target_model)
 
-        return w
+    MOI.add_constraint(target_model, w, MOI.ZeroOne())
+
+    return w::VI
+end
+
+function toqubo_aux(model::VirtualQUBOModel, n::Integer, ::AbstractArchitecture)::Vector{VI}
+    target_model = MOI.get(model, TargetModel())
+
+    w = MOI.add_variables(target_model, n)
+
+    MOI.add_constraint.(target_model, w, MOI.ZeroOne())
+
+    return w
+end
+
+function toqubo_quadratize!(model::VirtualQUBOModel, arch::AbstractArchitecture)
+    H = PBO.quadratize(model.H) do (n::Union{Integer,Nothing} = nothing)
+        return toqubo_aux(model, n, arch)
     end
 
-    copy!(model.H, Q)
+    if !(model.H === H)
+        touch("quadratization.txt")
+
+        open("quadratization.txt", "a") do io
+            println(io, "XXX = $(H.Ω)\n")
+        end
+    end
+
+    copy!(model.H, H)
 
     return nothing
 end

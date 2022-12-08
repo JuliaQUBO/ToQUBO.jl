@@ -222,12 +222,12 @@ function Base.:(*)(f::PBF{S,T}, g::PBF{S,T}) where {S,T}
     h = zero(PBF{S,T})
     n = length(f)
 
-    if iszero(f) || iszero(g)
+    if iszero(f) || iszero(g) # T(n) = O(1)
         return h
     elseif f === g # T(n) = O(n) + O(n^2 / 2)
         k = collect(f)
 
-        # sizehint!(h, n^2 ÷ 2)
+        sizehint!(h, n^2 ÷ 2)
 
         for i = 1:n
             ωi, ci = k[i]
@@ -243,7 +243,7 @@ function Base.:(*)(f::PBF{S,T}, g::PBF{S,T}) where {S,T}
 
         return h
     else # T(n) = O(n^2)
-        # sizehint!(h, n^2)
+        sizehint!(h, n^2)
 
         for (ωᵢ, cᵢ) in f, (ωⱼ, cⱼ) in g
             h[union(ωᵢ, ωⱼ)] += cᵢ * cⱼ
