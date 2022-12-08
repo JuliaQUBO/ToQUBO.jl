@@ -45,11 +45,32 @@ x = Set{Symbol}([:x])
 y = Set{Symbol}([:y])
 z = Set{Symbol}([:z])
 
-function call(f::Function, args)
-    return f(args...)
-end
+const PBF_CONSTRUCTOR_LIST = [
+    (PBO.PBF{S,T}(0.0), PBO.PBF{S,T}()),
+    (zero(PBO.PBF{S,T}), PBO.PBF{S,T}()),
+    (
+        f,
+        PBO.PBF{S,T}(
+            nothing      => 0.5,
+            :x           => 1.0,
+            :y           => 1.0,
+            :z           => 1.0,
+            [:x, :y]     => -2.0,
+            [:x, :z]     => -2.0,
+            [:y, :z]     => -2.0,
+            [:x, :y, :z] => 3.0,
+        ),
+    ),
+    (g, PBO.PBF{S,T}(1.0)),
+    (g, one(PBO.PBF{S,T})),
+    (h, PBO.PBF{S,T}([:x, :y, :z, :w, nothing])),
+    (p, PBO.PBF{S,T}((nothing, 0.5), :x, [:x, :y] => -2.0)),
+    (q, PBO.PBF{S,T}(nothing => 0.5, :y, [:x, :y] => 2.0)),
+    (r, PBO.PBF{S,T}(nothing, :z => -1.0)),
+    (s, PBO.PBF{S,T}(S[] => 0.0, Set{S}([:x, :y, :z]) => 3.0)),
+]
 
-const PBF_OP_LIST = [
+const PBF_OPERATOR_LIST = [
     (+) => [
         (u, v)    => PBO.PBF{S,T}(:x, :y => 2.0, :z),
         (w, β)    => PBO.PBF{S,T}(:x => 2.0, -100.0),
@@ -110,19 +131,31 @@ const PBF_OP_LIST = [
         (s, 3) => PBO.PBF{S,T}([:x, :y, :z] => 27.0),
         (r, 4) => PBO.PBF{S,T}(1.0, :z => -1.0),
     ],
-    (|>) => [
-        (x, q) => 0.5,
-        (y, q) => 1.5,
-        (z, q) => 0.5,
-        (x, r) => 1.0,
-        (y, r) => 1.0,
-        (z, r) => 0.0,
-        (x, s) => 0.0,
-        (y, s) => 0.0,
-        (z, s) => 0.0,
-        (x, p) => 1.5,
-        (y, p) => 0.5,
-        (z, p) => 0.5,
-    ]
 ]
+
+const PBF_EVALUATION_LIST = [
+    "dict" => [],
+    "set"  => [(q, x) => 0.5, (q, y) => 1.5, (q, z) => 0.5, (r, x) => 1.0, (r, y) => 1.0, (r, z) => 0.0, (s, x) => 0.0, (s, y) => 0.0, (s, z) => 0.0, (p, x) => 1.5, (p, y) => 0.5, (p, z) => 0.5],
+]
+
+const PBF_QUBOTOOLS_LIST = [
+    (PBO.variable_map) => [
+        (f,) => Dict{Symbol,Int}(:x => 1, :y => 2, :z => 3),
+        (g,) => Dict{Symbol,Int}(),
+        (h,) => Dict{Symbol,Int}(:x => 2, :y => 3, :z => 4, :w => 1),
+    ],
+    (PBO.variable_inv) => [
+        (f,) => Dict{Int,Symbol}(1 => :x, 2 => :y, 3 => :z),
+        (g,) => Dict{Int,Symbol}(),
+        (h,) => Dict{Int,Symbol}(2 => :x, 3 => :y, 4 => :z, 1 => :w),
+    ],
+    (PBO.variable_set) => [
+        (f,) => Set{Symbol}([:x, :y, :z]),
+        (g,) => Set{Symbol}([]),
+        (h,) => Set{Symbol}([:x, :y, :z, :w]),
+    ],
+    (PBO.variables) =>
+        [(f,) => Symbol[:x, :y, :z], (g,) => Symbol[], (h,) => Symbol[:w, :x, :y, :z]],
+]
+
 end
