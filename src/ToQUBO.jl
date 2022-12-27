@@ -2,12 +2,13 @@ module ToQUBO
 
 # -*- :: Base Imports & Constants :: -*- #
 using TOML
+using Base: @kwdef
 const PROJECT_FILE_PATH = joinpath(@__DIR__, "..", "Project.toml")
 const PROJECT_VERSION   = VersionNumber(getindex(TOML.parsefile(PROJECT_FILE_PATH), "version"))
 
 # -*- :: External Imports :: -*- #
 using MathOptInterface
-const MOI = MathOptInterface
+const MOI  = MathOptInterface
 const MOIU = MOI.Utilities
 const MOIB = MOI.Bridges
 
@@ -31,12 +32,16 @@ import QUBOTools: QUBOTools, qubo, backend
 
 # -*- Library -*- #
 include("lib/error.jl")
-include("pbo/PBO.jl")
-include("virtual/VirtualMapping.jl")
-include("model/model.jl")
+include("lib/pbo/PBO.jl")
+
+# -*- Model -*- #
+include("model/qubo.jl")
+include("model/prequbo.jl")
+include("model/virtual.jl")
+include("model/wrapper.jl")
+include("model/attributes.jl")
 
 # ~*~ Compiler & Analysis ~*~ #
 include("compiler/compiler.jl")
-include("analysis/analysis.jl")
 
 end # module

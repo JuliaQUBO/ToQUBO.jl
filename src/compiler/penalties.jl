@@ -5,16 +5,16 @@ function toqubo_penalties!(model::VirtualQUBOModel{T}, ::AbstractArchitecture) w
     β = one(T) # TODO: This should be made a parameter too? Yes!
     δ = PBO.gap(model.f)
 
-    for (vi, g) in model.g
+    for (ci, g) in model.g
         ϵ = PBO.sharpness(g)
 
-        model.ρ[vi] = s * (δ / ϵ + β)
+        model.ρ[ci] = s * (δ / ϵ + β)
     end
 
-    for (ci, h) in model.h
+    for (vi, h) in model.h
         ϵ = PBO.sharpness(h)
 
-        model.ρ[ci] = s * (δ / ϵ + β)
+        model.θ[vi] = s * (δ / ϵ + β)
     end
 
     return nothing

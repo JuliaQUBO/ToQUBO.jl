@@ -74,6 +74,12 @@ Copies `MOI.ObjectiveSense` from `model.source_model` to `model.target_model`.
 """ function toqubo_constraint end
 
 @doc raw"""
+    toqubo_parse(::VirtualQUBOModel{T}, ::MOI.AbstractFunction, ::AbstractArchitecture) where {T}
+
+Parses the given function into a PBF.
+""" function toqubo_parse end
+
+@doc raw"""
     toqubo_penalties!(model::VirtualQUBOModel, ::AbstractArchitecture)
 """ function toqubo_penalties! end
 

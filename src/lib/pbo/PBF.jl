@@ -1,5 +1,8 @@
 import Base: isiterable
 
+using MutableArithmetics
+const MA = MutableArithmetics
+
 @doc raw"""
 """
 function _parseterm end
@@ -81,21 +84,23 @@ function Base.copy(f::PBF{S,T}) where {S,T}
 end
 
 # -*- Iterator & Length -*-
-Base.keys(f::PBF) = keys(f.Ω)
-Base.length(f::PBF) = length(f.Ω)
-Base.empty!(f::PBF) = empty!(f.Ω)
-Base.isempty(f::PBF) = isempty(f.Ω)
-Base.iterate(f::PBF) = iterate(f.Ω)
-Base.iterate(f::PBF, i::Int) = iterate(f.Ω, i)
-Base.haskey(f::PBF{S,<:Any}, k::Set{S}) where {S} = haskey(f.Ω, k)
-Base.haskey(f::PBF{S,<:Any}, k::S) where {S} = haskey(f, Set{S}([k]))
-Base.haskey(f::PBF{S,<:Any}, ::Nothing) where {S} = haskey(f, Set{S}())
+Base.keys(f::PBF)                = keys(f.Ω)
+Base.values(f::PBF)              = values(f.Ω)
+Base.length(f::PBF)              = length(f.Ω)
+Base.empty!(f::PBF)              = empty!(f.Ω)
+Base.isempty(f::PBF)             = isempty(f.Ω)
+Base.iterate(f::PBF)             = iterate(f.Ω)
+Base.iterate(f::PBF, i::Integer) = iterate(f.Ω, i)
+
+Base.haskey(f::PBF{S}, k::Set{S}) where {S} = haskey(f.Ω, k)
+Base.haskey(f::PBF{S}, k::S) where {S}      = haskey(f.Ω, Set{S}([k]))
+Base.haskey(f::PBF{S}, ::Nothing) where {S} = haskey(f.Ω, Set{S}())
 
 # -*- Indexing: Get -*-
 Base.getindex(f::PBF{S,T}, ω::Set{S}) where {S,T} = get(f.Ω, ω, zero(T))
-Base.getindex(f::PBF{S,<:Any}, η::Vector{S}) where {S} = getindex(f, Set{S}(η))
-Base.getindex(f::PBF{S,<:Any}, ξ::S...) where {S} = getindex(f, Set{S}(ξ))
-Base.getindex(f::PBF{S,<:Any}, ::Nothing) where {S} = getindex(f, Set{S}())
+Base.getindex(f::PBF{S}, η::Vector{S}) where {S}  = getindex(f, Set{S}(η))
+Base.getindex(f::PBF{S}, ξ::S...) where {S}       = getindex(f, Set{S}(ξ))
+Base.getindex(f::PBF{S}, ::Nothing) where {S}     = getindex(f, Set{S}())
 
 # -*- Indexing: Set -*-
 function Base.setindex!(f::PBF{S,T}, c::T, ω::Set{S}) where {S,T}
@@ -109,11 +114,11 @@ function Base.setindex!(f::PBF{S,T}, c::T, ω::Set{S}) where {S,T}
 end
 
 Base.setindex!(f::PBF{S,T}, c::T, η::Vector{S}) where {S,T} = setindex!(f, c, Set{S}(η))
-Base.setindex!(f::PBF{S,T}, c::T, ξ::S...) where {S,T} = setindex!(f, c, Set{S}(ξ))
-Base.setindex!(f::PBF{S,T}, c::T, ::Nothing) where {S,T} = setindex!(f, c, Set{S}())
+Base.setindex!(f::PBF{S,T}, c::T, ξ::S...) where {S,T}      = setindex!(f, c, Set{S}(ξ))
+Base.setindex!(f::PBF{S,T}, c::T, ::Nothing) where {S,T}    = setindex!(f, c, Set{S}())
 
 # -*- Properties -*-
-Base.size(f::PBF{S,T}) where {S,T} = length(f) - haskey(f.Ω, Set{S}())
+Base.size(f::PBF{S,T}) where {S,T} = (length(f),)
 
 function Base.sizehint!(f::PBF, n::Integer)
     sizehint!(f.Ω, n)
@@ -121,29 +126,29 @@ function Base.sizehint!(f::PBF, n::Integer)
     return f
 end
 
-# -*- Comparison: (==, !=, ===, !==)
+# -*- Comparison: (==, !=, ===, !==) -*- #
 Base.:(==)(f::PBF{S,T}, g::PBF{S,T}) where {S,T} = f.Ω == g.Ω
-Base.:(==)(f::PBF{<:Any,T}, a::T) where {T}      = isscalar(f) && (f[nothing] == a)
+Base.:(==)(f::PBF{S,T}, a::T) where {S,T}        = isscalar(f) && (f[nothing] == a)
 Base.:(!=)(f::PBF{S,T}, g::PBF{S,T}) where {S,T} = f.Ω != g.Ω
-Base.:(!=)(f::PBF{<:Any,T}, a::T) where {T}      = !isscalar(f) || (f[nothing] != a)
+Base.:(!=)(f::PBF{S,T}, a::T) where {S,T}        = !isscalar(f) || (f[nothing] != a)
 
 function Base.isapprox(f::PBF{S,T}, g::PBF{S,T}; kw...) where {S,T}
     return (length(f) == length(g)) &&
            all(haskey(g, ω) && isapprox(g[ω], f[ω]; kw...) for ω in keys(f))
 end
 
-function Base.isapprox(f::PBF{<:Any,T}, a::T; kw...) where {T}
+function Base.isapprox(f::PBF{S,T}, a::T; kw...) where {S,T}
     return isscalar(f) && isapprox(f[nothing], a; kw...)
 end
 
-function isscalar(f::PBF{S,<:Any}) where {S}
+function isscalar(f::PBF{S}) where {S}
     return isempty(f) || (length(f) == 1 && haskey(f, nothing))
 end
 
-Base.zero(::Type{<:PBF{S,T}}) where {S,T} = PBF{S,T}()
-Base.iszero(f::PBF) = isempty(f)
-Base.one(::Type{<:PBF{S,T}}) where {S,T} = PBF{S,T}(one(T))
-Base.isone(f::PBF) = isscalar(f) && isone(f[nothing])
+Base.zero(::Type{PBF{S,T}}) where {S,T}    = PBF{S,T}()
+Base.iszero(f::PBF)                        = isempty(f)
+Base.one(::Type{PBF{S,T}}) where {S,T}     = PBF{S,T}(one(T))
+Base.isone(f::PBF)                         = isscalar(f) && isone(f[nothing])
 Base.round(f::PBF{S,T}; kw...) where {S,T} = PBF{S,T}(ω => round(c; kw...) for (ω, c) in f)
 
 # -*- Arithmetic: (+) -*-
@@ -157,7 +162,7 @@ function Base.:(+)(f::PBF{S,T}, g::PBF{S,T}) where {S,T}
     return h
 end
 
-function Base.:(+)(f::PBF{<:Any,T}, c::T) where {T}
+function Base.:(+)(f::PBF{S,T}, c::T) where {S,T}
     if iszero(c)
         copy(f)
     else
@@ -169,11 +174,12 @@ function Base.:(+)(f::PBF{<:Any,T}, c::T) where {T}
     end
 end
 
-Base.:(+)(c::T, f::PBF{<:Any,T}) where {T} = +(f, c)
+Base.:(+)(f::PBF{S,T}, c) where {S,T} = +(f, convert(T, c))
+Base.:(+)(c, f::PBF)                  = +(f, c)
 
 # -*- Arithmetic: (-) -*-
 function Base.:(-)(f::PBF{S,T}) where {S,T}
-    PBF{S,T}(Dict{Set{S},T}(ω => -c for (ω, c) in f.Ω))
+    return PBF{S,T}(Dict{Set{S},T}(ω => -c for (ω, c) in f))
 end
 
 function Base.:(-)(f::PBF{S,T}, g::PBF{S,T}) where {S,T}
@@ -186,7 +192,7 @@ function Base.:(-)(f::PBF{S,T}, g::PBF{S,T}) where {S,T}
     return h
 end
 
-function Base.:(-)(f::PBF{<:Any,T}, c::T) where {T}
+function Base.:(-)(f::PBF{S,T}, c::T) where {S,T}
     if iszero(c)
         copy(f)
     else
@@ -198,7 +204,7 @@ function Base.:(-)(f::PBF{<:Any,T}, c::T) where {T}
     end
 end
 
-function Base.:(-)(c::T, f::PBF{<:Any,T}) where {T}
+function Base.:(-)(c::T, f::PBF{S,T}) where {S,T}
     g = -f
 
     if !iszero(c)
@@ -208,13 +214,38 @@ function Base.:(-)(c::T, f::PBF{<:Any,T}) where {T}
     return g
 end
 
+Base.:(-)(c, f::PBF{S,T}) where {S,T} = -(convert(T, c), f)
+Base.:(-)(f::PBF{S,T}, c) where {S,T} = -(f, convert(T, c))
+
 # -*- Arithmetic: (*) -*-
 function Base.:(*)(f::PBF{S,T}, g::PBF{S,T}) where {S,T}
-    h = PBF{S,T}()
+    h = zero(PBF{S,T})
+    m = length(f)
+    n = length(g)
 
-    if isempty(f) || isempty(g)
+    if iszero(f) || iszero(g) # T(n) = O(1)
         return h
-    else
+    elseif f === g # T(n) = O(n) + O(n^2 / 2)
+        k = collect(f)
+
+        sizehint!(h, n^2 ÷ 2)
+
+        for i = 1:n
+            ωi, ci = k[i]
+
+            h[ωi] += ci * ci
+
+            for j = (i+1):n
+                ωj, cj = k[j]
+
+                h[union(ωi, ωj)] += 2 * ci * cj
+            end
+        end
+
+        return h
+    else # T(n) = O(m n)
+        sizehint!(h, m * n)
+
         for (ωᵢ, cᵢ) in f, (ωⱼ, cⱼ) in g
             h[union(ωᵢ, ωⱼ)] += cᵢ * cⱼ
         end
@@ -225,13 +256,14 @@ end
 
 function Base.:(*)(f::PBF{S,T}, a::T) where {S,T}
     if iszero(a)
-        PBF{S,T}()
+        return PBF{S,T}()
     else
-        PBF{S,T}(ω => c * a for (ω, c) ∈ f.Ω)
+        return PBF{S,T}(ω => c * a for (ω, c) ∈ f)
     end
 end
 
-Base.:(*)(a::T, f::PBF{<:Any,T}) where {T} = *(f, a)
+Base.:(*)(f::PBF{S,T}, a) where {S,T} = *(f, convert(T, a))
+Base.:(*)(a, f::PBF)                  = *(f, a)
 
 # -*- Arithmetic: (/) -*-
 function Base.:(/)(f::PBF{S,T}, a::T) where {S,T}
@@ -242,6 +274,8 @@ function Base.:(/)(f::PBF{S,T}, a::T) where {S,T}
     end
 end
 
+Base.:(/)(f::PBF{S,T}, a) where {S,T} = /(f, convert(T, a))
+
 # -*- Arithmetic: (^) -*-
 function Base.:(^)(f::PBF{S,T}, n::Integer) where {S,T}
     if n < 0
@@ -249,7 +283,7 @@ function Base.:(^)(f::PBF{S,T}, n::Integer) where {S,T}
     elseif n == 0
         return one(PBF{S,T})
     elseif n == 1
-        return f
+        return copy(f)
     elseif n == 2
         return f * f
     else
@@ -309,3 +343,264 @@ function Base.convert(U::Type{<:T}, f::PBF{<:Any,T}) where {T}
         error("Can't convert non-constant Pseudo-boolean Function to scalar type '$U'")
     end
 end
+
+
+# -*- MA Mutable Arithmetics -*-
+
+MA.mutability(::Type{<:PBF{S,T}}) where {S,T} = MA.IsMutable()
+
+
+# -*- MA Mutable Copy: -*-
+function MA.mutable_copy(f::PBF{S,T}) where{S,T}
+    f_copy = PBO.PBF{S,T}()
+    for (ω,c) in f
+        f_copy[ω] = MA.copy_if_mutable(f[ω])
+    end
+    return f_copy
+end
+
+# -*- MA isequal_canonical: -*-
+function MA.isequal_canonical(
+    f::PBF{S,T},
+    g::PBF{S,T}
+    ) where {S,T}
+    
+    return f == g
+    
+end
+
+
+# -*- MA Arithmetic: zero,one -*-
+function MA.operate!(
+    ::typeof(zero),
+    f::PBF{S,T}
+    ) where {S,T}
+
+    empty!(f)
+    
+    return f
+end
+
+function MA.operate!(
+    ::typeof(one),
+    f::PBF{S,T}
+    ) where {S,T}
+
+    empty!(f)
+    f[nothing] = one(T)
+
+    return f
+end
+
+
+# -*- MA Arithmetic: (+) -*-
+
+function MA.operate!(
+    ::typeof(+),
+    f::PBF{S,T}, 
+    g::PBF{S,T}
+    ) where {S,T}
+
+    for(ω, c) in g
+        f[ω] += c
+    end
+    
+    return f
+end
+
+function MA.operate!(
+    ::typeof(+),
+    f::PBF{<:Any,T}, 
+    c::T
+    ) where {T}
+    if iszero(c)
+        return f
+    end
+    
+    f[nothing] += c
+
+    return f
+end
+
+# -*- MA Arithmetic: (-) -*-
+
+
+function MA.operate!(
+    ::typeof(-),
+    f::PBF{S,T}
+    ) where {S,T}
+
+    for(ω, c) in f
+        f[ω] = -c 
+    end
+    
+    return f
+end
+
+function MA.operate!(
+    ::typeof(-),
+    f::PBF{S,T}, 
+    g::PBF{S,T}
+    ) where {S,T}
+
+    for(ω, c) in g
+        f[ω] -= c
+    end
+
+    return f
+end
+
+
+function MA.operate!(
+    ::typeof(-),
+    f::PBF{<:Any,T}, 
+    c::T
+    ) where {T}
+    if iszero(c)
+        return f
+    end
+    
+    f[nothing] -= c
+
+    return f
+end
+
+# -*- MA Arithmetic: (*) -*-
+
+function MA.operate!(
+    ::typeof(*),
+    f::PBF{S,T}, 
+    g::PBF{S,T}
+    ) where {S,T}
+
+    h = PBF{S,T}()
+
+    if isempty(f) || isempty(g)
+        return h
+    else
+        for (ωᵢ, cᵢ) in f, (ωⱼ, cⱼ) in g
+            h[union(ωᵢ, ωⱼ)] += cᵢ * cⱼ
+        end
+
+        return h
+    end
+
+end
+
+function MA.operate!(
+    ::typeof(*),
+    f::PBF{S,T}, 
+    a::T
+    ) where {S,T}
+
+    if iszero(a)
+        empty!(f)
+    else
+        for(ω, c) in f
+            f[ω] = c*a
+        end
+    end
+
+    return f
+end
+
+# -*- MA Arithmetic: (add_mul) -*-
+function MA.operate!(
+    ::typeof(add_mul),
+    f::PBF{S,T},
+    m::T,
+    g::PBF{S,T}
+    ) where {S,T}
+
+    for(ω, c) in g
+        f[ω] += m*c
+    end
+    return f
+    
+end
+
+# -*- MA Arithmetic: (sub_mul) -*-
+function MA.operate!(
+    ::typeof(sub_mul),
+    f::PBF{S,T},
+    m::T,
+    g::PBF{S,T}
+    ) where {S,T}
+
+    for(ω, c) in g
+        f[ω] -= m*c
+    end
+    return f
+    
+end
+
+# -*- MA Arithmetic: (/) -*-
+
+function MA.operate!(
+    ::typeof(/),
+    f::PBF{S,T}, 
+    a::T
+    ) where {S,T}
+
+    if iszero(a)
+        throw(DivideError())
+    else
+        for(ω, c) in f
+            f[ω] = c / a
+        end
+    end
+
+    return f
+end
+
+# -*- MA Arithmetic: (^) -*-
+function MA.operate!(
+    ::typeof(^),
+    f::PBF{S,T}, 
+    n::Integer
+    ) where {S,T}
+
+    if n < 0
+        throw(DivideError())
+    elseif n == 0
+        return MA.operate!(one, f)
+    elseif n == 1
+        return f
+    elseif n == 2
+        for (ω,c) in f
+            f[ω] = c*c
+        end
+    else    
+        for (ω,c) in f
+            f[ω] = c*c
+        end
+
+        if iseven(n)
+            return f^(n ÷ 2)
+        else
+            return f^(n ÷ 2) * f
+        end
+    end
+end
+
+
+function MA.operate_to!(
+    output::PBF{S,T},
+    op::Union{typeof(+),typeof(-)},
+    f::PBF{S,T},
+    g::PBF{S,T},
+) where {S,T}
+    empty!(output)
+    MA.operate!(+, output, f)
+    MA.operate!(op, output, g)
+    return output
+end
+
+
+
+# -*- MA Arithmetic: Evaluation -*-
+
+
+
+# -*- MA Type conversion -*-
+

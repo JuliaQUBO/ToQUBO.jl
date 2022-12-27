@@ -1,5 +1,7 @@
 module PBO
 
+using Random
+
 # -*- Imports -*-
 import QUBOTools: varcmp, qubo, variables, variable_map, variable_set, variable_inv
 
@@ -9,6 +11,7 @@ import QUBOTools: varcmp, qubo, variables, variable_map, variable_set, variable_
 
 include("PBF.jl")
 include("tools.jl")
+include("rand.jl")
 include("wrapper.jl")
 include("quadratization.jl")
 include("print.jl")

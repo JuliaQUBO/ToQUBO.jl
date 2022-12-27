@@ -1,30 +1,64 @@
-function toqubo_build!(model::VirtualQUBOModel{T}, ::AbstractArchitecture) where {T}
-    # -*- Assemble Objective Function -*-
-    H = sum(
-        [
-            model.f
-            [model.ρ[ci] * g for (ci, g) in model.g]
-            [model.ρ[vi] * h for (vi, h) in model.h]
-        ];
-        init = zero(PBO.PBF{VI,T}),
-    )
+using MutableArithmetics
+const MA = MutableArithmetics
 
-    # -*- Quadratization Step -*-
-    H = PBO.quadratize(H) do n::Integer
-        m = MOI.get(model, VM.TargetModel())
-        w = MOI.add_variables(m, n)
+function toqubo_hamiltonian!(model::VirtualQUBOModel{T}, ::AbstractArchitecture) where {T}
+    copy!(model.H, model.f)
 
-        MOI.add_constraint.(m, w, MOI.ZeroOne())
+    for (ci, g) in model.g
+        ρ = model.ρ[ci]
 
-        return w
+        for (ω, c) in g
+            model.H[ω] += ρ * c
+        end
     end
 
-    # -*- Write to MathOptInterface -*-
+    for (vi, h) in model.h
+        θ = model.θ[vi]
+
+        for (ω, c) in h
+            model.H[ω] += θ * c
+        end
+    end
+
+    return nothing
+end
+
+function toqubo_aux(model::VirtualQUBOModel, ::Nothing, ::AbstractArchitecture)
+    target_model = MOI.get(model, TargetModel())
+
+    w = MOI.add_variable(target_model)
+
+    MOI.add_constraint(target_model, w, MOI.ZeroOne())
+
+    return w::VI
+end
+
+function toqubo_aux(model::VirtualQUBOModel, n::Integer, ::AbstractArchitecture)::Vector{VI}
+    target_model = MOI.get(model, TargetModel())
+
+    w = MOI.add_variables(target_model, n)
+
+    MOI.add_constraint.(target_model, w, MOI.ZeroOne())
+
+    return w
+end
+
+function toqubo_quadratize!(model::VirtualQUBOModel, arch::AbstractArchitecture)
+    H = PBO.quadratize(model.H) do (n::Union{Integer,Nothing} = nothing)
+        return toqubo_aux(model, n, arch)
+    end
+
+    copy!(model.H, H)
+
+    return nothing
+end
+
+function toqubo_output!(model::VirtualQUBOModel{T}, ::AbstractArchitecture) where {T}
     Q = SQT{T}[]
     a = SAT{T}[]
     b = zero(T)
 
-    for (ω, c) in H
+    for (ω, c) in model.H
         if isempty(ω)
             b += c
         elseif length(ω) == 1
@@ -41,10 +75,23 @@ function toqubo_build!(model::VirtualQUBOModel{T}, ::AbstractArchitecture) where
     end
 
     MOI.set(
-        MOI.get(model, VM.TargetModel()),
+        MOI.get(model, TargetModel()),
         MOI.ObjectiveFunction{SQF{T}}(),
         SQF{T}(Q, a, b),
     )
+
+    return nothing
+end
+
+function toqubo_build!(model::VirtualQUBOModel{T}, arch::AbstractArchitecture) where {T}
+    # -*- Assemble Objective Function -*-
+    toqubo_hamiltonian!(model, arch)
+
+    # -*- Quadratization Step -*-
+    toqubo_quadratize!(model, arch)
+
+    # -*- Write to MathOptInterface -*-
+    toqubo_output!(model, arch)
 
     return nothing
 end
