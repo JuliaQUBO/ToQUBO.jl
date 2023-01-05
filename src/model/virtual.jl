@@ -27,23 +27,26 @@ Maps newly created virtual variable `v` within the virtual model structure. It f
 # References:
  * [1] Chancellor, N. (2019). Domain wall encoding of discrete variables for quantum annealing and QAOA. _Quantum Science and Technology_, _4_(4), 045004. [{doi}](https://doi.org/10.1088/2058-9565/ab33c2)
 """
-struct VirtualVariable{T,E<:Encoding}
+struct VirtualVariable{T}
+    e::Encoding
     x::Union{VI,Nothing}             # Source variable (if there is one)
     y::Vector{VI}                    # Target variables
     ξ::PBO.PBF{VI,T}                 # Expansion function
     h::Union{PBO.PBF{VI,T},Nothing}  # Penalty function (i.e. ‖gᵢ(x)‖ₛ for g(i) ∈ S)
 
-    function VirtualVariable{T,E}(
+    function VirtualVariable{T}(
+        e::Encoding,
         x::Union{VI,Nothing},
         y::Vector{VI},
         ξ::PBO.PBF{VI,T},
         h::Union{PBO.PBF{VI,T},Nothing},
-    ) where {T,E<:Encoding}
-        return new{T,E}(x, y, ξ, h)
+    ) where {T}
+        return new{T}(e, x, y, ξ, h)
     end
 end
 
 # -*- Variable Information -*-
+encoding(v::VirtualVariable)  = v.e
 source(v::VirtualVariable)    = v.x
 target(v::VirtualVariable)    = v.y
 is_aux(v::VirtualVariable)    = isnothing(source(v))
@@ -51,7 +54,7 @@ expansion(v::VirtualVariable) = v.ξ
 penaltyfn(v::VirtualVariable) = v.h
 
 # ~*~ Alias ~*~
-const VV{T,E} = VirtualVariable{T,E}
+const VV{T} = VirtualVariable{T}
 
 function encode!(model::AbstractVirtualModel{T}, v::VV{T}) where {T}
     if !is_aux(v)
@@ -73,29 +76,30 @@ end
 
 abstract type LinearEncoding <: Encoding end
 
-function VirtualVariable{T,E}(
+function VirtualVariable{T}(
+    e::LinearEncoding,
     x::Union{VI,Nothing},
     y::Vector{VI},
     γ::Vector{T},
     α::T = zero(T),
-) where {T,E<:LinearEncoding}
+) where {T}
     @assert (n = length(y)) == length(γ)
 
     ξ = α + PBO.PBF{VI,T}(y[i] => γ[i] for i = 1:n)
 
-    return VirtualVariable{T,E}(x, y, ξ, nothing)
+    return VirtualVariable{T}(e, x, y, ξ, nothing)
 end
 
 function encode!(
-    ::E,
+    e::LinearEncoding,
     model::AbstractVirtualModel{T},
     x::Union{VI,Nothing},
     γ::Vector{T},
     α::T = zero(T),
-) where {T,E<:LinearEncoding}
+) where {T}
     n = length(γ)
     y = MOI.add_variables(MOI.get(model, TargetModel()), n)
-    v = VirtualVariable{T,E}(x, y, γ, α)
+    v = VirtualVariable{T}(e, x, y, γ, α)
 
     return encode!(model, v)
 end
@@ -111,12 +115,12 @@ end
 """ struct Linear <: LinearEncoding end
 
 function encode!(
-    e::E,
+    e::Linear,
     model::AbstractVirtualModel{T},
     x::Union{VI,Nothing},
     Γ::Function,
     n::Integer,
-) where {T,E<:Linear}
+) where {T}
     γ = T[Γ(i) for i = 1:n]
 
     return encode!(e, model, x, γ, zero(T))
@@ -126,12 +130,12 @@ end
 """ struct Unary <: LinearEncoding end
 
 function encode!(
-    e::E,
+    e::Unary,
     model::AbstractVirtualModel{T},
     x::Union{VI,Nothing},
     a::T,
     b::T,
-) where {T,E<:Unary}
+) where {T}
     α, β = if a < b
         ceil(a), floor(b)
     else
@@ -146,13 +150,13 @@ function encode!(
 end
 
 function encode!(
-    e::E,
+    e::Unary,
     model::AbstractVirtualModel{T},
     x::Union{VI,Nothing},
     a::T,
     b::T,
     n::Integer,
-) where {T,E<:Unary}
+) where {T}
     Γ = (b - a) / n
     γ = Γ * ones(T, n)
 
@@ -160,13 +164,13 @@ function encode!(
 end
 
 function encode!(
-    e::E,
+    e::Unary,
     model::AbstractVirtualModel{T},
     x::Union{VI,Nothing},
     a::T,
     b::T,
     τ::T,
-) where {T,E<:Unary}
+) where {T}
     n = ceil(Int, (1 + abs(b - a) / 4τ))
 
     return encode!(e, model, x, a, b, n)
@@ -185,12 +189,12 @@ where ``n`` is the number of bits and ``y_i \in \mathbb{B}``.
 """ struct Binary <: LinearEncoding end
 
 function encode!(
-    e::E,
+    e::Binary,
     model::AbstractVirtualModel{T},
     x::Union{VI,Nothing},
     a::T,
     b::T,
-) where {T,E<:Binary}
+) where {T}
     α, β = if a < b
         ceil(a), floor(b)
     else
@@ -211,13 +215,13 @@ function encode!(
 end
 
 function encode!(
-    e::E,
+    e::Binary,
     model::AbstractVirtualModel{T},
     x::Union{VI,Nothing},
     a::T,
     b::T,
     n::Integer,
-) where {T,E<:Binary}
+) where {T}
     Γ = (b - a) / (2^n - 1)
     γ = Γ * 2 .^ collect(T, 0:n-1)
 
@@ -225,13 +229,13 @@ function encode!(
 end
 
 function encode!(
-    e::E,
+    e::Binary,
     model::AbstractVirtualModel{T},
     x::Union{VI,Nothing},
     a::T,
     b::T,
     τ::T,
-) where {T,E<:Binary}
+) where {T}
     n = ceil(Int, log2(1 + abs(b - a) / 4τ))
 
     return encode!(e, model, x, a, b, n)
@@ -241,12 +245,12 @@ end
 """ struct Arithmetic <: LinearEncoding end
 
 function encode!(
-    e::E,
+    e::Arithmetic,
     model::AbstractVirtualModel{T},
     x::Union{VI,Nothing},
     a::T,
     b::T,
-) where {T,E<:Arithmetic}
+) where {T}
     α, β = if a < b
         ceil(a), floor(b)
     else
@@ -263,13 +267,13 @@ function encode!(
 end
 
 function encode!(
-    e::E,
+    e::Arithmetic,
     model::AbstractVirtualModel{T},
     x::Union{VI,Nothing},
     a::T,
     b::T,
     n::Integer,
-) where {T,E<:Arithmetic}
+) where {T}
     Γ = 2 * (b - a) / (n * (n + 1))
     γ = Γ * collect(1:n)
 
@@ -277,13 +281,13 @@ function encode!(
 end
 
 function encode!(
-    e::E,
+    e::Arithmetic,
     model::AbstractVirtualModel{T},
     x::Union{VI,Nothing},
     a::T,
     b::T,
     τ::T,
-) where {T,E<:Arithmetic}
+) where {T}
     n = ceil(Int, (1 + sqrt(3 + (b - a) / 2τ)) / 2)
 
     return encode!(e, model, x, a, b, n)
@@ -292,27 +296,28 @@ end
 @doc raw"""
 """ struct OneHot <: LinearEncoding end
 
-function VirtualVariable{T,E}(
+function VirtualVariable{T}(
+    e::OneHot,
     x::Union{VI,Nothing},
     y::Vector{VI},
     γ::Vector{T},
     α::T = zero(T),
-) where {T,E<:OneHot}
+) where {T}
     @assert (n = length(y)) == length(γ)
 
     ξ = α + PBO.PBF{VI,T}(y[i] => γ[i] for i = 1:n)
     h = (one(T) - PBO.PBF{VI,T}(y))^2
 
-    return VirtualVariable{T,E}(x, y, ξ, h)
+    return VirtualVariable{T}(e, x, y, ξ, h)
 end
 
 function encode!(
-    e::E,
+    e::OneHot,
     model::AbstractVirtualModel{T},
     x::Union{VI,Nothing},
     a::T,
     b::T,
-) where {T,E<:OneHot}
+) where {T}
     α, β = if a < b
         ceil(a), floor(b)
     else
@@ -326,13 +331,13 @@ function encode!(
 end
 
 function encode!(
-    e::E,
+    e::OneHot,
     model::AbstractVirtualModel{T},
     x::Union{VI,Nothing},
     a::T,
     b::T,
     n::Integer,
-) where {T,E<:OneHot}
+) where {T}
     Γ = (b - a) / (n - 1)
     γ = a .+ Γ * collect(T, 0:n-1)
 
@@ -340,13 +345,13 @@ function encode!(
 end
 
 function encode!(
-    e::E,
+    e::OneHot,
     model::AbstractVirtualModel{T},
     x::Union{VI,Nothing},
     a::T,
     b::T,
     τ::T,
-) where {T,E<:OneHot}
+) where {T}
     n = ceil(Int, (1 + abs(b - a) / 4τ))
 
     return encode!(e, model, x, a, b, n)
@@ -355,42 +360,43 @@ end
 abstract type SequentialEncoding <: Encoding end
 
 function encode!(
-    ::E,
+    e::SequentialEncoding,
     model::AbstractVirtualModel{T},
     x::Union{VI,Nothing},
     γ::Vector{T},
     α::T = zero(T),
-) where {T,E<:SequentialEncoding}
+) where {T}
     n = length(γ)
     y = MOI.add_variables(MOI.get(model, TargetModel()), n - 1)
-    v = VirtualVariable{T,E}(x, y, γ, α)
+    v = VirtualVariable{T}(e, x, y, γ, α)
 
     return encode!(model, v)
 end
 
 struct DomainWall <: SequentialEncoding end
 
-function VirtualVariable{T,E}(
+function VirtualVariable{T}(
+    e::DomainWall,
     x::Union{VI,Nothing},
     y::Vector{VI},
     γ::Vector{T},
     α::T = zero(T),
-) where {T,E<:DomainWall}
+) where {T}
     @assert (n = length(y)) == length(γ) - 1
 
     ξ = α + PBO.PBF{VI,T}(y[i] => (γ[i] - γ[i+1]) for i = 1:n)
     h = 2 * (PBO.PBF{VI,T}(y[2:n]) - PBO.PBF{VI,T}([Set{VI}([y[i], y[i-1]]) for i = 2:n]))
 
-    return VirtualVariable{T,E}(x, y, ξ, h)
+    return VirtualVariable{T}(e, x, y, ξ, h)
 end
 
 function encode!(
-    e::E,
+    e::DomainWall,
     model::AbstractVirtualModel{T},
     x::Union{VI,Nothing},
     a::T,
     b::T,
-) where {T,E<:DomainWall}
+) where {T}
     α, β = if a < b
         ceil(a), floor(b)
     else
@@ -405,13 +411,13 @@ function encode!(
 end
 
 function encode!(
-    e::E,
+    e::DomainWall,
     model::AbstractVirtualModel{T},
     x::Union{VI,Nothing},
     a::T,
     b::T,
     n::Integer,
-) where {T,E<:DomainWall}
+) where {T}
     Γ = (b - a) / (n - 1)
     γ = a .+ Γ * collect(T, 0:n-1)
 

@@ -1,40 +1,79 @@
-function toqubo_parse(model::VirtualQUBOModel{T}, f::SAF{T}, ::AbstractArchitecture) where {T}
-    g = PBO.PBF{VI,T}()
+function toqubo_parse!(
+    model::VirtualQUBOModel{T},
+    g::PBO.PBF{VI,T},
+    vi::VI,
+    ::AbstractArchitecture,
+) where {T}
+    empty!(g)
+
+    for (ω, c) in expansion(MOI.get(model, Source(), vi))
+        g[ω] += c
+    end
+
+    return nothing
+end
+
+function toqubo_parse!(
+    model::VirtualQUBOModel{T},
+    g::PBO.PBF{VI,T},
+    f::SAF{T},
+    ::AbstractArchitecture,
+) where {T}
+    empty!(g)
 
     sizehint!(g, length(f.terms) + 1)
-    
+
     for a in f.terms
         c = a.coefficient
         x = a.variable
 
-        for (ω, d) in expansion(MOI.get(model, Source(), x))
+        v = MOI.get(model, Source(), x)
+
+        for (ω, d) in expansion(v)
             g[ω] += c * d
         end
     end
 
     g[nothing] += f.constant
 
-    return g
+    return nothing
 end
 
-function toqubo_parse(model::VirtualQUBOModel{T}, f::SAF{T}, s::EQ{T}, arch::AbstractArchitecture) where {T}
-    g = toqubo_parse(model, f, arch)
+function toqubo_parse!(
+    model::VirtualQUBOModel{T},
+    g::PBO.PBF{VI,T},
+    f::SAF{T},
+    s::EQ{T},
+    arch::AbstractArchitecture,
+) where {T}
+    toqubo_parse!(model, g, f, arch)
 
     g[nothing] -= s.value
 
-    return g
+    return nothing
 end
 
-function toqubo_parse(model::VirtualQUBOModel{T}, f::SAF{T}, s::LT{T}, arch::AbstractArchitecture) where {T}
-    g = toqubo_parse(model, f, arch)
-    
+function toqubo_parse!(
+    model::VirtualQUBOModel{T},
+    g::PBO.PBF{VI,T},
+    f::SAF{T},
+    s::LT{T},
+    arch::AbstractArchitecture,
+) where {T}
+    toqubo_parse!(model, g, f, arch)
+
     g[nothing] -= s.upper
 
-    return g
+    return nothing
 end
 
-function toqubo_parse(model::VirtualQUBOModel{T}, f::SQF{T}, ::AbstractArchitecture) where {T}
-    g = PBO.PBF{VI,T}()
+function toqubo_parse!(
+    model::VirtualQUBOModel{T},
+    g::PBO.PBF{VI,T},
+    f::SQF{T},
+    ::AbstractArchitecture,
+) where {T}
+    empty!(g)
 
     sizehint!(g, length(f.quadratic_terms) + length(f.affine_terms) + 1)
 
@@ -71,16 +110,28 @@ function toqubo_parse(model::VirtualQUBOModel{T}, f::SQF{T}, ::AbstractArchitect
     return g
 end
 
-function toqubo_parse(model::VirtualQUBOModel{T}, f::SQF{T}, s::EQ{T}, arch::AbstractArchitecture) where {T}
-    g = toqubo_parse(model, f, arch)
+function toqubo_parse!(
+    model::VirtualQUBOModel{T},
+    g::PBO.PBF{VI,T},
+    f::SQF{T},
+    s::EQ{T},
+    arch::AbstractArchitecture,
+) where {T}
+    toqubo_parse!(model, g, f, arch)
 
     g[nothing] -= s.value
 
     return g
 end
 
-function toqubo_parse(model::VirtualQUBOModel{T}, f::SQF{T}, s::LT{T}, arch::AbstractArchitecture) where {T}
-    g = toqubo_parse(model, f, arch)
+function toqubo_parse(
+    model::VirtualQUBOModel{T},
+    g::PBO.PBF{VI,T},
+    f::SQF{T},
+    s::LT{T},
+    arch::AbstractArchitecture,
+) where {T}
+    toqubo_parse!(model, g, f, arch)
 
     g[nothing] -= s.upper
 

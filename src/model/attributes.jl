@@ -123,11 +123,11 @@ end
 
 # -*- MOI Attribute Forwarding -*- #
 function MOI.get(model::VirtualQUBOModel, attr::MOI.AbstractOptimizerAttribute)
-    return MOI.get(model.optimizer, attr)
+    return MOI.get(MOI.get(model, SourceModel()), attr)
 end
 
 function MOI.set(model::VirtualQUBOModel, attr::MOI.AbstractOptimizerAttribute, value)
-    MOI.set(model.optimizer, attr, value)
+    MOI.set(MOI.get(model, SourceModel()), attr, value)
 
     return nothing
 end
