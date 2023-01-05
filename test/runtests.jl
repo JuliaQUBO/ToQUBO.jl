@@ -6,10 +6,6 @@ const MOIU = MOI.Utilities
 const VI = MOI.VariableIndex
 const CI = MOI.ConstraintIndex
 
-# -*- Imports: JuMP + MOI -*-
-import MutableArithmetics
-const MA = MutableArithmetics
-
 # -*- Imports -*-
 using ToQUBO: ToQUBO, PBO
 using Anneal

@@ -1,3 +1,16 @@
+function toqubo_parse(
+    model::VirtualQUBOModel{T},
+    f::MOI.AbstractFunction,
+    s::MOI.AbstractSet,
+    arch::AbstractArchitecture,
+) where {T}
+    g = PBO.PBF{VI,T}()
+
+    toqubo_parse!(model, g, f, s, arch)
+
+    return g
+end
+
 function toqubo_parse!(
     model::VirtualQUBOModel{T},
     g::PBO.PBF{VI,T},
@@ -107,7 +120,7 @@ function toqubo_parse!(
 
     g[nothing] += f.constant
 
-    return g
+    return nothing
 end
 
 function toqubo_parse!(
@@ -121,10 +134,10 @@ function toqubo_parse!(
 
     g[nothing] -= s.value
 
-    return g
+    return nothing
 end
 
-function toqubo_parse(
+function toqubo_parse!(
     model::VirtualQUBOModel{T},
     g::PBO.PBF{VI,T},
     f::SQF{T},
@@ -135,5 +148,5 @@ function toqubo_parse(
 
     g[nothing] -= s.upper
 
-    return g
+    return nothing
 end

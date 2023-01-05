@@ -122,15 +122,15 @@ function MOI.set(model::VirtualQUBOModel{T}, ::CONSTRAINT_PENALTY, ci::CI, ρ::T
 end
 
 # -*- MOI Attribute Forwarding -*- #
-function MOI.get(model::VirtualQUBOModel, attr::MOI.AbstractOptimizerAttribute)
-    return MOI.get(MOI.get(model, SourceModel()), attr)
-end
+# function MOI.get(model::VirtualQUBOModel, attr::MOI.AbstractOptimizerAttribute)
+#     return MOI.get(MOI.get(model, SourceModel()), attr)
+# end
 
-function MOI.set(model::VirtualQUBOModel, attr::MOI.AbstractOptimizerAttribute, value)
-    MOI.set(MOI.get(model, SourceModel()), attr, value)
+# function MOI.set(model::VirtualQUBOModel, attr::MOI.AbstractOptimizerAttribute, value)
+#     MOI.set(MOI.get(model, SourceModel()), attr, value)
 
-    return nothing
-end
+#     return nothing
+# end
 
 # function MOI.get(model::VirtualQUBOModel, attr::MOI.AbstractVariableAttribute, vi::VI)
 #     return MOI.get(model.optimizer, attr, vi)

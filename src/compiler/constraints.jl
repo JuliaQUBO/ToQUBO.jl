@@ -19,7 +19,9 @@ function toqubo_constraint(
     ::VI,
     ::Union{MOI.ZeroOne,MOI.Integer,MOI.Interval{T},LT{T},GT{T}},
     ::AbstractArchitecture,
-) where {T} end
+) where {T}
+    return nothing
+end
 
 function toqubo_constraint(
     model::VirtualQUBOModel{T},
@@ -28,10 +30,8 @@ function toqubo_constraint(
     arch::AbstractArchitecture,
 ) where {T}
     # -*- Scalar Affine Function: g(x) = a'x - b = 0 ~ 😄 -*-
-    g = PBO.PBF{VI,T}()
-    
-    toqubo_parse!(model, g, f, s, arch)
-    
+    g = toqubo_parse(model, f, s, arch)
+
     PBO.discretize!(g)
 
     # -*- Bounds & Slack Variable -*-
@@ -54,9 +54,7 @@ function toqubo_constraint(
     arch::AbstractArchitecture,
 ) where {T}
     # -*- Scalar Affine Function: g(x) = a'x - b ≤ 0 🤔 -*-
-    g = PBO.PBF{VI,T}()
-    
-    toqubo_parse!(model, g, f, s, arch)
+    g = toqubo_parse(model, f, s, arch)
 
     PBO.discretize!(g)
 
@@ -87,9 +85,9 @@ function toqubo_constraint(
     arch::AbstractArchitecture,
 ) where {T}
     # -*- Scalar Quadratic Function: g(x) = x Q x + a x - b = 0 😢 -*-
-    g = PBO.PBF{VI,T}()
-    
-    toqubo_parse!(model, g, f, s, arch)
+    g = toqubo_parse(model, f, s, arch)
+
+    PBO.discretize!(g)
 
     # -*- Bounds & Slack Variable -*-
     l, u = PBO.bounds(g)
@@ -114,9 +112,7 @@ function toqubo_constraint(
     arch::AbstractArchitecture,
 ) where {T}
     # -*- Scalar Quadratic Function: g(x) = x Q x + a x - b ≤ 0 😢 -*-
-    g = PBO.PBF{VI,T}()
-    
-    toqubo_parse!(model, g, f, s, arch)
+    g = toqubo_parse(model, f, s, arch)
     
     PBO.discretize!(g)
 

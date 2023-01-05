@@ -11,13 +11,11 @@ version = "0.1.4"
 
 [deps]
 MathOptInterface   = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
-MutableArithmetics = "d8a4904e-b15c-11e9-3269-09a3773c0cb0"
 QUBOTools          = "60eb5b62-0a39-4ddc-84c5-97d2adff9319"
 Random             = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 TOML               = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 
 [compat]
 MathOptInterface   = "1"
-MutableArithmetics = "1"
 QUBOTools          = "0.4"
 julia              = "1.6"

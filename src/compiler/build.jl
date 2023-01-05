@@ -1,5 +1,15 @@
-using MutableArithmetics
-const MA = MutableArithmetics
+function toqubo_build!(model::VirtualQUBOModel{T}, arch::AbstractArchitecture) where {T}
+    # -*- Assemble Objective Function -*-
+    toqubo_hamiltonian!(model, arch)
+
+    # -*- Quadratization Step -*-
+    toqubo_quadratize!(model, arch)
+
+    # -*- Write to MathOptInterface -*-
+    toqubo_output!(model, arch)
+
+    return nothing
+end
 
 function toqubo_hamiltonian!(model::VirtualQUBOModel{T}, ::AbstractArchitecture) where {T}
     copy!(model.H, model.f)
@@ -68,14 +78,9 @@ function toqubo_output!(model::VirtualQUBOModel{T}, ::AbstractArchitecture) wher
         if isempty(ω)
             b += c
         elseif length(ω) == 1
-            x = pop!(ω)
-
-            push!(a, SAT{T}(c, x))
+            push!(a, SAT{T}(c, ω...))
         elseif length(ω) == 2
-            x = pop!(ω)
-            y = pop!(ω)
-
-            push!(Q, SQT{T}(c, x, y))
+            push!(Q, SQT{T}(c, ω...))
         else
             # NOTE: This should never happen in production.
             # During implementation of new quadratization and constraint reformulation methods
@@ -89,19 +94,6 @@ function toqubo_output!(model::VirtualQUBOModel{T}, ::AbstractArchitecture) wher
     end
 
     MOI.set(MOI.get(model, TargetModel()), MOI.ObjectiveFunction{SQF{T}}(), SQF{T}(Q, a, b))
-
-    return nothing
-end
-
-function toqubo_build!(model::VirtualQUBOModel{T}, arch::AbstractArchitecture) where {T}
-    # -*- Assemble Objective Function -*-
-    toqubo_hamiltonian!(model, arch)
-
-    # -*- Quadratization Step -*-
-    toqubo_quadratize!(model, arch)
-
-    # -*- Write to MathOptInterface -*-
-    toqubo_output!(model, arch)
 
     return nothing
 end
