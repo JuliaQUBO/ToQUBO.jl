@@ -28,7 +28,7 @@ function toqubo_constraint(
     arch::AbstractArchitecture,
 ) where {T}
     # -*- Scalar Affine Function: g(x) = a'x - b = 0 ~ 😄 -*-
-    g = PBF{VI,T}()
+    g = PBO.PBF{VI,T}()
     
     toqubo_parse!(model, g, f, s, arch)
     
@@ -54,7 +54,7 @@ function toqubo_constraint(
     arch::AbstractArchitecture,
 ) where {T}
     # -*- Scalar Affine Function: g(x) = a'x - b ≤ 0 🤔 -*-
-    g = PBF{VI,T}()
+    g = PBO.PBF{VI,T}()
     
     toqubo_parse!(model, g, f, s, arch)
 
@@ -87,7 +87,7 @@ function toqubo_constraint(
     arch::AbstractArchitecture,
 ) where {T}
     # -*- Scalar Quadratic Function: g(x) = x Q x + a x - b = 0 😢 -*-
-    g = PBF{VI,T}()
+    g = PBO.PBF{VI,T}()
     
     toqubo_parse!(model, g, f, s, arch)
 
@@ -114,7 +114,7 @@ function toqubo_constraint(
     arch::AbstractArchitecture,
 ) where {T}
     # -*- Scalar Quadratic Function: g(x) = x Q x + a x - b ≤ 0 😢 -*-
-    g = PBF{VI,T}()
+    g = PBO.PBF{VI,T}()
     
     toqubo_parse!(model, g, f, s, arch)
     
