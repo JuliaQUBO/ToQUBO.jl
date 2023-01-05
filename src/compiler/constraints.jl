@@ -28,7 +28,9 @@ function toqubo_constraint(
     arch::AbstractArchitecture,
 ) where {T}
     # -*- Scalar Affine Function: g(x) = a'x - b = 0 ~ 😄 -*-
-    g = toqubo_parse(model, f, s, arch)
+    g = PBF{VI,T}()
+    
+    toqubo_parse!(model, g, f, s, arch)
     
     PBO.discretize!(g)
 
@@ -52,7 +54,9 @@ function toqubo_constraint(
     arch::AbstractArchitecture,
 ) where {T}
     # -*- Scalar Affine Function: g(x) = a'x - b ≤ 0 🤔 -*-
-    g = toqubo_parse(model, f, s, arch)
+    g = PBF{VI,T}()
+    
+    toqubo_parse!(model, g, f, s, arch)
 
     PBO.discretize!(g)
 
@@ -83,9 +87,9 @@ function toqubo_constraint(
     arch::AbstractArchitecture,
 ) where {T}
     # -*- Scalar Quadratic Function: g(x) = x Q x + a x - b = 0 😢 -*-
-    g = toqubo_parse(model, f, s, arch)
-
-    PBO.discretize!(g)
+    g = PBF{VI,T}()
+    
+    toqubo_parse!(model, g, f, s, arch)
 
     # -*- Bounds & Slack Variable -*-
     l, u = PBO.bounds(g)
@@ -110,7 +114,9 @@ function toqubo_constraint(
     arch::AbstractArchitecture,
 ) where {T}
     # -*- Scalar Quadratic Function: g(x) = x Q x + a x - b ≤ 0 😢 -*-
-    g = toqubo_parse(model, f, s, arch)
+    g = PBF{VI,T}()
+    
+    toqubo_parse!(model, g, f, s, arch)
     
     PBO.discretize!(g)
 
