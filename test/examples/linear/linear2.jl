@@ -47,7 +47,7 @@ function test_linear2()
         qubo_model = unsafe_backend(model)
 
         k = [ki.index for ki in k]
-        ρ = MOI.get.(qubo_model, ToQUBO.Penalty(), k)
+        ρ = MOI.get.(qubo_model, ToQUBO.CONSTRAINT_PENALTY(), k)
         Q, α, β = ToQUBO.PBO.qubo(qubo_model, Matrix)
 
         @test all(ρ .≈ ρ̄)
@@ -62,5 +62,7 @@ function test_linear2()
 
         @test x̂ ∈ x̄
         @test ŷ ≈ ȳ
+
+        return nothing
     end
 end

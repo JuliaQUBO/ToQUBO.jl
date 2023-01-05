@@ -97,6 +97,9 @@ function toqubo_constraint(
         @warn "Infeasible constraint detected"
     end
 
+    # Tell the compiler that quadratization is necessary
+    MOI.set(model, QUADRATIZE(), true)
+
     return g^2
 end
 
@@ -127,6 +130,9 @@ function toqubo_constraint(
         g[ω] += c
     end
 
+    # Tell the compiler that quadratization is necessary
+    MOI.set(model, QUADRATIZE(), true)
+
     return g^2
 end
 
@@ -136,7 +142,7 @@ function toqubo_constraint(
     ::MOI.SOS1{T},
     ::AbstractArchitecture,
 ) where {T}
-    # -*- Special Ordered Set of Type 1: ∑ x <= min x 😄 -*-
+    # -*- Special Ordered Set of Type 1: ∑ x ≤ min x 😄 -*-
     g = PBO.PBF{VI,T}()
 
     for vi in v.variables
@@ -147,7 +153,8 @@ function toqubo_constraint(
 
     z = expansion(encode!(Mirror(), model, nothing))
 
-    return (g + z - one(T))^2 # one-hot approach
+    # NOTE: Using one-hot approach. Not great, but it works.
+    return (g + z - one(T))^2
 end
 
 function toqubo_encoding_constraints!(

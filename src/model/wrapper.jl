@@ -69,13 +69,9 @@ MOI.supports(
 MOI.supports_constraint(
     ::VirtualQUBOModel{T},
     ::Type{VI},
-    ::Type{<:Union{
-        MOI.ZeroOne,
-        MOI.Integer,
-        MOI.Interval{T},
-        MOI.LessThan{T},
-        MOI.GreaterThan{T},
-    }},
+    ::Type{
+        <:Union{MOI.ZeroOne,MOI.Integer,MOI.Interval{T},MOI.LessThan{T},MOI.GreaterThan{T}},
+    },
 ) where {T} = true
 
 MOI.supports_constraint(
@@ -92,13 +88,9 @@ MOI.supports_constraint(
 
 MOI.supports_add_constrained_variable(
     ::VirtualQUBOModel{T},
-    ::Type{<:Union{
-        MOI.ZeroOne,
-        MOI.Integer,
-        MOI.Interval{T},
-        MOI.LessThan{T},
-        MOI.GreaterThan{T},
-    }},
+    ::Type{
+        <:Union{MOI.ZeroOne,MOI.Integer,MOI.Interval{T},MOI.LessThan{T},MOI.GreaterThan{T}},
+    },
 ) where {T} = true
 
 function MOI.get(
@@ -109,7 +101,7 @@ function MOI.get(
         MOI.DualStatus,
         MOI.TerminationStatus,
         MOI.RawStatusString,
-    }
+    },
 )
     if !isnothing(model.optimizer)
         MOI.get(model.optimizer, attr)
@@ -163,16 +155,16 @@ function MOI.get(model::VirtualQUBOModel{T}, vp::MOI.VariablePrimal, x::VI) wher
             for y in ω
                 c *= MOI.get(model.optimizer, vp, y)
             end
-            
+
             s += c
         end
-        
+
         return s
     end
 end
 
-MOI.get(::VirtualQUBOModel, ::MOI.SolverName)       = "Virtual QUBO Model"
-MOI.get(::VirtualQUBOModel, ::MOI.SolverVersion)    = PROJECT_VERSION
+MOI.get(::VirtualQUBOModel, ::MOI.SolverName)    = "Virtual QUBO Model"
+MOI.get(::VirtualQUBOModel, ::MOI.SolverVersion) = PROJECT_VERSION
 
 function MOI.get(model::VirtualQUBOModel, rs::MOI.RawSolver)
     if isnothing(model.optimizer)
@@ -182,7 +174,27 @@ function MOI.get(model::VirtualQUBOModel, rs::MOI.RawSolver)
     end
 end
 
-PBO.showvar(x::VI)       = PBO.showvar(x.value)
+PBO.showvar(x::VI) = PBO.showvar(x.value)
+
 PBO.varcmp(x::VI, y::VI) = PBO.varcmp(x.value, y.value)
+
+function PBO.varcmp(x::Set{V}, y::Set{V}) where {V}
+    if length(x) == length(y)
+        xv = sort!(collect(x); lt = PBO.varcmp)
+        yv = sort!(collect(y); lt = PBO.varcmp)
+
+        for (xi, yi) in zip(xv, yv)
+            if xi == yi
+                continue
+            else
+                return PBO.varcmp(xi, yi)
+            end
+        end
+
+        return false
+    else
+        return length(x) < length(y)
+    end
+end
 
 const Optimizer{T} = VirtualQUBOModel{T}

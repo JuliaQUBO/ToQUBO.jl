@@ -37,7 +37,7 @@ function test_logical_sos1()
         # :: Reformulation ::
         qubo_model = unsafe_backend(model)
 
-        ρ       = MOI.get(qubo_model, ToQUBO.Penalty(), c1.index)
+        ρ       = MOI.get(qubo_model, ToQUBO.CONSTRAINT_PENALTY(), c1.index)
         Q, α, β = ToQUBO.qubo(qubo_model, Matrix)
 
         @test ρ ≈ ρ̄
@@ -51,5 +51,7 @@ function test_logical_sos1()
 
         @test x̂ ∈ x̄
         @test ŷ ≈ ȳ
+
+        return nothing
     end
 end

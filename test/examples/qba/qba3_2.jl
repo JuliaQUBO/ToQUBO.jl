@@ -67,5 +67,7 @@ function test_qba3_2()
 
         @test x̂ ∈ x̄
         @test ŷ ≈ ȳ
+
+        return nothing
     end
 end

@@ -9,16 +9,16 @@ function test_integer_primes()
         ᾱ = 1
         β̄ = 49
         Q̄ = [
-            -24  16  15  15  8  0  20  18   0  20
-              0 -40  60  60 -8  8 -20   0  40 -20
-              0   0 -40  98 -8 -8 -20 -18 -40   0
-              0   0   0 -40 -8 -8   0 -18 -40 -20
-              0   0   0   0 16  0   0   0   0   0
-              0   0   0   0  0  8   0   0   0   0
-              0   0   0   0  0  0  20   0   0   0
-              0   0   0   0  0  0   0  18   0   0
-              0   0   0   0  0  0   0   0  40   0
-              0   0   0   0  0  0   0   0   0  20
+            -24  16  15  15  20  20  18   0  8  0
+              0 -40  60  60 -20 -20   0  40 -8  8
+              0   0 -40  98 -20   0 -18 -40 -8 -8
+              0   0   0 -40   0 -20 -18 -40 -8 -8
+              0   0   0   0  20   0   0   0  0  0
+              0   0   0   0   0  20   0   0  0  0
+              0   0   0   0   0   0  18   0  0  0
+              0   0   0   0   0   0   0  40  0  0
+              0   0   0   0   0   0   0   0 16  0
+              0   0   0   0   0   0   0   0  0  8
         ]
 
 
@@ -30,18 +30,20 @@ function test_integer_primes()
 
         @variable(model, 2 <= p <= a, Int)
         @variable(model, a <= q <= b, Int)
-        @constraint(model, c1, p * q - R == 0)
+        @constraint(model, c1, p * q == R)
+
+        set_optimizer_attribute(model, ToQUBO.STABLE_QUADRATIZATION(), true)
 
         optimize!(model)
 
         # :: Reformulation :: #    
-        ρ       = MOI.get(unsafe_backend(model), ToQUBO.Penalty(), c1.index)
+        ρ       = MOI.get(unsafe_backend(model), ToQUBO.CONSTRAINT_PENALTY(), c1.index)
         Q, α, β = ToQUBO.qubo(unsafe_backend(model), Matrix)
 
         @test ρ ≈ ρ̄
         @test α ≈ ᾱ
         @test β ≈ β̄
-        @test Q ≈ Q̄ broken = true
+        @test Q ≈ Q̄
 
         # :: Solutions :: #
         p̂ = trunc(Int, value(p))

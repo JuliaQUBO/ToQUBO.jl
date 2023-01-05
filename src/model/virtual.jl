@@ -418,24 +418,6 @@ function encode!(
     return encode!(e, model, x, γ)
 end
 
-mutable struct VirtualQUBOModelSettings{T}
-    atol::Dict{Union{VI,Nothing},T}
-    bits::Dict{Union{VI,Nothing},Int}
-    encoding::Dict{Union{CI,VI,Nothing},Encoding}
-
-    function VirtualQUBOModelSettings{T}(;
-        atol::T            = 1E-2,
-        bits::Integer      = 3,
-        encoding::Encoding = Binary(),
-    ) where {T}
-        return new{T}(
-            Dict{Union{VI,Nothing},T}(nothing => atol),
-            Dict{Union{VI,Nothing},Int}(nothing => bits),
-            Dict{Union{VI,Nothing},Encoding}(nothing => encoding),
-        )
-    end
-end
-
 @doc raw"""
     VirtualQUBOModel{T}(optimizer::Union{Nothing, Type{<:MOI.AbstractOptimizer}} = nothing) where {T}
 
@@ -464,7 +446,9 @@ struct VirtualQUBOModel{T} <: AbstractVirtualModel{T}
     H::PBO.PBF{VI,T}          # Final Hamiltonian
 
     # -*- Settings -*-
-    settings::VirtualQUBOModelSettings{T}
+    compiler_settings::Dict{Symbol,Any}
+    variable_settings::Dict{Symbol,Dict{VI,Any}}
+    constraint_settings::Dict{Symbol,Dict{CI,Any}}
 
     function VirtualQUBOModel{T}(
         constructor::Union{Type{O},Function};
@@ -506,7 +490,9 @@ struct VirtualQUBOModel{T} <: AbstractVirtualModel{T}
             PBO.PBF{VI,T}(),          # Final Hamiltonian
 
             # -*- Settings -*-
-            VirtualQUBOModelSettings{T}(; kws...),
+            Dict{Symbol,Any}(),
+            Dict{Symbol,Dict{VI,Any}}(),
+            Dict{Symbol,Dict{CI,Any}}(),
         )
     end
 

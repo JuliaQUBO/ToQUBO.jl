@@ -1,57 +1,161 @@
-# -*- :: Quadratization :: -*-
-
+# -*- :: Quadratization :: -*- #
 abstract type QuadratizationMethod end
 
-_aux(::Type{<:QuadratizationMethod}, ::Int) = 0
-_nst(::Type{<:QuadratizationMethod}, ::Int) = 0
+struct Quadratization{Q<:QuadratizationMethod}
+    stable::Bool
 
-struct Quadratization{T<:QuadratizationMethod}
-    deg::Int # Initial Degree
-    aux::Int # Auxiliary variables
-    nst::Int # Non-Submodular Terms
-
-    function Quadratization{T}(deg::Int) where {T<:QuadratizationMethod}
-        return new{T}(
-            deg,
-            _aux(T, deg),
-            _nst(T, deg),
-        )
+    function Quadratization{Q}(stable::Bool = false) where {Q<:QuadratizationMethod}
+        return new{Q}(stable)
     end
 end
 
 @doc raw"""
-    @quadratization(name, aux, nst)
+    quadratize!(aux::Function, f::PBF{S, T}, ::Quadratization{Q}) where {S,T,Q}
 
-Defines a new quadratization technique.
-"""
-macro quadratization(name, aux, nst)
-    aux_func = if aux isa Integer
-        quote _aux(::Type{$(esc(name))}, ::Int) = $(aux) end
-    else
-        quote _aux(::Type{$(esc(name))}, deg::Int) = $(aux)(deg) end
+Quadratizes a given PBF in-place, i.e. applies a mapping ``Q : \mathscr{F}^{k} \to \mathscr{F}^{2}``.
+
+```julia
+aux(::Nothing)::S
+aux(::Integer)::Vector{S}
+```
+""" function quadratize! end
+
+@doc raw"""
+    Quadratization{NTR_KZFD}(stable::Bool = false)
+
+NTR-KZFD (Kolmogorov & Zabih, 2004; Freedman & Drineas, 2005)
+
+!!! info
+    Introduces one new variable and no non-submodular terms.
+""" struct NTR_KZFD <: QuadratizationMethod end
+
+function quadratize!(
+    aux::Function,
+    f::PBF{S,T},
+    ω::Set{S},
+    c::T,
+    ::Quadratization{NTR_KZFD},
+) where {S,T}
+    # -* Degree *- #
+    k = length(ω)
+
+    # -* Fast-track *- #
+    k < 3 && return nothing
+
+    # -* Variables *- #
+    s = aux()::S
+
+    # -* Stabilize *- #
+    # NOTE: This method is stable by construction
+
+    # -*- Quadratization -*- #
+    delete!(f, ω)
+
+    f[s] -= c * (k - 1)
+
+    for i ∈ ω
+        f[i×s] += c
     end
 
-    nst_func = if nst isa Integer
-        quote _nst(::Type{$(esc(name))}, ::Int) = $(nst) end
-    else
-        quote _nst(::Type{$(esc(name))}, deg::Int) = $(nst)(deg) end
-    end
-
-    return quote
-        struct $(esc(name)) <: QuadratizationMethod end
-
-        # Ancillary Variables
-        $(aux_func)
-
-        # Non-Submodular Terms
-        $(nst_func)
-    end
+    return nothing
 end
+
+@doc raw"""
+    Quadratization{PTR_BG}(stable::Bool = false)
+
+PTR-BG (Boros & Gruber, 2014)
+
+!!! info
+    Introduces ``k - 2`` new variables and ``k - 1`` non-submodular terms.
+""" struct PTR_BG <: QuadratizationMethod end
+
+function quadratize!(
+    aux::Function,
+    f::PBF{S,T},
+    ω::Set{S},
+    c::T,
+    quad::Quadratization{PTR_BG},
+) where {S,T}
+    # -* Degree *- #
+    k = length(ω)
+
+    # -* Fast-track *- #
+    k < 3 && return nothing
+
+    # -* Variables *- #
+    s = aux(k - 2)::Vector{S}
+    b = collect(ω)::Vector{S}
+
+    # -* Stabilize *- #
+    quad.stable && sort!(b; lt = varcmp)
+
+    # -*- Quadratization -*- #
+    delete!(f, ω)
+
+    f[b[k]×b[k-1]] += c
+
+    for i = 1:(k-2)
+        f[s[i]] += c * (k - i - 1)
+
+        f[s[i]×b[i]] += c
+
+        for j = (i+1):k
+            f[s[i]×b[j]] -= c
+        end
+    end
+
+    return nothing
+end
+
+@doc raw"""
+    Quadratization{TERM_BY_TERM}(stable::Bool = false)
+
+Term-by-term quadratization. Employs other inner methods, specially [`NTR_KZFD`](@ref) and [`PTR_BG`](@ref).
+""" struct TERM_BY_TERM <: QuadratizationMethod end
+
+function quadratize!(
+    aux::Function,
+    f::PBF{S,T},
+    ω::Set{S},
+    c::T,
+    quad::Quadratization{TERM_BY_TERM},
+) where {S,T}
+    if c < zero(T)
+        quadratize!(aux, f, ω, c, Quadratization{NTR_KZFD}(quad.stable))
+    else
+        quadratize!(aux, f, ω, c, Quadratization{PTR_BG}(quad.stable))
+    end
+
+    return nothing
+end
+
+function quadratize!(
+    aux::Function,
+    f::PBF{S,T},
+    quad::Quadratization{TERM_BY_TERM},
+) where {S,T}
+    # -*- Collect Terms -*- #
+    Ω = collect(f)
+
+    # -*- Stable Quadratization -*- #
+    quad.stable && sort!(Ω; by = first, lt = varcmp)
+
+    for (ω, c) in Ω
+        quadratize!(aux, f, ω, c, Quadratization{PTR_BG}(quad.stable))
+    end
+
+    return nothing
+end
+
+
+@doc raw"""
+    Quadratization{INFER}(stable::Bool = false)
+""" struct INFER <: QuadratizationMethod end
 
 @doc raw"""
     infer_quadratization(f::PBF)
 """
-function infer_quadratization(f::PBF)
+function infer_quadratization(f::PBF, stable::Bool = false)
     k = degree(f)
 
     if k <= 2
@@ -59,147 +163,16 @@ function infer_quadratization(f::PBF)
     else
         # Without any extra knowledge, it is better to
         # quadratize term-by-term
-        return Quadratization{TBT}(k)
+        return Quadratization{TERM_BY_TERM}(stable)
     end
 end
 
-@doc raw"""
-    quadratize(aux::Function, f::PBF{S, T}, ::Quadratization) where {S, T}
+function quadratize!(aux::Function, f::PBF, quad::Quadratization{INFER})
+    quadratize!(aux, f, infer_quadratization(f, quad.stable))
 
-Quadratizes a given PBF, i.e. creates a function ``g \in \mathscr{F}^{2}`` from ``f \in \mathscr{F}^{k}, k \ge 3``.
-
-```julia
-aux(::Nothing)::S
-aux(::Integer)::Vector{S}
-```
-
-## Submodularity
-
-A function ``f : 2^{S} \to \mathbb{R}`` is said to be submodular if
-```math
-f(X \cup Y) + f(X \cap Y) \le f(X) + f(Y) \forall X, Y \subset S
-```
-""" function quadratize end
-
-@doc raw"""
-    Quadratization{TBT}(::Int)
-
-Term-by-term quadratization. Employs other inner methods.
-"""
-
-@quadratization(TBT, 0, 0)
-
-@doc raw"""
-    Quadratization{NTR_KZFD}(::Int)
-
-NTR-KZFD (Kolmogorov & Zabih, 2004; Freedman & Drineas, 2005)
-"""
-
-@quadratization(NTR_KZFD, 1, 0)
-
-function quadratize(aux::Function, ω::Set{S}, c::T, ::Quadratization{NTR_KZFD}) where {S, T}
-    # -* Degree *-
-    k = length(ω)
-    s = aux()::S
-
-    g = PBF{S,T}(s => -c * (k - 1))
-
-    for i ∈ ω
-        η = Set{S}([s, i])
-
-        g[η] += c
-    end
-
-    return g
+    return nothing
 end
 
-@doc raw"""
-    Quadratization{PTR_BG}(::Int)
-
-PTR-BG (Boros & Gruber, 2014)
-"""
-
-@quadratization(
-    PTR_BG,
-    k -> k - 2,
-    k -> k - 1,
-)
-
-function quadratize(aux::Function, ω::Set{S}, c::T, ::Quadratization{PTR_BG}) where {S, T}
-    # -* Degree *-
-    k = length(ω)
-
-    # -* Variables *-
-    s = aux(k - 2)::Vector{S}
-    b = sort(collect(ω); lt = varcmp)::Vector{S}
-
-    # -*- Quadratization -*-
-    f = PBF{S, T}(b[k] × b[k - 1] => c)
-
-    for i = 1:(k - 2)
-        f[s[i]] += c * (k - i - 1)
-
-        f[s[i] × b[i]] += c
-
-        for j = (i + 1):k
-            f[s[i] × b[j]] -= c
-        end
-    end    
-
-    return f
-end
-
-function quadratize(aux::Function, ω::Set{S}, c::T) where {S, T}
-    if c < zero(T)
-        return quadratize(
-            aux,
-            ω,
-            c,
-            Quadratization{NTR_KZFD}(length(ω)),
-        )
-    else
-        return quadratize(
-            aux,
-            ω,
-            c,
-            Quadratization{PTR_BG}(length(ω)),    
-        )
-    end
-end
-
-function quadratize(aux::Function, f::PBF{S, T}, ::Quadratization{TBT}) where {S, T}
-    g = PBF{S, T}()
-
-    sizehint!(g, length(f))
-
-    for (ω, c) in f
-        k = length(ω)
-
-        if k <= 2
-            g[ω] += c
-        else
-            h = quadratize(
-                aux,
-                ω,
-                c,
-                Quadratization{PTR_BG}(k),
-            )
-
-            for (η, a) in h
-                g[η] += a
-            end
-        end
-    end
-
-    return g
-end
-
-function quadratize(aux::Function, f::PBF)
-    quad = infer_quadratization(f)
-
-    if isnothing(quad)
-        return f
-    else
-        return quadratize(aux, f, quad)
-    end
+function quadratize!(::Function, ::PBF, ::Nothing)
+    return nothing
 end

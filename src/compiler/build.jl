@@ -44,11 +44,17 @@ function toqubo_aux(model::VirtualQUBOModel, n::Integer, ::AbstractArchitecture)
 end
 
 function toqubo_quadratize!(model::VirtualQUBOModel, arch::AbstractArchitecture)
-    H = PBO.quadratize(model.H) do (n::Union{Integer,Nothing} = nothing)
-        return toqubo_aux(model, n, arch)
-    end
+    if MOI.get(model, QUADRATIZE())
+        method = MOI.get(model, QUADRATIZATION_METHOD())
+        stable = MOI.get(model, STABLE_QUADRATIZATION())
 
-    copy!(model.H, H)
+        PBO.quadratize!(
+            model.H,
+            PBO.Quadratization{method}(stable),
+        ) do (n::Union{Integer,Nothing} = nothing)
+            return toqubo_aux(model, n, arch)
+        end
+    end
 
     return nothing
 end
@@ -70,15 +76,14 @@ function toqubo_output!(model::VirtualQUBOModel{T}, ::AbstractArchitecture) wher
             # During implementation of new quadratization and constraint reformulation methods
             # higher degree terms might be introduced by mistake. That's why it's important to 
             # have this condition here.
+            # HINT: When debugging this, a good place to start is to check if the 'QUADRATIZE'
+            # flag is set or not. If missing, it should mean that some constraint might induce
+            # PBFs of higher degree without calling 'MOI.set(model, QUADRATIZE(), true)'.     
             throw(QUBOError("Quadratization failed"))
         end
     end
 
-    MOI.set(
-        MOI.get(model, TargetModel()),
-        MOI.ObjectiveFunction{SQF{T}}(),
-        SQF{T}(Q, a, b),
-    )
+    MOI.set(MOI.get(model, TargetModel()), MOI.ObjectiveFunction{SQF{T}}(), SQF{T}(Q, a, b))
 
     return nothing
 end

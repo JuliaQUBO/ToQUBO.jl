@@ -92,30 +92,36 @@ Base.isempty(f::PBF)             = isempty(f.Ω)
 Base.iterate(f::PBF)             = iterate(f.Ω)
 Base.iterate(f::PBF, i::Integer) = iterate(f.Ω, i)
 
-Base.haskey(f::PBF{S}, k::Set{S}) where {S} = haskey(f.Ω, k)
-Base.haskey(f::PBF{S}, k::S) where {S}      = haskey(f.Ω, Set{S}([k]))
-Base.haskey(f::PBF{S}, ::Nothing) where {S} = haskey(f.Ω, Set{S}())
+Base.haskey(f::PBF{S}, ω::Set{S}) where {S} = haskey(f.Ω, ω)
+Base.haskey(f::PBF{S}, ξ::S) where {S}      = haskey(f, Set{S}([ξ]))
+Base.haskey(f::PBF{S}, ::Nothing) where {S} = haskey(f, Set{S}())
 
-# -*- Indexing: Get -*-
+# -*- Indexing: Get -*- #
 Base.getindex(f::PBF{S,T}, ω::Set{S}) where {S,T} = get(f.Ω, ω, zero(T))
 Base.getindex(f::PBF{S}, η::Vector{S}) where {S}  = getindex(f, Set{S}(η))
-Base.getindex(f::PBF{S}, ξ::S...) where {S}       = getindex(f, Set{S}(ξ))
+Base.getindex(f::PBF{S}, ξ::S) where {S}          = getindex(f, Set{S}([ξ]))
 Base.getindex(f::PBF{S}, ::Nothing) where {S}     = getindex(f, Set{S}())
 
-# -*- Indexing: Set -*-
+# -*- Indexing: Set -*- #
 function Base.setindex!(f::PBF{S,T}, c::T, ω::Set{S}) where {S,T}
     if !iszero(c)
         setindex!(f.Ω, c, ω)
-    elseif haskey(f.Ω, ω)
-        delete!(f.Ω, ω)
+    elseif haskey(f, ω)
+        delete!(f, ω)
     end
 
     return c
 end
 
 Base.setindex!(f::PBF{S,T}, c::T, η::Vector{S}) where {S,T} = setindex!(f, c, Set{S}(η))
-Base.setindex!(f::PBF{S,T}, c::T, ξ::S...) where {S,T}      = setindex!(f, c, Set{S}(ξ))
+Base.setindex!(f::PBF{S,T}, c::T, ξ::S) where {S,T}         = setindex!(f, c, Set{S}([ξ]))
 Base.setindex!(f::PBF{S,T}, c::T, ::Nothing) where {S,T}    = setindex!(f, c, Set{S}())
+
+# -*- Indexing: Delete -*- #
+Base.delete!(f::PBF{S}, ω::Set{S}) where {S}    = delete!(f.Ω, ω)
+Base.delete!(f::PBF{S}, η::Vector{S}) where {S} = delete!(f, Set{S}(η))
+Base.delete!(f::PBF{S}, k::S) where {S}         = delete!(f, Set{S}([k]))
+Base.delete!(f::PBF{S}, ::Nothing) where {S}    = delete!(f, Set{S}())
 
 # -*- Properties -*-
 Base.size(f::PBF{S,T}) where {S,T} = (length(f),)
@@ -351,40 +357,31 @@ MA.mutability(::Type{<:PBF{S,T}}) where {S,T} = MA.IsMutable()
 
 
 # -*- MA Mutable Copy: -*-
-function MA.mutable_copy(f::PBF{S,T}) where{S,T}
+function MA.mutable_copy(f::PBF{S,T}) where {S,T}
     f_copy = PBO.PBF{S,T}()
-    for (ω,c) in f
+    for (ω, c) in f
         f_copy[ω] = MA.copy_if_mutable(f[ω])
     end
     return f_copy
 end
 
 # -*- MA isequal_canonical: -*-
-function MA.isequal_canonical(
-    f::PBF{S,T},
-    g::PBF{S,T}
-    ) where {S,T}
-    
+function MA.isequal_canonical(f::PBF{S,T}, g::PBF{S,T}) where {S,T}
+
     return f == g
-    
+
 end
 
 
 # -*- MA Arithmetic: zero,one -*-
-function MA.operate!(
-    ::typeof(zero),
-    f::PBF{S,T}
-    ) where {S,T}
+function MA.operate!(::typeof(zero), f::PBF{S,T}) where {S,T}
 
     empty!(f)
-    
+
     return f
 end
 
-function MA.operate!(
-    ::typeof(one),
-    f::PBF{S,T}
-    ) where {S,T}
+function MA.operate!(::typeof(one), f::PBF{S,T}) where {S,T}
 
     empty!(f)
     f[nothing] = one(T)
@@ -395,28 +392,20 @@ end
 
 # -*- MA Arithmetic: (+) -*-
 
-function MA.operate!(
-    ::typeof(+),
-    f::PBF{S,T}, 
-    g::PBF{S,T}
-    ) where {S,T}
+function MA.operate!(::typeof(+), f::PBF{S,T}, g::PBF{S,T}) where {S,T}
 
-    for(ω, c) in g
+    for (ω, c) in g
         f[ω] += c
     end
-    
+
     return f
 end
 
-function MA.operate!(
-    ::typeof(+),
-    f::PBF{<:Any,T}, 
-    c::T
-    ) where {T}
+function MA.operate!(::typeof(+), f::PBF{<:Any,T}, c::T) where {T}
     if iszero(c)
         return f
     end
-    
+
     f[nothing] += c
 
     return f
@@ -425,25 +414,18 @@ end
 # -*- MA Arithmetic: (-) -*-
 
 
-function MA.operate!(
-    ::typeof(-),
-    f::PBF{S,T}
-    ) where {S,T}
+function MA.operate!(::typeof(-), f::PBF{S,T}) where {S,T}
 
-    for(ω, c) in f
-        f[ω] = -c 
+    for (ω, c) in f
+        f[ω] = -c
     end
-    
+
     return f
 end
 
-function MA.operate!(
-    ::typeof(-),
-    f::PBF{S,T}, 
-    g::PBF{S,T}
-    ) where {S,T}
+function MA.operate!(::typeof(-), f::PBF{S,T}, g::PBF{S,T}) where {S,T}
 
-    for(ω, c) in g
+    for (ω, c) in g
         f[ω] -= c
     end
 
@@ -451,15 +433,11 @@ function MA.operate!(
 end
 
 
-function MA.operate!(
-    ::typeof(-),
-    f::PBF{<:Any,T}, 
-    c::T
-    ) where {T}
+function MA.operate!(::typeof(-), f::PBF{<:Any,T}, c::T) where {T}
     if iszero(c)
         return f
     end
-    
+
     f[nothing] -= c
 
     return f
@@ -467,11 +445,7 @@ end
 
 # -*- MA Arithmetic: (*) -*-
 
-function MA.operate!(
-    ::typeof(*),
-    f::PBF{S,T}, 
-    g::PBF{S,T}
-    ) where {S,T}
+function MA.operate!(::typeof(*), f::PBF{S,T}, g::PBF{S,T}) where {S,T}
 
     h = PBF{S,T}()
 
@@ -487,17 +461,13 @@ function MA.operate!(
 
 end
 
-function MA.operate!(
-    ::typeof(*),
-    f::PBF{S,T}, 
-    a::T
-    ) where {S,T}
+function MA.operate!(::typeof(*), f::PBF{S,T}, a::T) where {S,T}
 
     if iszero(a)
         empty!(f)
     else
-        for(ω, c) in f
-            f[ω] = c*a
+        for (ω, c) in f
+            f[ω] = c * a
         end
     end
 
@@ -505,47 +475,33 @@ function MA.operate!(
 end
 
 # -*- MA Arithmetic: (add_mul) -*-
-function MA.operate!(
-    ::typeof(add_mul),
-    f::PBF{S,T},
-    m::T,
-    g::PBF{S,T}
-    ) where {S,T}
+function MA.operate!(::typeof(add_mul), f::PBF{S,T}, m::T, g::PBF{S,T}) where {S,T}
 
-    for(ω, c) in g
-        f[ω] += m*c
+    for (ω, c) in g
+        f[ω] += m * c
     end
     return f
-    
+
 end
 
 # -*- MA Arithmetic: (sub_mul) -*-
-function MA.operate!(
-    ::typeof(sub_mul),
-    f::PBF{S,T},
-    m::T,
-    g::PBF{S,T}
-    ) where {S,T}
+function MA.operate!(::typeof(sub_mul), f::PBF{S,T}, m::T, g::PBF{S,T}) where {S,T}
 
-    for(ω, c) in g
-        f[ω] -= m*c
+    for (ω, c) in g
+        f[ω] -= m * c
     end
     return f
-    
+
 end
 
 # -*- MA Arithmetic: (/) -*-
 
-function MA.operate!(
-    ::typeof(/),
-    f::PBF{S,T}, 
-    a::T
-    ) where {S,T}
+function MA.operate!(::typeof(/), f::PBF{S,T}, a::T) where {S,T}
 
     if iszero(a)
         throw(DivideError())
     else
-        for(ω, c) in f
+        for (ω, c) in f
             f[ω] = c / a
         end
     end
@@ -554,11 +510,7 @@ function MA.operate!(
 end
 
 # -*- MA Arithmetic: (^) -*-
-function MA.operate!(
-    ::typeof(^),
-    f::PBF{S,T}, 
-    n::Integer
-    ) where {S,T}
+function MA.operate!(::typeof(^), f::PBF{S,T}, n::Integer) where {S,T}
 
     if n < 0
         throw(DivideError())
@@ -567,12 +519,12 @@ function MA.operate!(
     elseif n == 1
         return f
     elseif n == 2
-        for (ω,c) in f
-            f[ω] = c*c
+        for (ω, c) in f
+            f[ω] = c * c
         end
-    else    
-        for (ω,c) in f
-            f[ω] = c*c
+    else
+        for (ω, c) in f
+            f[ω] = c * c
         end
 
         if iseven(n)

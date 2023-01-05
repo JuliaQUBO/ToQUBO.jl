@@ -54,5 +54,7 @@ function test_qba3_1()
 
         @test x̂ ∈ x̄
         @test ŷ ≈ 4ȳ + c̄
+
+        return nothing
     end
 end
