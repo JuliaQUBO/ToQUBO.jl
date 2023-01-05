@@ -2,7 +2,7 @@ abstract type CompilerAttribute <: MOI.AbstractOptimizerAttribute end
 
 struct QUADRATIZE <: CompilerAttribute end
 
-function MOI.get(model::VirtualQUBOModel, ::QUADRATIZE)
+function MOI.get(model::VirtualQUBOModel, ::QUADRATIZE)::Bool
     return get(model.compiler_settings, :quadratize, false)
 end
 
@@ -30,7 +30,7 @@ end
 
 struct STABLE_QUADRATIZATION <: CompilerAttribute end
 
-function MOI.get(model::VirtualQUBOModel, ::STABLE_QUADRATIZATION)
+function MOI.get(model::VirtualQUBOModel, ::STABLE_QUADRATIZATION)::Bool
     return get(model.compiler_settings, :stable_quadratization, false)
 end
 
@@ -42,7 +42,7 @@ end
 
 struct DISCRETIZE <: CompilerAttribute end
 
-function MOI.get(model::VirtualQUBOModel, ::DISCRETIZE)
+function MOI.get(model::VirtualQUBOModel, ::DISCRETIZE)::Bool
     return get(model.compiler_settings, :discretize, false)
 end
 
@@ -54,7 +54,7 @@ end
 
 struct DEFAULT_VARIABLE_ENCODING <: CompilerAttribute end
 
-function MOI.get(model::VirtualQUBOModel, ::DEFAULT_VARIABLE_ENCODING)
+function MOI.get(model::VirtualQUBOModel, ::DEFAULT_VARIABLE_ENCODING)::Encoding
     return get(model.compiler_settings, :default_variable_encoding, Binary())
 end
 
@@ -68,7 +68,7 @@ abstract type CompilerVariableAttribute <: CompilerAttribute end
 
 struct VARIABLE_ENCODING <: CompilerVariableAttribute end
 
-function MOI.get(model::VirtualQUBOModel, ::VARIABLE_ENCODING, vi::VI)
+function MOI.get(model::VirtualQUBOModel, ::VARIABLE_ENCODING, vi::VI)::Encoding
     attr = :variable_encoding
 
     if !haskey(model.variable_settings, attr) || !haskey(model.variable_settings[attr], vi)
@@ -108,18 +108,6 @@ function MOI.set(
 end
 
 abstract type CompilerConstraintAttribute <: MOI.AbstractConstraintAttribute end
-
-struct Tol <: MOI.AbstractOptimizerAttribute end
-
-function MOI.get(model::VirtualQUBOModel{T}, ::Tol) where {T}
-    return model.compiler_settings.atol[nothing]::T
-end
-
-function MOI.set(model::VirtualQUBOModel{T}, ::Tol, atol::T) where {T}
-    @assert atol > zero(T)
-
-    model.compiler_settings.atol[nothing] = atol
-end
 
 struct CONSTRAINT_PENALTY <: CompilerConstraintAttribute end
 
