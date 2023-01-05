@@ -60,8 +60,8 @@ function toqubo_quadratize!(model::VirtualQUBOModel, arch::AbstractArchitecture)
 end
 
 function toqubo_output!(model::VirtualQUBOModel{T}, ::AbstractArchitecture) where {T}
-    Q = SQT{T}[]
-    a = SAT{T}[]
+    Q = sizehint!(SQT{T}[], length(model.H))
+    a = sizehint!(SAT{T}[], MOI.get(model, MOI.NumberOfVariables()))
     b = zero(T)
 
     for (ω, c) in model.H
