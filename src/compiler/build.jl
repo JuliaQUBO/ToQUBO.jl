@@ -68,9 +68,14 @@ function toqubo_output!(model::VirtualQUBOModel{T}, ::AbstractArchitecture) wher
         if isempty(ω)
             b += c
         elseif length(ω) == 1
-            push!(a, SAT{T}(c, ω...))
+            x = pop!(ω)
+
+            push!(a, SAT{T}(c, x))
         elseif length(ω) == 2
-            push!(Q, SQT{T}(c, ω...))
+            x = pop!(ω)
+            y = pop!(ω)
+
+            push!(Q, SQT{T}(c, x, y))
         else
             # NOTE: This should never happen in production.
             # During implementation of new quadratization and constraint reformulation methods
