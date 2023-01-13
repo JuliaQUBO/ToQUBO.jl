@@ -1,3 +1,4 @@
+include("analysis.jl")
 include("architectures.jl")
 include("interface.jl")
 include("validation.jl")
@@ -36,6 +37,47 @@ function toqubo(
 end
 
 function toqubo!(
+    model::VirtualQUBOModel{T},
+    arch::AbstractArchitecture = GenericArchitecture(),
+) where {T}
+    if is_qubo(MOI.get(model, SourceModel()))
+        toqubo_copy!(model, arch)
+
+        return nothing
+    end
+
+    toqubo_compile!(model, arch)
+
+    return nothing
+end
+
+function toqubo_copy!(
+    model::VirtualQUBOModel{T},
+    ::AbstractArchitecture,
+) where {T}
+    source_model = MOI.get(model, SourceModel())
+    target_model = MOI.get(model, TargetModel())
+
+    # Map Variables
+    for vi in MOI.get(source_model, MOI.ListOfVariableIndices())
+        encode!(Mirror(), model, vi)
+    end
+
+    # Copy Objective Sense
+    s = MOI.get(source_model, MOI.ObjectiveSense())
+
+    MOI.set(target_model, MOI.ObjectiveSense(), s)
+
+    # Copy Objective Function
+    F = MOI.get(source_model, MOI.ObjectiveFunctionType())
+    f = MOI.get(source_model, MOI.ObjectiveFunction{F}())
+
+    MOI.set(target_model, MOI.ObjectiveFunction{F}(), f)
+
+    return nothing
+end
+
+function toqubo_compile!(
     model::VirtualQUBOModel{T},
     arch::AbstractArchitecture = GenericArchitecture(),
 ) where {T}

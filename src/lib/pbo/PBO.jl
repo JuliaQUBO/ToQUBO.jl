@@ -3,7 +3,7 @@ module PBO
 using Random
 
 # -*- Imports -*-
-import QUBOTools: varcmp, qubo, variables, variable_map, variable_set, variable_inv
+import QUBOTools: varlt, qubo, variables, variable_map, variable_set, variable_inv
 
 # -*- Exports -*-
 # export PBF

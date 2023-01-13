@@ -9,7 +9,7 @@ function qubo(f::PBF{S,T}, ::Type{Dict}) where {S,T}
     sizehint!(Q, length(f))
 
     for (ω, a) in f
-        η = sort([x[i] for i ∈ ω]; lt = varcmp)
+        η = sort([x[i] for i ∈ ω]; lt = varlt)
         k = length(η)
 
         if k == 0
@@ -39,7 +39,7 @@ function qubo(f::PBF{S,T}, ::Type{Matrix}) where {S,T}
     β = zero(T)
 
     for (ω, a) ∈ f
-        η = sort([x[i] for i ∈ ω]; lt = varcmp)
+        η = sort([x[i] for i ∈ ω]; lt = varlt)
         k = length(η)
         if k == 0
             β += a
@@ -64,4 +64,4 @@ end
 variable_map(f::PBF{S}) where {S} = Dict{S,Int}(v => i for (i, v) in enumerate(variables(f)))
 variable_inv(f::PBF{S}) where {S} = Dict{Int,S}(i => v for (i, v) in enumerate(variables(f)))
 variable_set(f::PBF{S}) where {S} = reduce(union!, keys(f); init=Set{S}())
-variables(f::PBF)                 = sort(collect(variable_set(f)); lt = varcmp)
+variables(f::PBF)                 = sort(collect(variable_set(f)); lt = varlt)

@@ -87,7 +87,7 @@ function quadratize!(
     b = collect(ω)::Vector{S}
 
     # -* Stabilize *- #
-    quad.stable && sort!(b; lt = varcmp)
+    quad.stable && sort!(b; lt = varlt)
 
     # -*- Quadratization -*- #
     delete!(f, ω)
@@ -138,7 +138,7 @@ function quadratize!(
     Ω = collect(f)
 
     # -*- Stable Quadratization -*- #
-    quad.stable && sort!(Ω; by = first, lt = varcmp)
+    quad.stable && sort!(Ω; by = first, lt = varlt)
 
     for (ω, c) in Ω
         quadratize!(aux, f, ω, c, Quadratization{PTR_BG}(quad.stable))

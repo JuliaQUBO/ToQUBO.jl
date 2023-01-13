@@ -12,7 +12,13 @@ function toqubo_build!(model::VirtualQUBOModel{T}, arch::AbstractArchitecture) w
 end
 
 function toqubo_hamiltonian!(model::VirtualQUBOModel{T}, ::AbstractArchitecture) where {T}
-    copy!(model.H, model.f)
+    empty!(model.H)
+
+    sizehint!(model.H, MOI.get(model, MOI.NumberOfVariables())^2)
+
+    for (ω, c) in model.f
+        model.H[ω] += c
+    end
 
     for (ci, g) in model.g
         ρ = model.ρ[ci]
@@ -33,14 +39,14 @@ function toqubo_hamiltonian!(model::VirtualQUBOModel{T}, ::AbstractArchitecture)
     return nothing
 end
 
-function toqubo_aux(model::VirtualQUBOModel, ::Nothing, ::AbstractArchitecture)
+function toqubo_aux(model::VirtualQUBOModel, ::Nothing, ::AbstractArchitecture)::VI
     target_model = MOI.get(model, TargetModel())
 
     w = MOI.add_variable(target_model)
 
     MOI.add_constraint(target_model, w, MOI.ZeroOne())
 
-    return w::VI
+    return w
 end
 
 function toqubo_aux(model::VirtualQUBOModel, n::Integer, ::AbstractArchitecture)::Vector{VI}
@@ -70,17 +76,21 @@ function toqubo_quadratize!(model::VirtualQUBOModel, arch::AbstractArchitecture)
 end
 
 function toqubo_output!(model::VirtualQUBOModel{T}, ::AbstractArchitecture) where {T}
-    Q = sizehint!(SQT{T}[], length(model.H))
-    a = sizehint!(SAT{T}[], MOI.get(model, MOI.NumberOfVariables()))
+    Q = SQT{T}[]
+    a = SAT{T}[]
     b = zero(T)
 
     for (ω, c) in model.H
         if isempty(ω)
             b += c
         elseif length(ω) == 1
-            push!(a, SAT{T}(c, ω...))
+            x, = ω
+
+            push!(a, SAT{T}(c, x))
         elseif length(ω) == 2
-            push!(Q, SQT{T}(c, ω...))
+            x, y = ω
+
+            push!(Q, SQT{T}(c, x, y))
         else
             # NOTE: This should never happen in production.
             # During implementation of new quadratization and constraint reformulation methods

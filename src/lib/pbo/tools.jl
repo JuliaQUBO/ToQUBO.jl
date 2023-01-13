@@ -40,7 +40,7 @@ varmul(x::S, y::Set{S}) where {S} = push!(copy(y), x)
 varmul(x::Set{S}, y::Set{S}) where {S} = union(x, y)
 
 const × = varmul # \times
-const ≺ = varcmp # \prec, from QUBOTools
+const ≺ = varlt # \prec, from QUBOTools
 
 @doc raw"""
 """

@@ -1,12 +1,17 @@
-const QUBO_MODEL_BACKEND{T} = QUBOTools.StandardQUBOModel{QUBOTools.BoolDomain,VI,T,Int}
-
 mutable struct QUBOModel{T} <: MOI.ModelLike
-    model::QUBO_MODEL_BACKEND{T}
-    sense::MOI.OptimizationSense
+    model::QUBOTools.Model{VI,T,Int}
 
-    QUBOModel{T}(args...; kw...) where {T} = new{T}(QUBO_MODEL_BACKEND{T}(), MOI.MIN_SENSE)
-    QUBOModel(args...; kw...)              = QUBOTools{Float64}(args...; kw...)
+    function QUBOModel{T}() where {T}
+        model = QUBOTools.Model{VI,T,Int}(
+            sense  = QUBOTools.Sense(:min),
+            domain = QUBOTools.Domain(:bool),
+        )
+
+        return new{T}(model)
+    end
 end
+
+QUBOModel(args...; kw...) = QUBOTools{Float64}(args...; kw...)
 
 QUBOTools.backend(model::QUBOModel) = model.model
 
@@ -30,8 +35,11 @@ end
 
 MOI.is_empty(model::QUBOModel) = isempty(model.model)
 
-function MOI.empty!(model::QUBOModel)
-    empty!(model.model)
+function MOI.empty!(model::QUBOModel{T}) where {T}
+    model.model = QUBOTools.Model{VI,T,Int}(
+        sense  = QUBOTools.Sense(:min),
+        domain = QUBOTools.Domain(:bool),
+    )
 
     return nothing
 end
@@ -47,11 +55,21 @@ end
 
 # -*- :: get + set :: -*- #
 function MOI.get(model::QUBOModel, ::MOI.ObjectiveSense)
-    return model.sense
+    sense = QUBOTools.sense(model.model)
+
+    if sense === QUBOTools.Max
+        return MOI.MAX_SENSE
+    else
+        return MOI.MIN_SENSE
+    end
 end
 
 function MOI.set(model::QUBOModel, ::MOI.ObjectiveSense, os::MOI.OptimizationSense)
-    model.sense = os
+    if os ===  MOI.MAX_SENSE
+        model.model.sense = QUBOTools.Max
+    else
+        model.model.sense = QUBOTools.Min
+    end
 end
 
 function MOI.get(
@@ -80,8 +98,54 @@ end
 
 function MOI.set(
     model::QUBOModel{T},
-    ::MOI.ObjectiveFunction{MOI.ScalarQuadraticFunction{T}},
-    f::MOI.ScalarQuadraticFunction{T},
+    ::MOI.ObjectiveFunction{VI},
+    vi::VI,
+) where {T}
+    linear_terms    = Dict{VI,T}(vi => one(T))
+    quadratic_terms = Dict{Tuple{VI,VI},T}()
+
+    model.model = QUBOTools.Model{VI,T,Int}(
+        linear_terms,
+        quadratic_terms;
+        sense  = QUBOTools.sense(model.model),
+        domain = QUBOTools.Domain(:bool),
+    )
+
+    return nothing
+end
+
+function MOI.set(
+    model::QUBOModel{T},
+    ::MOI.ObjectiveFunction{SAF{T}},
+    f::SAF{T},
+) where {T}
+    linear_terms    = Dict{VI,T}()
+    quadratic_terms = Dict{Tuple{VI,VI},T}()
+
+    for a in f.terms
+        c = a.coefficient
+        x = a.variable
+
+        linear_terms[x] = get(linear_terms, x, zero(T)) + c
+    end
+
+    offset = f.constant
+
+    model.model = QUBOTools.Model{VI,T,Int}(
+        linear_terms,
+        quadratic_terms;
+        offset = offset,
+        sense  = QUBOTools.sense(model.model),
+        domain = QUBOTools.Domain(:bool),
+    )
+
+    return nothing
+end
+
+function MOI.set(
+    model::QUBOModel{T},
+    ::MOI.ObjectiveFunction{SQF{T}},
+    f::SQF{T},
 ) where {T}
     linear_terms    = Dict{VI,T}()
     quadratic_terms = Dict{Tuple{VI,VI},T}()
@@ -107,7 +171,13 @@ function MOI.set(
 
     offset = f.constant
 
-    model.model = QUBO_MODEL_BACKEND{T}(linear_terms, quadratic_terms; offset = offset)
+    model.model = QUBOTools.Model{VI,T,Int}(
+        linear_terms,
+        quadratic_terms;
+        offset = offset,
+        sense  = QUBOTools.sense(model.model),
+        domain = QUBOTools.Domain(:bool),
+    )
 
     return nothing
 end
@@ -153,3 +223,9 @@ MOI.get(
 ) = MOI.ZeroOne()
 
 MOI.get(::QUBOModel, ::MOI.VariableName, vi::VI) = "x[$(vi.value)]"
+
+function MOI.get(model::QUBOModel{T}, vp::MOI.VariablePrimalStart, x::VI) where {T}
+    return nothing
+end
+
+MOI.supports(::QUBOModel, ::MOI.VariablePrimalStart, ::MOI.VariableIndex) = true

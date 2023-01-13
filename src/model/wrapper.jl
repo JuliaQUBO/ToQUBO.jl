@@ -144,6 +144,12 @@ function MOI.get(model::VirtualQUBOModel{T}, ov::MOI.ObjectiveValue) where {T}
     end
 end
 
+function MOI.get(model::VirtualQUBOModel{T}, vp::MOI.VariablePrimalStart, x::VI) where {T}
+    return MOI.get(MOI.get(model, SourceModel()), vp, x)
+end
+
+MOI.supports(::VirtualQUBOModel, ::MOI.VariablePrimalStart, ::MOI.VariableIndex) = true
+
 function MOI.get(model::VirtualQUBOModel{T}, vp::MOI.VariablePrimal, x::VI) where {T}
     if isnothing(model.optimizer)
         return zero(T)
@@ -176,18 +182,18 @@ end
 
 PBO.showvar(x::VI) = PBO.showvar(x.value)
 
-PBO.varcmp(x::VI, y::VI) = PBO.varcmp(x.value, y.value)
+PBO.varlt(x::VI, y::VI) = PBO.varlt(x.value, y.value)
 
-function PBO.varcmp(x::Set{V}, y::Set{V}) where {V}
+function PBO.varlt(x::Set{V}, y::Set{V}) where {V}
     if length(x) == length(y)
-        xv = sort!(collect(x); lt = PBO.varcmp)
-        yv = sort!(collect(y); lt = PBO.varcmp)
+        xv = sort!(collect(x); lt = PBO.varlt)
+        yv = sort!(collect(y); lt = PBO.varlt)
 
         for (xi, yi) in zip(xv, yv)
             if xi == yi
                 continue
             else
-                return PBO.varcmp(xi, yi)
+                return PBO.varlt(xi, yi)
             end
         end
 

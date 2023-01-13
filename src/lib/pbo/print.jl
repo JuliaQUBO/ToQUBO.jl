@@ -3,7 +3,7 @@
 function showvar end
 
 showvar(x::Any) = x
-showvar(s::Set) = showvar.(sort(collect(s); lt=PBO.varcmp))
+showvar(s::Set) = showvar.(sort(collect(s); lt=PBO.varlt))
 showvar(x::Integer, v::Symbol = :x) = join([v; Char(0x2080) .+ reverse(digits(x))])
 
 function showterm(ω::Set{S}, c::T, isfirst::Bool) where {S, T}
