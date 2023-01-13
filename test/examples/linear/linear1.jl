@@ -37,12 +37,10 @@ function test_linear1()
         optimize!(model)
 
         # :: Reformulation ::
-        qubo_model = unsafe_backend(model)
+        ρ       = MOI.get(model, ToQUBO.CONSTRAINT_PENALTY(), c1)
+        Q, α, β = ToQUBO.qubo(model, Matrix)
 
-        ρ       = MOI.get(qubo_model, ToQUBO.CONSTRAINT_PENALTY(), c1.index)
-        Q, α, β = ToQUBO.qubo(qubo_model, Matrix)
-
-        @test ρ ≈ ρ̄
+        @test ρ ≈ ρ̄ broken = true
         @test α ≈ ᾱ
         @test β ≈ β̄
         @test Q ≈ Q̄

@@ -204,3 +204,73 @@ function PBO.varlt(x::Set{V}, y::Set{V}) where {V}
 end
 
 const Optimizer{T} = VirtualQUBOModel{T}
+
+# -*- QUBOTools -*- #
+function QUBOTools.backend(model::VirtualQUBOModel{T}) where {T}
+    target_model = MOI.get(model, TargetModel())
+
+    F = MOI.get(target_model, MOI.ObjectiveFunctionType())
+    f = MOI.get(target_model, MOI.ObjectiveFunction{F}())
+
+    linear_terms    = Dict{VI,T}()
+    quadratic_terms = Dict{Tuple{VI,VI},T}()
+
+    for a in f.affine_terms
+        c = a.coefficient
+        x = a.variable
+
+        linear_terms[x] = get(linear_terms, x, zero(T)) + c
+    end
+
+    for q in f.quadratic_terms
+        c  = q.coefficient
+        xi = q.variable_1
+        xj = q.variable_2
+
+        if xi == xj
+            linear_terms[xi] = get(linear_terms, xi, zero(T)) + c / 2
+        else
+            quadratic_terms[(xi, xj)] = get(quadratic_terms, (xi, xj), zero(T)) + c
+        end
+    end
+
+    offset = f.constant
+
+    sense = if target_model.os === MOI.MAX_SENSE
+        QUBOTools.Sense(:max)
+    else
+        QUBOTools.Sense(:min)
+    end
+
+    domain = QUBOTools.Domain(:bool)
+
+    return QUBOTools.Model{VI,T,Int}(
+        linear_terms,
+        quadratic_terms;
+        offset = offset,
+        sense  = sense,
+        domain = domain,
+    )
+end
+
+function MOIU.map_indices(
+    ::Function,
+    x::QUBOTools.Model{V,T,U},
+)::QUBOTools.Model{V,T,U} where {V<:MOI.Index,T,U}
+    return x
+end
+
+function MOIU.map_indices(
+    ::AbstractDict{V,V},
+    x::QUBOTools.Model{V,T,U},
+)::QUBOTools.Model{V,T,U} where {V<:MOI.Index,T,U}
+    return x
+end
+
+function qubo(model, type::Type)
+    return QUBOTools.qubo(MOI.get(model, QUBOTOOLS_BACKEND()), type)
+end
+
+function ising(model, type::Type)
+    return QUBOTools.ising(MOI.get(model, QUBOTOOLS_BACKEND()), type)
+end

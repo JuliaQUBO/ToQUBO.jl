@@ -55,7 +55,7 @@ function test_qba3_2()
 
         optimize!(model)
 
-        Q, _, c = ToQUBO.qubo(unsafe_backend(model), Matrix)
+        Q, _, c = ToQUBO.qubo(model, Matrix)
 
         # :: Reformulation ::
         @test c ≈ c̄

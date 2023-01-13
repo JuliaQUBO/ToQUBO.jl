@@ -432,10 +432,10 @@ This QUBO Virtual Model links the final QUBO formulation to the original one, al
 struct VirtualQUBOModel{T} <: AbstractVirtualModel{T}
     # -*- Underlying Optimizer -*- #
     optimizer::Union{MOI.AbstractOptimizer,Nothing}
-    
+
     # -*- MathOptInterface Bridges -*- #
     bridge_model::MOIB.LazyBridgeOptimizer{PreQUBOModel{T}}
-    
+
     # -*- Virtual Model Interface -*- #
     source_model::PreQUBOModel{T}
     target_model::QUBOModel{T}
@@ -502,10 +502,9 @@ struct VirtualQUBOModel{T} <: AbstractVirtualModel{T}
         )
     end
 
-    VirtualQUBOModel(args...; kws...) = VirtualQUBOModel{Float64}(args...; kws...)
 end
 
-QUBOTools.backend(model::VirtualQUBOModel) = QUBOTools.backend(model.target_model)
+VirtualQUBOModel(args...; kws...) = VirtualQUBOModel{Float64}(args...; kws...)
 
 struct Source <: MOI.AbstractModelAttribute end
 function MOI.get(::AbstractVirtualModel, ::Source) end
@@ -627,7 +626,7 @@ function MOI.add_constraint(
     s::MOI.AbstractSet,
 )
     source_model = MOI.get(model, SourceModel())
-    
+
     return MOI.add_constraint(source_model, f, s)
 end
 
@@ -637,7 +636,11 @@ function MOI.set(model::VirtualQUBOModel, os::MOI.ObjectiveSense, s::MOI.Optimiz
     MOI.set(source_model, os, s)
 end
 
-function MOI.set(model::VirtualQUBOModel, of::MOI.ObjectiveFunction, f::MOI.AbstractFunction)
+function MOI.set(
+    model::VirtualQUBOModel,
+    of::MOI.ObjectiveFunction,
+    f::MOI.AbstractFunction,
+)
     source_model = MOI.get(model, SourceModel())
 
     MOI.set(source_model, of, f)

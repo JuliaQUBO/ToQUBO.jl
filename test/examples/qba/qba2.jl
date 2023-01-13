@@ -28,7 +28,7 @@ function test_qba2()
         optimize!(model)
 
         # :: Reformulation ::
-        Q, α, β = ToQUBO.qubo(unsafe_backend(model), Matrix)
+        Q, α, β = ToQUBO.qubo(model, Matrix)
 
         @test α ≈ ᾱ
         @test β ≈ β̄

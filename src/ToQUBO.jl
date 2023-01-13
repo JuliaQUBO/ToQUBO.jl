@@ -6,6 +6,9 @@ using Base: @kwdef
 const PROJECT_FILE_PATH = joinpath(@__DIR__, "..", "Project.toml")
 const PROJECT_VERSION   = VersionNumber(getindex(TOML.parsefile(PROJECT_FILE_PATH), "version"))
 
+# -*- :: QUBOTools :: -*- #
+import QUBOTools
+
 # -*- :: External Imports :: -*- #
 using MathOptInterface
 const MOI  = MathOptInterface
@@ -24,9 +27,6 @@ const GT{T} = MOI.GreaterThan{T}
 
 const VI = MOI.VariableIndex
 const CI = MOI.ConstraintIndex
-
-# -*- :: QUBOTools :: -*- #
-import QUBOTools: QUBOTools, qubo, backend
 
 # -*- :: Library Icludes :: -*- #
 

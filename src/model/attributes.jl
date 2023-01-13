@@ -22,7 +22,7 @@ function MOI.set(
     model::VirtualQUBOModel,
     ::QUADRATIZATION_METHOD,
     ::Type{method},
-) where {method <: PBO.QuadratizationMethod}
+) where {method<:PBO.QuadratizationMethod}
     model.compiler_settings[:quadratization_method] = method
 
     return nothing
@@ -161,3 +161,9 @@ end
 
 #     return nothing
 # end
+
+struct QUBOTOOLS_BACKEND <: CompilerAttribute end
+
+function MOI.get(model::VirtualQUBOModel{T}, ::QUBOTOOLS_BACKEND) where {T}
+    return QUBOTools.backend(model)
+end

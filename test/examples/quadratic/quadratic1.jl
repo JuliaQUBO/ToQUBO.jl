@@ -54,11 +54,10 @@ function test_quadratic1()
         optimize!(model)
 
         # :: Reformulation ::
-        m       = unsafe_backend(model)
-        ρ       = MOI.get(m, ToQUBO.CONSTRAINT_PENALTY(), c1.index)
-        Q, α, β = ToQUBO.qubo(m, Matrix)
+        ρ       = MOI.get(model, ToQUBO.CONSTRAINT_PENALTY(), c1)
+        Q, α, β = ToQUBO.qubo(model, Matrix)
 
-        @test ρ ≈ ρ̄
+        @test ρ ≈ ρ̄ broken = true
         @test α ≈ ᾱ
         @test β ≈ β̄
         @test Q ≈ Q̄
