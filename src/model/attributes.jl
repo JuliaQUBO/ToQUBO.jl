@@ -162,8 +162,49 @@ end
 #     return nothing
 # end
 
-struct QUBOTOOLS_BACKEND <: CompilerAttribute end
+const QUBO_NORMAL_FORM{T} = Tuple{Int,Dict{Int,T},Dict{Tuple{Int,Int},T},T,T}
 
-function MOI.get(model::VirtualQUBOModel{T}, ::QUBOTOOLS_BACKEND) where {T}
-    return QUBOTools.backend(model)
+struct QUBOTOOLS_NORMAL_FORM <: CompilerAttribute end
+
+function MOI.get(
+    model::VirtualQUBOModel{T},
+    ::QUBOTOOLS_NORMAL_FORM,
+)::QUBO_NORMAL_FORM{T} where {T}
+    target_model = MOI.get(model, TargetModel())
+
+    n = MOI.get(target_model, MOI.NumberOfVariables())
+    F = MOI.get(target_model, MOI.ObjectiveFunctionType())
+    f = MOI.get(target_model, MOI.ObjectiveFunction{F}())
+
+    linear_terms    = sizehint!(Dict{Int,T}(), length(f.affine_terms))
+    quadratic_terms = sizehint!(Dict{Tuple{Int,Int},T}(), length(f.quadratic_terms))
+
+    for a in f.affine_terms
+        c = a.coefficient
+        i = a.variable.value
+
+        linear_terms[i] = get(linear_terms, i, zero(T)) + c
+    end
+
+    for q in f.quadratic_terms
+        c = q.coefficient
+        i = q.variable_1.value
+        j = q.variable_2.value
+
+        if i == j
+            linear_terms[i] = get(linear_terms, i, zero(T)) + c / 2
+        elseif i > j
+            quadratic_terms[(j, i)] = get(quadratic_terms, (j, i), zero(T)) + c
+        else
+            quadratic_terms[(i, j)] = get(quadratic_terms, (i, j), zero(T)) + c
+        end
+    end
+
+    scale  = one(T)
+    offset = f.constant
+
+    return (n, linear_terms, quadratic_terms, scale, offset)
 end
+
+# MOIU.map_indices(::Any, x::QUBO_NORMAL_FORM{T}) where {T} = x
+MOIU.map_indices(::MOIU.IndexMap, x::QUBO_NORMAL_FORM{T}) where {T} = x

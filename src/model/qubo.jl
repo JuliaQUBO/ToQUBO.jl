@@ -18,7 +18,7 @@ function MOI.add_variable(model::QUBOModel)
 end
 
 function MOI.add_constrained_variable(model::QUBOModel, ::MOI.ZeroOne)
-    i  = length(model.vi) + 1
+    i  = MOI.get(model, MOI.NumberOfVariables()) + 1
     vi = MOI.VariableIndex(i)
     ci = MOI.ConstraintIndex{VI,MOI.ZeroOne}(i)
 
@@ -85,9 +85,7 @@ function MOI.set(model::QUBOModel{T}, ::MOI.ObjectiveFunction{SQF{T}}, f::SQF{T}
     return nothing
 end
 
-function MOI.get(::QUBOModel{T}, ::MOI.ObjectiveFunctionType) where {T}
-    return MOI.ScalarQuadraticFunction{T}
-end
+MOI.get(::QUBOModel{T}, ::MOI.ObjectiveFunctionType) where {T} = SQF{T}
 
 function MOI.get(model::QUBOModel, ::MOI.ListOfConstraintTypesPresent)
     if MOI.is_empty(model)
@@ -121,3 +119,7 @@ function MOI.get(::QUBOModel{T}, ::MOI.VariablePrimalStart, ::VI) where {T}
 end
 
 MOI.supports(::QUBOModel, ::MOI.VariablePrimalStart, ::MOI.VariableIndex) = true
+
+function MOI.get(model::QUBOModel, ::MOI.NumberOfVariables)
+    return length(model.vi)
+end

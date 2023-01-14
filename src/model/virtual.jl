@@ -638,10 +638,10 @@ end
 
 function MOI.set(
     model::VirtualQUBOModel,
-    of::MOI.ObjectiveFunction,
-    f::MOI.AbstractFunction,
-)
+    ::MOI.ObjectiveFunction{F},
+    f::F,
+) where {F<:MOI.AbstractFunction}
     source_model = MOI.get(model, SourceModel())
 
-    MOI.set(source_model, of, f)
+    MOI.set(source_model, MOI.ObjectiveFunction{F}(), f)
 end

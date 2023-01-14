@@ -206,71 +206,15 @@ end
 const Optimizer{T} = VirtualQUBOModel{T}
 
 # -*- QUBOTools -*- #
-function QUBOTools.backend(model::VirtualQUBOModel{T}) where {T}
-    target_model = MOI.get(model, TargetModel())
+function qubo(model, type::Type = Dict)
+    n, L, Q, α, β = MOI.get(model, QUBOTOOLS_NORMAL_FORM())
 
-    F = MOI.get(target_model, MOI.ObjectiveFunctionType())
-    f = MOI.get(target_model, MOI.ObjectiveFunction{F}())
-
-    linear_terms    = Dict{VI,T}()
-    quadratic_terms = Dict{Tuple{VI,VI},T}()
-
-    for a in f.affine_terms
-        c = a.coefficient
-        x = a.variable
-
-        linear_terms[x] = get(linear_terms, x, zero(T)) + c
-    end
-
-    for q in f.quadratic_terms
-        c  = q.coefficient
-        xi = q.variable_1
-        xj = q.variable_2
-
-        if xi == xj
-            linear_terms[xi] = get(linear_terms, xi, zero(T)) + c / 2
-        else
-            quadratic_terms[(xi, xj)] = get(quadratic_terms, (xi, xj), zero(T)) + c
-        end
-    end
-
-    offset = f.constant
-
-    sense = if target_model.os === MOI.MAX_SENSE
-        QUBOTools.Sense(:max)
-    else
-        QUBOTools.Sense(:min)
-    end
-
-    domain = QUBOTools.Domain(:bool)
-
-    return QUBOTools.Model{VI,T,Int}(
-        linear_terms,
-        quadratic_terms;
-        offset = offset,
-        sense  = sense,
-        domain = domain,
-    )
+    return QUBOTools.qubo(type, n, L, Q, α, β)
 end
 
-function MOIU.map_indices(
-    ::Function,
-    x::QUBOTools.Model{V,T,U},
-)::QUBOTools.Model{V,T,U} where {V<:MOI.Index,T,U}
-    return x
-end
+function ising(model, type::Type = Dict)
+    n, L̄, Q̄, ᾱ, β̄ = MOI.get(model, QUBOTOOLS_NORMAL_FORM())
+    L, Q, α, β    = QUBOTools.cast(QUBOTools.𝔹, QUBOTools.𝕊, L̄, Q̄, ᾱ, β̄)
 
-function MOIU.map_indices(
-    ::AbstractDict{V,V},
-    x::QUBOTools.Model{V,T,U},
-)::QUBOTools.Model{V,T,U} where {V<:MOI.Index,T,U}
-    return x
-end
-
-function qubo(model, type::Type)
-    return QUBOTools.qubo(MOI.get(model, QUBOTOOLS_BACKEND()), type)
-end
-
-function ising(model, type::Type)
-    return QUBOTools.ising(MOI.get(model, QUBOTOOLS_BACKEND()), type)
+    return QUBOTools.ising(type, n, L, Q, α, β)
 end
