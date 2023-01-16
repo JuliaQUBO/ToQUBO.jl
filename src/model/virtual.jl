@@ -575,7 +575,6 @@ function MOI.set(
     attr::Union{MOI.ObjectiveFunction,MOI.ObjectiveSense},
     value::Any,
 )
-
     return MOI.get(MOI.get(model, SourceModel()), attr, value)
 end
 
@@ -634,6 +633,8 @@ function MOI.set(model::VirtualQUBOModel, os::MOI.ObjectiveSense, s::MOI.Optimiz
     source_model = MOI.get(model, SourceModel())
 
     MOI.set(source_model, os, s)
+
+    return nothing
 end
 
 function MOI.set(
@@ -644,4 +645,6 @@ function MOI.set(
     source_model = MOI.get(model, SourceModel())
 
     MOI.set(source_model, MOI.ObjectiveFunction{F}(), f)
+
+    return nothing
 end
