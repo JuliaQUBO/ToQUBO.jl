@@ -8,8 +8,24 @@ function MOI.get(model::VirtualModel, ::ARCHITECTURE)::AbstractArchitecture
     return get(model.compiler_settings, :architecture, GenericArchitecture())
 end
 
-function MOI.set(model::VirtualModel, ::DISCRETIZE, arch::AbstractArchitecture)
+function MOI.set(model::VirtualModel, ::ARCHITECTURE, arch::AbstractArchitecture)
     model.compiler_settings[:architecture] = arch
+
+    return nothing
+end
+
+@doc raw"""
+    DISCRETIZE()
+
+When set, this boolean flag guarantees that every coefficient in the final formulation is an integer.
+""" struct DISCRETIZE <: CompilerAttribute end
+
+function MOI.set(model::VirtualModel, ::DISCRETIZE, flag::Bool)::Bool
+    return get(model.compiler_settings, :discretize, false)
+end
+
+function MOI.set(model::VirtualModel, ::DISCRETIZE, flag::Bool)
+    model.compiler_settings[:discretize] = flag
 
     return nothing
 end
@@ -69,12 +85,6 @@ function MOI.set(model::VirtualModel, ::STABLE_QUADRATIZATION, flag::Bool)
 
     return nothing
 end
-
-@doc raw"""
-    DISCRETIZE()
-
-When set, this boolean flag guarantees that every coefficient in the final formulation is an integer.
-""" struct DISCRETIZE <: CompilerAttribute end
 
 @doc raw"""
     DEFAULT_VARIABLE_ENCODING_METHOD()
