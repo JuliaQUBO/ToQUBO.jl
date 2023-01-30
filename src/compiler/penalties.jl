@@ -1,4 +1,4 @@
-function toqubo_penalties!(model::VirtualQUBOModel{T}, ::AbstractArchitecture) where {T}
+function toqubo_penalties!(model::VirtualModel{T}, ::AbstractArchitecture) where {T}
     # -*- :: Invert Sign ::  -*- #
     s = MOI.get(model, MOI.ObjectiveSense()) === MOI.MAX_SENSE ? -1 : 1
 

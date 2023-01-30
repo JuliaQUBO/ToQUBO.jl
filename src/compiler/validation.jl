@@ -37,4 +37,4 @@ function isqubo(model::MOI.ModelLike)
 end
 
 isqubo(::QUBOModel) = true
-isqubo(::VirtualQUBOModel) = true
+isqubo(::VirtualModel) = true

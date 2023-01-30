@@ -1,4 +1,4 @@
-function toqubo_variables!(model::VirtualQUBOModel{T}, ::AbstractArchitecture) where {T}
+function toqubo_variables!(model::VirtualModel{T}, ::AbstractArchitecture) where {T}
     # Set of all source variables
     Ω = Vector{VI}(MOI.get(model, MOI.ListOfVariableIndices()))
 
@@ -116,4 +116,4 @@ function toqubo_variables!(model::VirtualQUBOModel{T}, ::AbstractArchitecture) w
     return nothing
 end
 
-function toqubo_variable(model::VirtualQUBOModel, ::AbstractArchitecture) end
+function toqubo_variable(model::VirtualModel, ::AbstractArchitecture) end

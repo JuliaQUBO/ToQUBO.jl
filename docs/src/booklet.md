@@ -75,8 +75,7 @@ ToQUBO.VirtualMapping.slack𝔹!
 
 ### Virtual Models
 ```@docs
-ToQUBO.VirtualMapping.AbstractVirtualModel
-ToQUBO.VirtualQUBOModel
+ToQUBO.VirtualModel
 ```
 
 ### Annealing & Sampling

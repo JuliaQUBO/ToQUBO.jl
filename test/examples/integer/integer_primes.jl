@@ -37,10 +37,10 @@ function test_integer_primes()
         optimize!(model)
 
         # :: Reformulation :: #    
-        ρ       = MOI.get(model, ToQUBO.CONSTRAINT_PENALTY(), c1)
+        ρ       = MOI.get(model, ToQUBO.CONSTRAINT_ENCODING_PENALTY(), c1)
         Q, α, β = ToQUBO.qubo(model, Matrix)
 
-        @test ρ ≈ ρ̄ broken = true
+        @test ρ ≈ ρ̄
         @test α ≈ ᾱ
         @test β ≈ β̄
         @test Q ≈ Q̄

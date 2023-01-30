@@ -1,4 +1,4 @@
-function toqubo_constraints!(model::VirtualQUBOModel, arch::AbstractArchitecture)
+function toqubo_constraints!(model::VirtualModel, arch::AbstractArchitecture)
     for (F, S) in MOI.get(model, MOI.ListOfConstraintTypesPresent())
         for ci in MOI.get(model, MOI.ListOfConstraintIndices{F,S}())
             f = MOI.get(model, MOI.ConstraintFunction(), ci)
@@ -15,7 +15,7 @@ function toqubo_constraints!(model::VirtualQUBOModel, arch::AbstractArchitecture
 end
 
 function toqubo_constraint(
-    ::VirtualQUBOModel{T},
+    ::VirtualModel{T},
     ::VI,
     ::Union{MOI.ZeroOne,MOI.Integer,MOI.Interval{T},LT{T},GT{T}},
     ::AbstractArchitecture,
@@ -24,7 +24,7 @@ function toqubo_constraint(
 end
 
 function toqubo_constraint(
-    model::VirtualQUBOModel{T},
+    model::VirtualModel{T},
     f::SAF{T},
     s::EQ{T},
     arch::AbstractArchitecture,
@@ -48,7 +48,7 @@ function toqubo_constraint(
 end
 
 function toqubo_constraint(
-    model::VirtualQUBOModel{T},
+    model::VirtualModel{T},
     f::SAF{T},
     s::LT{T},
     arch::AbstractArchitecture,
@@ -79,7 +79,7 @@ function toqubo_constraint(
 end
 
 function toqubo_constraint(
-    model::VirtualQUBOModel{T},
+    model::VirtualModel{T},
     f::SQF{T},
     s::EQ{T},
     arch::AbstractArchitecture,
@@ -106,7 +106,7 @@ function toqubo_constraint(
 end
 
 function toqubo_constraint(
-    model::VirtualQUBOModel{T},
+    model::VirtualModel{T},
     f::SQF{T},
     s::LT{T},
     arch::AbstractArchitecture,
@@ -139,7 +139,7 @@ function toqubo_constraint(
 end
 
 function toqubo_constraint(
-    model::VirtualQUBOModel{T},
+    model::VirtualModel{T},
     v::MOI.VectorOfVariables,
     ::MOI.SOS1{T},
     ::AbstractArchitecture,
@@ -148,7 +148,7 @@ function toqubo_constraint(
     g = PBO.PBF{VI,T}()
 
     for vi in v.variables
-        for (ωi, _) in expansion(MOI.get(model, Source(), vi))
+        for (ωi, _) in expansion(model.source[vi])
             g[ωi] = one(T)
         end
     end
@@ -160,10 +160,10 @@ function toqubo_constraint(
 end
 
 function toqubo_encoding_constraints!(
-    model::VirtualQUBOModel{T},
+    model::VirtualModel{T},
     ::AbstractArchitecture,
 ) where {T}
-    for v in MOI.get(model, Variables())
+    for v in model.variables
         if is_aux(v)
             continue
         end

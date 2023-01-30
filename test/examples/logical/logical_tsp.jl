@@ -53,8 +53,8 @@ function test_logical_tsp()
         # :: Reformulation ::
         qubo_model = unsafe_backend(model)
 
-        ρi      = MOI.get.(qubo_model, ToQUBO.CONSTRAINT_PENALTY(), collect(map(i -> i.index, ci)))
-        ρk      = MOI.get.(qubo_model, ToQUBO.CONSTRAINT_PENALTY(), collect(map(i -> i.index, ck)))
+        ρi      = MOI.get.(qubo_model, ToQUBO.CONSTRAINT_ENCODING_PENALTY(), collect(map(i -> i.index, ci)))
+        ρk      = MOI.get.(qubo_model, ToQUBO.CONSTRAINT_ENCODING_PENALTY(), collect(map(i -> i.index, ck)))
         ρ       = [ρi; ρk]
         Q, α, β = ToQUBO.qubo(qubo_model, Matrix)
 

@@ -1,5 +1,5 @@
 function toqubo_parse(
-    model::VirtualQUBOModel{T},
+    model::VirtualModel{T},
     f::MOI.AbstractFunction,
     s::MOI.AbstractSet,
     arch::AbstractArchitecture,
@@ -12,14 +12,14 @@ function toqubo_parse(
 end
 
 function toqubo_parse!(
-    model::VirtualQUBOModel{T},
+    model::VirtualModel{T},
     g::PBO.PBF{VI,T},
     vi::VI,
     ::AbstractArchitecture,
 ) where {T}
     empty!(g)
 
-    for (ω, c) in expansion(MOI.get(model, Source(), vi))
+    for (ω, c) in expansion(model.source[vi])
         g[ω] += c
     end
 
@@ -27,7 +27,7 @@ function toqubo_parse!(
 end
 
 function toqubo_parse!(
-    model::VirtualQUBOModel{T},
+    model::VirtualModel{T},
     g::PBO.PBF{VI,T},
     f::SAF{T},
     ::AbstractArchitecture,
@@ -39,8 +39,7 @@ function toqubo_parse!(
     for a in f.terms
         c = a.coefficient
         x = a.variable
-
-        v = MOI.get(model, Source(), x)
+        v = model.source[x]
 
         for (ω, d) in expansion(v)
             g[ω] += c * d
@@ -53,7 +52,7 @@ function toqubo_parse!(
 end
 
 function toqubo_parse!(
-    model::VirtualQUBOModel{T},
+    model::VirtualModel{T},
     g::PBO.PBF{VI,T},
     f::SAF{T},
     s::EQ{T},
@@ -67,7 +66,7 @@ function toqubo_parse!(
 end
 
 function toqubo_parse!(
-    model::VirtualQUBOModel{T},
+    model::VirtualModel{T},
     g::PBO.PBF{VI,T},
     f::SAF{T},
     s::LT{T},
@@ -81,7 +80,7 @@ function toqubo_parse!(
 end
 
 function toqubo_parse!(
-    model::VirtualQUBOModel{T},
+    model::VirtualModel{T},
     g::PBO.PBF{VI,T},
     f::SQF{T},
     ::AbstractArchitecture,
@@ -94,6 +93,8 @@ function toqubo_parse!(
         c  = q.coefficient
         xi = q.variable_1
         xj = q.variable_2
+        vi = model.source[xi]
+        vj = model.source[xj]
 
         # MOI convetion is to write ScalarQuadraticFunction as
         #     ½ x' Q x + a x + b
@@ -102,8 +103,8 @@ function toqubo_parse!(
             c /= 2
         end
 
-        for (ωi, di) in expansion(MOI.get(model, Source(), xi))
-            for (ωj, dj) in expansion(MOI.get(model, Source(), xj))
+        for (ωi, di) in expansion(vi)
+            for (ωj, dj) in expansion(vj)
                 g[union(ωi, ωj)] += c * di * dj
             end
         end
@@ -112,8 +113,9 @@ function toqubo_parse!(
     for a in f.affine_terms
         c = a.coefficient
         x = a.variable
+        v = model.source[x]
 
-        for (ω, d) in expansion(MOI.get(model, Source(), x))
+        for (ω, d) in expansion(v)
             g[ω] += c * d
         end
     end
@@ -124,7 +126,7 @@ function toqubo_parse!(
 end
 
 function toqubo_parse!(
-    model::VirtualQUBOModel{T},
+    model::VirtualModel{T},
     g::PBO.PBF{VI,T},
     f::SQF{T},
     s::EQ{T},
@@ -138,7 +140,7 @@ function toqubo_parse!(
 end
 
 function toqubo_parse!(
-    model::VirtualQUBOModel{T},
+    model::VirtualModel{T},
     g::PBO.PBF{VI,T},
     f::SQF{T},
     s::LT{T},

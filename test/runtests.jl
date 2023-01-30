@@ -12,16 +12,9 @@ using Anneal
 using LinearAlgebra
 using TOML
 
-# -*- Test Assets -*- #
 include("assets/assets.jl")
-
-# -*- Unit Tests -*- #
 include("unit/unit.jl")
-
-# -*- Integration Tests -*- #
 include("integration/integration.jl")
-
-# -*- Examples -*- #
 include("examples/examples.jl")
 
 function main()

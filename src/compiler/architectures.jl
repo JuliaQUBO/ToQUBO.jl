@@ -1,4 +1,6 @@
-abstract type AbstractArchitecture end
+@doc raw"""
+    AbstractArchitecture
+""" abstract type AbstractArchitecture end
 
 struct GenericArchitecture <: AbstractArchitecture end
 

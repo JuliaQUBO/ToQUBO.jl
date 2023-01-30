@@ -1,4 +1,4 @@
-function toqubo_sense!(model::VirtualQUBOModel, ::AbstractArchitecture)
+function toqubo_sense!(model::VirtualModel, ::AbstractArchitecture)
     if MOI.get(model, MOI.ObjectiveSense()) === MOI.MAX_SENSE
         MOI.set(model.target_model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
     else
@@ -9,7 +9,7 @@ function toqubo_sense!(model::VirtualQUBOModel, ::AbstractArchitecture)
     return nothing
 end
 
-function toqubo_objective!(model::VirtualQUBOModel, arch::AbstractArchitecture)
+function toqubo_objective!(model::VirtualModel, arch::AbstractArchitecture)
     F = MOI.get(model, MOI.ObjectiveFunctionType())
     f = MOI.get(model, MOI.ObjectiveFunction{F}())
 

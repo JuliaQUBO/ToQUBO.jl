@@ -23,7 +23,7 @@ function toqubo(
     arch::Union{AbstractArchitecture,Nothing} = nothing;
     optimizer = nothing,
 ) where {T}
-    model = VirtualQUBOModel{T}(optimizer)
+    model = VirtualModel{T}(optimizer)
 
     MOI.copy_to(model, source)
 
@@ -37,10 +37,10 @@ function toqubo(
 end
 
 function toqubo!(
-    model::VirtualQUBOModel{T},
+    model::VirtualModel{T},
     arch::AbstractArchitecture = GenericArchitecture(),
 ) where {T}
-    if is_qubo(MOI.get(model, SourceModel()))
+    if is_qubo(model.source_model)
         toqubo_copy!(model, arch)
 
         return nothing
@@ -52,11 +52,11 @@ function toqubo!(
 end
 
 function toqubo_copy!(
-    model::VirtualQUBOModel{T},
+    model::VirtualModel{T},
     ::AbstractArchitecture,
 ) where {T}
-    source_model = MOI.get(model, SourceModel())
-    target_model = MOI.get(model, TargetModel())
+    source_model = model.source_model
+    target_model = model.target_model
 
     # Map Variables
     for vi in MOI.get(source_model, MOI.ListOfVariableIndices())
@@ -78,7 +78,7 @@ function toqubo_copy!(
 end
 
 function toqubo_compile!(
-    model::VirtualQUBOModel{T},
+    model::VirtualModel{T},
     arch::AbstractArchitecture = GenericArchitecture(),
 ) where {T}
     # :: Objective Sense :: #

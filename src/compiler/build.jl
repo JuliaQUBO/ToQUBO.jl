@@ -1,4 +1,4 @@
-function toqubo_build!(model::VirtualQUBOModel{T}, arch::AbstractArchitecture) where {T}
+function toqubo_build!(model::VirtualModel{T}, arch::AbstractArchitecture) where {T}
     # -*- Assemble Objective Function -*-
     toqubo_hamiltonian!(model, arch)
 
@@ -11,7 +11,7 @@ function toqubo_build!(model::VirtualQUBOModel{T}, arch::AbstractArchitecture) w
     return nothing
 end
 
-function toqubo_hamiltonian!(model::VirtualQUBOModel{T}, ::AbstractArchitecture) where {T}
+function toqubo_hamiltonian!(model::VirtualModel{T}, ::AbstractArchitecture) where {T}
     empty!(model.H)
 
     sizehint!(model.H, MOI.get(model, MOI.NumberOfVariables())^2)
@@ -39,8 +39,8 @@ function toqubo_hamiltonian!(model::VirtualQUBOModel{T}, ::AbstractArchitecture)
     return nothing
 end
 
-function toqubo_aux(model::VirtualQUBOModel, ::Nothing, ::AbstractArchitecture)::VI
-    target_model = MOI.get(model, TargetModel())
+function toqubo_aux(model::VirtualModel, ::Nothing, ::AbstractArchitecture)::VI
+    target_model = model.target_model
 
     w = MOI.add_variable(target_model)
 
@@ -49,8 +49,8 @@ function toqubo_aux(model::VirtualQUBOModel, ::Nothing, ::AbstractArchitecture):
     return w
 end
 
-function toqubo_aux(model::VirtualQUBOModel, n::Integer, ::AbstractArchitecture)::Vector{VI}
-    target_model = MOI.get(model, TargetModel())
+function toqubo_aux(model::VirtualModel, n::Integer, ::AbstractArchitecture)::Vector{VI}
+    target_model = model.target_model
 
     w = MOI.add_variables(target_model, n)
 
@@ -59,7 +59,7 @@ function toqubo_aux(model::VirtualQUBOModel, n::Integer, ::AbstractArchitecture)
     return w
 end
 
-function toqubo_quadratize!(model::VirtualQUBOModel, arch::AbstractArchitecture)
+function toqubo_quadratize!(model::VirtualModel, arch::AbstractArchitecture)
     if MOI.get(model, QUADRATIZE())
         method = MOI.get(model, QUADRATIZATION_METHOD())
         stable = MOI.get(model, STABLE_QUADRATIZATION())
@@ -75,7 +75,7 @@ function toqubo_quadratize!(model::VirtualQUBOModel, arch::AbstractArchitecture)
     return nothing
 end
 
-function toqubo_output!(model::VirtualQUBOModel{T}, ::AbstractArchitecture) where {T}
+function toqubo_output!(model::VirtualModel{T}, ::AbstractArchitecture) where {T}
     Q = SQT{T}[]
     a = SAT{T}[]
     b = zero(T)
@@ -103,7 +103,7 @@ function toqubo_output!(model::VirtualQUBOModel{T}, ::AbstractArchitecture) wher
         end
     end
 
-    MOI.set(MOI.get(model, TargetModel()), MOI.ObjectiveFunction{SQF{T}}(), SQF{T}(Q, a, b))
+    MOI.set(model.target_model, MOI.ObjectiveFunction{SQF{T}}(), SQF{T}(Q, a, b))
 
     return nothing
 end

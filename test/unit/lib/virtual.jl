@@ -1,44 +1,16 @@
-struct VirtualModel{T} <: ToQUBO.AbstractVirtualModel{T}
-    source_model::MOIU.Model{T}
-    target_model::MOIU.Model{T}
-    variables::Vector{ToQUBO.VirtualVariable{T}}
-    source::Dict{VI,ToQUBO.VirtualVariable{T}}
-    target::Dict{VI,ToQUBO.VirtualVariable{T}}
-
-    function VirtualModel{T}(; kws...) where {T}
-        new{T}(
-            MOIU.Model{T}(),
-            MOIU.Model{T}(),
-            ToQUBO.VirtualVariable{T}[],
-            Dict{VI,ToQUBO.VirtualVariable{T}}(),
-            Dict{VI,ToQUBO.VirtualVariable{T}}(),
-        )
-    end
-
-    VirtualModel(; kws...) = VirtualModel{Float64}(; kws...)
-end
-
-MOI.get(model::VirtualModel, ::ToQUBO.SourceModel)                 = model.source_model
-MOI.get(model::VirtualModel, ::ToQUBO.TargetModel)                 = model.target_model
-MOI.get(model::VirtualModel, ::ToQUBO.Variables)                   = model.variables
-MOI.get(model::VirtualModel, ::ToQUBO.Source, x::VI)               = model.source[x]
-MOI.set(model::VirtualModel, ::ToQUBO.Source, x::VI, v::ToQUBO.VV) = (model.source[x] = v)
-MOI.get(model::VirtualModel, ::ToQUBO.Target, y::VI)               = model.target[y]
-MOI.set(model::VirtualModel, ::ToQUBO.Target, y::VI, v::ToQUBO.VV) = (model.target[y] = v)
-
 function test_virtual()
     @testset "VirtualMapping" verbose = true begin
         @testset "Virtual Model" begin
-            model = VirtualModel()
+            model = ToQUBO.VirtualModel()
 
             @test MOI.is_empty(model)
         end
 
         @testset "Encodings" verbose = true begin
             @testset "Linear" begin
-                model = VirtualModel()
+                model = ToQUBO.VirtualModel()
 
-                x = MOI.add_variable(MOI.get(model, ToQUBO.SourceModel()))
+                x = MOI.add_variable(model.source_model)
                 γ = [1.0, 2.0, 3.0]
                 α = 1.0
 
@@ -56,15 +28,15 @@ function test_virtual()
                 )
                 @test isnothing(ToQUBO.penaltyfn(v))
 
-                @test MOI.get(model, ToQUBO.Variables()) == [v]
-                @test MOI.get(model, ToQUBO.Source(), ToQUBO.source(v)) == v
-                @test MOI.get.(model, ToQUBO.Target(), ToQUBO.target(v)) == [v, v, v]
+                @test model.variables                             == [v]
+                @test model.source[ToQUBO.source(v)]              == (v)
+                @test [model.target[y] for y in ToQUBO.target(v)] == [v, v, v]
             end
 
             @testset "Mirror" begin
-                model = VirtualModel()
+                model = ToQUBO.VirtualModel()
 
-                x = MOI.add_variable(MOI.get(model, ToQUBO.SourceModel()))
+                x = MOI.add_variable(model.source_model)
 
                 v = ToQUBO.encode!(ToQUBO.Mirror(), model, x)
                 y = ToQUBO.target(v)
@@ -75,15 +47,15 @@ function test_virtual()
                 @test ToQUBO.expansion(v) == PBO.PBF{VI,Float64}(y[1])
                 @test isnothing(ToQUBO.penaltyfn(v))
 
-                @test MOI.get(model, ToQUBO.Variables())                 == [v]
-                @test MOI.get(model, ToQUBO.Source(), ToQUBO.source(v))  == v
-                @test MOI.get.(model, ToQUBO.Target(), ToQUBO.target(v)) == [v]
+                @test model.variables                             == [v]
+                @test model.source[ToQUBO.source(v)]              == (v)
+                @test [model.target[y] for y in ToQUBO.target(v)] == [v]
             end
 
             @testset "Unary ℤ" begin
-                model = VirtualModel()
+                model = ToQUBO.VirtualModel()
 
-                x = MOI.add_variable(MOI.get(model, ToQUBO.SourceModel()))
+                x = MOI.add_variable(model.source_model)
                 a, b = (-2.0, 2.0)
 
                 v = ToQUBO.encode!(ToQUBO.Unary(), model, x, a, b)
@@ -101,15 +73,15 @@ function test_virtual()
                 )
                 @test isnothing(ToQUBO.penaltyfn(v))
 
-                @test MOI.get(model, ToQUBO.Variables())                 == [v]
-                @test MOI.get(model, ToQUBO.Source(), ToQUBO.source(v))  == v
-                @test MOI.get.(model, ToQUBO.Target(), ToQUBO.target(v)) == [v, v, v, v]
+                @test model.variables                             == [v]
+                @test model.source[ToQUBO.source(v)]              == (v)
+                @test [model.target[y] for y in ToQUBO.target(v)] == [v, v, v, v]
             end
 
             @testset "Unary ℝ" begin
-                model = VirtualModel()
+                model = ToQUBO.VirtualModel()
 
-                x = MOI.add_variable(MOI.get(model, ToQUBO.SourceModel()))
+                x = MOI.add_variable(model.source_model)
                 a, b = (-2.0, 2.0)
                 n = 4
 
@@ -128,15 +100,15 @@ function test_virtual()
                 )
                 @test isnothing(ToQUBO.penaltyfn(v))
 
-                @test MOI.get(model, ToQUBO.Variables())                 == [v]
-                @test MOI.get(model, ToQUBO.Source(), ToQUBO.source(v))  == v
-                @test MOI.get.(model, ToQUBO.Target(), ToQUBO.target(v)) == [v, v, v, v]
+                @test model.variables                             == [v]
+                @test model.source[ToQUBO.source(v)]              == (v)
+                @test [model.target[y] for y in ToQUBO.target(v)] == [v, v, v, v]
             end
 
             @testset "Binary ℤ" begin
-                model = VirtualModel()
+                model = ToQUBO.VirtualModel()
 
-                x = MOI.add_variable(MOI.get(model, ToQUBO.SourceModel()))
+                x = MOI.add_variable(model.source_model)
                 a, b = (-2.0, 2.0)
 
                 v = ToQUBO.encode!(ToQUBO.Binary(), model, x, a, b)
@@ -153,15 +125,15 @@ function test_virtual()
                 )
                 @test isnothing(ToQUBO.penaltyfn(v))
 
-                @test MOI.get(model, ToQUBO.Variables())                 == [v]
-                @test MOI.get(model, ToQUBO.Source(), ToQUBO.source(v))  == v
-                @test MOI.get.(model, ToQUBO.Target(), ToQUBO.target(v)) == [v, v, v]
+                @test model.variables                             == [v]
+                @test model.source[ToQUBO.source(v)]              == (v)
+                @test [model.target[y] for y in ToQUBO.target(v)] == [v, v, v]
             end
 
             @testset "Binary ℝ" begin
-                model = VirtualModel()
+                model = ToQUBO.VirtualModel()
 
-                x = MOI.add_variable(MOI.get(model, ToQUBO.SourceModel()))
+                x = MOI.add_variable(model.source_model)
                 a, b = (-2.0, 2.0)
                 n = 3
 
@@ -179,15 +151,15 @@ function test_virtual()
                 )
                 @test isnothing(ToQUBO.penaltyfn(v))
 
-                @test MOI.get(model, ToQUBO.Variables())                 == [v]
-                @test MOI.get(model, ToQUBO.Source(), ToQUBO.source(v))  == v
-                @test MOI.get.(model, ToQUBO.Target(), ToQUBO.target(v)) == [v, v, v]
+                @test model.variables                             == [v]
+                @test model.source[ToQUBO.source(v)]              == (v)
+                @test [model.target[y] for y in ToQUBO.target(v)] == [v, v, v]
             end
 
             @testset "Arithmetic ℤ" begin
-                model = VirtualModel()
+                model = ToQUBO.VirtualModel()
 
-                x = MOI.add_variable(MOI.get(model, ToQUBO.SourceModel()))
+                x = MOI.add_variable(model.source_model)
                 a, b = (-2.0, 2.0)
 
                 v = ToQUBO.encode!(ToQUBO.Arithmetic(), model, x, a, b)
@@ -204,15 +176,15 @@ function test_virtual()
                 )
                 @test isnothing(ToQUBO.penaltyfn(v))
 
-                @test MOI.get(model, ToQUBO.Variables())                 == [v]
-                @test MOI.get(model, ToQUBO.Source(), ToQUBO.source(v))  == v
-                @test MOI.get.(model, ToQUBO.Target(), ToQUBO.target(v)) == [v, v, v]
+                @test model.variables                             == [v]
+                @test model.source[ToQUBO.source(v)]              == (v)
+                @test [model.target[y] for y in ToQUBO.target(v)] == [v, v, v]
             end
 
             @testset "Arithmetic ℝ" begin
-                model = VirtualModel()
+                model = ToQUBO.VirtualModel()
 
-                x = MOI.add_variable(MOI.get(model, ToQUBO.SourceModel()))
+                x = MOI.add_variable(model.source_model)
                 a, b = (-2.0, 2.0)
                 n = 3
 
@@ -230,15 +202,15 @@ function test_virtual()
                 )
                 @test isnothing(ToQUBO.penaltyfn(v))
 
-                @test MOI.get(model, ToQUBO.Variables())                 == [v]
-                @test MOI.get(model, ToQUBO.Source(), ToQUBO.source(v))  == v
-                @test MOI.get.(model, ToQUBO.Target(), ToQUBO.target(v)) == [v, v, v]
+                @test model.variables                             == [v]
+                @test model.source[ToQUBO.source(v)]              == (v)
+                @test [model.target[y] for y in ToQUBO.target(v)] == [v, v, v]
             end
 
             @testset "One Hot" begin
-                model = VirtualModel()
+                model = ToQUBO.VirtualModel()
 
-                x = MOI.add_variable(MOI.get(model, ToQUBO.SourceModel()))
+                x = MOI.add_variable(model.source_model)
                 γ = [-1.0, -0.5, 0.0, 0.5, 1.0]
 
                 v = ToQUBO.encode!(ToQUBO.OneHot(), model, x, γ)
@@ -255,15 +227,15 @@ function test_virtual()
                 )
                 @test ToQUBO.penaltyfn(v) ≈ (PBO.PBF{VI,Float64}(-1.0, y...)^2)
 
-                @test MOI.get(model, ToQUBO.Variables())                 == [v]
-                @test MOI.get(model, ToQUBO.Source(), ToQUBO.source(v))  == v
-                @test MOI.get.(model, ToQUBO.Target(), ToQUBO.target(v)) == [v, v, v, v, v]
+                @test model.variables                             == [v]
+                @test model.source[ToQUBO.source(v)]              == (v)
+                @test [model.target[y] for y in ToQUBO.target(v)] == [v, v, v, v, v]
             end
 
             @testset "One Hot ℤ" begin
-                model = VirtualModel()
+                model = ToQUBO.VirtualModel()
 
-                x = MOI.add_variable(MOI.get(model, ToQUBO.SourceModel()))
+                x = MOI.add_variable(model.source_model)
                 a, b = (-2.0, 2.0)
 
                 v = ToQUBO.encode!(ToQUBO.OneHot(), model, x, a, b)
@@ -280,14 +252,14 @@ function test_virtual()
                 )
                 @test ToQUBO.penaltyfn(v) ≈ (PBO.PBF{VI,Float64}(-1.0, y...)^2)
 
-                @test MOI.get(model, ToQUBO.Variables())                 == [v]
-                @test MOI.get(model, ToQUBO.Source(), ToQUBO.source(v))  == v
-                @test MOI.get.(model, ToQUBO.Target(), ToQUBO.target(v)) == [v, v, v, v, v]
+                @test model.variables                             == [v]
+                @test model.source[ToQUBO.source(v)]              == (v)
+                @test [model.target[y] for y in ToQUBO.target(v)] == [v, v, v, v, v]
             end
             @testset "One Hot ℝ" begin
-                model = VirtualModel()
+                model = ToQUBO.VirtualModel()
 
-                x = MOI.add_variable(MOI.get(model, ToQUBO.SourceModel()))
+                x = MOI.add_variable(model.source_model)
                 a, b = (-2.0, 2.0)
                 n = 5
 
@@ -305,14 +277,14 @@ function test_virtual()
                 )
                 @test ToQUBO.penaltyfn(v) ≈ (PBO.PBF{VI,Float64}(-1.0, y...)^2)
 
-                @test MOI.get(model, ToQUBO.Variables())                 == [v]
-                @test MOI.get(model, ToQUBO.Source(), ToQUBO.source(v))  == v
-                @test MOI.get.(model, ToQUBO.Target(), ToQUBO.target(v)) == [v, v, v, v, v]
+                @test model.variables                             == [v]
+                @test model.source[ToQUBO.source(v)]              == (v)
+                @test [model.target[y] for y in ToQUBO.target(v)] == [v, v, v, v, v]
             end
             @testset "Domain Wall ℤ" begin
-                model = VirtualModel()
+                model = ToQUBO.VirtualModel()
 
-                x = MOI.add_variable(MOI.get(model, ToQUBO.SourceModel()))
+                x = MOI.add_variable(model.source_model)
                 a, b = (-2.0, 2.0)
 
                 v = ToQUBO.encode!(ToQUBO.DomainWall(), model, x, a, b)
@@ -336,15 +308,15 @@ function test_virtual()
                     [y[3], y[4]] => -2.0,
                 )
 
-                @test MOI.get(model, ToQUBO.Variables())                 == [v]
-                @test MOI.get(model, ToQUBO.Source(), ToQUBO.source(v))  == v
-                @test MOI.get.(model, ToQUBO.Target(), ToQUBO.target(v)) == [v, v, v, v]
+                @test model.variables                             == [v]
+                @test model.source[ToQUBO.source(v)]              == (v)
+                @test [model.target[y] for y in ToQUBO.target(v)] == [v, v, v, v]
             end
 
             @testset "Domain Wall ℝ" begin
-                model = VirtualModel()
+                model = ToQUBO.VirtualModel()
 
-                x = MOI.add_variable(MOI.get(model, ToQUBO.SourceModel()))
+                x = MOI.add_variable(model.source_model)
                 a, b = (-2.0, 2.0)
                 n = 5
 
@@ -369,9 +341,9 @@ function test_virtual()
                     [y[3], y[4]] => -2.0,
                 )
 
-                @test MOI.get(model, ToQUBO.Variables())                 == [v]
-                @test MOI.get(model, ToQUBO.Source(), ToQUBO.source(v))  == v
-                @test MOI.get.(model, ToQUBO.Target(), ToQUBO.target(v)) == [v, v, v, v]
+                @test model.variables                             == [v]
+                @test model.source[ToQUBO.source(v)]              == (v)
+                @test [model.target[y] for y in ToQUBO.target(v)] == [v, v, v, v]
             end
         end
     end
