@@ -14,6 +14,22 @@ function toqubo_constraints!(model::VirtualModel, arch::AbstractArchitecture)
     return nothing
 end
 
+@doc raw"""
+    toqubo_constraint(
+        ::VirtualModel{T},
+        ::VI,
+        ::Union{
+            MOI.ZeroOne,
+            MOI.Integer,
+            MOI.Interval{T},
+            MOI.LessThan{T},
+            MOI.GreaterThan{T}
+        },
+        ::AbstractArchitecture
+    ) where {T}
+
+This method skips bound constraints over variables.
+"""
 function toqubo_constraint(
     ::VirtualModel{T},
     ::VI,
@@ -23,6 +39,23 @@ function toqubo_constraint(
     return nothing
 end
 
+@doc raw"""
+    toqubo_constraint(model::VirtualModel{T}, f::SAF{T}, s::EQ{T}, ::AbstractArchitecture) where {T}
+
+Turns constraints of the form
+
+```math
+\begin{array}{rl}
+\text{s.t} & \mathbf{a}'\mathbf{x} - b = 0
+\end{array}
+```
+
+into 
+
+```math
+\left\Vertg(\mathbf{x})\right\Vert_{\left\lbrace{0}\right\rbrace} = \left(\mathbf{a}'\mathbf{x} - b\right)^{2}
+```
+"""
 function toqubo_constraint(
     model::VirtualModel{T},
     f::SAF{T},
@@ -47,6 +80,25 @@ function toqubo_constraint(
     return g^2
 end
 
+@doc raw"""
+    toqubo_constraint(model::VirtualModel{T}, f::SAF{T}, s::LT{T}, ::AbstractArchitecture) where {T}
+
+Turns constraints of the form
+
+```math
+\begin{array}{rl}
+\text{s.t} & \mathbf{a}'\mathbf{x} - b \le 0
+\end{array}
+```
+
+into 
+
+```math
+\left\Vertg(\mathbf{x})\right\Vert_{\left\lbrace{0}\right\rbrace} = \left(\mathbf{a}'\mathbf{x} - b\right + z)^{2}
+```
+
+by adding a slack variable ``z``.
+"""
 function toqubo_constraint(
     model::VirtualModel{T},
     f::SAF{T},

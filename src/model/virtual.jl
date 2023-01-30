@@ -150,7 +150,7 @@ function encode!(model::VirtualModel{T}, v::VV{T}) where {T}
 end
 
 @doc raw"""
-    LinearEncoding <: Encoding
+    LinearEncoding
 
 Every linear encoding ``\xi`` is of the form
 ```math
@@ -188,6 +188,9 @@ function encode!(
 end
 
 @doc raw"""
+    Mirror()
+
+Mirrors binary variable ``x \in \mathbb{B}`` with a twin variable ``y \in \mathbb{B}``.
 """ struct Mirror <: LinearEncoding end
 
 function encode!(e::Mirror, model::VirtualModel{T}, x::Union{VI,Nothing}) where {T}
@@ -195,6 +198,7 @@ function encode!(e::Mirror, model::VirtualModel{T}, x::Union{VI,Nothing}) where 
 end
 
 @doc raw"""
+    Linear()
 """ struct Linear <: LinearEncoding end
 
 function encode!(
@@ -210,6 +214,13 @@ function encode!(
 end
 
 @doc raw"""
+    Unary()
+
+Let ``x \in [a, b] \subset \mathbb{Z}, n = b - a, \mathbf{y} \in \mathbb{B}^{n}``.
+
+```math
+x \approx \xi(\mathbf{y}) = a + \sum_{j = 1}^{b - a} y_{j}
+```
 """ struct Unary <: LinearEncoding end
 
 function encode!(
@@ -260,6 +271,8 @@ function encode!(
 end
 
 @doc raw"""
+    Binary()
+
 Binary Expansion within the closed interval ``[\alpha, \beta]``.
 
 For a given variable ``x \in [\alpha, \beta]`` we approximate it by

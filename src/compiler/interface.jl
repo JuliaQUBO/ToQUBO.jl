@@ -55,22 +55,9 @@ Copies `MOI.ObjectiveSense` from `model.source_model` to `model.target_model`.
 """ function toqubo_constraints! end
 
 @doc raw"""
-    toqubo_constraint(model::VirtualModel{T}, f::SAF{T}, s::EQ{T}, ::AbstractArchitecture) where {T}
-    toqubo_constraint(model::VirtualModel{T}, f::SAF{T}, s::LT{T}, ::AbstractArchitecture) where {T}
-    toqubo_constraint(model::VirtualModel{T}, f::SQF{T}, s::EQ{T}, ::AbstractArchitecture) where {T}
-    toqubo_constraint(model::VirtualModel{T}, f::SQF{T}, s::LT{T}, ::AbstractArchitecture) where {T}
-    toqubo_constraint(
-        ::VirtualModel{T},
-        ::VI,
-        ::Union{
-            MOI.ZeroOne,
-            MOI.Integer,
-            MOI.Interval{T},
-            MOI.LessThan{T},
-            MOI.GreaterThan{T}
-        },
-        ::AbstractArchitecture
-    ) where {T}
+    toqubo_constraint
+
+Returns the pseudo-boolean function associated to a given constraint from the source model.
 """ function toqubo_constraint end
 
 @doc raw"""

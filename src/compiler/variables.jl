@@ -89,8 +89,8 @@ function toqubo_variables!(model::VirtualModel{T}, ::AbstractArchitecture) where
             # where τ is the (absolute) tolerance
             # TODO: Add τ as parameter
             let
-                τ = MOI.get(model, Tol(), x)
-                e = MOI.get(model, VARIABLE_ENCODING(), x)
+                τ = MOI.get(model, VARIABLE_ENCODING_ATOL(), x)
+                e = MOI.get(model, VARIABLE_ENCODING_METHOD(), x)
 
                 encode!(e, model, x, a, b, τ)
             end 
@@ -102,7 +102,7 @@ function toqubo_variables!(model::VirtualModel{T}, ::AbstractArchitecture) where
         if isnothing(a) || isnothing(b)
             error("Unbounded variable $(x) ∈ ℤ")
         else
-            let e = MOI.get(model, VARIABLE_ENCODING(), x)
+            let e = MOI.get(model, VARIABLE_ENCODING_METHOD(), x)
                 encode!(e, model, x, a, b)
             end
         end

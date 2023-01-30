@@ -18,8 +18,12 @@ ToQUBO.toqubo!
 ```@docs
 ToQUBO.toqubo_sense!
 ToQUBO.toqubo_variables!
-ToQUBO.toqubo_constraint!
+ToQUBO.toqubo_constraint
+ToQUBO.toqubo_constraints!
 ToQUBO.toqubo_objective!
+ToQUBO.toqubo_penalties!
+ToQUBO.toqubo_parse!
+ToQUBO.toqubo_build!
 ```
 
 ## Pseudo-Boolean Optimization
@@ -32,12 +36,10 @@ ToQUBO.PBO.derivative
 ToQUBO.PBO.gradient
 ToQUBO.PBO.gap
 ToQUBO.PBO.sharpness
-ToQUBO.PBO.discretize
 ToQUBO.PBO.relaxed_gcd
 ```
 
 ### A Primer on Submodularity
-
 A set function ``f : 2^{S} \to \mathbb{R}`` is said to be submodular if
 
 ```math
@@ -50,8 +52,7 @@ holds.
 In order to successfully achieve a QUBO formulation, sometimes it is needed to quadratize the resulting PBF, i.e., reduce its degree until reaching the quadratic case. There are many quadratization methods available, and `ToQUBO` implements a few of them.
 
 ```@docs
-ToQUBO.PBO.quadratize
-ToQUBO.PBO.@quadratization
+ToQUBO.PBO.quadratize!
 ```
 
 ## Virtual Mapping
@@ -63,14 +64,17 @@ This is done in a transparent fashion for both agents since the user will mostly
 Every virtual model stores a collection of virtual variables, intended to provide a link between those in the source and those to be created in the target model. Each virtual variable stores enconding information for later expansion and evaluation.
 
 ```@docs
-ToQUBO.VirtualMapping.VirtualVariable
-ToQUBO.VirtualMapping.mapvar!
-ToQUBO.VirtualMapping.expandℝ!
-ToQUBO.VirtualMapping.slackℝ!
-ToQUBO.VirtualMapping.expandℤ!
-ToQUBO.VirtualMapping.slackℤ!
-ToQUBO.VirtualMapping.mirror𝔹!
-ToQUBO.VirtualMapping.slack𝔹!
+ToQUBO.VirtualVariable
+ToQUBO.encode!
+```
+
+### Variable Encoding
+```@docs
+ToQUBO.Binary
+ToQUBO.Unary
+ToQUBO.Arithmetic
+ToQUBO.OneHot
+ToQUBO.DomainWall
 ```
 
 ### Virtual Models

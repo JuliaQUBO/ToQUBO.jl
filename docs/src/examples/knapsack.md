@@ -1,5 +1,3 @@
-# Examples
-
 ## Knapsack
 We start with some instances of the discrete [Knapsack Problem](https://en.wikipedia.org/wiki/Knapsack_problem) whose standard formulation is
 ```math
@@ -18,13 +16,13 @@ import MathOptInterface as MOI
 const MOIU = MOI.Utilities
 
 using ToQUBO
-using Anneal # <- Your favourite Annealer / Sampler / Solver here
+using DWaveNeal # <- Your favourite Annealer / Sampler / Solver here
 
 # Example from https://jump.dev/MathOptInterface.jl/stable/tutorials/example/
 
 # Virtual QUBO Model
 model = MOI.instantiate(
-   () -> ToQUBO.Optimizer(SimulatedAnnealer.Optimizer),
+   () -> ToQUBO.Optimizer(DWaveNeal.Optimizer),
    with_bridge_type = Float64,
 )
 
@@ -94,35 +92,21 @@ df = CSV.read("knapsack.csv", DataFrame)
 ```@example dwave-knapsack
 using JuMP
 using ToQUBO
-using Anneal # <- Your favourite Annealer / Sampler / Solver here
+using DWaveNeal # <- Your favourite Annealer / Sampler / Solver here
 
-# -> Model <-
-model = Model(() -> ToQUBO.Optimizer(SimulatedAnnealer.Optimizer))
+model = Model(() -> ToQUBO.Optimizer(DWaveNeal.Optimizer))
 
 n = size(df, 1)
 c = collect(Float64, df[!, :cost])
 w = collect(Float64, df[!, :weight])
 C = round(0.8 * sum(w))
 
-# -> Variables <-
-@variable(model, x[i=1:n], Bin)
-
-# -> Objective <-
+@variable(model, x[1:n], Bin)
 @objective(model, Max, c' * x)
-
-# -> Constraint <-
 @constraint(model, w' * x <= C)
 
-# ->-> Run! ->->
 optimize!(model)
 
 # Add Results as a new column
-insertcols!(
-   df,
-   3, 
-   :select => map(
-      (ξ) -> (ξ > 0.0) ? "Yes" : "No",
-      value.(x),
-   ),
-)
+insertcols!(df, 3, :select => map((ξ) -> (ξ > 0.0) ? "Yes" : "No", value.(x)))
 ```
