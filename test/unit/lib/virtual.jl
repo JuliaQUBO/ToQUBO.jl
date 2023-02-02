@@ -14,7 +14,7 @@ function test_virtual()
                 γ = [1.0, 2.0, 3.0]
                 α = 1.0
 
-                v = ToQUBO.encode!(ToQUBO.Linear(), model, x, γ, α)
+                v = ToQUBO.encode!(model, ToQUBO.Linear(), x, γ, α)
                 y = ToQUBO.target(v)
 
                 @test length(y) == 3
@@ -38,7 +38,7 @@ function test_virtual()
 
                 x = MOI.add_variable(model.source_model)
 
-                v = ToQUBO.encode!(ToQUBO.Mirror(), model, x)
+                v = ToQUBO.encode!(model, ToQUBO.Mirror(), x)
                 y = ToQUBO.target(v)
 
                 @test length(y) == 1
@@ -58,7 +58,7 @@ function test_virtual()
                 x = MOI.add_variable(model.source_model)
                 a, b = (-2.0, 2.0)
 
-                v = ToQUBO.encode!(ToQUBO.Unary(), model, x, a, b)
+                v = ToQUBO.encode!(model, ToQUBO.Unary(), x, a, b)
                 y = ToQUBO.target(v)
 
                 @test length(y) == 4
@@ -85,7 +85,7 @@ function test_virtual()
                 a, b = (-2.0, 2.0)
                 n = 4
 
-                v = ToQUBO.encode!(ToQUBO.Unary(), model, x, a, b, n)
+                v = ToQUBO.encode!(model, ToQUBO.Unary(), x, a, b, n)
                 y = ToQUBO.target(v)
 
                 @test length(y) == n
@@ -111,7 +111,7 @@ function test_virtual()
                 x = MOI.add_variable(model.source_model)
                 a, b = (-2.0, 2.0)
 
-                v = ToQUBO.encode!(ToQUBO.Binary(), model, x, a, b)
+                v = ToQUBO.encode!(model, ToQUBO.Binary(), x, a, b)
                 y = ToQUBO.target(v)
 
                 @test length(y) == 3
@@ -137,7 +137,7 @@ function test_virtual()
                 a, b = (-2.0, 2.0)
                 n = 3
 
-                v = ToQUBO.encode!(ToQUBO.Binary(), model, x, a, b, n)
+                v = ToQUBO.encode!(model, ToQUBO.Binary(), x, a, b, n)
                 y = ToQUBO.target(v)
 
                 @test length(y) == n
@@ -162,7 +162,7 @@ function test_virtual()
                 x = MOI.add_variable(model.source_model)
                 a, b = (-2.0, 2.0)
 
-                v = ToQUBO.encode!(ToQUBO.Arithmetic(), model, x, a, b)
+                v = ToQUBO.encode!(model, ToQUBO.Arithmetic(), x, a, b)
                 y = ToQUBO.target(v)
 
                 @test length(y) == 3
@@ -188,7 +188,7 @@ function test_virtual()
                 a, b = (-2.0, 2.0)
                 n = 3
 
-                v = ToQUBO.encode!(ToQUBO.Arithmetic(), model, x, a, b, n)
+                v = ToQUBO.encode!(model, ToQUBO.Arithmetic(), x, a, b, n)
                 y = ToQUBO.target(v)
 
                 @test length(y) == n
@@ -213,7 +213,7 @@ function test_virtual()
                 x = MOI.add_variable(model.source_model)
                 γ = [-1.0, -0.5, 0.0, 0.5, 1.0]
 
-                v = ToQUBO.encode!(ToQUBO.OneHot(), model, x, γ)
+                v = ToQUBO.encode!(model, ToQUBO.OneHot(), x, γ)
                 y = ToQUBO.target(v)
 
                 @test length(y) == length(γ)
@@ -238,7 +238,7 @@ function test_virtual()
                 x = MOI.add_variable(model.source_model)
                 a, b = (-2.0, 2.0)
 
-                v = ToQUBO.encode!(ToQUBO.OneHot(), model, x, a, b)
+                v = ToQUBO.encode!(model, ToQUBO.OneHot(), x, a, b)
                 y = ToQUBO.target(v)
 
                 @test length(y) == 5
@@ -263,7 +263,7 @@ function test_virtual()
                 a, b = (-2.0, 2.0)
                 n = 5
 
-                v = ToQUBO.encode!(ToQUBO.OneHot(), model, x, a, b, n)
+                v = ToQUBO.encode!(model, ToQUBO.OneHot(), x, a, b, n)
                 y = ToQUBO.target(v)
 
                 @test length(y) == n
@@ -287,7 +287,7 @@ function test_virtual()
                 x = MOI.add_variable(model.source_model)
                 a, b = (-2.0, 2.0)
 
-                v = ToQUBO.encode!(ToQUBO.DomainWall(), model, x, a, b)
+                v = ToQUBO.encode!(model, ToQUBO.DomainWall(), x, a, b)
                 y = ToQUBO.target(v)
 
                 @test length(y) == 4
@@ -320,7 +320,7 @@ function test_virtual()
                 a, b = (-2.0, 2.0)
                 n = 5
 
-                v = ToQUBO.encode!(ToQUBO.DomainWall(), model, x, a, b, n)
+                v = ToQUBO.encode!(model, ToQUBO.DomainWall(), x, a, b, n)
                 y = ToQUBO.target(v)
 
                 @test length(y) == n - 1
@@ -344,6 +344,62 @@ function test_virtual()
                 @test model.variables                             == [v]
                 @test model.source[ToQUBO.source(v)]              == (v)
                 @test [model.target[y] for y in ToQUBO.target(v)] == [v, v, v, v]
+            end
+
+            @testset "Bounded(Unary) ℤ" begin
+                model = ToQUBO.VirtualModel()
+
+                x = MOI.add_variable(model.source_model)
+                a, b = (-10.0, 10.0)
+
+                v = ToQUBO.encode!(model, ToQUBO.Bounded{ToQUBO.Unary}(5.0), x, a, b)
+                y = ToQUBO.target(v)
+
+                @test length(y)           == 8
+                @test ToQUBO.source(v)    == x
+                @test ToQUBO.expansion(v) == PBO.PBF{VI,Float64}(
+                    y[1] => 1.0,
+                    y[2] => 1.0,
+                    y[3] => 1.0,
+                    y[4] => 1.0,
+                    y[5] => 5.0,
+                    y[6] => 5.0,
+                    y[7] => 5.0,
+                    y[8] => 1.0,
+                    nothing => a,
+                )
+                @test isnothing(ToQUBO.penaltyfn(v))
+
+                @test model.variables                             == [v]
+                @test model.source[ToQUBO.source(v)]              == (v)
+                @test [model.target[y] for y in ToQUBO.target(v)] == [v, v, v, v, v, v, v, v]
+            end
+
+            @testset "Bounded(Binary) ℤ" begin
+                model = ToQUBO.VirtualModel()
+
+                x = MOI.add_variable(model.source_model)
+                a, b = (-10.0, 10.0)
+
+                v = ToQUBO.encode!(model, ToQUBO.Bounded{ToQUBO.Binary}(5.0), x, a, b)
+                y = ToQUBO.target(v)
+
+                @test length(y)           == 6
+                @test ToQUBO.source(v)    == x
+                @test ToQUBO.expansion(v) == PBO.PBF{VI,Float64}(
+                    y[1] => 1.0,
+                    y[2] => 2.0,
+                    y[3] => 4.0,
+                    y[4] => 5.0,
+                    y[5] => 5.0,
+                    y[6] => 3.0,
+                    nothing => a,
+                )
+                @test isnothing(ToQUBO.penaltyfn(v))
+
+                @test model.variables                             == [v]
+                @test model.source[ToQUBO.source(v)]              == (v)
+                @test [model.target[y] for y in ToQUBO.target(v)] == [v, v, v, v, v, v]
             end
         end
     end

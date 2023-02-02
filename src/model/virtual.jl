@@ -174,8 +174,8 @@ function VirtualVariable{T}(
 end
 
 function encode!(
-    e::LinearEncoding,
     model::VirtualModel{T},
+    e::LinearEncoding,
     x::Union{VI,Nothing},
     γ::Vector{T},
     α::T = zero(T),
@@ -188,29 +188,29 @@ function encode!(
 end
 
 @doc raw"""
-    Mirror()
+    Mirror
 
 Mirrors binary variable ``x \in \mathbb{B}`` with a twin variable ``y \in \mathbb{B}``.
 """ struct Mirror <: LinearEncoding end
 
-function encode!(e::Mirror, model::VirtualModel{T}, x::Union{VI,Nothing}) where {T}
-    return encode!(e, model, x, ones(T, 1))
+function encode!(model::VirtualModel{T}, e::Mirror, x::Union{VI,Nothing}) where {T}
+    return encode!(model, e, x, ones(T, 1))
 end
 
 @doc raw"""
-    Linear()
+    Linear
 """ struct Linear <: LinearEncoding end
 
 function encode!(
-    e::Linear,
     model::VirtualModel{T},
+    e::Linear,
     x::Union{VI,Nothing},
     Γ::Function,
     n::Integer,
 ) where {T}
     γ = T[Γ(i) for i = 1:n]
 
-    return encode!(e, model, x, γ, zero(T))
+    return encode!(model, e, x, γ, zero(T))
 end
 
 @doc raw"""
@@ -224,8 +224,8 @@ x \approx \xi(\mathbf{y}) = a + \sum_{j = 1}^{b - a} y_{j}
 """ struct Unary <: LinearEncoding end
 
 function encode!(
-    e::Unary,
     model::VirtualModel{T},
+    e::Unary,
     x::Union{VI,Nothing},
     a::T,
     b::T,
@@ -240,12 +240,12 @@ function encode!(
     M = trunc(Int, β - α)
     γ = ones(T, M)
 
-    return encode!(e, model, x, γ, α)
+    return encode!(model, e, x, γ, α)
 end
 
 function encode!(
-    e::Unary,
     model::VirtualModel{T},
+    e::Unary,
     x::Union{VI,Nothing},
     a::T,
     b::T,
@@ -254,12 +254,12 @@ function encode!(
     Γ = (b - a) / n
     γ = Γ * ones(T, n)
 
-    return encode!(e, model, x, γ, a)
+    return encode!(model, e, x, γ, a)
 end
 
 function encode!(
-    e::Unary,
     model::VirtualModel{T},
+    e::Unary,
     x::Union{VI,Nothing},
     a::T,
     b::T,
@@ -267,11 +267,11 @@ function encode!(
 ) where {T}
     n = ceil(Int, (1 + abs(b - a) / 4τ))
 
-    return encode!(e, model, x, a, b, n)
+    return encode!(model, e, x, a, b, n)
 end
 
 @doc raw"""
-    Binary()
+    Binary
 
 Binary Expansion within the closed interval ``[\alpha, \beta]``.
 
@@ -285,8 +285,8 @@ where ``n`` is the number of bits and ``y_i \in \mathbb{B}``.
 """ struct Binary <: LinearEncoding end
 
 function encode!(
-    e::Binary,
     model::VirtualModel{T},
+    e::Binary,
     x::Union{VI,Nothing},
     a::T,
     b::T,
@@ -307,12 +307,12 @@ function encode!(
         T[[2^i for i = 0:N-2]; [M - 2^(N - 1) + 1]]
     end
 
-    return encode!(e, model, x, γ, α)
+    return encode!(model, e, x, γ, α)
 end
 
 function encode!(
-    e::Binary,
     model::VirtualModel{T},
+    e::Binary,
     x::Union{VI,Nothing},
     a::T,
     b::T,
@@ -321,12 +321,12 @@ function encode!(
     Γ = (b - a) / (2^n - 1)
     γ = Γ * 2 .^ collect(T, 0:n-1)
 
-    return encode!(e, model, x, γ, a)
+    return encode!(model, e, x, γ, a)
 end
 
 function encode!(
-    e::Binary,
     model::VirtualModel{T},
+    e::Binary,
     x::Union{VI,Nothing},
     a::T,
     b::T,
@@ -334,15 +334,16 @@ function encode!(
 ) where {T}
     n = ceil(Int, log2(1 + abs(b - a) / 4τ))
 
-    return encode!(e, model, x, a, b, n)
+    return encode!(model, e, x, a, b, n)
 end
 
 @doc raw"""
+    Arithmetic
 """ struct Arithmetic <: LinearEncoding end
 
 function encode!(
-    e::Arithmetic,
     model::VirtualModel{T},
+    e::Arithmetic,
     x::Union{VI,Nothing},
     a::T,
     b::T,
@@ -359,12 +360,12 @@ function encode!(
 
     γ = T[[i for i = 1:N-1]; [M - N * (N - 1) / 2]]
 
-    return encode!(e, model, x, γ, α)
+    return encode!(model, e, x, γ, α)
 end
 
 function encode!(
-    e::Arithmetic,
     model::VirtualModel{T},
+    e::Arithmetic,
     x::Union{VI,Nothing},
     a::T,
     b::T,
@@ -373,12 +374,12 @@ function encode!(
     Γ = 2 * (b - a) / (n * (n + 1))
     γ = Γ * collect(1:n)
 
-    return encode!(e, model, x, γ, a)
+    return encode!(model, e, x, γ, a)
 end
 
 function encode!(
-    e::Arithmetic,
     model::VirtualModel{T},
+    e::Arithmetic,
     x::Union{VI,Nothing},
     a::T,
     b::T,
@@ -386,7 +387,7 @@ function encode!(
 ) where {T}
     n = ceil(Int, (1 + sqrt(3 + (b - a) / 2τ)) / 2)
 
-    return encode!(e, model, x, a, b, n)
+    return encode!(model, e, x, a, b, n)
 end
 
 @doc raw"""
@@ -408,8 +409,8 @@ function VirtualVariable{T}(
 end
 
 function encode!(
-    e::OneHot,
     model::VirtualModel{T},
+    e::OneHot,
     x::Union{VI,Nothing},
     a::T,
     b::T,
@@ -423,12 +424,12 @@ function encode!(
     # assumes: β - α > 0
     γ = collect(T, α:β)
 
-    return encode!(e, model, x, γ)
+    return encode!(model, e, x, γ)
 end
 
 function encode!(
-    e::OneHot,
     model::VirtualModel{T},
+    e::OneHot,
     x::Union{VI,Nothing},
     a::T,
     b::T,
@@ -437,12 +438,12 @@ function encode!(
     Γ = (b - a) / (n - 1)
     γ = a .+ Γ * collect(T, 0:n-1)
 
-    return encode!(e, model, x, γ)
+    return encode!(model, e, x, γ)
 end
 
 function encode!(
-    e::OneHot,
     model::VirtualModel{T},
+    e::OneHot,
     x::Union{VI,Nothing},
     a::T,
     b::T,
@@ -450,14 +451,14 @@ function encode!(
 ) where {T}
     n = ceil(Int, (1 + abs(b - a) / 4τ))
 
-    return encode!(e, model, x, a, b, n)
+    return encode!(model, e, x, a, b, n)
 end
 
 abstract type SequentialEncoding <: Encoding end
 
 function encode!(
-    e::SequentialEncoding,
     model::VirtualModel{T},
+    e::SequentialEncoding,
     x::Union{VI,Nothing},
     γ::Vector{T},
     α::T = zero(T),
@@ -487,8 +488,8 @@ function VirtualVariable{T}(
 end
 
 function encode!(
-    e::DomainWall,
     model::VirtualModel{T},
+    e::DomainWall,
     x::Union{VI,Nothing},
     a::T,
     b::T,
@@ -503,12 +504,12 @@ function encode!(
     M = trunc(Int, β - α)
     γ = α .+ collect(T, 0:M)
 
-    return encode!(e, model, x, γ)
+    return encode!(model, e, x, γ)
 end
 
 function encode!(
-    e::DomainWall,
     model::VirtualModel{T},
+    e::DomainWall,
     x::Union{VI,Nothing},
     a::T,
     b::T,
@@ -517,5 +518,119 @@ function encode!(
     Γ = (b - a) / (n - 1)
     γ = a .+ Γ * collect(T, 0:n-1)
 
-    return encode!(e, model, x, γ)
+    return encode!(model, e, x, γ)
+end
+
+@doc raw"""
+    Bounded{Binary,T}(μ::T) where {T}
+
+Let ``x \in [a, b] \subset \mathbb{Z}`` and ``n = b - a``.
+
+First,
+
+```math
+\begin{align*}
+         2^{k - 1}  &\le \mu \\
+\implies k          &=   \left\lfloor\log_{2} \mu + 1 \right\rfloor
+\end{align*}
+```
+
+Since
+
+```math
+\sum_{j = 1}^{k} 2^{j - 1} = \sum_{j = 0}^{k - 1} 2^{j} = 2^{k} - 1
+```
+
+then, for ``r \in \mathbb{N}``
+
+```math
+n = 2^{k} - 1 + r \times \mu + \epsilon \implies r = \left\lfloor \frac{n - 2^{k} + 1}{\mu} \right\rfloor
+```
+
+and
+
+```math
+\epsilon = n - 2^{k} + 1 - r \times \mu
+```
+
+\gamma_{j} = \left\lbrace\begin{array}{cl}
+    2^{j} & \text{if } 1 \le j \le k   \\
+    \mu   & \text{if } k < j < r + k   \\
+    n - 2^k + 1 - r \times \mu & \text{otherwise}
+\end{array}\right.
+```
+
+    Bounded{Unary,T}(μ::T) where {T}
+
+
+""" struct Bounded{E<:LinearEncoding,T} <: LinearEncoding
+    μ::T
+
+    function Bounded{E,T}(μ::T) where {E,T}
+        @assert !iszero(μ)
+
+        return new{E,T}(μ)
+    end
+end
+
+function Bounded{E}(μ::T) where {E,T}
+    return Bounded{E,T}(μ)
+end
+
+function encode!(
+    model::VirtualModel{T},
+    e::Bounded{Binary,T},
+    x::Union{VI,Nothing},
+    a::T,
+    b::T,
+) where {T}
+    if a < b
+        a = ceil(a)
+        b = floor(b)
+    else
+        a = ceil(b)
+        b = floor(a)
+    end
+
+    n = round(Int, b - a)
+    k = floor(Int, log2(e.μ) + 1)
+    r = floor(Int, (n - 2^k + 1) / e.μ)
+    ϵ = n - 2^k + 1 - r * e.μ
+
+    if iszero(ϵ)
+        γ = T[[2^(j - 1) for j = 1:k]; [e.μ for _ = 1:r]]
+    else
+        γ = T[[2^(j - 1) for j = 1:k]; [e.μ for _ = 1:r]; [ϵ]]
+    end
+
+    return encode!(model, e, x, γ, a)
+end
+
+function encode!(
+    model::VirtualModel{T},
+    e::Bounded{Unary,T},
+    x::Union{VI,Nothing},
+    a::T,
+    b::T,
+) where {T}
+    if a < b
+        a = ceil(a)
+        b = floor(b)
+    else
+        a = ceil(b)
+        b = floor(a)
+    end
+
+    n = round(Int, b - a)
+    k = ceil(Int, e.μ - 1)
+    r = floor(Int, (n - k) / e.μ)
+    ϵ = n - k + - r * e.μ
+
+    if iszero(ϵ)
+        γ = T[ones(T, k); [e.μ for _ = 1:r]]
+    else
+        γ = T[ones(T, k); [e.μ for _ = 1:r]; [ϵ]]
+    end
+
+    return encode!(model, e, x, γ, a)
 end

@@ -19,11 +19,13 @@ function showterm(ω::Set{S}, c::T, isfirst::Bool) where {S, T}
 end
 
 function Base.show(io::IO, f::PBF{<:Any, T}) where T
+    Ω = sort!(collect(f); lt=(x,y) -> varlt(first(x), first(y)))
+
     print(io,
         if isempty(f)
             zero(T)
         else
-            join(showterm(ω, c, isone(i)) for (i, (ω, c)) in enumerate(f))
+            join(showterm(ω, c, isone(i)) for (i, (ω, c)) in enumerate(Ω))
         end
     )
 end

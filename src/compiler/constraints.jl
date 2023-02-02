@@ -121,7 +121,7 @@ function toqubo_constraint(
     end
 
     # Slack Variable
-    z = encode!(Binary(), model, nothing, zero(T), abs(l))
+    z = encode!(model, Binary(), nothing, zero(T), abs(l))
 
     for (ω, c) in expansion(z)
         g[ω] += c
@@ -178,7 +178,7 @@ function toqubo_constraint(
         @warn "Infeasible constraint detected"
     end
 
-    z = encode!(Binary(), model, nothing, zero(T), abs(l))
+    z = encode!(model, Binary(), nothing, zero(T), abs(l))
 
     for (ω, c) in expansion(z)
         g[ω] += c
@@ -205,7 +205,7 @@ function toqubo_constraint(
         end
     end
 
-    z = expansion(encode!(Mirror(), model, nothing))
+    z = expansion(encode!(model, Mirror(), nothing))
 
     # NOTE: Using one-hot approach. Not great, but it works.
     return (g + z - one(T))^2

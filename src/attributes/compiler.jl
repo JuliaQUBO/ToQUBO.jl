@@ -20,7 +20,7 @@ end
 When set, this boolean flag guarantees that every coefficient in the final formulation is an integer.
 """ struct DISCRETIZE <: CompilerAttribute end
 
-function MOI.set(model::VirtualModel, ::DISCRETIZE, flag::Bool)::Bool
+function MOI.get(model::VirtualModel, ::DISCRETIZE, flag::Bool)::Bool
     return get(model.compiler_settings, :discretize, false)
 end
 

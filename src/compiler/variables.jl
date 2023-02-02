@@ -92,7 +92,7 @@ function toqubo_variables!(model::VirtualModel{T}, ::AbstractArchitecture) where
                 τ = MOI.get(model, VARIABLE_ENCODING_ATOL(), x)
                 e = MOI.get(model, VARIABLE_ENCODING_METHOD(), x)
 
-                encode!(e, model, x, a, b, τ)
+                encode!(model, e, x, a, b, τ)
             end 
         end
     end
@@ -103,14 +103,14 @@ function toqubo_variables!(model::VirtualModel{T}, ::AbstractArchitecture) where
             error("Unbounded variable $(x) ∈ ℤ")
         else
             let e = MOI.get(model, VARIABLE_ENCODING_METHOD(), x)
-                encode!(e, model, x, a, b)
+                encode!(model, e, x, a, b)
             end
         end
     end
 
     # -*- Mirror Boolean Variables 😄 -*-
     for x in 𝔹
-        encode!(Mirror(), model, x)
+        encode!(model, Mirror(), x)
     end
 
     return nothing

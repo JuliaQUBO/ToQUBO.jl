@@ -60,7 +60,7 @@ function toqubo_copy!(
 
     # Map Variables
     for vi in MOI.get(source_model, MOI.ListOfVariableIndices())
-        encode!(Mirror(), model, vi)
+        encode!(model, Mirror(), vi)
     end
 
     # Copy Objective Sense
