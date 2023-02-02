@@ -401,6 +401,33 @@ function test_virtual()
                 @test model.source[ToQUBO.source(v)]              == (v)
                 @test [model.target[y] for y in ToQUBO.target(v)] == [v, v, v, v, v, v]
             end
+
+            @testset "Bounded(Arithmetic) ℤ" begin
+                model = ToQUBO.VirtualModel()
+
+                x = MOI.add_variable(model.source_model)
+                a, b = (-10.0, 10.0)
+
+                v = ToQUBO.encode!(model, ToQUBO.Bounded{ToQUBO.Arithmetic}(5.0), x, a, b)
+                y = ToQUBO.target(v)
+
+                @test length(y)           == 6
+                @test ToQUBO.source(v)    == x
+                @test ToQUBO.expansion(v) == PBO.PBF{VI,Float64}(
+                    y[1] => 1.0,
+                    y[2] => 2.0,
+                    y[3] => 3.0,
+                    y[4] => 4.0,
+                    y[5] => 5.0,
+                    y[6] => 5.0,
+                    nothing => a,
+                )
+                @test isnothing(ToQUBO.penaltyfn(v))
+
+                @test model.variables                             == [v]
+                @test model.source[ToQUBO.source(v)]              == (v)
+                @test [model.target[y] for y in ToQUBO.target(v)] == [v, v, v, v, v, v]
+            end
         end
     end
 end

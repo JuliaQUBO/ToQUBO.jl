@@ -594,8 +594,9 @@ function encode!(
 
     n = round(Int, b - a)
     k = floor(Int, log2(e.μ) + 1)
-    r = floor(Int, (n - 2^k + 1) / e.μ)
-    ϵ = n - 2^k + 1 - r * e.μ
+    m = 2^k - 1
+    r = floor(Int, (n - m) / e.μ)
+    ϵ = n - m - r * e.μ
 
     if iszero(ϵ)
         γ = T[[2^(j - 1) for j = 1:k]; [e.μ for _ = 1:r]]
@@ -630,6 +631,36 @@ function encode!(
         γ = T[ones(T, k); [e.μ for _ = 1:r]]
     else
         γ = T[ones(T, k); [e.μ for _ = 1:r]; [ϵ]]
+    end
+
+    return encode!(model, e, x, γ, a)
+end
+
+function encode!(
+    model::VirtualModel{T},
+    e::Bounded{Arithmetic,T},
+    x::Union{VI,Nothing},
+    a::T,
+    b::T,
+) where {T}
+    if a < b
+        a = ceil(a)
+    else
+        b = floor(b)
+        a = ceil(b)
+        b = floor(a)
+    end
+
+    n = round(Int, b - a)
+    k = floor(Int, e.μ)
+    m = (k * (k + 1)) ÷ 2
+    r = floor(Int, (n - m) / e.μ)
+    ϵ = n - m + - r * e.μ
+
+    if iszero(ϵ)
+        γ = T[collect(T,1:k); [e.μ for _ = 1:r]]
+    else
+        γ = T[collect(T,1:k); [e.μ for _ = 1:r]; [ϵ]]
     end
 
     return encode!(model, e, x, γ, a)
