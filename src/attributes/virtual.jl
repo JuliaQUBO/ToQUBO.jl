@@ -22,3 +22,7 @@ function MOI.empty!(model::VirtualModel)
 
     return nothing
 end
+
+function MOI.get(::VirtualModel{T}, ::MOIB.ListOfNonstandardBridges{T}) where {T}
+    return Type[]
+end

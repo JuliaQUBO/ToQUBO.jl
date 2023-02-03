@@ -27,8 +27,7 @@ function MOI.copy_to(model::VirtualModel{T}, source::MOI.ModelLike) where {T}
     end
 
     # -*- Copy to PreQUBOModel + Add Bridges -*- #
-    source_model = model.source_model
-    bridge_model = MOIB.full_bridge_optimizer(source_model, T)
+    bridge_model = MOIB.full_bridge_optimizer(model.source_model, T)
 
     # -*- Copy to source using bridges - *- #
     return MOI.copy_to(bridge_model, source) # index_map

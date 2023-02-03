@@ -14,6 +14,14 @@ function MOI.set(model::VirtualModel, attr::MOI.AbstractOptimizerAttribute, valu
     return nothing
 end
 
+function MOI.supports(model::VirtualModel, attr::MOI.AbstractOptimizerAttribute)
+    if !isnothing(model.optimizer)
+        return MOI.supports(model.optimizer, attr)
+    else
+        return false
+    end
+end
+
 function MOI.get(
     model::VirtualModel,
     attr::Union{

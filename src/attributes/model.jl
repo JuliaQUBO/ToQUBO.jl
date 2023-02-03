@@ -75,12 +75,6 @@ function MOI.add_constraint(
 )
     return MOI.add_constraint(model.source_model, f, s)
 end
-
-function MOI.set(model::VirtualModel, os::MOI.ObjectiveSense, sense::MOI.OptimizationSense)
-    MOI.set(model.source_model, os, sense)
-
-    return nothing
-end
     
 function MOI.set(
     model::VirtualModel,
