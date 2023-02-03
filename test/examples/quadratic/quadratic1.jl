@@ -1,6 +1,6 @@
 function test_quadratic1()
     @testset "3 variables, 1 constraint" begin
-        # ~*~ Problem Data ~*~ #
+        # Problem Data
         n = 3
         A = [
             -1  2  2
@@ -12,7 +12,7 @@ function test_quadratic1()
         # Penalty Choice
         ρ̄ = -16
 
-        # ~*~ Solution Data ~*~ #
+        # Solution
         Q̄ = [
             -209  740  740   32   64  128   64 -1152 -128 -256 -512 -256 -128 -256 -512 -256    0    0    0    0
                0 -209 -412  -96 -192 -384 -192  1152  128  256  512  256    0    0    0    0 -128 -256 -512 -256
@@ -42,7 +42,7 @@ function test_quadratic1()
         x̄ = Set{Vector{Int}}([[0, 1, 1], [1, 0, 1], [1, 1, 0]])
         ȳ = 2
 
-        # ~*~ Model ~*~ #
+        # Model
         model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
 
         @variable(model, x[1:n], Bin)
@@ -53,7 +53,7 @@ function test_quadratic1()
 
         optimize!(model)
 
-        # :: Reformulation ::
+        # Reformulation
         ρ       = MOI.get(model, ToQUBO.CONSTRAINT_ENCODING_PENALTY(), c1)
         Q, α, β = ToQUBO.qubo(model, Matrix)
 
@@ -62,7 +62,7 @@ function test_quadratic1()
         @test β ≈ β̄
         @test Q ≈ Q̄
 
-        # :: Solutions ::
+        # Solutions
         x̂ = trunc.(Int, value.(x))
         ŷ = objective_value(model)
 

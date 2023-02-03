@@ -1,6 +1,6 @@
 function test_logical_tsp()
     @testset "TSP: 16 variables" begin
-        # ~*~ Problem Data ~*~ #
+        #  Problem Data  #
         n = 4
         D = [
             0  1  5  4
@@ -12,7 +12,7 @@ function test_logical_tsp()
         # Penalty Choice
         ρ̄ = fill(169, 2n)
 
-        # ~*~ Solution Data ~*~ #
+        # Solution Data
         Q̄ = [
             -338  676    1  676    5    0  676    5    5    4
                0 -675  676  681  679    5  681  682    6    6
@@ -36,7 +36,7 @@ function test_logical_tsp()
         ])
         ȳ = 10
 
-        # ~*~ Model ~*~ #
+        #  Model  #
         model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
 
         @variable(model, x[1:n, 1:n], Bin, Symmetric)
@@ -50,24 +50,21 @@ function test_logical_tsp()
 
         optimize!(model)
 
-        # :: Reformulation ::
-        qubo_model = unsafe_backend(model)
-
-        ρi      = MOI.get.(qubo_model, ToQUBO.CONSTRAINT_ENCODING_PENALTY(), collect(map(i -> i.index, ci)))
-        ρk      = MOI.get.(qubo_model, ToQUBO.CONSTRAINT_ENCODING_PENALTY(), collect(map(i -> i.index, ck)))
+        # Reformulation
+        ρi      = MOI.get.(model, ToQUBO.CONSTRAINT_ENCODING_PENALTY(), ci)
+        ρk      = MOI.get.(model, ToQUBO.CONSTRAINT_ENCODING_PENALTY(), ck)
         ρ       = [ρi; ρk]
-        Q, α, β = ToQUBO.qubo(qubo_model, Matrix)
+        Q, α, β = ToQUBO.qubo(model, Matrix)
 
         @test ρ ≈ ρ̄
         @test α ≈ ᾱ
         @test β ≈ β̄
         @test Q ≈ Q̄
 
-        # :: Solutions ::
+        # Solutions
         x̂ = trunc.(Int, value.(x))
         ŷ = objective_value(model)
 
-        # @test x̂ ∈ x̄
         @test x̂ ∈ x̄
         @test ŷ ≈ ȳ
 

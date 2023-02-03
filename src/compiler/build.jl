@@ -1,11 +1,11 @@
 function toqubo_build!(model::VirtualModel{T}, arch::AbstractArchitecture) where {T}
-    # -*- Assemble Objective Function -*-
+    #  Assemble Objective Function 
     toqubo_hamiltonian!(model, arch)
 
-    # -*- Quadratization Step -*-
+    #  Quadratization Step 
     toqubo_quadratize!(model, arch)
 
-    # -*- Write to MathOptInterface -*-
+    #  Write to MathOptInterface 
     toqubo_output!(model, arch)
 
     return nothing

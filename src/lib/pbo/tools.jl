@@ -1,4 +1,4 @@
-# -*- Relaxed Greatest Common Divisor -*-
+# Relaxed Greatest Common Divisor 
 @doc raw"""
     relaxed_gcd(x::T, y::T; tol::T = T(1e-6)) where {T <: AbstractFloat}
 
@@ -33,14 +33,14 @@ function relaxed_gcd(a::AbstractArray{T}; tol::T = 1e-6) where {T<:Number}
     end
 end
 
-# -*- Variable Terms -*-
+# Variable Terms 
 varmul(x::S, y::S) where {S} = Set{S}([x, y])
 varmul(x::Set{S}, y::S) where {S} = push!(copy(x), y)
 varmul(x::S, y::Set{S}) where {S} = push!(copy(y), x)
 varmul(x::Set{S}, y::Set{S}) where {S} = union(x, y)
 
-const × = varmul # \times
-const ≺ = varlt # \prec, from QUBOTools
+const × = varmul # \times[tab]
+const ≺ = varlt  # \prec[tab]
 
 @doc raw"""
 """
@@ -48,26 +48,35 @@ function degree end # TODO: memoize
 
 degree(f::PBF) = maximum(length.(keys(f)); init = 0)
 
-# -*- Gap & Penalties -*-
+# Gap & Penalties 
 @doc raw"""
 """ function lowerbound end
 
-lowerbound(f::PBF; bound::Symbol = :loose) = lowerbound(f, Val(bound))
-lowerbound(f::PBF{<:Any,T}, ::Val{:loose}) where {T} =
-    sum(c < zero(T) || isempty(ω) ? c : zero(T) for (ω, c) in f)
+function lowerbound(f::PBF; bound::Symbol = :loose)
+    return lowerbound(f, Val(bound))
+end
+
+function lowerbound(f::PBF{<:Any,T}, ::Val{:loose}) where {T}
+    return sum(c < zero(T) || isempty(ω) ? c : zero(T) for (ω, c) in f)
+end
 
 @doc raw"""
 """ function upperbound end
 
-upperbound(f::PBF; bound::Symbol = :loose) = upperbound(f, Val(bound))
-upperbound(f::PBF{<:Any,T}, ::Val{:loose}) where {T} =
-    sum(c > zero(T) || isempty(ω) ? c : zero(T) for (ω, c) in f)
+function upperbound(f::PBF; bound::Symbol = :loose)
+    return upperbound(f, Val(bound))
+end
+
+function upperbound(f::PBF{<:Any,T}, ::Val{:loose}) where {T}
+    return sum(c > zero(T) || isempty(ω) ? c : zero(T) for (ω, c) in f)
+end
 
 @doc raw"""
 """ function bounds end
 
-bounds(f::PBF; bound::Symbol = :loose) =
-    (lowerbound(f; bound = bound), upperbound(f; bound = bound))
+function bounds(f::PBF; bound::Symbol = :loose)
+    return (lowerbound(f; bound), upperbound(f; bound))
+end
 
 @doc raw"""
     gap(f::PBF{S, T}; bound::Symbol=:loose) where {S, T}
@@ -88,10 +97,17 @@ M \triangleq \sum_{\omega \neq \varnothing} \left|{c_\omega}\right|
 """
 function gap end
 
-gap(f::PBF; bound::Symbol = :loose) = gap(f, Val(bound))
-gap(f::PBF{<:Any,T}, ::Val{:loose}) where {T} =
-    sum(abs(c) for (ω, c) in f if !isempty(ω); init = zero(T))
-gap(::PBF, ::Val{:tight}) = error("Not Implemented: See [1] sec 5.1.1 Majorization")
+function gap(f::PBF; bound::Symbol = :loose)
+    return gap(f, Val(bound))
+end
+
+function gap(f::PBF{<:Any,T}, ::Val{:loose}) where {T}
+    return sum(abs(c) for (ω, c) in f if !isempty(ω); init = zero(T))
+end
+
+function gap(::PBF, ::Val{:tight})
+    error("Not Implemented: See [1] sec 5.1.1 Majorization")
+end
 
 const δ = gap
 
@@ -141,8 +157,13 @@ end
 
 const ∇ = gradient
 
-residual(f::PBF{S,T}, i::S) where {S,T} = PBF{S,T}(ω => c for (ω, c) ∈ keys(f) if (i ∉ ω))
-residual(f::PBF, i::Int) = residual(f, varinv(f)[i])
+function residual(f::PBF{S,T}, i::S) where {S,T}
+    return PBF{S,T}(ω => c for (ω, c) ∈ keys(f) if (i ∉ ω))
+end
+
+function residual(f::PBF, i::Int)
+    return residual(f, varinv(f)[i])
+end
 
 function discretize(f::PBF{S,T}; tol::T = 1E-6) where {S,T}
     return discretize!(copy(f); tol = tol)

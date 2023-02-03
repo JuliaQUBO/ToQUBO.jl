@@ -1,4 +1,4 @@
-# -*- :: Quadratization :: -*- #
+#  :: Quadratization ::  #
 abstract type QuadratizationMethod end
 
 struct Quadratization{Q<:QuadratizationMethod}
@@ -48,7 +48,7 @@ function quadratize!(
     # -* Stabilize *- #
     # NOTE: This method is stable by construction
 
-    # -*- Quadratization -*- #
+    #  Quadratization  #
     delete!(f, ω)
 
     f[s] -= c * (k - 1)
@@ -89,7 +89,7 @@ function quadratize!(
     # -* Stabilize *- #
     quad.stable && sort!(b; lt = varlt)
 
-    # -*- Quadratization -*- #
+    #  Quadratization  #
     delete!(f, ω)
 
     f[b[k]×b[k-1]] += c
@@ -134,10 +134,10 @@ function quadratize!(
     f::PBF{S,T},
     quad::Quadratization{TERM_BY_TERM},
 ) where {S,T}
-    # -*- Collect Terms -*- #
+    #  Collect Terms  #
     Ω = collect(f)
 
-    # -*- Stable Quadratization -*- #
+    #  Stable Quadratization  #
     quad.stable && sort!(Ω; by = first, lt = varlt)
 
     for (ω, c) in Ω

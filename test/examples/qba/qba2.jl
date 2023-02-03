@@ -1,5 +1,6 @@
 function test_qba2()
     @testset "Illustrative Example" begin
+        # Problem Data
         Q̄ = [
             -5  4  8  0
              0 -3  2  0
@@ -12,6 +13,7 @@ function test_qba2()
         x̄ = Set{Vector{Int}}([[1, 0, 0, 1]])
         ȳ = -11
 
+        # Model
         model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
 
         @variable(model, x[1:4], Bin)
@@ -27,14 +29,14 @@ function test_qba2()
 
         optimize!(model)
 
-        # :: Reformulation ::
+        # Reformulation
         Q, α, β = ToQUBO.qubo(model, Matrix)
 
         @test α ≈ ᾱ
         @test β ≈ β̄
         @test Q ≈ Q̄
 
-        # :: Solution ::
+        # Solution
         x̂ = value.(x)
         ŷ = objective_value(model)
 

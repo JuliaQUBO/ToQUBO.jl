@@ -8,7 +8,7 @@ function toqubo_variables!(model::VirtualModel{T}, ::AbstractArchitecture) where
     ℝ = Dict{VI,Tuple{Union{T,Nothing},Union{T,Nothing}}}()
 
     for ci in MOI.get(model, MOI.ListOfConstraintIndices{VI,MOI.ZeroOne}())
-        # -*- Binary Variable 😄 -*-
+        # Binary Variable 😄 
         x = MOI.get(model, MOI.ConstraintFunction(), ci)
 
         # Add to set
@@ -16,7 +16,7 @@ function toqubo_variables!(model::VirtualModel{T}, ::AbstractArchitecture) where
     end
 
     for ci in MOI.get(model, MOI.ListOfConstraintIndices{VI,MOI.Integer}())
-        # -*- Integer Variable 🤔 -*-
+        # Integer Variable 🤔 
         x = MOI.get(model, MOI.ConstraintFunction(), ci)
 
         # Add to dict as unbounded
@@ -24,12 +24,12 @@ function toqubo_variables!(model::VirtualModel{T}, ::AbstractArchitecture) where
     end
 
     for x in setdiff(Ω, 𝔹, keys(ℤ))
-        # -*- Real Variable 😢 -*-
+        # Real Variable 😢 
         ℝ[x] = (nothing, nothing)
     end
 
     for ci in MOI.get(model, MOI.ListOfConstraintIndices{VI,MOI.Interval{T}}())
-        # -*- Interval 😄 -*-
+        # Interval 😄 
         x = MOI.get(model, MOI.ConstraintFunction(), ci)
         I = MOI.get(model, MOI.ConstraintSet(), ci)
 
@@ -44,7 +44,7 @@ function toqubo_variables!(model::VirtualModel{T}, ::AbstractArchitecture) where
     end
 
     for ci in MOI.get(model, MOI.ListOfConstraintIndices{VI,LT{T}}())
-        # -*- Upper Bound 🤔 -*-
+        # Upper Bound 🤔 
         x = MOI.get(model, MOI.ConstraintFunction(), ci)
         I = MOI.get(model, MOI.ConstraintSet(), ci)
 
@@ -58,7 +58,7 @@ function toqubo_variables!(model::VirtualModel{T}, ::AbstractArchitecture) where
     end
 
     for ci in MOI.get(model, MOI.ListOfConstraintIndices{VI,GT{T}}())
-        # -*- Lower Bound 🤔 -*-
+        # Lower Bound 🤔 
         x = MOI.get(model, MOI.ConstraintFunction(), ci)
         I = MOI.get(model, MOI.ConstraintSet(), ci)
 
@@ -71,7 +71,7 @@ function toqubo_variables!(model::VirtualModel{T}, ::AbstractArchitecture) where
         end
     end
 
-    # -*- Discretize Real Ones 🤔 -*-
+    # Discretize Real Ones 🤔 
     for (x, (a, b)) in ℝ
         if isnothing(a) || isnothing(b)
             error("Unbounded variable $(x) ∈ ℝ")
@@ -97,7 +97,7 @@ function toqubo_variables!(model::VirtualModel{T}, ::AbstractArchitecture) where
         end
     end
 
-    # -*- Discretize Integer Variables 🤔 -*-
+    # Discretize Integer Variables 🤔 
     for (x, (a, b)) in ℤ
         if isnothing(a) || isnothing(b)
             error("Unbounded variable $(x) ∈ ℤ")
@@ -108,7 +108,7 @@ function toqubo_variables!(model::VirtualModel{T}, ::AbstractArchitecture) where
         end
     end
 
-    # -*- Mirror Boolean Variables 😄 -*-
+    # Mirror Boolean Variables 😄 
     for x in 𝔹
         encode!(model, Mirror(), x)
     end

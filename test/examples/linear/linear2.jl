@@ -1,6 +1,6 @@
 function test_linear2()
     @testset "11 variables, 3 constraints" begin
-        # ~*~ Problem Data ~*~ #
+        # Problem Data
         m = 3
         n = 11
         A = [1 0 0 1 1 1 0 1 1 1 1; 0 1 0 1 0 1 1 0 1 1 1; 0 0 1 0 1 0 1 1 1 1 1]
@@ -10,7 +10,7 @@ function test_linear2()
         # Penalty Choice
         ρ̄ = fill(sum(abs.(c)) + 1, m)
 
-        # ~*~ Solution Data ~*~ #
+        # Solution Data
         Q̄ = [
             -46    0    0   96   96   96    0   96   96   96   96
               0  -44    0   96    0   96   96    0   96   96   96
@@ -35,7 +35,7 @@ function test_linear2()
 
         ȳ = 5
 
-        # ~*~ Model ~*~ #
+        # Model
         model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
 
         @variable(model, x[1:n], Bin)
@@ -44,7 +44,7 @@ function test_linear2()
 
         optimize!(model)
 
-        # :: Reformulation ::
+        # Reformulation
         ρ       = MOI.get.(model, ToQUBO.CONSTRAINT_ENCODING_PENALTY(), k)
         Q, α, β = ToQUBO.qubo(model, Matrix)
 
@@ -53,7 +53,7 @@ function test_linear2()
         @test β ≈ β̄
         @test Q ≈ Q̄
 
-        # :: Solutions ::
+        # Solutions
         x̂ = trunc.(Int, value.(x))
         ŷ = objective_value(model)
 

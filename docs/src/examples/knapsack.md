@@ -31,10 +31,10 @@ c = [1.0, 2.0, 3.0]
 w = [0.3, 0.5, 1.0]
 C = 3.2;
 
-# -*- Variables -*- #
+#  Variables  #
 x = MOI.add_variables(model, n);
 
-# -*- Objective -*- #
+#  Objective  #
 MOI.set(model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
 
 MOI.set(
@@ -43,7 +43,7 @@ MOI.set(
    MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.(c, x), 0.0),
 );
 
-# -*- Constraints -*- #
+#  Constraints  #
 MOI.add_constraint(
    model,
    MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.(w, x), 0.0),

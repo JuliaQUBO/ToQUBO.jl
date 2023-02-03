@@ -65,10 +65,10 @@ struct PseudoBooleanFunction{S,T}
     end
 end
 
-# -*- Alias -*-
+#  Alias 
 const PBF{S,T} = PseudoBooleanFunction{S,T}
 
-#-*- Copy -*-
+# Copy 
 function Base.copy!(f::PBF{S,T}, g::PBF{S,T}) where {S,T}
     sizehint!(f, length(g))
     copy!(f.Ω, g.Ω)
@@ -80,7 +80,7 @@ function Base.copy(f::PBF{S,T}) where {S,T}
     return copy!(PBF{S,T}(), f)
 end
 
-# -*- Iterator & Length -*-
+#  Iterator & Length 
 Base.keys(f::PBF)                = keys(f.Ω)
 Base.values(f::PBF)              = values(f.Ω)
 Base.length(f::PBF)              = length(f.Ω)
@@ -93,13 +93,13 @@ Base.haskey(f::PBF{S}, ω::Set{S}) where {S} = haskey(f.Ω, ω)
 Base.haskey(f::PBF{S}, ξ::S) where {S}      = haskey(f, Set{S}([ξ]))
 Base.haskey(f::PBF{S}, ::Nothing) where {S} = haskey(f, Set{S}())
 
-# -*- Indexing: Get -*- #
+#  Indexing: Get  #
 Base.getindex(f::PBF{S,T}, ω::Set{S}) where {S,T} = get(f.Ω, ω, zero(T))
 Base.getindex(f::PBF{S}, η::Vector{S}) where {S}  = getindex(f, Set{S}(η))
 Base.getindex(f::PBF{S}, ξ::S) where {S}          = getindex(f, Set{S}([ξ]))
 Base.getindex(f::PBF{S}, ::Nothing) where {S}     = getindex(f, Set{S}())
 
-# -*- Indexing: Set -*- #
+#  Indexing: Set  #
 function Base.setindex!(f::PBF{S,T}, c::T, ω::Set{S}) where {S,T}
     if !iszero(c)
         setindex!(f.Ω, c, ω)
@@ -114,13 +114,13 @@ Base.setindex!(f::PBF{S,T}, c::T, η::Vector{S}) where {S,T} = setindex!(f, c, S
 Base.setindex!(f::PBF{S,T}, c::T, ξ::S) where {S,T}         = setindex!(f, c, Set{S}([ξ]))
 Base.setindex!(f::PBF{S,T}, c::T, ::Nothing) where {S,T}    = setindex!(f, c, Set{S}())
 
-# -*- Indexing: Delete -*- #
+#  Indexing: Delete  #
 Base.delete!(f::PBF{S}, ω::Set{S}) where {S}    = delete!(f.Ω, ω)
 Base.delete!(f::PBF{S}, η::Vector{S}) where {S} = delete!(f, Set{S}(η))
 Base.delete!(f::PBF{S}, k::S) where {S}         = delete!(f, Set{S}([k]))
 Base.delete!(f::PBF{S}, ::Nothing) where {S}    = delete!(f, Set{S}())
 
-# -*- Properties -*-
+#  Properties 
 Base.size(f::PBF{S,T}) where {S,T} = (length(f),)
 
 function Base.sizehint!(f::PBF, n::Integer)
@@ -129,7 +129,7 @@ function Base.sizehint!(f::PBF, n::Integer)
     return f
 end
 
-# -*- Comparison: (==, !=, ===, !==) -*- #
+#  Comparison: (==, !=, ===, !==)  #
 Base.:(==)(f::PBF{S,T}, g::PBF{S,T}) where {S,T} = f.Ω == g.Ω
 Base.:(==)(f::PBF{S,T}, a::T) where {S,T}        = isscalar(f) && (f[nothing] == a)
 Base.:(!=)(f::PBF{S,T}, g::PBF{S,T}) where {S,T} = f.Ω != g.Ω
@@ -154,7 +154,7 @@ Base.one(::Type{PBF{S,T}}) where {S,T}     = PBF{S,T}(one(T))
 Base.isone(f::PBF)                         = isscalar(f) && isone(f[nothing])
 Base.round(f::PBF{S,T}; kw...) where {S,T} = PBF{S,T}(ω => round(c; kw...) for (ω, c) in f)
 
-# -*- Arithmetic: (+) -*-
+#  Arithmetic: (+) 
 function Base.:(+)(f::PBF{S,T}, g::PBF{S,T}) where {S,T}
     h = copy(f)
 
@@ -180,7 +180,7 @@ end
 Base.:(+)(f::PBF{S,T}, c) where {S,T} = +(f, convert(T, c))
 Base.:(+)(c, f::PBF)                  = +(f, c)
 
-# -*- Arithmetic: (-) -*-
+#  Arithmetic: (-) 
 function Base.:(-)(f::PBF{S,T}) where {S,T}
     return PBF{S,T}(Dict{Set{S},T}(ω => -c for (ω, c) in f))
 end
@@ -220,7 +220,7 @@ end
 Base.:(-)(c, f::PBF{S,T}) where {S,T} = -(convert(T, c), f)
 Base.:(-)(f::PBF{S,T}, c) where {S,T} = -(f, convert(T, c))
 
-# -*- Arithmetic: (*) -*-
+#  Arithmetic: (*) 
 function Base.:(*)(f::PBF{S,T}, g::PBF{S,T}) where {S,T}
     h = zero(PBF{S,T})
     m = length(f)
@@ -268,7 +268,7 @@ end
 Base.:(*)(f::PBF{S,T}, a) where {S,T} = *(f, convert(T, a))
 Base.:(*)(a, f::PBF)                  = *(f, a)
 
-# -*- Arithmetic: (/) -*-
+#  Arithmetic: (/) 
 function Base.:(/)(f::PBF{S,T}, a::T) where {S,T}
     if iszero(a)
         throw(DivideError())
@@ -279,7 +279,7 @@ end
 
 Base.:(/)(f::PBF{S,T}, a) where {S,T} = /(f, convert(T, a))
 
-# -*- Arithmetic: (^) -*-
+#  Arithmetic: (^) 
 function Base.:(^)(f::PBF{S,T}, n::Integer) where {S,T}
     if n < 0
         throw(DivideError())
@@ -300,7 +300,7 @@ function Base.:(^)(f::PBF{S,T}, n::Integer) where {S,T}
     end
 end
 
-# -*- Arithmetic: Evaluation -*-
+#  Arithmetic: Evaluation 
 function (f::PBF{S,T})(x::Dict{S,U}) where {S,T,U<:Integer}
     g = PBF{S,T}()
 
@@ -336,7 +336,7 @@ function (f::PBF{S})() where {S}
     return f(Dict{S,Int}())
 end
 
-# -*- Type conversion -*-
+#  Type conversion 
 function Base.convert(U::Type{<:T}, f::PBF{<:Any,T}) where {T}
     if isempty(f)
         return zero(U)

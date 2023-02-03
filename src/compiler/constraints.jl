@@ -62,12 +62,12 @@ function toqubo_constraint(
     s::EQ{T},
     arch::AbstractArchitecture,
 ) where {T}
-    # -*- Scalar Affine Function: g(x) = a'x - b = 0 ~ 😄 -*-
+    # Scalar Affine Function: g(x) = a'x - b = 0
     g = toqubo_parse(model, f, s, arch)
 
     PBO.discretize!(g)
 
-    # -*- Bounds & Slack Variable -*-
+    # Bounds & Slack Variable 
     l, u = PBO.bounds(g)
 
     if u < zero(T) # Always feasible
@@ -105,12 +105,12 @@ function toqubo_constraint(
     s::LT{T},
     arch::AbstractArchitecture,
 ) where {T}
-    # -*- Scalar Affine Function: g(x) = a'x - b ≤ 0 🤔 -*-
+    # Scalar Affine Function: g(x) = a'x - b ≤ 0 
     g = toqubo_parse(model, f, s, arch)
 
     PBO.discretize!(g)
 
-    # -*- Bounds & Slack Variable -*-
+    # Bounds & Slack Variable 
     l, u = PBO.bounds(g)
 
     if u < zero(T) # Always feasible
@@ -136,12 +136,12 @@ function toqubo_constraint(
     s::EQ{T},
     arch::AbstractArchitecture,
 ) where {T}
-    # -*- Scalar Quadratic Function: g(x) = x Q x + a x - b = 0 😢 -*-
+    # Scalar Quadratic Function: g(x) = x Q x + a x - b = 0
     g = toqubo_parse(model, f, s, arch)
 
     PBO.discretize!(g)
 
-    # -*- Bounds & Slack Variable -*-
+    # Bounds & Slack Variable 
     l, u = PBO.bounds(g)
 
     if u < zero(T) # Always feasible
@@ -163,12 +163,12 @@ function toqubo_constraint(
     s::LT{T},
     arch::AbstractArchitecture,
 ) where {T}
-    # -*- Scalar Quadratic Function: g(x) = x Q x + a x - b ≤ 0 😢 -*-
+    # Scalar Quadratic Function: g(x) = x Q x + a x - b ≤ 0
     g = toqubo_parse(model, f, s, arch)
     
     PBO.discretize!(g)
 
-    # -*- Bounds & Slack Variable -*-
+    # Bounds & Slack Variable 
     l, u = PBO.bounds(g)
 
     if u < zero(T) # Always feasible
@@ -192,22 +192,32 @@ end
 
 function toqubo_constraint(
     model::VirtualModel{T},
-    v::MOI.VectorOfVariables,
+    x::MOI.VectorOfVariables,
     ::MOI.SOS1{T},
     ::AbstractArchitecture,
 ) where {T}
-    # -*- Special Ordered Set of Type 1: ∑ x ≤ min x 😄 -*-
+    # Special Ordered Set of Type 1: ∑ x ≤ min x
     g = PBO.PBF{VI,T}()
 
-    for vi in v.variables
-        for (ωi, _) in expansion(model.source[vi])
+    for xi in x.variables
+        vi = model.source[xi]
+        
+        # Currently, SOS1 only supports binary variables
+        @assert encoding(vi) isa Mirror
+
+        for (ωi, _) in expansion(vi)
             g[ωi] = one(T)
         end
     end
 
+    # Slack variable
     z = expansion(encode!(model, Mirror(), nothing))
 
     # NOTE: Using one-hot approach. Not great, but it works.
+    # IDEA: Use Domain-Wall.
+    #   Approach 1. Use new variables yᵢ such that
+    #       xᵢ = yᵢ₊₁ - yᵢ
+    #   and substitute every occurence of xᵢ across the model.
     return (g + z - one(T))^2
 end
 

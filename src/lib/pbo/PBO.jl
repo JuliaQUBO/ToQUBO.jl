@@ -2,10 +2,10 @@ module PBO
 
 using Random
 
-# -*- Imports -*-
+#  Imports 
 import QUBOTools: varlt, qubo, variables, variable_map, variable_set, variable_inv
 
-# -*- Exports -*-
+#  Exports 
 # export PBF
 # export ×, ∂, Δ, Θ, δ, ϵ, Ω
 

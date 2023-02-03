@@ -1,11 +1,11 @@
 function test_integer_primes()
     @testset "Prime Factoring: 15 = 3 × 5" begin
-        # ~*~ Problem Data ~*~ #
+        #  Problem Data  #
         R = 15
         a = ceil(Int, √R)
         b = ceil(Int, R ÷ 2)
 
-        # ~*~ Solution Data ~*~ #
+        #  Solution Data  #
         ᾱ = 1
         β̄ = 49
         Q̄ = [
@@ -36,7 +36,7 @@ function test_integer_primes()
 
         optimize!(model)
 
-        # :: Reformulation :: #    
+        # Reformulation
         ρ       = MOI.get(model, ToQUBO.CONSTRAINT_ENCODING_PENALTY(), c1)
         Q, α, β = ToQUBO.qubo(model, Matrix)
 
@@ -45,7 +45,7 @@ function test_integer_primes()
         @test β ≈ β̄
         @test Q ≈ Q̄
 
-        # :: Solutions :: #
+        # Solutions
         p̂ = trunc(Int, value(p))
         q̂ = trunc(Int, value(q))
 

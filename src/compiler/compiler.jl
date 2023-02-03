@@ -1,7 +1,7 @@
 include("analysis.jl")
 include("architectures.jl")
 include("interface.jl")
-include("validation.jl")
+# include("validation.jl")
 include("parse.jl")
 include("variables.jl")
 include("objective.jl")
@@ -9,7 +9,7 @@ include("constraints.jl")
 include("penalties.jl")
 include("build.jl")
 
-# -*- toqubo: MOI.ModelLike -> QUBO.Model -*-
+#  toqubo: MOI.ModelLike -> QUBO.Model 
 toqubo(
     source::MOI.ModelLike,
     arch::Union{AbstractArchitecture,Nothing} = nothing,
@@ -81,25 +81,25 @@ function toqubo_compile!(
     model::VirtualModel{T},
     arch::AbstractArchitecture = GenericArchitecture(),
 ) where {T}
-    # :: Objective Sense :: #
+    # Objective Sense
     toqubo_sense!(model, arch)
 
-    # :: Problem Variables :: #
+    # Problem Variables
     toqubo_variables!(model, arch)
 
-    # :: Objective Analysis :: #
+    # Objective Analysis
     toqubo_objective!(model, arch)
 
-    # :: Add Regular Constraints :: #
+    # Add Regular Constraints
     toqubo_constraints!(model, arch)
 
-    # :: Add Encoding Constraints :: #
+    # Add Encoding Constraints
     toqubo_encoding_constraints!(model, arch)
 
-    # :: Compute penalties :: #
+    # Compute penalties
     toqubo_penalties!(model, arch)
 
-    # :: Build Final Model :: #
+    # Build Final Model
     toqubo_build!(model, arch)
 
     return nothing

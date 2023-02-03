@@ -1,4 +1,4 @@
-# -*- Virtual Variable Encoding -*-
+#  Virtual Variable Encoding 
 abstract type Encoding end
 
 @doc raw"""
@@ -55,20 +55,20 @@ penaltyfn(v::VirtualVariable) = v.h
 This Virtual Model links the final QUBO formulation to the original one, allowing variable value retrieving and other features.
 """
 struct VirtualModel{T} <: MOI.AbstractOptimizer
-    # -*- Underlying Optimizer -*- #
+    #  Underlying Optimizer  #
     optimizer::Union{MOI.AbstractOptimizer,Nothing}
 
-    # -*- MathOptInterface Bridges -*- #
+    #  MathOptInterface Bridges  #
     bridge_model::MOIB.LazyBridgeOptimizer{PreQUBOModel{T}}
 
-    # -*- Virtual Model Interface -*- #
+    #  Virtual Model Interface  #
     source_model::PreQUBOModel{T}
     target_model::QUBOModel{T}
     variables::Vector{VV{T}}
     source::Dict{VI,VV{T}}
     target::Dict{VI,VV{T}}
 
-    # -*- PBO/PBF IR -*- #
+    #  PBO/PBF IR  #
     f::PBO.PBF{VI,T}          # Objective Function
     g::Dict{CI,PBO.PBF{VI,T}} # Constraint Functions
     h::Dict{VI,PBO.PBF{VI,T}} # Variable Functions
@@ -76,7 +76,7 @@ struct VirtualModel{T} <: MOI.AbstractOptimizer
     θ::Dict{VI,T}             # Variable Penalties
     H::PBO.PBF{VI,T}          # Final Hamiltonian
 
-    # -*- Settings -*-
+    #  Settings 
     compiler_settings::Dict{Symbol,Any}
     variable_settings::Dict{Symbol,Dict{VI,Any}}
     constraint_settings::Dict{Symbol,Dict{CI,Any}}
@@ -99,20 +99,20 @@ struct VirtualModel{T} <: MOI.AbstractOptimizer
         bridge_model = MOIB.full_bridge_optimizer(source_model, T)
 
         new{T}(
-            # -*- Underlying Optimizer -*- #
+            #  Underlying Optimizer  #
             optimizer,
 
-            # -*- MathOptInterface Bridges -*- #
+            #  MathOptInterface Bridges  #
             bridge_model,
 
-            # -*- Virtual Model Interface -*-
+            #  Virtual Model Interface 
             source_model,
             target_model,
             Vector{VV{T}}(),
             Dict{VI,VV{T}}(),
             Dict{VI,VV{T}}(),
 
-            # -*- PBO/PBF IR -*-
+            #  PBO/PBF IR 
             PBO.PBF{VI,T}(),          # Objective Function
             Dict{CI,PBO.PBF{VI,T}}(), # Constraint Functions
             Dict{VI,PBO.PBF{VI,T}}(), # Variable Functions
@@ -120,7 +120,7 @@ struct VirtualModel{T} <: MOI.AbstractOptimizer
             Dict{VI,T}(),             # Variable Penalties
             PBO.PBF{VI,T}(),          # Final Hamiltonian
 
-            # -*- Settings -*-
+            #  Settings 
             Dict{Symbol,Any}(),
             Dict{Symbol,Dict{VI,Any}}(),
             Dict{Symbol,Dict{CI,Any}}(),

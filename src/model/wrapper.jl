@@ -11,7 +11,7 @@ function MOI.optimize!(model::VirtualModel)
     target_model = model.target_model
     index_map    = MOIU.identity_index_map(source_model)
 
-    # -*- JuMP to QUBO Compilation -*- #
+    # De facto JuMP to QUBO Compilation
     ToQUBO.toqubo!(model)
 
     if !isnothing(model.optimizer)
@@ -26,20 +26,20 @@ function MOI.copy_to(model::VirtualModel{T}, source::MOI.ModelLike) where {T}
         error("QUBO Model is not empty")
     end
 
-    # -*- Copy to PreQUBOModel + Add Bridges -*- #
+    # Copy to PreQUBOModel + Add Bridges
     bridge_model = MOIB.full_bridge_optimizer(model.source_model, T)
 
-    # -*- Copy to source using bridges - *- #
+    # Copy to source using bridges
     return MOI.copy_to(bridge_model, source) # index_map
 end
 
-# -*- :: Objective Function Support :: -*- #
+# Objective Function Support
 MOI.supports(
     ::VirtualModel{T},
     ::MOI.ObjectiveFunction{<:Union{VI,SAF{T},SQF{T}}},
 ) where {T} = true
 
-# -*- :: Constraint Support :: -*- #
+# Constraint Support
 MOI.supports_constraint(
     ::VirtualModel{T},
     ::Type{VI},
@@ -93,7 +93,7 @@ end
 
 const Optimizer{T} = VirtualModel{T}
 
-# -*- QUBOTools -*- #
+# QUBOTools
 function qubo(model, type::Type = Dict)
     n, L, Q, α, β = MOI.get(model, QUBOTOOLS_NORMAL_FORM())
 
