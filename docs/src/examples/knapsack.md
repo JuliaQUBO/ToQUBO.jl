@@ -31,10 +31,12 @@ c = [1.0, 2.0, 3.0]
 w = [0.3, 0.5, 1.0]
 C = 3.2;
 
-#  Variables  #
 x = MOI.add_variables(model, n);
 
-#  Objective  #
+for xᵢ in x
+   MOI.add_constraint(model, xᵢ, MOI.ZeroOne())
+end
+
 MOI.set(model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
 
 MOI.set(
@@ -43,22 +45,16 @@ MOI.set(
    MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.(c, x), 0.0),
 );
 
-#  Constraints  #
 MOI.add_constraint(
    model,
    MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.(w, x), 0.0),
    MOI.LessThan(C),
 );
 
-for xᵢ in x
-   MOI.add_constraint(model, xᵢ, MOI.ZeroOne())
-end
-
-# Run!
 MOI.optimize!(model)
 
 # Collect Solution
-MOI.get(model, MOI.VariablePrimal(), x)
+MOI.get.(model, MOI.VariablePrimal(), x)
 ```
 
 ### JuMP + D-Wave Examples
@@ -71,7 +67,7 @@ using CSV
 using DataFrames
 using Random
 
-# -> Generate Data <-
+# Generate Data
 rng = MersenneTwister(1)
 
 df = DataFrame(
