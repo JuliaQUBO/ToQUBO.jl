@@ -151,6 +151,10 @@ Available methods are:
 - [`Arithmetic`](@ref)
 - [`OneHot`](@ref)
 - [`DomainWall`](@ref)
+- [`Bounded`](@ref)
+
+The [`Binary`](@ref), [`Unary`](@ref) and [`Arithmetic`](@ref) encodings can have their
+expansion coefficients bounded by parametrizing the [`Bounded`](@ref) encoding.
 """ struct VARIABLE_ENCODING_METHOD <: CompilerVariableAttribute end
 
 function MOI.get(model::VirtualModel, ::VARIABLE_ENCODING_METHOD, vi::VI)::Encoding
