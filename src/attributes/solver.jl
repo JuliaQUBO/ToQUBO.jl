@@ -1,14 +1,16 @@
 function MOI.get(model::VirtualModel, attr::MOI.AbstractOptimizerAttribute)
-    if !isnothing(model.optimizer)
+    if !isnothing(model.optimizer) && MOI.supports(model.optimizer, attr)
         return MOI.get(model.optimizer, attr)
     else
-        return nothing
+        return MOI.get(model.source_model, attr)
     end
 end
 
 function MOI.set(model::VirtualModel, attr::MOI.AbstractOptimizerAttribute, value::Any)
-    if !isnothing(model.optimizer)
+    if !isnothing(model.optimizer) && MOI.supports(model.optimizer, attr)
         MOI.set(model.optimizer, attr, value)
+    else
+        MOI.set(model.source_model, attr, value)
     end
 
     return nothing
@@ -18,7 +20,7 @@ function MOI.supports(model::VirtualModel, attr::MOI.AbstractOptimizerAttribute)
     if !isnothing(model.optimizer)
         return MOI.supports(model.optimizer, attr)
     else
-        return false
+        return MOI.supports(model.source_model, attr)
     end
 end
 
