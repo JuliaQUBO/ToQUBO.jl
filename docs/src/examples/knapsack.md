@@ -88,7 +88,7 @@ df = CSV.read("knapsack.csv", DataFrame)
 ```@example dwave-knapsack
 using JuMP
 using ToQUBO
-using DWaveNeal # <- Your favourite Annealer / Sampler / Solver here
+using DWaveNeal # <- Your favourite Annealer/Sampler/Solver here
 
 model = Model(() -> ToQUBO.Optimizer(DWaveNeal.Optimizer))
 
