@@ -1,4 +1,4 @@
-function test_quadratic1()
+function test_quadratic_1()
     @testset "3 variables, 1 constraint" begin
         # Problem Data
         n = 3
