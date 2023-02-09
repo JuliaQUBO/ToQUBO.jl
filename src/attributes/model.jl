@@ -26,19 +26,6 @@ function MOI.set(model::VirtualModel, attr::MOI_MODEL_ATTRIBUTE, value::Any)
     return nothing
 end
 
-function MOI.is_empty(model::VirtualModel)
-    return MOI.is_empty(model.source_model)
-end
-
-function MOI.empty!(model::VirtualModel)
-    MOI.empty!(model.source_model)
-    MOI.empty!(model.target_model)
-
-    empty!(model.variables)
-
-    return nothing
-end
-
 function MOI.get(
     model::VirtualModel,
     attr::Union{MOI.ConstraintFunction,MOI.ConstraintSet},

@@ -7,15 +7,13 @@
 # is called.
 
 function MOI.optimize!(model::VirtualModel)
-    source_model = model.source_model
-    target_model = model.target_model
-    index_map    = MOIU.identity_index_map(source_model)
+    index_map = MOIU.identity_index_map(model.source_model)
 
     # De facto JuMP to QUBO Compilation
     ToQUBO.toqubo!(model)
 
     if !isnothing(model.optimizer)
-        MOI.optimize!(model.optimizer, target_model)
+        MOI.optimize!(model.optimizer, model.target_model)
     end
 
     return (index_map, false)

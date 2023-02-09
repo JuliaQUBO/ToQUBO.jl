@@ -81,3 +81,7 @@ Parses the given MOI function `f` into PBF `g`.
 @doc raw"""
     toqubo_build!(model::VirtualModel, ::AbstractArchitecture)
 """ function toqubo_build! end
+
+@doc raw"""
+    toqubo_empty!(model::VirtualModel, ::AbstractArchitecture)
+""" function toqubo_empty! end
