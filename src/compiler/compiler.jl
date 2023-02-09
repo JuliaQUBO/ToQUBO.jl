@@ -9,13 +9,12 @@ include("constraints.jl")
 include("penalties.jl")
 include("build.jl")
 
-#  toqubo: MOI.ModelLike -> QUBO.Model 
+# toqubo: MOI.ModelLike -> QUBO.Model 
 toqubo(
     source::MOI.ModelLike,
     arch::Union{AbstractArchitecture,Nothing} = nothing,
     optimizer = nothing,
-) = toqubo(Float64, source, arch; optimizer = optimizer)
-
+) = toqubo(Float64, source, arch; optimizer)
 
 function toqubo(
     ::Type{T},
@@ -40,6 +39,9 @@ function toqubo!(
     model::VirtualModel{T},
     arch::AbstractArchitecture = GenericArchitecture(),
 ) where {T}
+    # Cleanup
+    toqubo_empty!(model, arch)
+
     if is_qubo(model.source_model)
         toqubo_copy!(model, arch)
 
@@ -101,6 +103,28 @@ function toqubo_compile!(
 
     # Build Final Model
     toqubo_build!(model, arch)
+
+    return nothing
+end
+
+function toqubo_empty!(
+    model::VirtualModel,
+    ::AbstractArchitecture = GenericArchitecture(),
+)
+    # Model
+    MOI.empty!(model.target_model)
+
+    # Virtual Variables
+    empty!(model.variables)
+    empty!(model.source)
+    empty!(model.target)
+
+    # PBF/IR
+    empty!(model.f)
+    empty!(model.g)
+    empty!(model.h)
+    empty!(model.ρ)
+    empty!(model.θ)
 
     return nothing
 end

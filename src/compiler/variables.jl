@@ -31,10 +31,10 @@ function toqubo_variables!(model::VirtualModel{T}, ::AbstractArchitecture) where
     for ci in MOI.get(model, MOI.ListOfConstraintIndices{VI,MOI.Interval{T}}())
         # Interval 😄 
         x = MOI.get(model, MOI.ConstraintFunction(), ci)
-        I = MOI.get(model, MOI.ConstraintSet(), ci)
+        s = MOI.get(model, MOI.ConstraintSet(), ci)
 
-        a = I.lower
-        b = I.upper
+        a = s.lower
+        b = s.upper
 
         if haskey(ℤ, x)
             ℤ[x] = (a, b)
@@ -46,13 +46,13 @@ function toqubo_variables!(model::VirtualModel{T}, ::AbstractArchitecture) where
     for ci in MOI.get(model, MOI.ListOfConstraintIndices{VI,LT{T}}())
         # Upper Bound 🤔 
         x = MOI.get(model, MOI.ConstraintFunction(), ci)
-        I = MOI.get(model, MOI.ConstraintSet(), ci)
+        s = MOI.get(model, MOI.ConstraintSet(), ci)
 
-        b = I.upper
+        b = s.upper
 
         if haskey(ℤ, x)
             ℤ[x] = (first(ℤ[x]), b)
-        elseif haskey(ℝ, xᵢ)
+        elseif haskey(ℝ, x)
             ℝ[x] = (first(ℝ[x]), b)
         end
     end
@@ -60,9 +60,9 @@ function toqubo_variables!(model::VirtualModel{T}, ::AbstractArchitecture) where
     for ci in MOI.get(model, MOI.ListOfConstraintIndices{VI,GT{T}}())
         # Lower Bound 🤔 
         x = MOI.get(model, MOI.ConstraintFunction(), ci)
-        I = MOI.get(model, MOI.ConstraintSet(), ci)
+        s = MOI.get(model, MOI.ConstraintSet(), ci)
 
-        a = I.lower
+        a = s.lower
 
         if haskey(ℤ, x)
             ℤ[x] = (a, last(ℤ[x]))
@@ -76,7 +76,7 @@ function toqubo_variables!(model::VirtualModel{T}, ::AbstractArchitecture) where
         if isnothing(a) || isnothing(b)
             error("Unbounded variable $(x) ∈ ℝ")
         else
-            # TODO: Solve this bit-guessing magic???
+            # TODO: Solve this bit-guessng magic???
             # IDEA: 
             #     Let x̂ ~ U[a, b], K = 2ᴺ, γ = [a, b]
             #       𝔼[|xᵢ - x̂|] = ∫ᵧ |xᵢ - x̂| f(x̂) dx̂
@@ -89,8 +89,8 @@ function toqubo_variables!(model::VirtualModel{T}, ::AbstractArchitecture) where
             # where τ is the (absolute) tolerance
             # TODO: Add τ as parameter
             let
-                τ = MOI.get(model, VARIABLE_ENCODING_ATOL(), x)
                 e = MOI.get(model, VARIABLE_ENCODING_METHOD(), x)
+                τ = MOI.get(model, VARIABLE_ENCODING_ATOL(), x)
 
                 encode!(model, e, x, a, b, τ)
             end 
@@ -102,7 +102,8 @@ function toqubo_variables!(model::VirtualModel{T}, ::AbstractArchitecture) where
         if isnothing(a) || isnothing(b)
             error("Unbounded variable $(x) ∈ ℤ")
         else
-            let e = MOI.get(model, VARIABLE_ENCODING_METHOD(), x)
+            let
+                e = MOI.get(model, VARIABLE_ENCODING_METHOD(), x)
                 encode!(model, e, x, a, b)
             end
         end
