@@ -136,7 +136,7 @@ function toqubo_constraint(
     s::EQ{T},
     arch::AbstractArchitecture,
 ) where {T}
-    # Scalar Quadratic Function: g(x) = x Q x + a x - b = 0
+    # Scalar Quadratic Equality Constraint: g(x) = x Q x + a x - b = 0
     g = toqubo_parse(model, f, s, arch)
 
     PBO.discretize!(g)
@@ -163,7 +163,7 @@ function toqubo_constraint(
     s::LT{T},
     arch::AbstractArchitecture,
 ) where {T}
-    # Scalar Quadratic Function: g(x) = x Q x + a x - b ≤ 0
+    # Scalar Quadratic Inequality Constraint: g(x) = x Q x + a x - b ≤ 0
     g = toqubo_parse(model, f, s, arch)
     
     PBO.discretize!(g)
@@ -213,11 +213,6 @@ function toqubo_constraint(
     # Slack variable
     z = expansion(encode!(model, Mirror(), nothing))
 
-    # NOTE: Using one-hot approach. Not great, but it works.
-    # IDEA: Use Domain-Wall.
-    #   Approach 1. Use new variables yᵢ such that
-    #       xᵢ = yᵢ₊₁ - yᵢ
-    #   and substitute every occurence of xᵢ across the model.
     return (g + z - one(T))^2
 end
 
