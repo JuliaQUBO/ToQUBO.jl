@@ -143,6 +143,46 @@ function MOI.set(model::VirtualModel{T}, ::VARIABLE_ENCODING_ATOL, vi::VI, τ::T
 end
 
 @doc raw"""
+    DEFAULT_VARIABLE_ENCODING_BITS()
+""" struct DEFAULT_VARIABLE_ENCODING_BITS <: CompilerAttribute end
+
+function MOI.get(model::VirtualModel, ::DEFAULT_VARIABLE_ENCODING_BITS)::Union{Integer,Nothing}
+    return get(model.compiler_settings, :default_variable_encoding_bits, nothing)
+end
+
+function MOI.set(model::VirtualModel, ::DEFAULT_VARIABLE_ENCODING_BITS, n::Union{Integer,Nothing})
+    model.compiler_settings[:default_variable_encoding_bits] = n
+
+    return nothing
+end
+
+@doc raw"""
+    VARIABLE_ENCODING_BITS()
+""" struct VARIABLE_ENCODING_BITS <: CompilerVariableAttribute end
+
+function MOI.get(model::VirtualModel, ::VARIABLE_ENCODING_BITS, vi::VI)::Union{Integer,Nothing}
+    attr = :variable_encoding_bits
+
+    if !haskey(model.variable_settings, attr) || !haskey(model.variable_settings[attr], vi)
+        return MOI.get(model, DEFAULT_VARIABLE_ENCODING_BITS())
+    else
+        return model.variable_settings[attr][vi]
+    end
+end
+
+function MOI.set(model::VirtualModel, ::VARIABLE_ENCODING_BITS, vi::VI, n::Union{Integer,Nothing})
+    attr = :variable_encoding_bits
+
+    if !haskey(model.variable_settings, attr)
+        model.variable_settings[attr] = Dict{VI,Any}(vi => n)
+    else
+        model.variable_settings[attr][vi] = n
+    end
+
+    return nothing
+end
+
+@doc raw"""
     VARIABLE_ENCODING_METHOD()
 
 Available methods are:

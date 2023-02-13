@@ -36,19 +36,19 @@ function quadratize!(
     c::T,
     ::Quadratization{NTR_KZFD},
 ) where {S,T}
-    # -* Degree *- #
+    # Degree
     k = length(ω)
 
-    # -* Fast-track *- #
+    # Fast-track
     k < 3 && return nothing
 
-    # -* Variables *- #
+    # Variables
     s = aux()::S
 
-    # -* Stabilize *- #
+    # Stabilize
     # NOTE: This method is stable by construction
 
-    #  Quadratization  #
+    # Quadratization
     delete!(f, ω)
 
     f[s] -= c * (k - 1)
@@ -76,20 +76,20 @@ function quadratize!(
     c::T,
     quad::Quadratization{PTR_BG},
 ) where {S,T}
-    # -* Degree *- #
+    # Degree
     k = length(ω)
 
-    # -* Fast-track *- #
+    # Fast-track
     k < 3 && return nothing
 
-    # -* Variables *- #
+    # Variables
     s = aux(k - 2)::Vector{S}
     b = collect(ω)::Vector{S}
 
-    # -* Stabilize *- #
+    # Stabilize
     quad.stable && sort!(b; lt = varlt)
 
-    #  Quadratization  #
+    # Quadratization
     delete!(f, ω)
 
     f[b[k]×b[k-1]] += c
@@ -134,10 +134,10 @@ function quadratize!(
     f::PBF{S,T},
     quad::Quadratization{TERM_BY_TERM},
 ) where {S,T}
-    #  Collect Terms  #
+    # Collect Terms
     Ω = collect(f)
 
-    #  Stable Quadratization  #
+    # Stable Quadratization
     quad.stable && sort!(Ω; by = first, lt = varlt)
 
     for (ω, c) in Ω

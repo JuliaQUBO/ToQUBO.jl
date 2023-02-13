@@ -1,6 +1,6 @@
 # Relaxed Greatest Common Divisor 
 @doc raw"""
-    relaxed_gcd(x::T, y::T; tol::T = T(1e-6)) where {T <: AbstractFloat}
+    relaxed_gcd(x::T, y::T; tol::T = T(1e-6)) where {T}
 
 We define two real numbers ``x`` and ``y`` to be ``\tau``-comensurable if, for some ``\tau > 0`` there exists a continued fractions convergent ``p_{k} \div q_{k}`` such that
 
@@ -8,7 +8,7 @@ We define two real numbers ``x`` and ``y`` to be ``\tau``-comensurable if, for s
     \left| {q_{k} x - p_{k} y} \right| \le \tau
 ```
 """
-function relaxed_gcd(x::T, y::T; tol::T = 1e-6) where {T<:Number}
+function relaxed_gcd(x::T, y::T; tol::T = 1e-6) where {T}
     x_ = abs(x)
     y_ = abs(y)
 
@@ -23,28 +23,28 @@ function relaxed_gcd(x::T, y::T; tol::T = 1e-6) where {T<:Number}
     end
 end
 
-function relaxed_gcd(a::AbstractArray{T}; tol::T = 1e-6) where {T<:Number}
+function relaxed_gcd(a::AbstractArray{T}; tol::T = 1e-6) where {T}
     if length(a) == 0
-        one(T)
+        return one(T)
     elseif length(a) == 1
-        first(a)
+        return first(a)
     else
-        reduce((x, y) -> relaxed_gcd(x, y; tol = tol), a)
+        return reduce((x, y) -> relaxed_gcd(x, y; tol = tol), a)
     end
 end
 
 # Variable Terms 
-varmul(x::S, y::S) where {S} = Set{S}([x, y])
-varmul(x::Set{S}, y::S) where {S} = push!(copy(x), y)
-varmul(x::S, y::Set{S}) where {S} = push!(copy(y), x)
-varmul(x::Set{S}, y::Set{S}) where {S} = union(x, y)
+varmul(x::V, y::V) where {V}           = Set{V}([x, y])
+varmul(x::Set{V}, y::V) where {V}      = push!(copy(x), y)
+varmul(x::V, y::Set{V}) where {V}      = push!(copy(y), x)
+varmul(x::Set{V}, y::Set{V}) where {V} = union(x, y)
 
 const × = varmul # \times[tab]
 const ≺ = varlt  # \prec[tab]
 
 @doc raw"""
 """
-function degree end # TODO: memoize
+function degree end
 
 degree(f::PBF) = maximum(length.(keys(f)); init = 0)
 
@@ -78,30 +78,11 @@ function bounds(f::PBF; bound::Symbol = :loose)
     return (lowerbound(f; bound), upperbound(f; bound))
 end
 
-@doc raw"""
-    gap(f::PBF{S, T}; bound::Symbol=:loose) where {S, T}
-
-Computes the least upper bound for the greatest variantion possible under some `` f \in \mathscr{F} `` i. e.
-
-```math
-\begin{array}{r l}
-    \min        & M \\
-    \text{s.t.} & \left|{f(\mathbf{x}) - f(\mathbf{y})}\right| \le M ~~ \forall \mathbf{x}, \mathbf{y} \in \mathbb{B}^{n} 
-\end{array}
-```
-
-A simple approach, avaiable using the `bound=:loose` parameter, is to define
-```math
-M \triangleq \sum_{\omega \neq \varnothing} \left|{c_\omega}\right|
-```
-"""
-function gap end
-
 function gap(f::PBF; bound::Symbol = :loose)
     return gap(f, Val(bound))
 end
 
-function gap(f::PBF{<:Any,T}, ::Val{:loose}) where {T}
+function gap(f::PBF{V,T}, ::Val{:loose}) where {V,T}
     return sum(abs(c) for (ω, c) in f if !isempty(ω); init = zero(T))
 end
 
@@ -109,67 +90,35 @@ function gap(::PBF, ::Val{:tight})
     error("Not Implemented: See [1] sec 5.1.1 Majorization")
 end
 
-const δ = gap
-
-@doc raw"""
-    sharpness(f::PBF{S, T}; bound::Symbol=:loose, tol::T = T(1e-6)) where {S, T}
-"""
-function sharpness end
-
-function sharpness(f::PBF{S,T}; bound::Symbol = :loose, tol::T = 1e-6) where {S,T}
+function sharpness(f::PBF{V,T}; bound::Symbol = :loose, tol::T = 1e-6) where {V,T}
     return sharpness(f, Val(bound), tol)
 end
 
-function sharpness(::PBF{S,T}, ::Val{:none}, ::T) where {S,T}
+function sharpness(::PBF{V,T}, ::Val{:none}, ::T) where {V,T}
     return one(T)
 end
 
-function sharpness(f::PBF{S,T}, ::Val{:loose}, tol::T = 1E-6) where {S,T}
+function sharpness(f::PBF{V,T}, ::Val{:loose}, tol::T = 1E-6) where {V,T}
     return relaxed_gcd(collect(values(f)); tol = tol)::T
 end
 
-const ϵ = sharpness
-
-@doc raw"""
-    derivative(f::PBF{S, T}, i::S) where {S, T}
-    derivative(f::PBF{S, T}, i::Int) where {S, T}
-
-The partial derivate of function ``f \in \mathscr{F}`` with respect to the ``i``-th variable.
-
-```math
-    \Delta_i f(\mathbf{x}) = \frac{\partial f(\mathbf{x})}{\partial \mathbf{x}_i} =
-    \sum_{\omega \in \Omega\left[{f}\right] \setminus \left\{{i}\right\}}
-    c_{\omega \cup \left\{{i}\right\}} \prod_{k \in \omega} \mathbf{x}_k
-```
-"""
-function derivative end
-
-function derivative(f::PBF{S,T}, s::S) where {S,T}
-    return PBF{S,T}(ω => f[ω×s] for ω ∈ keys(f) if (s ∉ ω))
+function derivative(f::PBF{V,T}, x::V) where {V,T}
+    return PBF{V,T}(ω => f[ω×x] for ω ∈ keys(f) if (x ∉ ω))
 end
 
-const Δ = derivative
-const ∂ = derivative
-
-function gradient(f::PBF{S,<:Any}, x::Vector{S}) where {S}
-    return [derivative(f, x) for (s, _) in varmap(f)]
+function gradient(f::PBF{V}, x::Vector{V}) where {V}
+    return derivative.(f, x)
 end
 
-const ∇ = gradient
-
-function residual(f::PBF{S,T}, i::S) where {S,T}
-    return PBF{S,T}(ω => c for (ω, c) ∈ keys(f) if (i ∉ ω))
+function residual(f::PBF{V,T}, x::V) where {V,T}
+    return PBF{V,T}(ω => c for (ω, c) ∈ keys(f) if (x ∉ ω))
 end
 
-function residual(f::PBF, i::Int)
-    return residual(f, varinv(f)[i])
-end
-
-function discretize(f::PBF{S,T}; tol::T = 1E-6) where {S,T}
+function discretize(f::PBF{V,T}; tol::T = 1E-6) where {V,T}
     return discretize!(copy(f); tol = tol)
 end
 
-function discretize!(f::PBF{S,T}; tol::T = 1E-6) where {S,T}
+function discretize!(f::PBF{V,T}; tol::T = 1E-6) where {V,T}
     ε = sharpness(f; bound = :loose, tol = tol)
 
     for (ω, c) in f

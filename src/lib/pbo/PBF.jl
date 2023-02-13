@@ -65,8 +65,11 @@ struct PseudoBooleanFunction{S,T}
     end
 end
 
-#  Alias 
+# Alias 
 const PBF{S,T} = PseudoBooleanFunction{S,T}
+
+# Broadcast as scalar
+Base.broadcastable(f::PBF) = Ref(f)
 
 # Copy 
 function Base.copy!(f::PBF{S,T}, g::PBF{S,T}) where {S,T}

@@ -90,9 +90,14 @@ function toqubo_variables!(model::VirtualModel{T}, ::AbstractArchitecture) where
             # TODO: Add τ as parameter
             let
                 e = MOI.get(model, VARIABLE_ENCODING_METHOD(), x)
-                τ = MOI.get(model, VARIABLE_ENCODING_ATOL(), x)
+                n = MOI.get(model, VARIABLE_ENCODING_BITS(), x)
 
-                encode!(model, e, x, a, b, τ)
+                if !isnothing(n)
+                    encode!(model, e, x, a, b, n)
+                else
+                    τ = MOI.get(model, VARIABLE_ENCODING_ATOL(), x)
+                    encode!(model, e, x, a, b, τ)
+                end
             end 
         end
     end
