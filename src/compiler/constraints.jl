@@ -62,7 +62,7 @@ function toqubo_constraint(
     s::EQ{T},
     arch::AbstractArchitecture,
 ) where {T}
-    # Scalar Affine Function: g(x) = a'x - b = 0
+    # Scalar Affine Equality: g(x) = a'x - b = 0
     g = toqubo_parse(model, f, s, arch)
 
     PBO.discretize!(g)
@@ -105,7 +105,7 @@ function toqubo_constraint(
     s::LT{T},
     arch::AbstractArchitecture,
 ) where {T}
-    # Scalar Affine Function: g(x) = a'x - b ≤ 0 
+    # Scalar Affine Inequality: g(x) = a'x - b ≤ 0 
     g = toqubo_parse(model, f, s, arch)
 
     PBO.discretize!(g)
