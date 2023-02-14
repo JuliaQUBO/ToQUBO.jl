@@ -93,13 +93,13 @@ const Optimizer{T} = VirtualModel{T}
 
 # QUBOTools
 function qubo(model, type::Type = Dict)
-    n, L, Q, α, β = MOI.get(model, QUBOTOOLS_NORMAL_FORM())
+    n, L, Q, α, β = MOI.get(model, Attributes.QUBONormalForm())
 
     return QUBOTools.qubo(type, n, L, Q, α, β)
 end
 
 function ising(model, type::Type = Dict)
-    n, L̄, Q̄, ᾱ, β̄ = MOI.get(model, QUBOTOOLS_NORMAL_FORM())
+    n, L̄, Q̄, ᾱ, β̄ = MOI.get(model, Attributes.QUBONormalForm())
     L, Q, α, β    = QUBOTools.cast(QUBOTools.𝔹, QUBOTools.𝕊, L̄, Q̄, ᾱ, β̄)
 
     return QUBOTools.ising(type, n, L, Q, α, β)

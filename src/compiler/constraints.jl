@@ -121,7 +121,8 @@ function toqubo_constraint(
     end
 
     # Slack Variable
-    z = encode!(model, Binary(), nothing, zero(T), abs(l))
+    e = MOI.get(model, Attributes.DefaultVariableEncodingMethod())
+    z = encode!(model, e, nothing, zero(T), abs(l))
 
     for (ω, c) in expansion(z)
         g[ω] += c
@@ -152,7 +153,7 @@ function toqubo_constraint(
     end
 
     # Tell the compiler that quadratization is necessary
-    MOI.set(model, QUADRATIZE(), true)
+    MOI.set(model, Attributes.Quadratize(), true)
 
     return g^2
 end
@@ -178,14 +179,16 @@ function toqubo_constraint(
         @warn "Infeasible constraint detected"
     end
 
-    z = encode!(model, Binary(), nothing, zero(T), abs(l))
+    # Slack Variable
+    e = MOI.get(model, Attributes.DefaultVariableEncodingMethod())
+    z = encode!(model, e, nothing, zero(T), abs(l))
 
     for (ω, c) in expansion(z)
         g[ω] += c
     end
 
     # Tell the compiler that quadratization is necessary
-    MOI.set(model, QUADRATIZE(), true)
+    MOI.set(model, Attributes.Quadratize(), true)
 
     return g^2
 end
@@ -202,8 +205,7 @@ function toqubo_constraint(
     for xi in x.variables
         vi = model.source[xi]
         
-        # Currently, SOS1 only supports binary variables
-        @assert encoding(vi) isa Mirror
+        @assert encoding(vi) isa Mirror "Currently, SOS1 only supports binary variables"
 
         for (ωi, _) in expansion(vi)
             g[ωi] = one(T)
@@ -211,9 +213,16 @@ function toqubo_constraint(
     end
 
     # Slack variable
-    z = expansion(encode!(model, Mirror(), nothing))
+    e = Mirror()
+    z = encode!(model, e, nothing)
 
-    return (g + z - one(T))^2
+    for (ω, c) in expansion(z)
+        g[ω] += c
+    end
+
+    g[nothing] += -one(T)
+
+    return g^2
 end
 
 function toqubo_encoding_constraints!(

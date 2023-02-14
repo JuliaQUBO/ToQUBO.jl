@@ -35,7 +35,7 @@ function test_logical_sos1()
         optimize!(model)
 
         # Reformulation
-        ρ       = MOI.get(model, ToQUBO.CONSTRAINT_ENCODING_PENALTY(), c1)
+        ρ       = MOI.get(model, TQA.ConstraintEncodingPenalty(), c1)
         Q, α, β = ToQUBO.qubo(model, Matrix)
 
         @test ρ ≈ ρ̄

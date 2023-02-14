@@ -8,7 +8,7 @@ function toqubo_variables!(model::VirtualModel{T}, ::AbstractArchitecture) where
     ℝ = Dict{VI,Tuple{Union{T,Nothing},Union{T,Nothing}}}()
 
     for ci in MOI.get(model, MOI.ListOfConstraintIndices{VI,MOI.ZeroOne}())
-        # Binary Variable 😄 
+        # Binary Variable
         x = MOI.get(model, MOI.ConstraintFunction(), ci)
 
         # Add to set
@@ -16,7 +16,7 @@ function toqubo_variables!(model::VirtualModel{T}, ::AbstractArchitecture) where
     end
 
     for ci in MOI.get(model, MOI.ListOfConstraintIndices{VI,MOI.Integer}())
-        # Integer Variable 🤔 
+        # Integer Variable
         x = MOI.get(model, MOI.ConstraintFunction(), ci)
 
         # Add to dict as unbounded
@@ -24,12 +24,12 @@ function toqubo_variables!(model::VirtualModel{T}, ::AbstractArchitecture) where
     end
 
     for x in setdiff(Ω, 𝔹, keys(ℤ))
-        # Real Variable 😢 
+        # Real Variable
         ℝ[x] = (nothing, nothing)
     end
 
     for ci in MOI.get(model, MOI.ListOfConstraintIndices{VI,MOI.Interval{T}}())
-        # Interval 😄 
+        # Interval
         x = MOI.get(model, MOI.ConstraintFunction(), ci)
         s = MOI.get(model, MOI.ConstraintSet(), ci)
 
@@ -44,7 +44,7 @@ function toqubo_variables!(model::VirtualModel{T}, ::AbstractArchitecture) where
     end
 
     for ci in MOI.get(model, MOI.ListOfConstraintIndices{VI,LT{T}}())
-        # Upper Bound 🤔 
+        # Upper Bound
         x = MOI.get(model, MOI.ConstraintFunction(), ci)
         s = MOI.get(model, MOI.ConstraintSet(), ci)
 
@@ -58,7 +58,7 @@ function toqubo_variables!(model::VirtualModel{T}, ::AbstractArchitecture) where
     end
 
     for ci in MOI.get(model, MOI.ListOfConstraintIndices{VI,GT{T}}())
-        # Lower Bound 🤔 
+        # Lower Bound
         x = MOI.get(model, MOI.ConstraintFunction(), ci)
         s = MOI.get(model, MOI.ConstraintSet(), ci)
 
@@ -71,12 +71,12 @@ function toqubo_variables!(model::VirtualModel{T}, ::AbstractArchitecture) where
         end
     end
 
-    # Discretize Real Ones 🤔 
+    # Discretize Real Ones
     for (x, (a, b)) in ℝ
         if isnothing(a) || isnothing(b)
             error("Unbounded variable $(x) ∈ ℝ")
         else
-            # TODO: Solve this bit-guessng magic???
+            # TODO: Solve this bit-guessing magic???
             # IDEA: 
             #     Let x̂ ~ U[a, b], K = 2ᴺ, γ = [a, b]
             #       𝔼[|xᵢ - x̂|] = ∫ᵧ |xᵢ - x̂| f(x̂) dx̂
@@ -87,28 +87,29 @@ function toqubo_variables!(model::VirtualModel{T}, ::AbstractArchitecture) where
             #       N ≥ log₂(1 + |b - a| / 4τ)
             #
             # where τ is the (absolute) tolerance
-            # TODO: Add τ as parameter
+            # TODO: Add τ as parameter (DONE)
+            # TODO: Move this comment to the documentation
             let
-                e = MOI.get(model, VARIABLE_ENCODING_METHOD(), x)
-                n = MOI.get(model, VARIABLE_ENCODING_BITS(), x)
+                e = MOI.get(model, Attributes.VariableEncodingMethod(), x)
+                n = MOI.get(model, Attributes.VariableEncodingBits(), x)
 
                 if !isnothing(n)
                     encode!(model, e, x, a, b, n)
                 else
-                    τ = MOI.get(model, VARIABLE_ENCODING_ATOL(), x)
+                    τ = MOI.get(model, Attributes.VariableEncodingATol(), x)
                     encode!(model, e, x, a, b, τ)
                 end
             end 
         end
     end
 
-    # Discretize Integer Variables 🤔 
+    # Discretize Integer Variables 
     for (x, (a, b)) in ℤ
         if isnothing(a) || isnothing(b)
             error("Unbounded variable $(x) ∈ ℤ")
         else
             let
-                e = MOI.get(model, VARIABLE_ENCODING_METHOD(), x)
+                e = MOI.get(model, Attributes.VariableEncodingMethod(), x)
                 encode!(model, e, x, a, b)
             end
         end

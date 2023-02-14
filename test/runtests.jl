@@ -1,16 +1,16 @@
 using Test
 
-#  Imports: JuMP + MOI 
 using JuMP
 const MOIU = MOI.Utilities
 const VI = MOI.VariableIndex
 const CI = MOI.ConstraintIndex
 
-#  Imports 
 using ToQUBO: ToQUBO, PBO
 using Anneal
 using LinearAlgebra
 using TOML
+
+const TQA = ToQUBO.Attributes
 
 include("assets/assets.jl")
 include("unit/unit.jl")

@@ -14,7 +14,11 @@ end
 function toqubo_hamiltonian!(model::VirtualModel{T}, ::AbstractArchitecture) where {T}
     empty!(model.H)
 
-    sizehint!(model.H, MOI.get(model, MOI.NumberOfVariables())^2)
+    # TODO: Make this 'sizehint!' more precise
+    # IDEA:
+    N = length(model.f) + sum(length, model.g; init=0) + sum(length, model.h; init=0)
+
+    sizehint!(model.H, N)
 
     for (ω, c) in model.f
         model.H[ω] += c
@@ -60,9 +64,9 @@ function toqubo_aux(model::VirtualModel, n::Integer, ::AbstractArchitecture)::Ve
 end
 
 function toqubo_quadratize!(model::VirtualModel, arch::AbstractArchitecture)
-    if MOI.get(model, QUADRATIZE())
-        method = MOI.get(model, QUADRATIZATION_METHOD())
-        stable = MOI.get(model, STABLE_QUADRATIZATION())
+    if MOI.get(model, Attributes.Quadratize())
+        method = MOI.get(model, Attributes.QuadratizationMethod())
+        stable = MOI.get(model, Attributes.StableQuadratization())
 
         PBO.quadratize!(
             model.H,
@@ -96,9 +100,9 @@ function toqubo_output!(model::VirtualModel{T}, ::AbstractArchitecture) where {T
             # During implementation of new quadratization and constraint reformulation methods
             # higher degree terms might be introduced by mistake. That's why it's important to 
             # have this condition here.
-            # HINT: When debugging this, a good place to start is to check if the 'QUADRATIZE'
+            # HINT: When debugging this, a good place to start is to check if the 'Quadratize'
             # flag is set or not. If missing, it should mean that some constraint might induce
-            # PBFs of higher degree without calling 'MOI.set(model, QUADRATIZE(), true)'.     
+            # PBFs of higher degree without calling 'MOI.set(model, Quadratize(), true)'.     
             throw(QUBOError("Quadratization failed"))
         end
     end

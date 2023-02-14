@@ -23,19 +23,19 @@ solution_summary(model)
 
 ### Architecture
 ```@docs
-ToQUBO.ARCHITECTURE
+ToQUBO.Attributes.Architecture
 ```
 
 ### Quadratization
 ```@docs
-ToQUBO.QUADRATIZE
-ToQUBO.QUADRATIZATION_METHOD
-ToQUBO.STABLE_QUADRATIZATION
+ToQUBO.Attributes.Quadratize
+ToQUBO.Attributes.QuadratizationMethod
+ToQUBO.Attributes.StableQuadratization
 ```
 
 ### Variable & Constraint Encoding
 ```@docs
-ToQUBO.VARIABLE_ENCODING_METHOD
-ToQUBO.VARIABLE_ENCODING_PENALTY
-ToQUBO.CONSTRAINT_ENCODING_PENALTY
+ToQUBO.Attributes.VariableEncodingMethod
+ToQUBO.Attributes.VariableEncodingPenalty
+ToQUBO.Attributes.ConstraintEncodingPenalty
 ```

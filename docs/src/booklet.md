@@ -48,7 +48,7 @@ f(X \cup Y) + f(X \cap Y) \le f(X) + f(Y) \forall X, Y \subset S
 
 holds.
 
-### Quadratization
+## Quadratization
 In order to successfully achieve a QUBO formulation, sometimes it is needed to quadratize the resulting PBF, i.e., reduce its degree until reaching the quadratic case. There are many quadratization methods available, and `ToQUBO` implements a few of them.
 
 ```@docs
@@ -60,7 +60,7 @@ During reformulation, `ToQUBO` holds two distinct models, namely the *Source Mod
 
 This is done in a transparent fashion for both agents since the user will mostly interact with the presented model, and the solvers will only access the generated one.
 
-### Virtual Variables
+## Virtual Variables
 Every virtual model stores a collection of virtual variables, intended to provide a link between those in the source and those to be created in the target model. Each virtual variable stores enconding information for later expansion and evaluation.
 
 ```@docs
@@ -68,16 +68,29 @@ ToQUBO.VirtualVariable
 ToQUBO.encode!
 ```
 
-### Variable Encoding
+## Variable Encoding
+
+### Linear Encoding Methods
 ```@docs
+ToQUBO.LinearEncoding
 ToQUBO.Binary
 ToQUBO.Unary
 ToQUBO.Arithmetic
 ToQUBO.OneHot
+```
+
+### Sequential Encoding Methods
+```@docs
+ToQUBO.SequentialEncoding
 ToQUBO.DomainWall
 ```
 
-### Virtual Models
+### Bounded Coefficients
+```@docs
+ToQUBO.Bounded
+```
+
+## Virtual Models
 ```@docs
 ToQUBO.VirtualModel
 ```

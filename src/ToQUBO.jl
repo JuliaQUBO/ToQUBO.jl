@@ -1,16 +1,17 @@
 module ToQUBO
 
 # Base Imports & Constants 
-using TOML
+import TOML
 const PROJECT_FILE_PATH = joinpath(@__DIR__, "..", "Project.toml")
 const PROJECT_VERSION   = VersionNumber(getindex(TOML.parsefile(PROJECT_FILE_PATH), "version"))
 
 # QUBOTools
 import QUBOTools
 
+const QUBO_NORMAL_FORM{T} = Tuple{Int,Dict{Int,T},Dict{Tuple{Int,Int},T},T,T}
+
 # External Imports
-using MathOptInterface
-const MOI  = MathOptInterface
+import MathOptInterface as MOI
 const MOIU = MOI.Utilities
 const MOIB = MOI.Bridges
 

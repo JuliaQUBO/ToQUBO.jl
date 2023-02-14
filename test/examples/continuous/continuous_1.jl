@@ -41,7 +41,7 @@ function test_continuous_1()
         # Model
         model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
 
-        set_optimizer_attribute(model, ToQUBO.DEFAULT_VARIABLE_ENCODING_ATOL(), 1E-1)
+        set_optimizer_attribute(model, TQA.DefaultVariableEncodingATol(), 1E-1)
 
         @variable(model, 0 <= x[1:n,1:n] <= 1)
         @objective(model, Max, sum(A .* x))

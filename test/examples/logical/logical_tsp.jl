@@ -51,8 +51,8 @@ function test_logical_tsp()
         optimize!(model)
 
         # Reformulation
-        ρi      = MOI.get.(model, ToQUBO.CONSTRAINT_ENCODING_PENALTY(), ci)
-        ρk      = MOI.get.(model, ToQUBO.CONSTRAINT_ENCODING_PENALTY(), ck)
+        ρi      = MOI.get.(model, TQA.ConstraintEncodingPenalty(), ci)
+        ρk      = MOI.get.(model, TQA.ConstraintEncodingPenalty(), ck)
         ρ       = [ρi; ρk]
         Q, α, β = ToQUBO.qubo(model, Matrix)
 

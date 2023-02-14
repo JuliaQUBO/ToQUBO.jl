@@ -10,9 +10,9 @@ function test_attributes()
         @test MOI.get(model, MOI.TimeLimitSec()) == 1.0
 
         # ToQUBO Attributes
-        @test MOI.get(model, ToQUBO.QUADRATIZE()) === false
-        MOI.set(model, ToQUBO.QUADRATIZE(), true)
-        @test MOI.get(model, ToQUBO.QUADRATIZE()) === true
+        @test MOI.get(model, TQA.Quadratize()) === false
+        MOI.set(model, TQA.Quadratize(), true)
+        @test MOI.get(model, TQA.Quadratize()) === true
 
         # Solver Attributes
         @test MOI.get(model, RandomSampler.RandomSeed()) |> isnothing

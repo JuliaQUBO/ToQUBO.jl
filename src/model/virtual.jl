@@ -391,6 +391,22 @@ function encode!(
 end
 
 @doc raw"""
+    OneHot()
+
+The one-hot encoding is a linear technique used to represent a variable
+``x \in \left\lbrace{\gamma_{j}}}\right\rbrace_{j \in \left[n\right]``.
+
+The encoding function is combined with a constraint assuring that only
+one and exactly one of the expansion's variables ``y_{j}`` is activated
+at a time.
+
+```math
+\begin{array}{rl}
+x = \xi(\mathbf{y}) = &  \sum_{j = 1}^{n} \gamma_{j} y_{j} \\
+        \mathrm{s.t.} & \sum_{j = 1}^{n} y_{j} = 1
+\end{array}
+```
+
 """ struct OneHot <: LinearEncoding end
 
 function VirtualVariable{T}(
@@ -470,7 +486,20 @@ function encode!(
     return encode!(model, v)
 end
 
-struct DomainWall <: SequentialEncoding end
+@doc raw"""
+    DomainWall()
+
+The Domain Wall[^Chancellor2019] encoding method is a sequential approach that requires only
+``n - 1`` bits to represent ``n`` distinct values.
+
+!!! table "Encoding Analysis"
+    |             | bits      | linear | quadratic | ``\Delta`` |
+    | :-:         | :--:      | :----: | :-------: | :--------: |
+    | Domain Wall | ``n - 1`` | ``n``  |           | ``O(n)``   |
+
+[^Chancellor2019]:
+    Nicholas Chancellor, **Domain wall encoding of discrete variables for quantum annealing and QAOA**, *Quantum Science Technology 4*, 2019.
+""" struct DomainWall <: SequentialEncoding end
 
 function VirtualVariable{T}(
     e::DomainWall,

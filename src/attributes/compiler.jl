@@ -1,114 +1,138 @@
+module Attributes
+
+import ..ToQUBO
+import MathOptInterface as MOI
+const MOIU = MOI.Utilities
+const VI = MOI.VariableIndex
+const CI = MOI.ConstraintIndex
+
 abstract type CompilerAttribute <: MOI.AbstractOptimizerAttribute end
 
-@doc raw"""
-    ARCHITECTURE()
-""" struct ARCHITECTURE <: CompilerAttribute end
+export
+    Architecture,
+    Discretize,
+    Quadratize,
+    QuadratizationMethod,
+    StableQuadratization,
+    DefaultVariableEncodingATol,
+    DefaultVariableEncodingBits,
+    DefaultVariableEncodingMethod,
+    VariableEncodingATol,
+    VariableEncodingBits,
+    VariableEncodingMethod,
+    VariableEncodingPenalty,
+    ConstraintEncodingPenalty,
+    QUBONormalForm
 
-function MOI.get(model::VirtualModel, ::ARCHITECTURE)::AbstractArchitecture
-    return get(model.compiler_settings, :architecture, GenericArchitecture())
+@doc raw"""
+    Architecture()
+""" struct Architecture <: CompilerAttribute end
+
+function MOI.get(model::ToQUBO.VirtualModel, ::Architecture)::ToQUBO.AbstractArchitecture
+    return get(model.compiler_settings, :architecture, ToQUBO.GenericArchitecture())
 end
 
-function MOI.set(model::VirtualModel, ::ARCHITECTURE, arch::AbstractArchitecture)
+function MOI.set(model::ToQUBO.VirtualModel, ::Architecture, arch::ToQUBO.AbstractArchitecture)
     model.compiler_settings[:architecture] = arch
 
     return nothing
 end
 
 @doc raw"""
-    DISCRETIZE()
+    Discretize()
 
 When set, this boolean flag guarantees that every coefficient in the final formulation is an integer.
-""" struct DISCRETIZE <: CompilerAttribute end
+""" struct Discretize <: CompilerAttribute end
 
-function MOI.get(model::VirtualModel, ::DISCRETIZE, flag::Bool)::Bool
+function MOI.get(model::ToQUBO.VirtualModel, ::Discretize, flag::Bool)::Bool
     return get(model.compiler_settings, :discretize, false)
 end
 
-function MOI.set(model::VirtualModel, ::DISCRETIZE, flag::Bool)
+function MOI.set(model::ToQUBO.VirtualModel, ::Discretize, flag::Bool)
     model.compiler_settings[:discretize] = flag
 
     return nothing
 end
 
 @doc raw"""
-    QUADRATIZE()
+    Quadratize()
 
 Boolean flag to conditionally perform the quadratization step.
 Is automatically set by the compiler when high-order functions are generated.
-""" struct QUADRATIZE <: CompilerAttribute end
+""" struct Quadratize <: CompilerAttribute end
 
-function MOI.get(model::VirtualModel, ::QUADRATIZE)::Bool
+function MOI.get(model::ToQUBO.VirtualModel, ::Quadratize)::Bool
     return get(model.compiler_settings, :quadratize, false)
 end
 
-function MOI.set(model::VirtualModel, ::QUADRATIZE, flag::Bool)
+function MOI.set(model::ToQUBO.VirtualModel, ::Quadratize, flag::Bool)
     model.compiler_settings[:quadratize] = flag
 
     return nothing
 end
 
 @doc raw"""
-    QUADRATIZATION_METHOD()
+    QuadratizationMethod()
 
 Defines which quadratization method to use.
 Available options are defined in the [`PBO`](@ref) submodule.
-""" struct QUADRATIZATION_METHOD <: CompilerAttribute end
+""" struct QuadratizationMethod <: CompilerAttribute end
 
-function MOI.get(model::VirtualModel, ::QUADRATIZATION_METHOD)
-    return get(model.compiler_settings, :quadratization_method, PBO.INFER)
+function MOI.get(model::ToQUBO.VirtualModel, ::QuadratizationMethod)
+    return get(model.compiler_settings, :QuadratizationMethod, ToQUBO.PBO.INFER)
 end
 
 function MOI.set(
-    model::VirtualModel,
-    ::QUADRATIZATION_METHOD,
+    model::ToQUBO.VirtualModel,
+    ::QuadratizationMethod,
     ::Type{method},
-) where {method<:PBO.QuadratizationMethod}
-    model.compiler_settings[:quadratization_method] = method
+) where {method<:ToQUBO.PBO.QuadratizationMethod}
+    model.compiler_settings[:QuadratizationMethod] = method
 
     return nothing
 end
 
 @doc raw"""
-    STABLE_QUADRATIZATION()
+    StableQuadratization()
 
 When set, this boolean flag enables stable quadratization methods, thus yielding predictable results.
 This is intended to be used during tests or other situations where deterministic output is desired.
 On the other hand, usage in production is not recommended since it requires increased memory and processing resources.
-""" struct STABLE_QUADRATIZATION <: CompilerAttribute end
+""" struct StableQuadratization <: CompilerAttribute end
 
-function MOI.get(model::VirtualModel, ::STABLE_QUADRATIZATION)::Bool
+function MOI.get(model::ToQUBO.VirtualModel, ::StableQuadratization)::Bool
     return get(model.compiler_settings, :stable_quadratization, false)
 end
 
-function MOI.set(model::VirtualModel, ::STABLE_QUADRATIZATION, flag::Bool)
+function MOI.set(model::ToQUBO.VirtualModel, ::StableQuadratization, flag::Bool)
     model.compiler_settings[:stable_quadratization] = flag
 
     return nothing
 end
 
 @doc raw"""
-    DEFAULT_VARIABLE_ENCODING_METHOD()
-""" struct DEFAULT_VARIABLE_ENCODING_METHOD <: CompilerAttribute end
+    DefaultVariableEncodingMethod()
+""" struct DefaultVariableEncodingMethod <: CompilerAttribute end
 
-function MOI.get(model::VirtualModel, ::DEFAULT_VARIABLE_ENCODING_METHOD)::Encoding
-    return get(model.compiler_settings, :default_variable_encoding_method, Binary())
+function MOI.get(model::ToQUBO.VirtualModel, ::DefaultVariableEncodingMethod)::ToQUBO.Encoding
+    return get(model.compiler_settings, :default_variable_encoding_method, ToQUBO.Binary())
 end
 
-function MOI.set(model::VirtualModel, ::DEFAULT_VARIABLE_ENCODING_METHOD, e::Encoding)
+function MOI.set(model::ToQUBO.VirtualModel, ::DefaultVariableEncodingMethod, e::ToQUBO.Encoding)
     model.compiler_settings[:default_variable_encoding_method] = e
 
     return nothing
 end
 
 @doc raw"""
-    DEFAULT_VARIABLE_ENCODING_ATOL()
-""" struct DEFAULT_VARIABLE_ENCODING_ATOL <: CompilerAttribute end
+    DefaultVariableEncodingATol()
+""" struct DefaultVariableEncodingATol <: CompilerAttribute end
 
-function MOI.get(model::VirtualModel{T}, ::DEFAULT_VARIABLE_ENCODING_ATOL)::T where {T}
+function MOI.get(model::ToQUBO.VirtualModel{T}, ::DefaultVariableEncodingATol)::T where {T}
     return get(model.compiler_settings, :default_variable_encoding_atol, T(1E-2))
 end
 
-function MOI.set(model::VirtualModel{T}, ::DEFAULT_VARIABLE_ENCODING_ATOL, τ::T) where {T}
+function MOI.set(model::ToQUBO.VirtualModel{T}, ::DefaultVariableEncodingATol, τ::T) where {T}
     model.compiler_settings[:default_variable_encoding_atol] = τ
 
     return nothing
@@ -117,20 +141,20 @@ end
 abstract type CompilerVariableAttribute <: MOI.AbstractVariableAttribute end
 
 @doc raw"""
-    VARIABLE_ENCODING_ATOL()
-""" struct VARIABLE_ENCODING_ATOL <: CompilerVariableAttribute end
+    VariableEncodingATol()
+""" struct VariableEncodingATol <: CompilerVariableAttribute end
 
-function MOI.get(model::VirtualModel{T}, ::VARIABLE_ENCODING_ATOL, vi::VI)::T where {T}
+function MOI.get(model::ToQUBO.VirtualModel{T}, ::VariableEncodingATol, vi::VI)::T where {T}
     attr = :variable_encoding_atol
 
     if !haskey(model.variable_settings, attr) || !haskey(model.variable_settings[attr], vi)
-        return MOI.get(model, DEFAULT_VARIABLE_ENCODING_ATOL())
+        return MOI.get(model, DefaultVariableEncodingATol())
     else
         return model.variable_settings[attr][vi]
     end
 end
 
-function MOI.set(model::VirtualModel{T}, ::VARIABLE_ENCODING_ATOL, vi::VI, τ::T) where {T}
+function MOI.set(model::ToQUBO.VirtualModel{T}, ::VariableEncodingATol, vi::VI, τ::T) where {T}
     attr = :variable_encoding_atol
 
     if !haskey(model.variable_settings, attr)
@@ -143,34 +167,34 @@ function MOI.set(model::VirtualModel{T}, ::VARIABLE_ENCODING_ATOL, vi::VI, τ::T
 end
 
 @doc raw"""
-    DEFAULT_VARIABLE_ENCODING_BITS()
-""" struct DEFAULT_VARIABLE_ENCODING_BITS <: CompilerAttribute end
+    DefaultVariableEncodingBits()
+""" struct DefaultVariableEncodingBits <: CompilerAttribute end
 
-function MOI.get(model::VirtualModel, ::DEFAULT_VARIABLE_ENCODING_BITS)::Union{Integer,Nothing}
+function MOI.get(model::ToQUBO.VirtualModel, ::DefaultVariableEncodingBits)::Union{Integer,Nothing}
     return get(model.compiler_settings, :default_variable_encoding_bits, nothing)
 end
 
-function MOI.set(model::VirtualModel, ::DEFAULT_VARIABLE_ENCODING_BITS, n::Union{Integer,Nothing})
+function MOI.set(model::ToQUBO.VirtualModel, ::DefaultVariableEncodingBits, n::Union{Integer,Nothing})
     model.compiler_settings[:default_variable_encoding_bits] = n
 
     return nothing
 end
 
 @doc raw"""
-    VARIABLE_ENCODING_BITS()
-""" struct VARIABLE_ENCODING_BITS <: CompilerVariableAttribute end
+    VariableEncodingBits()
+""" struct VariableEncodingBits <: CompilerVariableAttribute end
 
-function MOI.get(model::VirtualModel, ::VARIABLE_ENCODING_BITS, vi::VI)::Union{Integer,Nothing}
+function MOI.get(model::ToQUBO.VirtualModel, ::VariableEncodingBits, vi::VI)::Union{Integer,Nothing}
     attr = :variable_encoding_bits
 
     if !haskey(model.variable_settings, attr) || !haskey(model.variable_settings[attr], vi)
-        return MOI.get(model, DEFAULT_VARIABLE_ENCODING_BITS())
+        return MOI.get(model, DefaultVariableEncodingBits())
     else
         return model.variable_settings[attr][vi]
     end
 end
 
-function MOI.set(model::VirtualModel, ::VARIABLE_ENCODING_BITS, vi::VI, n::Union{Integer,Nothing})
+function MOI.set(model::ToQUBO.VirtualModel, ::VariableEncodingBits, vi::VI, n::Union{Integer,Nothing})
     attr = :variable_encoding_bits
 
     if !haskey(model.variable_settings, attr)
@@ -183,7 +207,7 @@ function MOI.set(model::VirtualModel, ::VARIABLE_ENCODING_BITS, vi::VI, n::Union
 end
 
 @doc raw"""
-    VARIABLE_ENCODING_METHOD()
+    VariableEncodingMethod()
 
 Available methods are:
 - [`Binary`](@ref) (default)
@@ -195,19 +219,19 @@ Available methods are:
 
 The [`Binary`](@ref), [`Unary`](@ref) and [`Arithmetic`](@ref) encodings can have their
 expansion coefficients bounded by parametrizing the [`Bounded`](@ref) encoding.
-""" struct VARIABLE_ENCODING_METHOD <: CompilerVariableAttribute end
+""" struct VariableEncodingMethod <: CompilerVariableAttribute end
 
-function MOI.get(model::VirtualModel, ::VARIABLE_ENCODING_METHOD, vi::VI)::Encoding
+function MOI.get(model::ToQUBO.VirtualModel, ::VariableEncodingMethod, vi::VI)::ToQUBO.Encoding
     attr = :variable_encoding_method
 
     if !haskey(model.variable_settings, attr) || !haskey(model.variable_settings[attr], vi)
-        return MOI.get(model, DEFAULT_VARIABLE_ENCODING_METHOD())
+        return MOI.get(model, DefaultVariableEncodingMethod())
     else
         return model.variable_settings[attr][vi]
     end
 end
 
-function MOI.set(model::VirtualModel, ::VARIABLE_ENCODING_METHOD, vi::VI, e::Encoding)
+function MOI.set(model::ToQUBO.VirtualModel, ::VariableEncodingMethod, vi::VI, e::ToQUBO.Encoding)
     attr = :variable_encoding_method
 
     if !haskey(model.variable_settings, attr)
@@ -220,19 +244,19 @@ function MOI.set(model::VirtualModel, ::VARIABLE_ENCODING_METHOD, vi::VI, e::Enc
 end
 
 @doc raw"""
-    VARIABLE_ENCODING_PENALTY()
+    VariableEncodingPenalty()
 
 Allows the user to set and retrieve the coefficients used for encoding variables when additional
 constraints are involved.
-""" struct VARIABLE_ENCODING_PENALTY <: CompilerVariableAttribute end
+""" struct VariableEncodingPenalty <: CompilerVariableAttribute end
 
-function MOI.get(model::VirtualModel{T}, ::VARIABLE_ENCODING_PENALTY, vi::VI) where {T}
+function MOI.get(model::ToQUBO.VirtualModel{T}, ::VariableEncodingPenalty, vi::VI) where {T}
     return model.θ[vi]::T
 end
 
 function MOI.set(
-    model::VirtualModel{T},
-    ::VARIABLE_ENCODING_PENALTY,
+    model::ToQUBO.VirtualModel{T},
+    ::VariableEncodingPenalty,
     vi::VI,
     θ::T,
 ) where {T}
@@ -241,23 +265,23 @@ function MOI.set(
     return nothing
 end
 
-MOI.is_set_by_optimize(::VARIABLE_ENCODING_PENALTY) = true
+MOI.is_set_by_optimize(::VariableEncodingPenalty) = true
 
 abstract type CompilerConstraintAttribute <: MOI.AbstractConstraintAttribute end
 
 @doc raw"""
-    CONSTRAINT_ENCODING_PENALTY()
+    ConstraintEncodingPenalty()
 
 Allows the user to set and retrieve the coefficients used for encoding constraints.
-""" struct CONSTRAINT_ENCODING_PENALTY <: CompilerConstraintAttribute end
+""" struct ConstraintEncodingPenalty <: CompilerConstraintAttribute end
 
-function MOI.get(model::VirtualModel{T}, ::CONSTRAINT_ENCODING_PENALTY, ci::CI) where {T}
+function MOI.get(model::ToQUBO.VirtualModel{T}, ::ConstraintEncodingPenalty, ci::CI) where {T}
     return model.ρ[ci]
 end
 
 function MOI.set(
-    model::VirtualModel{T},
-    ::CONSTRAINT_ENCODING_PENALTY,
+    model::ToQUBO.VirtualModel{T},
+    ::ConstraintEncodingPenalty,
     ci::CI,
     ρ::T,
 ) where {T}
@@ -266,16 +290,16 @@ function MOI.set(
     return nothing
 end
 
-MOI.is_set_by_optimize(::CONSTRAINT_ENCODING_PENALTY) = true
+MOI.is_set_by_optimize(::ConstraintEncodingPenalty) = true
 
-const QUBO_NORMAL_FORM{T} = Tuple{Int,Dict{Int,T},Dict{Tuple{Int,Int},T},T,T}
-
-struct QUBOTOOLS_NORMAL_FORM <: CompilerAttribute end
+@doc raw"""
+    QUBONormalForm
+""" struct QUBONormalForm <: CompilerAttribute end
 
 function MOI.get(
-    model::VirtualModel{T},
-    ::QUBOTOOLS_NORMAL_FORM,
-)::QUBO_NORMAL_FORM{T} where {T}
+    model::ToQUBO.VirtualModel{T},
+    ::QUBONormalForm,
+)::ToQUBO.QUBO_NORMAL_FORM{T} where {T}
     target_model = model.target_model
 
     n = MOI.get(target_model, MOI.NumberOfVariables())
@@ -312,5 +336,6 @@ function MOI.get(
     return (n, linear_terms, quadratic_terms, scale, offset)
 end
 
-# MOIU.map_indices(::Any, x::QUBO_NORMAL_FORM{T}) where {T} = x
-MOIU.map_indices(::MOIU.IndexMap, x::QUBO_NORMAL_FORM{T}) where {T} = x
+MOIU.map_indices(::MOIU.IndexMap, x::ToQUBO.QUBO_NORMAL_FORM{T}) where {T} = x
+
+end # module Settings

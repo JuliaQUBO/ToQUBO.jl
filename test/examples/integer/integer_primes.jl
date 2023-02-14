@@ -32,12 +32,12 @@ function test_integer_primes()
         @variable(model, a <= q <= b, Int)
         @constraint(model, c1, p * q == R)
 
-        set_optimizer_attribute(model, ToQUBO.STABLE_QUADRATIZATION(), true)
+        set_optimizer_attribute(model, TQA.StableQuadratization(), true)
 
         optimize!(model)
 
         # Reformulation
-        ρ       = MOI.get(model, ToQUBO.CONSTRAINT_ENCODING_PENALTY(), c1)
+        ρ       = MOI.get(model, TQA.ConstraintEncodingPenalty(), c1)
         Q, α, β = ToQUBO.qubo(model, Matrix)
 
         @test ρ ≈ ρ̄

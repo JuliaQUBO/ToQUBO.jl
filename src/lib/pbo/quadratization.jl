@@ -51,7 +51,7 @@ function quadratize!(
     # Quadratization
     delete!(f, ω)
 
-    f[s] -= c * (k - 1)
+    f[s] += -c * (k - 1)
 
     for i ∈ ω
         f[i×s] += c
