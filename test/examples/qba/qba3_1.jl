@@ -8,11 +8,11 @@ function test_qba3_1()
         such that the subset sums are as close to each other as possible.
         =#
 
-        # :: Data ::
+        # Problem Data
         S = Int[25, 7, 13, 31, 42, 17, 21, 10]
         m = 8
 
-        # :: Results ::
+        # Results
         Q̄ = [
             -3525   350   650  1550  2100   850  1050   500
                 0 -1113   182   434   588   238   294   140
@@ -34,7 +34,7 @@ function test_qba3_1()
         ])
         ȳ = -6889
 
-        # :: Model ::
+        # Model
         model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
 
         @variable(model, x[1:m], Bin)
@@ -42,17 +42,19 @@ function test_qba3_1()
 
         optimize!(model)
 
-        Q, _, c = ToQUBO.qubo(unsafe_backend(model), Matrix)
+        Q, _, c = ToQUBO.qubo(model, Matrix)
 
-        # :: Reformulation ::
+        # Reformulation
         @test c ≈ c̄
         @test Q ≈ 4Q̄
 
-        # :: Solution ::
+        # Solution
         x̂ = trunc.(Int, value.(x))
         ŷ = objective_value(model)
 
         @test x̂ ∈ x̄
         @test ŷ ≈ 4ȳ + c̄
+
+        return nothing
     end
 end

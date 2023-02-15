@@ -7,7 +7,7 @@ function test_compiler_constraints_quadratic()
     ]
     b = 6.0
 
-    model = ToQUBO.VirtualQUBOModel{Float64}()
+    model = ToQUBO.VirtualModel{Float64}()
     arch  = ToQUBO.GenericArchitecture()
     x, _  = MOI.add_constrained_variables(model.source_model, repeat([MOI.ZeroOne()], n))
     
@@ -20,6 +20,20 @@ function test_compiler_constraints_quadratic()
     )
     s = MOI.EqualTo{Float64}(b)
     g = ToQUBO.toqubo_constraint(model, f, s, arch)
+
+    h = ToQUBO.PBO.PBF{VI,Float64}()
+
+    ToQUBO.toqubo_parse!(model, h, f, s, arch)
+
+    @test h == PBO.PBF{VI,Float64}(
+        -6.0,
+        x[1] => -0.5,
+        x[2] => -0.5,
+        x[3] => -0.5,
+        [x[1], x[2]] => 4.0,
+        [x[1], x[3]] => 4.0,
+        [x[2], x[3]] => 4.0,
+    )
 
     @test g == PBO.PBF{VI,Float64}(
         144.0,

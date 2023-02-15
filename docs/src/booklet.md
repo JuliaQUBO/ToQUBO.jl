@@ -18,8 +18,12 @@ ToQUBO.toqubo!
 ```@docs
 ToQUBO.toqubo_sense!
 ToQUBO.toqubo_variables!
-ToQUBO.toqubo_constraint!
+ToQUBO.toqubo_constraint
+ToQUBO.toqubo_constraints!
 ToQUBO.toqubo_objective!
+ToQUBO.toqubo_penalties!
+ToQUBO.toqubo_parse!
+ToQUBO.toqubo_build!
 ```
 
 ## Pseudo-Boolean Optimization
@@ -32,16 +36,23 @@ ToQUBO.PBO.derivative
 ToQUBO.PBO.gradient
 ToQUBO.PBO.gap
 ToQUBO.PBO.sharpness
-ToQUBO.PBO.discretize
 ToQUBO.PBO.relaxed_gcd
 ```
 
-### Quadratization
+### A Primer on Submodularity
+A set function ``f : 2^{S} \to \mathbb{R}`` is said to be submodular if
+
+```math
+f(X \cup Y) + f(X \cap Y) \le f(X) + f(Y) \forall X, Y \subset S
+```
+
+holds.
+
+## Quadratization
 In order to successfully achieve a QUBO formulation, sometimes it is needed to quadratize the resulting PBF, i.e., reduce its degree until reaching the quadratic case. There are many quadratization methods available, and `ToQUBO` implements a few of them.
 
 ```@docs
-ToQUBO.PBO.quadratize
-ToQUBO.PBO.@quadratization
+ToQUBO.PBO.quadratize!
 ```
 
 ## Virtual Mapping
@@ -49,24 +60,39 @@ During reformulation, `ToQUBO` holds two distinct models, namely the *Source Mod
 
 This is done in a transparent fashion for both agents since the user will mostly interact with the presented model, and the solvers will only access the generated one.
 
-### Virtual Variables
+## Virtual Variables
 Every virtual model stores a collection of virtual variables, intended to provide a link between those in the source and those to be created in the target model. Each virtual variable stores enconding information for later expansion and evaluation.
 
 ```@docs
-ToQUBO.VirtualMapping.VirtualVariable
-ToQUBO.VirtualMapping.mapvar!
-ToQUBO.VirtualMapping.expandℝ!
-ToQUBO.VirtualMapping.slackℝ!
-ToQUBO.VirtualMapping.expandℤ!
-ToQUBO.VirtualMapping.slackℤ!
-ToQUBO.VirtualMapping.mirror𝔹!
-ToQUBO.VirtualMapping.slack𝔹!
+ToQUBO.VirtualVariable
+ToQUBO.encode!
 ```
 
-### Virtual Models
+## Variable Encoding
+
+### Linear Encoding Methods
 ```@docs
-ToQUBO.VirtualMapping.AbstractVirtualModel
-ToQUBO.VirtualQUBOModel
+ToQUBO.LinearEncoding
+ToQUBO.Binary
+ToQUBO.Unary
+ToQUBO.Arithmetic
+ToQUBO.OneHot
+```
+
+### Sequential Encoding Methods
+```@docs
+ToQUBO.SequentialEncoding
+ToQUBO.DomainWall
+```
+
+### Bounded Coefficients
+```@docs
+ToQUBO.Bounded
+```
+
+## Virtual Models
+```@docs
+ToQUBO.VirtualModel
 ```
 
 ### Annealing & Sampling

@@ -1,59 +1,73 @@
 function test_logical_tsp()
     @testset "TSP: 16 variables" begin
-        # ~*~ Problem Data ~*~ #
+        #  Problem Data  #
         n = 4
         D = [
-             0 10 10 10
-            10  0 10 10
-            10 10  0 10
-            10 10 10  0
+            0  1  5  4
+            1  0  2  6
+            5  2  0  3
+            4  6  3  0
         ]
 
         # Penalty Choice
-        ρ̄ = -16
+        ρ̄ = fill(169, 2n)
 
-        # ~*~ Solution Data ~*~ #
+        # Solution Data
         Q̄ = [
-             15 -28 -28 -32
-              0  15 -28 -32
-              0   0  15 -32
-              0   0   0  16
+            -338  676    1  676    5    0  676    5    5    4
+               0 -675  676  681  679    5  681  682    6    6
+               0    0 -338    3  676    2    6  676    6    0
+               0    0    0 -676  681  676  681   10  681    7
+               0    0    0    0 -674  676    4  682  681    6
+               0    0    0    0    0 -338    5    5  676    3
+               0    0    0    0    0    0 -672  682  683  676
+               0    0    0    0    0    0    0 -676  682  676
+               0    0    0    0    0    0    0    0 -673  676
+               0    0    0    0    0    0    0    0    0 -338
         ]
 
         ᾱ = 1
-        β̄ = -16
+        β̄ = 1352
+        x̄ = Set{Matrix{Int}}([
+            [0 0 0 1; 0 0 1 0; 0 1 0 0; 1 0 0 0],
+            [1 0 0 0; 0 0 0 1; 0 0 1 0; 0 1 0 0],
+            [0 1 0 0; 1 0 0 0; 0 0 0 1; 0 0 1 0],
+            [0 0 1 0; 0 1 0 0; 1 0 0 0; 0 0 0 1],
+        ])
+        ȳ = 10
 
-        x̄ = Set{Vector{Int}}([[0, 0, 0]])
-        ȳ = 0
-
-        # ~*~ Model ~*~ #
+        #  Model  #
         model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
 
         @variable(model, x[1:n, 1:n], Bin, Symmetric)
-        @objective(model, Min, sum(D[i, j] * x[i, k] * x[j, (k % n) + 1] for i = 1:n, j = 1:n, k = 1:n))
+        @objective(
+            model,
+            Min,
+            sum(D[i, j] * x[i, k] * x[j, (k%n)+1] for i = 1:n, j = 1:n, k = 1:n)
+        )
         @constraint(model, ci[i = 1:n], sum(x[i, :]) == 1)
         @constraint(model, ck[k = 1:n], sum(x[:, k]) == 1)
 
         optimize!(model)
 
-        # :: Reformulation ::
-        qubo_model = unsafe_backend(model)
-
-        ρi      = MOI.get.(qubo_model, ToQUBO.Penalty(), collect(map(i->i.index, ci)))
-        ρk      = MOI.get.(qubo_model, ToQUBO.Penalty(), collect(map(i->i.index, ck)))
+        # Reformulation
+        ρi      = MOI.get.(model, TQA.ConstraintEncodingPenalty(), ci)
+        ρk      = MOI.get.(model, TQA.ConstraintEncodingPenalty(), ck)
         ρ       = [ρi; ρk]
-        Q, α, β = ToQUBO.qubo(qubo_model, Matrix)
+        Q, α, β = ToQUBO.qubo(model, Matrix)
 
-        @show ρ # ≈ ρ̄
-        @show α # ≈ ᾱ
-        @show β # ≈ β̄
-        @show Q # ≈ Q̄
+        @test ρ ≈ ρ̄
+        @test α ≈ ᾱ
+        @test β ≈ β̄
+        @test Q ≈ Q̄
 
-        # :: Solutions ::
+        # Solutions
         x̂ = trunc.(Int, value.(x))
         ŷ = objective_value(model)
 
-        @show x̂ # ∈ x̄
-        @show ŷ # ≈ ȳ
+        @test x̂ ∈ x̄
+        @test ŷ ≈ ȳ
+
+        return nothing
     end
 end

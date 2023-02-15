@@ -1,4 +1,4 @@
-function toqubo_constraints!(model::VirtualQUBOModel, arch::AbstractArchitecture)
+function toqubo_constraints!(model::VirtualModel, arch::AbstractArchitecture)
     for (F, S) in MOI.get(model, MOI.ListOfConstraintTypesPresent())
         for ci in MOI.get(model, MOI.ListOfConstraintIndices{F,S}())
             f = MOI.get(model, MOI.ConstraintFunction(), ci)
@@ -14,25 +14,60 @@ function toqubo_constraints!(model::VirtualQUBOModel, arch::AbstractArchitecture
     return nothing
 end
 
+@doc raw"""
+    toqubo_constraint(
+        ::VirtualModel{T},
+        ::VI,
+        ::Union{
+            MOI.ZeroOne,
+            MOI.Integer,
+            MOI.Interval{T},
+            MOI.LessThan{T},
+            MOI.GreaterThan{T}
+        },
+        ::AbstractArchitecture
+    ) where {T}
+
+This method skips bound constraints over variables.
+"""
 function toqubo_constraint(
-    ::VirtualQUBOModel{T},
+    ::VirtualModel{T},
     ::VI,
     ::Union{MOI.ZeroOne,MOI.Integer,MOI.Interval{T},LT{T},GT{T}},
     ::AbstractArchitecture,
-) where {T} end
+) where {T}
+    return nothing
+end
 
+@doc raw"""
+    toqubo_constraint(model::VirtualModel{T}, f::SAF{T}, s::EQ{T}, ::AbstractArchitecture) where {T}
+
+Turns constraints of the form
+
+```math
+\begin{array}{rl}
+\text{s.t} & \mathbf{a}'\mathbf{x} - b = 0
+\end{array}
+```
+
+into 
+
+```math
+\left\Vertg(\mathbf{x})\right\Vert_{\left\lbrace{0}\right\rbrace} = \left(\mathbf{a}'\mathbf{x} - b\right)^{2}
+```
+"""
 function toqubo_constraint(
-    model::VirtualQUBOModel{T},
+    model::VirtualModel{T},
     f::SAF{T},
     s::EQ{T},
     arch::AbstractArchitecture,
 ) where {T}
-    # -*- Scalar Affine Function: g(x) = a'x - b = 0 ~ 😄 -*-
+    # Scalar Affine Equality Constraint: g(x) = a'x - b = 0
     g = toqubo_parse(model, f, s, arch)
-    
+
     PBO.discretize!(g)
 
-    # -*- Bounds & Slack Variable -*-
+    # Bounds & Slack Variable 
     l, u = PBO.bounds(g)
 
     if u < zero(T) # Always feasible
@@ -45,18 +80,37 @@ function toqubo_constraint(
     return g^2
 end
 
+@doc raw"""
+    toqubo_constraint(model::VirtualModel{T}, f::SAF{T}, s::LT{T}, ::AbstractArchitecture) where {T}
+
+Turns constraints of the form
+
+```math
+\begin{array}{rl}
+\text{s.t} & \mathbf{a}'\mathbf{x} - b \le 0
+\end{array}
+```
+
+into 
+
+```math
+\left\Vertg(\mathbf{x})\right\Vert_{\left\lbrace{0}\right\rbrace} = \left(\mathbf{a}'\mathbf{x} - b\right + z)^{2}
+```
+
+by adding a slack variable ``z``.
+"""
 function toqubo_constraint(
-    model::VirtualQUBOModel{T},
+    model::VirtualModel{T},
     f::SAF{T},
     s::LT{T},
     arch::AbstractArchitecture,
 ) where {T}
-    # -*- Scalar Affine Function: g(x) = a'x - b ≤ 0 🤔 -*-
+    # Scalar Affine Inequality Constraint: g(x) = a'x - b ≤ 0 
     g = toqubo_parse(model, f, s, arch)
 
     PBO.discretize!(g)
 
-    # -*- Bounds & Slack Variable -*-
+    # Bounds & Slack Variable 
     l, u = PBO.bounds(g)
 
     if u < zero(T) # Always feasible
@@ -67,7 +121,8 @@ function toqubo_constraint(
     end
 
     # Slack Variable
-    z = encode!(Binary(), model, nothing, zero(T), abs(l))
+    e = MOI.get(model, Attributes.DefaultVariableEncodingMethod())
+    z = encode!(model, e, nothing, zero(T), abs(l))
 
     for (ω, c) in expansion(z)
         g[ω] += c
@@ -77,17 +132,17 @@ function toqubo_constraint(
 end
 
 function toqubo_constraint(
-    model::VirtualQUBOModel{T},
+    model::VirtualModel{T},
     f::SQF{T},
     s::EQ{T},
     arch::AbstractArchitecture,
 ) where {T}
-    # -*- Scalar Quadratic Function: g(x) = x Q x + a x - b = 0 😢 -*-
+    # Scalar Quadratic Equality Constraint: g(x) = x Q x + a x - b = 0
     g = toqubo_parse(model, f, s, arch)
 
     PBO.discretize!(g)
 
-    # -*- Bounds & Slack Variable -*-
+    # Bounds & Slack Variable 
     l, u = PBO.bounds(g)
 
     if u < zero(T) # Always feasible
@@ -96,22 +151,25 @@ function toqubo_constraint(
     elseif l > zero(T) # Infeasible
         @warn "Infeasible constraint detected"
     end
+
+    # Tell the compiler that quadratization is necessary
+    MOI.set(model, Attributes.Quadratize(), true)
 
     return g^2
 end
 
 function toqubo_constraint(
-    model::VirtualQUBOModel{T},
+    model::VirtualModel{T},
     f::SQF{T},
     s::LT{T},
     arch::AbstractArchitecture,
 ) where {T}
-    # -*- Scalar Quadratic Function: g(x) = x Q x + a x - b ≤ 0 😢 -*-
+    # Scalar Quadratic Inequality Constraint: g(x) = x Q x + a x - b ≤ 0
     g = toqubo_parse(model, f, s, arch)
     
     PBO.discretize!(g)
 
-    # -*- Bounds & Slack Variable -*-
+    # Bounds & Slack Variable 
     l, u = PBO.bounds(g)
 
     if u < zero(T) # Always feasible
@@ -121,40 +179,57 @@ function toqubo_constraint(
         @warn "Infeasible constraint detected"
     end
 
-    z = encode!(Binary(), model, nothing, zero(T), abs(l))
+    # Slack Variable
+    e = MOI.get(model, Attributes.DefaultVariableEncodingMethod())
+    z = encode!(model, e, nothing, zero(T), abs(l))
 
     for (ω, c) in expansion(z)
         g[ω] += c
     end
 
+    # Tell the compiler that quadratization is necessary
+    MOI.set(model, Attributes.Quadratize(), true)
+
     return g^2
 end
 
 function toqubo_constraint(
-    model::VirtualQUBOModel{T},
-    v::MOI.VectorOfVariables,
+    model::VirtualModel{T},
+    x::MOI.VectorOfVariables,
     ::MOI.SOS1{T},
     ::AbstractArchitecture,
 ) where {T}
-    # -*- Special Ordered Set of Type 1: ∑ x <= min x 😄 -*-
+    # Special Ordered Set of Type 1: ∑ x ≤ min x
     g = PBO.PBF{VI,T}()
 
-    for vi in v.variables
-        for (ωi, _) in expansion(MOI.get(model, Source(), vi))
+    for xi in x.variables
+        vi = model.source[xi]
+        
+        @assert encoding(vi) isa Mirror "Currently, SOS1 only supports binary variables"
+
+        for (ωi, _) in expansion(vi)
             g[ωi] = one(T)
         end
     end
 
-    z = expansion(encode!(Mirror(), model, nothing))
+    # Slack variable
+    e = Mirror()
+    z = encode!(model, e, nothing)
 
-    return (g + z - one(T))^2 # one-hot approach
+    for (ω, c) in expansion(z)
+        g[ω] += c
+    end
+
+    g[nothing] += -one(T)
+
+    return g^2
 end
 
 function toqubo_encoding_constraints!(
-    model::VirtualQUBOModel{T},
+    model::VirtualModel{T},
     ::AbstractArchitecture,
 ) where {T}
-    for v in MOI.get(model, Variables())
+    for v in model.variables
         if is_aux(v)
             continue
         end

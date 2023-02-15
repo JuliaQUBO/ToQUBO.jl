@@ -1,7 +1,4 @@
 function test_pbo()
-    S = Symbol
-    T = Float64
-
     @testset "Pseudo-Boolean Optimization" verbose = true begin
         @testset "Constructors" begin
             for (x, y) in Assets.PBF_CONSTRUCTOR_LIST
@@ -45,7 +42,7 @@ end
 
 # function test_pbo()
 #     @testset "PBO" verbose = true begin
-#         # -*- Definitions -*-
+#         #  Definitions 
 #         S = Symbol
 #         T = Float64
 

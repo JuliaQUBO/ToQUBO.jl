@@ -1,4 +1,3 @@
-# -*- Model: PreQUBOModel -*- #
 MOIU.@model(PreQUBOModel,       # Name of model
     (MOI.Integer, MOI.ZeroOne), # untyped scalar sets
     (EQ, LT, GT),               #   typed scalar sets
@@ -11,6 +10,6 @@ MOIU.@model(PreQUBOModel,       # Name of model
     false,                      # is optimizer?
 )
 
-# :: Drop Automatic Constraint Support :: #
+# Drop Generic Constraint Support
 MOI.supports_constraint(::PreQUBOModel{T}, ::Type{SAF{T}}, ::Type{GT{T}}) where {T} = false
 MOI.supports_constraint(::PreQUBOModel{T}, ::Type{SQF{T}}, ::Type{GT{T}}) where {T} = false

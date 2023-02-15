@@ -1,6 +1,6 @@
+include("analysis.jl")
 include("architectures.jl")
 include("interface.jl")
-include("validation.jl")
 include("parse.jl")
 include("variables.jl")
 include("objective.jl")
@@ -8,13 +8,12 @@ include("constraints.jl")
 include("penalties.jl")
 include("build.jl")
 
-# -*- toqubo: MOI.ModelLike -> QUBO.Model -*-
+# toqubo: MOI.ModelLike -> QUBO.Model 
 toqubo(
     source::MOI.ModelLike,
     arch::Union{AbstractArchitecture,Nothing} = nothing,
     optimizer = nothing,
-) = toqubo(Float64, source, arch; optimizer = optimizer)
-
+) = toqubo(Float64, source, arch; optimizer)
 
 function toqubo(
     ::Type{T},
@@ -22,7 +21,7 @@ function toqubo(
     arch::Union{AbstractArchitecture,Nothing} = nothing;
     optimizer = nothing,
 ) where {T}
-    model = VirtualQUBOModel{T}(optimizer)
+    model = VirtualModel{T}(optimizer)
 
     MOI.copy_to(model, source)
 
@@ -36,29 +35,95 @@ function toqubo(
 end
 
 function toqubo!(
-    model::VirtualQUBOModel{T},
+    model::VirtualModel{T},
     arch::AbstractArchitecture = GenericArchitecture(),
 ) where {T}
-    # :: Objective Sense :: #
+    # Cleanup
+    toqubo_empty!(model, arch)
+
+    if is_qubo(model.source_model)
+        toqubo_copy!(model, arch)
+
+        return nothing
+    end
+
+    toqubo_compile!(model, arch)
+
+    return nothing
+end
+
+function toqubo_copy!(
+    model::VirtualModel{T},
+    ::AbstractArchitecture,
+) where {T}
+    source_model = model.source_model
+    target_model = model.target_model
+
+    # Map Variables
+    for vi in MOI.get(source_model, MOI.ListOfVariableIndices())
+        encode!(model, Mirror(), vi)
+    end
+
+    # Copy Objective Sense
+    s = MOI.get(source_model, MOI.ObjectiveSense())
+
+    MOI.set(target_model, MOI.ObjectiveSense(), s)
+
+    # Copy Objective Function
+    F = MOI.get(source_model, MOI.ObjectiveFunctionType())
+    f = MOI.get(source_model, MOI.ObjectiveFunction{F}())
+
+    MOI.set(target_model, MOI.ObjectiveFunction{F}(), f)
+
+    return nothing
+end
+
+function toqubo_compile!(
+    model::VirtualModel{T},
+    arch::AbstractArchitecture = GenericArchitecture(),
+) where {T}
+    # Objective Sense
     toqubo_sense!(model, arch)
 
-    # :: Problem Variables :: #
+    # Problem Variables
     toqubo_variables!(model, arch)
 
-    # :: Objective Analysis :: #
+    # Objective Analysis
     toqubo_objective!(model, arch)
 
-    # :: Add Regular Constraints :: #
+    # Add Regular Constraints
     toqubo_constraints!(model, arch)
 
-    # :: Add Encoding Constraints :: #
+    # Add Encoding Constraints
     toqubo_encoding_constraints!(model, arch)
 
-    # :: Compute penalties :: #
+    # Compute penalties
     toqubo_penalties!(model, arch)
 
-    # :: Build Final Model :: #
+    # Build Final Model
     toqubo_build!(model, arch)
+
+    return nothing
+end
+
+function toqubo_empty!(
+    model::VirtualModel,
+    ::AbstractArchitecture = GenericArchitecture(),
+)
+    # Model
+    MOI.empty!(model.target_model)
+
+    # Virtual Variables
+    empty!(model.variables)
+    empty!(model.source)
+    empty!(model.target)
+
+    # PBF/IR
+    empty!(model.f)
+    empty!(model.g)
+    empty!(model.h)
+    empty!(model.ρ)
+    empty!(model.θ)
 
     return nothing
 end

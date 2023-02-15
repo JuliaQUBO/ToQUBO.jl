@@ -18,7 +18,7 @@ function test_qba3_2()
 
         ⊻(x::VariableRef, y::VariableRef) = x + y - 2 * x * y
 
-        # :: Data ::
+        # Problem Data
         G = Dict{Tuple{Int,Int},Float64}(
             (1, 2) => 1.0,
             (1, 3) => 1.0,
@@ -29,7 +29,7 @@ function test_qba3_2()
         )
         m = 5
 
-        # :: Results ::
+        # Results
         Q̄ = [
              2 -2 -2  0  0
              0  2  0 -2  0
@@ -47,7 +47,7 @@ function test_qba3_2()
         ])
         ȳ = 5
 
-        # :: Model ::
+        # Model
         model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
 
         @variable(model, x[1:m], Bin)
@@ -55,17 +55,19 @@ function test_qba3_2()
 
         optimize!(model)
 
-        Q, _, c = ToQUBO.qubo(unsafe_backend(model), Matrix)
+        Q, _, c = ToQUBO.qubo(model, Matrix)
 
-        # :: Reformulation ::
+        # Reformulation
         @test c ≈ c̄
         @test Q ≈ Q̄
 
-        # :: Solutions ::
+        # Solutions
         x̂ = trunc.(Int, value.(x))
         ŷ = objective_value(model)
 
         @test x̂ ∈ x̄
         @test ŷ ≈ ȳ
+
+        return nothing
     end
 end

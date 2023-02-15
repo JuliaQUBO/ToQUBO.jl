@@ -1,9 +1,6 @@
 import Base: isiterable
 
-using MutableArithmetics
-const MA = MutableArithmetics
-
-@doc raw"""
+@doc raw"""     
 """
 function _parseterm end
 
@@ -23,55 +20,62 @@ _parseterm(::Type{S}, ::Type{T}, x::Tuple{<:Union{Vector{S},Set{S}},T}) where {S
     (Set{S}(first(x)), last(x))
 
 @doc raw"""
-A Pseudo-Boolean Function ``f \in \mathscr{F}`` over some field ``\mathbb{T}`` takes the form
+    PseudoBooleanFunction{V,T}(Ω::Dict{Union{Set{V},Nothing},T}) where {V,T}
+
+A Pseudo-Boolean Function[^Boros2002] ``f \in \mathscr{F}`` over some field ``\mathbb{T}`` takes the form
 
 ```math
-f(\mathbf{x}) = \sum_{\omega \in \Omega\left[f\right]} c_\omega \prod_{j \in \omega} \mathbb{x}_j
+f(\mathbf{x}) = \sum_{\omega \in \Omega\left[f\right]} c_\omega \prod_{j \in \omega} x_j
 ```
 
-where each ``\Omega\left[{f}\right]`` is the multi-linear representation of ``f`` as a set of terms. Each term is given by a unique set of indices ``\omega \subseteq \mathbb{S}`` related to some coefficient ``c_\omega \in \mathbb{T}``. We say that ``\omega \in \Omega\left[{f}\right] \iff c_\omega \neq 0``.
-Variables ``\mathbf{x}_i`` are indeed boolean, thus ``f : \mathbb{B}^{n} \to \mathbb{T}``.
+where each ``\Omega\left[{f}\right]`` is the multi-linear representation of ``f`` as a set of terms.
+Each term is given by a unique set of indices ``\omega \subseteq \mathbb{S}`` related to some coefficient ``c_\omega \in \mathbb{T}``.
+We say that ``\omega \in \Omega\left[{f}\right] \iff c_\omega \neq 0``.
+Variables ``x_j`` are boolean, thus ``f : \mathbb{B}^{n} \to \mathbb{T}``.
 
-## References
- * [1] Endre Boros, Peter L. Hammer, Pseudo-Boolean optimization, Discrete Applied Mathematics, 2002 [{doi}](https://doi.org/10.1016/S0166-218X(01)00341-9)
+[^Boros2002]:
+    Endre Boros, Peter L. Hammer, **Pseudo-Boolean optimization**, *Discrete Applied Mathematics*, 2002 [{doi}](https://doi.org/10.1016/S0166-218X(01)00341-9)
 """
-struct PseudoBooleanFunction{S,T}
-    Ω::Dict{Set{S},T}
+struct PseudoBooleanFunction{V,T}
+    Ω::Dict{Set{V},T}
 
-    function PseudoBooleanFunction{S,T}(Ω::Dict{<:Union{Set{S},Nothing},T}) where {S,T}
-        new{S,T}(
-            Dict{Set{S},T}(isnothing(ω) ? Set{S}() : ω => c for (ω, c) in Ω if !iszero(c)),
+    function PseudoBooleanFunction{V,T}(Ω::Dict{<:Union{Set{V},Nothing},T}) where {V,T}
+        return new{V,T}(
+            Dict{Set{V},T}(isnothing(ω) ? Set{V}() : ω => c for (ω, c) in Ω if !iszero(c)),
         )
     end
 
-    function PseudoBooleanFunction{S,T}(v::Vector) where {S,T}
-        Ω = Dict{Set{S},T}()
+    function PseudoBooleanFunction{V,T}(v::Vector) where {V,T}
+        Ω = Dict{Set{V},T}()
 
         for x in v
-            ω, a = _parseterm(S, T, x)
+            ω, a = _parseterm(V, T, x)
             Ω[ω] = get(Ω, ω, zero(T)) + a
         end
 
-        PseudoBooleanFunction{S,T}(Ω)
+        return PseudoBooleanFunction{V,T}(Ω)
     end
 
-    function PseudoBooleanFunction{S,T}(x::Base.Generator) where {S,T}
-        PseudoBooleanFunction{S,T}(collect(x))
+    function PseudoBooleanFunction{V,T}(x::Base.Generator) where {V,T}
+        return PseudoBooleanFunction{V,T}(collect(x))
     end
 
-    function PseudoBooleanFunction{S,T}(x::Vararg{Any}) where {S,T}
-        PseudoBooleanFunction{S,T}(collect(x))
+    function PseudoBooleanFunction{V,T}(x::Vararg{Any}) where {V,T}
+        return PseudoBooleanFunction{V,T}(collect(x))
     end
 
-    function PseudoBooleanFunction{S,T}() where {S,T}
-        new{S,T}(Dict{Set{S},T}())
+    function PseudoBooleanFunction{V,T}() where {V,T}
+        return new{V,T}(Dict{Set{V},T}())
     end
 end
 
-# -*- Alias -*-
-const PBF{S,T} = PseudoBooleanFunction{S,T}
+# Alias 
+const PBF{V,T} = PseudoBooleanFunction{V,T}
 
-#-*- Copy -*-
+# Broadcast as scalar
+Base.broadcastable(f::PBF) = Ref(f)
+
+# Copy 
 function Base.copy!(f::PBF{S,T}, g::PBF{S,T}) where {S,T}
     sizehint!(f, length(g))
     copy!(f.Ω, g.Ω)
@@ -83,7 +87,7 @@ function Base.copy(f::PBF{S,T}) where {S,T}
     return copy!(PBF{S,T}(), f)
 end
 
-# -*- Iterator & Length -*-
+#  Iterator & Length 
 Base.keys(f::PBF)                = keys(f.Ω)
 Base.values(f::PBF)              = values(f.Ω)
 Base.length(f::PBF)              = length(f.Ω)
@@ -92,32 +96,38 @@ Base.isempty(f::PBF)             = isempty(f.Ω)
 Base.iterate(f::PBF)             = iterate(f.Ω)
 Base.iterate(f::PBF, i::Integer) = iterate(f.Ω, i)
 
-Base.haskey(f::PBF{S}, k::Set{S}) where {S} = haskey(f.Ω, k)
-Base.haskey(f::PBF{S}, k::S) where {S}      = haskey(f.Ω, Set{S}([k]))
-Base.haskey(f::PBF{S}, ::Nothing) where {S} = haskey(f.Ω, Set{S}())
+Base.haskey(f::PBF{S}, ω::Set{S}) where {S} = haskey(f.Ω, ω)
+Base.haskey(f::PBF{S}, ξ::S) where {S}      = haskey(f, Set{S}([ξ]))
+Base.haskey(f::PBF{S}, ::Nothing) where {S} = haskey(f, Set{S}())
 
-# -*- Indexing: Get -*-
+#  Indexing: Get  #
 Base.getindex(f::PBF{S,T}, ω::Set{S}) where {S,T} = get(f.Ω, ω, zero(T))
 Base.getindex(f::PBF{S}, η::Vector{S}) where {S}  = getindex(f, Set{S}(η))
-Base.getindex(f::PBF{S}, ξ::S...) where {S}       = getindex(f, Set{S}(ξ))
+Base.getindex(f::PBF{S}, ξ::S) where {S}          = getindex(f, Set{S}([ξ]))
 Base.getindex(f::PBF{S}, ::Nothing) where {S}     = getindex(f, Set{S}())
 
-# -*- Indexing: Set -*-
+#  Indexing: Set  #
 function Base.setindex!(f::PBF{S,T}, c::T, ω::Set{S}) where {S,T}
     if !iszero(c)
         setindex!(f.Ω, c, ω)
-    elseif haskey(f.Ω, ω)
-        delete!(f.Ω, ω)
+    elseif haskey(f, ω)
+        delete!(f, ω)
     end
 
     return c
 end
 
 Base.setindex!(f::PBF{S,T}, c::T, η::Vector{S}) where {S,T} = setindex!(f, c, Set{S}(η))
-Base.setindex!(f::PBF{S,T}, c::T, ξ::S...) where {S,T}      = setindex!(f, c, Set{S}(ξ))
+Base.setindex!(f::PBF{S,T}, c::T, ξ::S) where {S,T}         = setindex!(f, c, Set{S}([ξ]))
 Base.setindex!(f::PBF{S,T}, c::T, ::Nothing) where {S,T}    = setindex!(f, c, Set{S}())
 
-# -*- Properties -*-
+#  Indexing: Delete  #
+Base.delete!(f::PBF{S}, ω::Set{S}) where {S}    = delete!(f.Ω, ω)
+Base.delete!(f::PBF{S}, η::Vector{S}) where {S} = delete!(f, Set{S}(η))
+Base.delete!(f::PBF{S}, k::S) where {S}         = delete!(f, Set{S}([k]))
+Base.delete!(f::PBF{S}, ::Nothing) where {S}    = delete!(f, Set{S}())
+
+#  Properties 
 Base.size(f::PBF{S,T}) where {S,T} = (length(f),)
 
 function Base.sizehint!(f::PBF, n::Integer)
@@ -126,7 +136,7 @@ function Base.sizehint!(f::PBF, n::Integer)
     return f
 end
 
-# -*- Comparison: (==, !=, ===, !==) -*- #
+#  Comparison: (==, !=, ===, !==)  #
 Base.:(==)(f::PBF{S,T}, g::PBF{S,T}) where {S,T} = f.Ω == g.Ω
 Base.:(==)(f::PBF{S,T}, a::T) where {S,T}        = isscalar(f) && (f[nothing] == a)
 Base.:(!=)(f::PBF{S,T}, g::PBF{S,T}) where {S,T} = f.Ω != g.Ω
@@ -151,7 +161,7 @@ Base.one(::Type{PBF{S,T}}) where {S,T}     = PBF{S,T}(one(T))
 Base.isone(f::PBF)                         = isscalar(f) && isone(f[nothing])
 Base.round(f::PBF{S,T}; kw...) where {S,T} = PBF{S,T}(ω => round(c; kw...) for (ω, c) in f)
 
-# -*- Arithmetic: (+) -*-
+#  Arithmetic: (+) 
 function Base.:(+)(f::PBF{S,T}, g::PBF{S,T}) where {S,T}
     h = copy(f)
 
@@ -177,7 +187,7 @@ end
 Base.:(+)(f::PBF{S,T}, c) where {S,T} = +(f, convert(T, c))
 Base.:(+)(c, f::PBF)                  = +(f, c)
 
-# -*- Arithmetic: (-) -*-
+#  Arithmetic: (-) 
 function Base.:(-)(f::PBF{S,T}) where {S,T}
     return PBF{S,T}(Dict{Set{S},T}(ω => -c for (ω, c) in f))
 end
@@ -217,7 +227,7 @@ end
 Base.:(-)(c, f::PBF{S,T}) where {S,T} = -(convert(T, c), f)
 Base.:(-)(f::PBF{S,T}, c) where {S,T} = -(f, convert(T, c))
 
-# -*- Arithmetic: (*) -*-
+#  Arithmetic: (*) 
 function Base.:(*)(f::PBF{S,T}, g::PBF{S,T}) where {S,T}
     h = zero(PBF{S,T})
     m = length(f)
@@ -265,7 +275,7 @@ end
 Base.:(*)(f::PBF{S,T}, a) where {S,T} = *(f, convert(T, a))
 Base.:(*)(a, f::PBF)                  = *(f, a)
 
-# -*- Arithmetic: (/) -*-
+#  Arithmetic: (/) 
 function Base.:(/)(f::PBF{S,T}, a::T) where {S,T}
     if iszero(a)
         throw(DivideError())
@@ -276,7 +286,7 @@ end
 
 Base.:(/)(f::PBF{S,T}, a) where {S,T} = /(f, convert(T, a))
 
-# -*- Arithmetic: (^) -*-
+#  Arithmetic: (^) 
 function Base.:(^)(f::PBF{S,T}, n::Integer) where {S,T}
     if n < 0
         throw(DivideError())
@@ -297,7 +307,7 @@ function Base.:(^)(f::PBF{S,T}, n::Integer) where {S,T}
     end
 end
 
-# -*- Arithmetic: Evaluation -*-
+#  Arithmetic: Evaluation 
 function (f::PBF{S,T})(x::Dict{S,U}) where {S,T,U<:Integer}
     g = PBF{S,T}()
 
@@ -333,7 +343,7 @@ function (f::PBF{S})() where {S}
     return f(Dict{S,Int}())
 end
 
-# -*- Type conversion -*-
+#  Type conversion 
 function Base.convert(U::Type{<:T}, f::PBF{<:Any,T}) where {T}
     if isempty(f)
         return zero(U)
@@ -343,264 +353,3 @@ function Base.convert(U::Type{<:T}, f::PBF{<:Any,T}) where {T}
         error("Can't convert non-constant Pseudo-boolean Function to scalar type '$U'")
     end
 end
-
-
-# -*- MA Mutable Arithmetics -*-
-
-MA.mutability(::Type{<:PBF{S,T}}) where {S,T} = MA.IsMutable()
-
-
-# -*- MA Mutable Copy: -*-
-function MA.mutable_copy(f::PBF{S,T}) where{S,T}
-    f_copy = PBO.PBF{S,T}()
-    for (ω,c) in f
-        f_copy[ω] = MA.copy_if_mutable(f[ω])
-    end
-    return f_copy
-end
-
-# -*- MA isequal_canonical: -*-
-function MA.isequal_canonical(
-    f::PBF{S,T},
-    g::PBF{S,T}
-    ) where {S,T}
-    
-    return f == g
-    
-end
-
-
-# -*- MA Arithmetic: zero,one -*-
-function MA.operate!(
-    ::typeof(zero),
-    f::PBF{S,T}
-    ) where {S,T}
-
-    empty!(f)
-    
-    return f
-end
-
-function MA.operate!(
-    ::typeof(one),
-    f::PBF{S,T}
-    ) where {S,T}
-
-    empty!(f)
-    f[nothing] = one(T)
-
-    return f
-end
-
-
-# -*- MA Arithmetic: (+) -*-
-
-function MA.operate!(
-    ::typeof(+),
-    f::PBF{S,T}, 
-    g::PBF{S,T}
-    ) where {S,T}
-
-    for(ω, c) in g
-        f[ω] += c
-    end
-    
-    return f
-end
-
-function MA.operate!(
-    ::typeof(+),
-    f::PBF{<:Any,T}, 
-    c::T
-    ) where {T}
-    if iszero(c)
-        return f
-    end
-    
-    f[nothing] += c
-
-    return f
-end
-
-# -*- MA Arithmetic: (-) -*-
-
-
-function MA.operate!(
-    ::typeof(-),
-    f::PBF{S,T}
-    ) where {S,T}
-
-    for(ω, c) in f
-        f[ω] = -c 
-    end
-    
-    return f
-end
-
-function MA.operate!(
-    ::typeof(-),
-    f::PBF{S,T}, 
-    g::PBF{S,T}
-    ) where {S,T}
-
-    for(ω, c) in g
-        f[ω] -= c
-    end
-
-    return f
-end
-
-
-function MA.operate!(
-    ::typeof(-),
-    f::PBF{<:Any,T}, 
-    c::T
-    ) where {T}
-    if iszero(c)
-        return f
-    end
-    
-    f[nothing] -= c
-
-    return f
-end
-
-# -*- MA Arithmetic: (*) -*-
-
-function MA.operate!(
-    ::typeof(*),
-    f::PBF{S,T}, 
-    g::PBF{S,T}
-    ) where {S,T}
-
-    h = PBF{S,T}()
-
-    if isempty(f) || isempty(g)
-        return h
-    else
-        for (ωᵢ, cᵢ) in f, (ωⱼ, cⱼ) in g
-            h[union(ωᵢ, ωⱼ)] += cᵢ * cⱼ
-        end
-
-        return h
-    end
-
-end
-
-function MA.operate!(
-    ::typeof(*),
-    f::PBF{S,T}, 
-    a::T
-    ) where {S,T}
-
-    if iszero(a)
-        empty!(f)
-    else
-        for(ω, c) in f
-            f[ω] = c*a
-        end
-    end
-
-    return f
-end
-
-# -*- MA Arithmetic: (add_mul) -*-
-function MA.operate!(
-    ::typeof(add_mul),
-    f::PBF{S,T},
-    m::T,
-    g::PBF{S,T}
-    ) where {S,T}
-
-    for(ω, c) in g
-        f[ω] += m*c
-    end
-    return f
-    
-end
-
-# -*- MA Arithmetic: (sub_mul) -*-
-function MA.operate!(
-    ::typeof(sub_mul),
-    f::PBF{S,T},
-    m::T,
-    g::PBF{S,T}
-    ) where {S,T}
-
-    for(ω, c) in g
-        f[ω] -= m*c
-    end
-    return f
-    
-end
-
-# -*- MA Arithmetic: (/) -*-
-
-function MA.operate!(
-    ::typeof(/),
-    f::PBF{S,T}, 
-    a::T
-    ) where {S,T}
-
-    if iszero(a)
-        throw(DivideError())
-    else
-        for(ω, c) in f
-            f[ω] = c / a
-        end
-    end
-
-    return f
-end
-
-# -*- MA Arithmetic: (^) -*-
-function MA.operate!(
-    ::typeof(^),
-    f::PBF{S,T}, 
-    n::Integer
-    ) where {S,T}
-
-    if n < 0
-        throw(DivideError())
-    elseif n == 0
-        return MA.operate!(one, f)
-    elseif n == 1
-        return f
-    elseif n == 2
-        for (ω,c) in f
-            f[ω] = c*c
-        end
-    else    
-        for (ω,c) in f
-            f[ω] = c*c
-        end
-
-        if iseven(n)
-            return f^(n ÷ 2)
-        else
-            return f^(n ÷ 2) * f
-        end
-    end
-end
-
-
-function MA.operate_to!(
-    output::PBF{S,T},
-    op::Union{typeof(+),typeof(-)},
-    f::PBF{S,T},
-    g::PBF{S,T},
-) where {S,T}
-    empty!(output)
-    MA.operate!(+, output, f)
-    MA.operate!(op, output, g)
-    return output
-end
-
-
-
-# -*- MA Arithmetic: Evaluation -*-
-
-
-
-# -*- MA Type conversion -*-
-

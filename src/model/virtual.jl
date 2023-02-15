@@ -1,13 +1,8 @@
-@doc raw"""
-    abstract type AbstractVirtualModel{T} <: MOI.AbstractOptimizer end
-"""
-abstract type AbstractVirtualModel{T} <: MOI.AbstractOptimizer end
-
-# -*- Virtual Variable Encoding -*-
+#  Virtual Variable Encoding 
 abstract type Encoding end
 
 @doc raw"""
-    encode!(model::AbstractVirtualModel{T}, v::VirtualVariable{T}) where {T}
+    encode!(model::VirtualModel{T}, v::VirtualVariable{T}) where {T}
 
 Maps newly created virtual variable `v` within the virtual model structure. It follows these steps:
  
@@ -27,111 +22,214 @@ Maps newly created virtual variable `v` within the virtual model structure. It f
 # References:
  * [1] Chancellor, N. (2019). Domain wall encoding of discrete variables for quantum annealing and QAOA. _Quantum Science and Technology_, _4_(4), 045004. [{doi}](https://doi.org/10.1088/2058-9565/ab33c2)
 """
-struct VirtualVariable{T,E<:Encoding}
+struct VirtualVariable{T}
+    e::Encoding
     x::Union{VI,Nothing}             # Source variable (if there is one)
     y::Vector{VI}                    # Target variables
     ξ::PBO.PBF{VI,T}                 # Expansion function
     h::Union{PBO.PBF{VI,T},Nothing}  # Penalty function (i.e. ‖gᵢ(x)‖ₛ for g(i) ∈ S)
 
-    function VirtualVariable{T,E}(
+    function VirtualVariable{T}(
+        e::Encoding,
         x::Union{VI,Nothing},
         y::Vector{VI},
         ξ::PBO.PBF{VI,T},
         h::Union{PBO.PBF{VI,T},Nothing},
-    ) where {T,E<:Encoding}
-        return new{T,E}(x, y, ξ, h)
+    ) where {T}
+        return new{T}(e, x, y, ξ, h)
     end
 end
 
-# -*- Variable Information -*-
+const VV{T} = VirtualVariable{T}
+
+encoding(v::VirtualVariable)  = v.e
 source(v::VirtualVariable)    = v.x
 target(v::VirtualVariable)    = v.y
 is_aux(v::VirtualVariable)    = isnothing(source(v))
 expansion(v::VirtualVariable) = v.ξ
 penaltyfn(v::VirtualVariable) = v.h
 
-# ~*~ Alias ~*~
-const VV{T,E} = VirtualVariable{T,E}
+@doc raw"""
+    VirtualModel{T}(optimizer::Union{Nothing, Type{<:MOI.AbstractOptimizer}} = nothing) where {T}
 
-function encode!(model::AbstractVirtualModel{T}, v::VV{T}) where {T}
+This Virtual Model links the final QUBO formulation to the original one, allowing variable value retrieving and other features.
+"""
+struct VirtualModel{T} <: MOI.AbstractOptimizer
+    #  Underlying Optimizer  #
+    optimizer::Union{MOI.AbstractOptimizer,Nothing}
+
+    #  MathOptInterface Bridges  #
+    bridge_model::MOIB.LazyBridgeOptimizer{PreQUBOModel{T}}
+
+    #  Virtual Model Interface  #
+    source_model::PreQUBOModel{T}
+    target_model::QUBOModel{T}
+    variables::Vector{VV{T}}
+    source::Dict{VI,VV{T}}
+    target::Dict{VI,VV{T}}
+
+    #  PBO/PBF IR  #
+    f::PBO.PBF{VI,T}          # Objective Function
+    g::Dict{CI,PBO.PBF{VI,T}} # Constraint Functions
+    h::Dict{VI,PBO.PBF{VI,T}} # Variable Functions
+    ρ::Dict{CI,T}             # Constraint Penalties
+    θ::Dict{VI,T}             # Variable Penalties
+    H::PBO.PBF{VI,T}          # Final Hamiltonian
+
+    #  Settings 
+    compiler_settings::Dict{Symbol,Any}
+    variable_settings::Dict{Symbol,Dict{VI,Any}}
+    constraint_settings::Dict{Symbol,Dict{CI,Any}}
+
+    function VirtualModel{T}(
+        constructor::Union{Type{O},Function};
+        kws...,
+    ) where {T,O<:MOI.AbstractOptimizer}
+        optimizer = constructor()
+
+        return VirtualModel{T}(optimizer; kws...)
+    end
+
+    function VirtualModel{T}(
+        optimizer::Union{O,Nothing} = nothing;
+        kws...,
+    ) where {T,O<:MOI.AbstractOptimizer}
+        source_model = PreQUBOModel{T}()
+        target_model = QUBOModel{T}()
+        bridge_model = MOIB.full_bridge_optimizer(source_model, T)
+
+        new{T}(
+            #  Underlying Optimizer  #
+            optimizer,
+
+            #  MathOptInterface Bridges  #
+            bridge_model,
+
+            #  Virtual Model Interface 
+            source_model,
+            target_model,
+            Vector{VV{T}}(),
+            Dict{VI,VV{T}}(),
+            Dict{VI,VV{T}}(),
+
+            #  PBO/PBF IR 
+            PBO.PBF{VI,T}(),          # Objective Function
+            Dict{CI,PBO.PBF{VI,T}}(), # Constraint Functions
+            Dict{VI,PBO.PBF{VI,T}}(), # Variable Functions
+            Dict{CI,T}(),             # Constraint Penalties
+            Dict{VI,T}(),             # Variable Penalties
+            PBO.PBF{VI,T}(),          # Final Hamiltonian
+
+            #  Settings 
+            Dict{Symbol,Any}(),
+            Dict{Symbol,Dict{VI,Any}}(),
+            Dict{Symbol,Dict{CI,Any}}(),
+        )
+    end
+
+end
+
+VirtualModel(args...; kws...) = VirtualModel{Float64}(args...; kws...)
+
+function encode!(model::VirtualModel{T}, v::VV{T}) where {T}
     if !is_aux(v)
         let x = source(v)
-            MOI.set(model, Source(), x, v)
+            model.source[x] = v
         end
     end
 
     for y in target(v)
-        MOI.add_constraint(MOI.get(model, TargetModel()), y, MOI.ZeroOne())
-        MOI.set(model, Target(), y, v)
+        MOI.add_constraint(model.target_model, y, MOI.ZeroOne())
+        model.target[y] = v
     end
 
     # Add variable to collection
-    push!(MOI.get(model, Variables()), v)
+    push!(model.variables, v)
 
     return v
 end
 
-abstract type LinearEncoding <: Encoding end
+@doc raw"""
+    LinearEncoding
 
-function VirtualVariable{T,E}(
+Every linear encoding ``\xi`` is of the form
+```math
+\xi(\mathbf{y}) = \alpha + \sum_{i = 1}^{n} \gamma_{i} y_{i}
+```
+
+""" abstract type LinearEncoding <: Encoding end
+
+function VirtualVariable{T}(
+    e::LinearEncoding,
     x::Union{VI,Nothing},
     y::Vector{VI},
     γ::Vector{T},
     α::T = zero(T),
-) where {T,E<:LinearEncoding}
+) where {T}
     @assert (n = length(y)) == length(γ)
 
     ξ = α + PBO.PBF{VI,T}(y[i] => γ[i] for i = 1:n)
 
-    return VirtualVariable{T,E}(x, y, ξ, nothing)
+    return VirtualVariable{T}(e, x, y, ξ, nothing)
 end
 
 function encode!(
-    ::E,
-    model::AbstractVirtualModel{T},
+    model::VirtualModel{T},
+    e::LinearEncoding,
     x::Union{VI,Nothing},
     γ::Vector{T},
     α::T = zero(T),
-) where {T,E<:LinearEncoding}
+) where {T}
     n = length(γ)
-    y = MOI.add_variables(MOI.get(model, TargetModel()), n)
-    v = VirtualVariable{T,E}(x, y, γ, α)
+    y = MOI.add_variables(model.target_model, n)
+    v = VirtualVariable{T}(e, x, y, γ, α)
 
     return encode!(model, v)
 end
 
 @doc raw"""
+    Mirror
+
+Mirrors binary variable ``x \in \mathbb{B}`` with a twin variable ``y \in \mathbb{B}``.
 """ struct Mirror <: LinearEncoding end
 
-function encode!(e::Mirror, model::AbstractVirtualModel{T}, x::Union{VI,Nothing}) where {T}
-    return encode!(e, model, x, ones(T, 1))
+function encode!(model::VirtualModel{T}, e::Mirror, x::Union{VI,Nothing}) where {T}
+    return encode!(model, e, x, ones(T, 1))
 end
 
 @doc raw"""
+    Linear
 """ struct Linear <: LinearEncoding end
 
 function encode!(
-    e::E,
-    model::AbstractVirtualModel{T},
+    model::VirtualModel{T},
+    e::Linear,
     x::Union{VI,Nothing},
     Γ::Function,
     n::Integer,
-) where {T,E<:Linear}
+) where {T}
     γ = T[Γ(i) for i = 1:n]
 
-    return encode!(e, model, x, γ, zero(T))
+    return encode!(model, e, x, γ, zero(T))
 end
 
 @doc raw"""
+    Unary()
+
+Let ``x \in [a, b] \subset \mathbb{Z}, n = b - a, \mathbf{y} \in \mathbb{B}^{n}``.
+
+```math
+x \approx \xi(\mathbf{y}) = a + \sum_{j = 1}^{b - a} y_{j}
+```
 """ struct Unary <: LinearEncoding end
 
 function encode!(
-    e::E,
-    model::AbstractVirtualModel{T},
+    model::VirtualModel{T},
+    e::Unary,
     x::Union{VI,Nothing},
     a::T,
     b::T,
-) where {T,E<:Unary}
+) where {T}
     α, β = if a < b
         ceil(a), floor(b)
     else
@@ -142,37 +240,39 @@ function encode!(
     M = trunc(Int, β - α)
     γ = ones(T, M)
 
-    return encode!(e, model, x, γ, α)
+    return encode!(model, e, x, γ, α)
 end
 
 function encode!(
-    e::E,
-    model::AbstractVirtualModel{T},
+    model::VirtualModel{T},
+    e::Unary,
     x::Union{VI,Nothing},
     a::T,
     b::T,
     n::Integer,
-) where {T,E<:Unary}
+) where {T}
     Γ = (b - a) / n
     γ = Γ * ones(T, n)
 
-    return encode!(e, model, x, γ, a)
+    return encode!(model, e, x, γ, a)
 end
 
 function encode!(
-    e::E,
-    model::AbstractVirtualModel{T},
+    model::VirtualModel{T},
+    e::Unary,
     x::Union{VI,Nothing},
     a::T,
     b::T,
     τ::T,
-) where {T,E<:Unary}
+) where {T}
     n = ceil(Int, (1 + abs(b - a) / 4τ))
 
-    return encode!(e, model, x, a, b, n)
+    return encode!(model, e, x, a, b, n)
 end
 
 @doc raw"""
+    Binary
+
 Binary Expansion within the closed interval ``[\alpha, \beta]``.
 
 For a given variable ``x \in [\alpha, \beta]`` we approximate it by
@@ -185,12 +285,12 @@ where ``n`` is the number of bits and ``y_i \in \mathbb{B}``.
 """ struct Binary <: LinearEncoding end
 
 function encode!(
-    e::E,
-    model::AbstractVirtualModel{T},
+    model::VirtualModel{T},
+    e::Binary,
     x::Union{VI,Nothing},
     a::T,
     b::T,
-) where {T,E<:Binary}
+) where {T}
     α, β = if a < b
         ceil(a), floor(b)
     else
@@ -207,46 +307,47 @@ function encode!(
         T[[2^i for i = 0:N-2]; [M - 2^(N - 1) + 1]]
     end
 
-    return encode!(e, model, x, γ, α)
+    return encode!(model, e, x, γ, α)
 end
 
 function encode!(
-    e::E,
-    model::AbstractVirtualModel{T},
+    model::VirtualModel{T},
+    e::Binary,
     x::Union{VI,Nothing},
     a::T,
     b::T,
     n::Integer,
-) where {T,E<:Binary}
+) where {T}
     Γ = (b - a) / (2^n - 1)
     γ = Γ * 2 .^ collect(T, 0:n-1)
 
-    return encode!(e, model, x, γ, a)
+    return encode!(model, e, x, γ, a)
 end
 
 function encode!(
-    e::E,
-    model::AbstractVirtualModel{T},
+    model::VirtualModel{T},
+    e::Binary,
     x::Union{VI,Nothing},
     a::T,
     b::T,
     τ::T,
-) where {T,E<:Binary}
+) where {T}
     n = ceil(Int, log2(1 + abs(b - a) / 4τ))
 
-    return encode!(e, model, x, a, b, n)
+    return encode!(model, e, x, a, b, n)
 end
 
 @doc raw"""
+    Arithmetic
 """ struct Arithmetic <: LinearEncoding end
 
 function encode!(
-    e::E,
-    model::AbstractVirtualModel{T},
+    model::VirtualModel{T},
+    e::Arithmetic,
     x::Union{VI,Nothing},
     a::T,
     b::T,
-) where {T,E<:Arithmetic}
+) where {T}
     α, β = if a < b
         ceil(a), floor(b)
     else
@@ -259,60 +360,77 @@ function encode!(
 
     γ = T[[i for i = 1:N-1]; [M - N * (N - 1) / 2]]
 
-    return encode!(e, model, x, γ, α)
+    return encode!(model, e, x, γ, α)
 end
 
 function encode!(
-    e::E,
-    model::AbstractVirtualModel{T},
+    model::VirtualModel{T},
+    e::Arithmetic,
     x::Union{VI,Nothing},
     a::T,
     b::T,
     n::Integer,
-) where {T,E<:Arithmetic}
+) where {T}
     Γ = 2 * (b - a) / (n * (n + 1))
     γ = Γ * collect(1:n)
 
-    return encode!(e, model, x, γ, a)
+    return encode!(model, e, x, γ, a)
 end
 
 function encode!(
-    e::E,
-    model::AbstractVirtualModel{T},
+    model::VirtualModel{T},
+    e::Arithmetic,
     x::Union{VI,Nothing},
     a::T,
     b::T,
     τ::T,
-) where {T,E<:Arithmetic}
+) where {T}
     n = ceil(Int, (1 + sqrt(3 + (b - a) / 2τ)) / 2)
 
-    return encode!(e, model, x, a, b, n)
+    return encode!(model, e, x, a, b, n)
 end
 
 @doc raw"""
+    OneHot()
+
+The one-hot encoding is a linear technique used to represent a variable
+``x \in \left\lbrace{\gamma_{j}}}\right\rbrace_{j \in \left[n\right]``.
+
+The encoding function is combined with a constraint assuring that only
+one and exactly one of the expansion's variables ``y_{j}`` is activated
+at a time.
+
+```math
+\begin{array}{rl}
+x = \xi(\mathbf{y}) = &  \sum_{j = 1}^{n} \gamma_{j} y_{j} \\
+        \mathrm{s.t.} & \sum_{j = 1}^{n} y_{j} = 1
+\end{array}
+```
+
 """ struct OneHot <: LinearEncoding end
 
-function VirtualVariable{T,E}(
+function VirtualVariable{T}(
+    e::OneHot,
     x::Union{VI,Nothing},
     y::Vector{VI},
     γ::Vector{T},
     α::T = zero(T),
-) where {T,E<:OneHot}
+) where {T}
     @assert (n = length(y)) == length(γ)
 
     ξ = α + PBO.PBF{VI,T}(y[i] => γ[i] for i = 1:n)
     h = (one(T) - PBO.PBF{VI,T}(y))^2
 
-    return VirtualVariable{T,E}(x, y, ξ, h)
+    return VirtualVariable{T}(e, x, y, ξ, h)
 end
 
 function encode!(
-    e::E,
-    model::AbstractVirtualModel{T},
+    model::VirtualModel{T},
+    e::OneHot,
     x::Union{VI,Nothing},
     a::T,
     b::T,
-) where {T,E<:OneHot}
+) where {T}
     α, β = if a < b
         ceil(a), floor(b)
     else
@@ -322,75 +440,89 @@ function encode!(
     # assumes: β - α > 0
     γ = collect(T, α:β)
 
-    return encode!(e, model, x, γ)
+    return encode!(model, e, x, γ)
 end
 
 function encode!(
-    e::E,
-    model::AbstractVirtualModel{T},
+    model::VirtualModel{T},
+    e::OneHot,
     x::Union{VI,Nothing},
     a::T,
     b::T,
     n::Integer,
-) where {T,E<:OneHot}
+) where {T}
     Γ = (b - a) / (n - 1)
     γ = a .+ Γ * collect(T, 0:n-1)
 
-    return encode!(e, model, x, γ)
+    return encode!(model, e, x, γ)
 end
 
 function encode!(
-    e::E,
-    model::AbstractVirtualModel{T},
+    model::VirtualModel{T},
+    e::OneHot,
     x::Union{VI,Nothing},
     a::T,
     b::T,
     τ::T,
-) where {T,E<:OneHot}
+) where {T}
     n = ceil(Int, (1 + abs(b - a) / 4τ))
 
-    return encode!(e, model, x, a, b, n)
+    return encode!(model, e, x, a, b, n)
 end
 
 abstract type SequentialEncoding <: Encoding end
 
 function encode!(
-    ::E,
-    model::AbstractVirtualModel{T},
+    model::VirtualModel{T},
+    e::SequentialEncoding,
     x::Union{VI,Nothing},
     γ::Vector{T},
     α::T = zero(T),
-) where {T,E<:SequentialEncoding}
+) where {T}
     n = length(γ)
-    y = MOI.add_variables(MOI.get(model, TargetModel()), n - 1)
-    v = VirtualVariable{T,E}(x, y, γ, α)
+    y = MOI.add_variables(model.target_model, n - 1)
+    v = VirtualVariable{T}(e, x, y, γ, α)
 
     return encode!(model, v)
 end
 
-struct DomainWall <: SequentialEncoding end
+@doc raw"""
+    DomainWall()
 
-function VirtualVariable{T,E}(
+The Domain Wall[^Chancellor2019] encoding method is a sequential approach that requires only
+``n - 1`` bits to represent ``n`` distinct values.
+
+!!! table "Encoding Analysis"
+    |             | bits      | linear | quadratic | ``\Delta`` |
+    | :-:         | :--:      | :----: | :-------: | :--------: |
+    | Domain Wall | ``n - 1`` | ``n``  |           | ``O(n)``   |
+
+[^Chancellor2019]:
+    Nicholas Chancellor, **Domain wall encoding of discrete variables for quantum annealing and QAOA**, *Quantum Science Technology 4*, 2019.
+""" struct DomainWall <: SequentialEncoding end
+
+function VirtualVariable{T}(
+    e::DomainWall,
     x::Union{VI,Nothing},
     y::Vector{VI},
     γ::Vector{T},
     α::T = zero(T),
-) where {T,E<:DomainWall}
+) where {T}
     @assert (n = length(y)) == length(γ) - 1
 
     ξ = α + PBO.PBF{VI,T}(y[i] => (γ[i] - γ[i+1]) for i = 1:n)
     h = 2 * (PBO.PBF{VI,T}(y[2:n]) - PBO.PBF{VI,T}([Set{VI}([y[i], y[i-1]]) for i = 2:n]))
 
-    return VirtualVariable{T,E}(x, y, ξ, h)
+    return VirtualVariable{T}(e, x, y, ξ, h)
 end
 
 function encode!(
-    e::E,
-    model::AbstractVirtualModel{T},
+    model::VirtualModel{T},
+    e::DomainWall,
     x::Union{VI,Nothing},
     a::T,
     b::T,
-) where {T,E<:DomainWall}
+) where {T}
     α, β = if a < b
         ceil(a), floor(b)
     else
@@ -401,252 +533,164 @@ function encode!(
     M = trunc(Int, β - α)
     γ = α .+ collect(T, 0:M)
 
-    return encode!(e, model, x, γ)
+    return encode!(model, e, x, γ)
 end
 
 function encode!(
-    e::E,
-    model::AbstractVirtualModel{T},
+    model::VirtualModel{T},
+    e::DomainWall,
     x::Union{VI,Nothing},
     a::T,
     b::T,
     n::Integer,
-) where {T,E<:DomainWall}
+) where {T}
     Γ = (b - a) / (n - 1)
     γ = a .+ Γ * collect(T, 0:n-1)
 
-    return encode!(e, model, x, γ)
-end
-
-mutable struct VirtualQUBOModelSettings{T}
-    atol::Dict{Union{VI,Nothing},T}
-    bits::Dict{Union{VI,Nothing},Int}
-    encoding::Dict{Union{CI,VI,Nothing},Encoding}
-
-    function VirtualQUBOModelSettings{T}(;
-        atol::T            = 1E-2,
-        bits::Integer      = 3,
-        encoding::Encoding = Binary(),
-    ) where {T}
-        return new{T}(
-            Dict{Union{VI,Nothing},T}(nothing => atol),
-            Dict{Union{VI,Nothing},Int}(nothing => bits),
-            Dict{Union{VI,Nothing},Encoding}(nothing => encoding),
-        )
-    end
+    return encode!(model, e, x, γ)
 end
 
 @doc raw"""
-    VirtualQUBOModel{T}(optimizer::Union{Nothing, Type{<:MOI.AbstractOptimizer}} = nothing) where {T}
+    Bounded{Binary,T}(μ::T) where {T}
 
-This QUBO Virtual Model links the final QUBO formulation to the original one, allowing variable value retrieving and other features.
-"""
-struct VirtualQUBOModel{T} <: AbstractVirtualModel{T}
-    # -*- Underlying Optimizer -*- #
-    optimizer::Union{MOI.AbstractOptimizer,Nothing}
-    
-    # -*- MathOptInterface Bridges -*- #
-    bridge_model::MOIB.LazyBridgeOptimizer{PreQUBOModel{T}}
-    
-    # -*- Virtual Model Interface -*- #
-    source_model::PreQUBOModel{T}
-    target_model::QUBOModel{T}
-    variables::Vector{VV{T}}
-    source::Dict{VI,VV{T}}
-    target::Dict{VI,VV{T}}
+Let ``x \in [a, b] \subset \mathbb{Z}`` and ``n = b - a``.
 
-    # -*- PBO/PBF IR -*- #
-    f::PBO.PBF{VI,T}          # Objective Function
-    g::Dict{CI,PBO.PBF{VI,T}} # Constraint Functions
-    h::Dict{VI,PBO.PBF{VI,T}} # Variable Functions
-    ρ::Dict{CI,T}             # Constraint Penalties
-    θ::Dict{VI,T}             # Variable Penalties
-    H::PBO.PBF{VI,T}          # Final Hamiltonian
+First,
 
-    # -*- Settings -*-
-    settings::VirtualQUBOModelSettings{T}
+```math
+\begin{align*}
+         2^{k - 1}  &\le \mu \\
+\implies k          &=   \left\lfloor\log_{2} \mu + 1 \right\rfloor
+\end{align*}
+```
 
-    function VirtualQUBOModel{T}(
-        constructor::Union{Type{O},Function};
-        kws...,
-    ) where {T,O<:MOI.AbstractOptimizer}
-        optimizer = constructor()
+Since
 
-        return VirtualQUBOModel{T}(optimizer; kws...)
+```math
+\sum_{j = 1}^{k} 2^{j - 1} = \sum_{j = 0}^{k - 1} 2^{j} = 2^{k} - 1
+```
+
+then, for ``r \in \mathbb{N}``
+
+```math
+n = 2^{k} - 1 + r \times \mu + \epsilon \implies r = \left\lfloor \frac{n - 2^{k} + 1}{\mu} \right\rfloor
+```
+
+and
+
+```math
+\epsilon = n - 2^{k} + 1 - r \times \mu
+```
+
+\gamma_{j} = \left\lbrace\begin{array}{cl}
+    2^{j} & \text{if } 1 \le j \le k   \\
+    \mu   & \text{if } k < j < r + k   \\
+    n - 2^k + 1 - r \times \mu & \text{otherwise}
+\end{array}\right.
+```
+
+    Bounded{Unary,T}(μ::T) where {T}
+
+
+""" struct Bounded{E<:LinearEncoding,T} <: LinearEncoding
+    μ::T
+
+    function Bounded{E,T}(μ::T) where {E,T}
+        @assert !iszero(μ)
+
+        return new{E,T}(μ)
+    end
+end
+
+function Bounded{E}(μ::T) where {E,T}
+    return Bounded{E,T}(μ)
+end
+
+function encode!(
+    model::VirtualModel{T},
+    e::Bounded{Binary,T},
+    x::Union{VI,Nothing},
+    a::T,
+    b::T,
+) where {T}
+    if a < b
+        a = ceil(a)
+        b = floor(b)
+    else
+        a = ceil(b)
+        b = floor(a)
     end
 
-    function VirtualQUBOModel{T}(
-        optimizer::Union{O,Nothing} = nothing;
-        kws...,
-    ) where {T,O<:MOI.AbstractOptimizer}
-        source_model = PreQUBOModel{T}()
-        target_model = QUBOModel{T}()
-        bridge_model = MOIB.full_bridge_optimizer(source_model, T)
+    n = round(Int, b - a)
+    k = floor(Int, log2(e.μ) + 1)
+    m = 2^k - 1
+    r = floor(Int, (n - m) / e.μ)
+    ϵ = n - m - r * e.μ
 
-        new{T}(
-            # -*- Underlying Optimizer -*- #
-            optimizer,
-
-            # -*- MathOptInterface Bridges -*- #
-            bridge_model,
-
-            # -*- Virtual Model Interface -*-
-            source_model,
-            target_model,
-            Vector{VV{T}}(),
-            Dict{VI,VV{T}}(),
-            Dict{VI,VV{T}}(),
-
-            # -*- PBO/PBF IR -*-
-            PBO.PBF{VI,T}(),          # Objective Function
-            Dict{CI,PBO.PBF{VI,T}}(), # Constraint Functions
-            Dict{VI,PBO.PBF{VI,T}}(), # Variable Functions
-            Dict{CI,T}(),             # Constraint Penalties
-            Dict{VI,T}(),             # Variable Penalties
-            PBO.PBF{VI,T}(),          # Final Hamiltonian
-
-            # -*- Settings -*-
-            VirtualQUBOModelSettings{T}(; kws...),
-        )
+    if iszero(ϵ)
+        γ = T[[2^(j - 1) for j = 1:k]; [e.μ for _ = 1:r]]
+    else
+        γ = T[[2^(j - 1) for j = 1:k]; [e.μ for _ = 1:r]; [ϵ]]
     end
 
-    VirtualQUBOModel(args...; kws...) = VirtualQUBOModel{Float64}(args...; kws...)
+    return encode!(model, e, x, γ, a)
 end
 
-QUBOTools.backend(model::VirtualQUBOModel) = QUBOTools.backend(model.target_model)
+function encode!(
+    model::VirtualModel{T},
+    e::Bounded{Unary,T},
+    x::Union{VI,Nothing},
+    a::T,
+    b::T,
+) where {T}
+    if a < b
+        a = ceil(a)
+        b = floor(b)
+    else
+        a = ceil(b)
+        b = floor(a)
+    end
 
-struct Source <: MOI.AbstractModelAttribute end
-function MOI.get(::AbstractVirtualModel, ::Source) end
-function MOI.get(::AbstractVirtualModel, ::Source, ::VI) end
-function MOI.set(::AbstractVirtualModel, ::Source, ::VI, ::VV) end
+    n = round(Int, b - a)
+    k = ceil(Int, e.μ - 1)
+    r = floor(Int, (n - k) / e.μ)
+    ϵ = n - k + - r * e.μ
 
-struct Target <: MOI.AbstractModelAttribute end
-function MOI.get(::AbstractVirtualModel, ::Target) end
-function MOI.get(::AbstractVirtualModel, ::Target, ::VI) end
-function MOI.set(::AbstractVirtualModel, ::Target, ::VI, ::VV) end
+    if iszero(ϵ)
+        γ = T[ones(T, k); [e.μ for _ = 1:r]]
+    else
+        γ = T[ones(T, k); [e.μ for _ = 1:r]; [ϵ]]
+    end
 
-struct Variables <: MOI.AbstractModelAttribute end
-function MOI.get(::AbstractVirtualModel, ::Variables) end
-
-struct SourceModel <: MOI.AbstractModelAttribute end
-function MOI.get(::AbstractVirtualModel, ::SourceModel) end
-
-struct TargetModel <: MOI.AbstractModelAttribute end
-function MOI.get(::AbstractVirtualModel, ::TargetModel) end
-
-function MOI.is_empty(model::AbstractVirtualModel)
-    return all([
-        MOI.is_empty(MOI.get(model, SourceModel())),
-        MOI.is_empty(MOI.get(model, TargetModel())),
-    ])
+    return encode!(model, e, x, γ, a)
 end
 
-function MOI.empty!(model::AbstractVirtualModel)
-    MOI.empty!(MOI.get(model, SourceModel()))
-    MOI.empty!(MOI.get(model, TargetModel()))
-    empty!(MOI.get(model, Variables()))
+function encode!(
+    model::VirtualModel{T},
+    e::Bounded{Arithmetic,T},
+    x::Union{VI,Nothing},
+    a::T,
+    b::T,
+) where {T}
+    if a < b
+        a = ceil(a)
+    else
+        b = floor(b)
+        a = ceil(b)
+        b = floor(a)
+    end
 
-    return nothing
-end
+    n = round(Int, b - a)
+    k = floor(Int, e.μ)
+    m = (k * (k + 1)) ÷ 2
+    r = floor(Int, (n - m) / e.μ)
+    ϵ = n - m + - r * e.μ
 
-function MOI.get(
-    model::AbstractVirtualModel,
-    attr::Union{
-        MOI.ListOfConstraintAttributesSet,
-        MOI.ListOfConstraintIndices,
-        MOI.ListOfConstraintTypesPresent,
-        MOI.ListOfModelAttributesSet,
-        MOI.ListOfVariableAttributesSet,
-        MOI.ListOfVariableIndices,
-        MOI.NumberOfConstraints,
-        MOI.NumberOfVariables,
-        MOI.Name,
-        MOI.ObjectiveFunction,
-        MOI.ObjectiveFunctionType,
-        MOI.ObjectiveSense,
-    },
-)
+    if iszero(ϵ)
+        γ = T[collect(T,1:k); [e.μ for _ = 1:r]]
+    else
+        γ = T[collect(T,1:k); [e.μ for _ = 1:r]; [ϵ]]
+    end
 
-    return MOI.get(MOI.get(model, SourceModel()), attr)
-end
-
-function MOI.get(
-    model::AbstractVirtualModel,
-    attr::Union{MOI.ConstraintFunction,MOI.ConstraintSet},
-    ci::MOI.ConstraintIndex,
-)
-
-    return MOI.get(MOI.get(model, SourceModel()), attr, ci)
-end
-
-function MOI.set(
-    model::AbstractVirtualModel,
-    attr::Union{MOI.ObjectiveFunction,MOI.ObjectiveSense},
-    value::Any,
-)
-
-    return MOI.get(MOI.get(model, SourceModel()), attr, value)
-end
-
-function MOI.get(model::AbstractVirtualModel, attr::MOI.VariableName, x::VI)
-    return MOI.get(MOI.get(model, SourceModel()), attr, x)
-end
-
-MOI.get(model::VirtualQUBOModel, ::Source)        = model.source
-MOI.get(model::VirtualQUBOModel, ::Source, x::VI) = model.source[x]
-
-function MOI.set(model::VirtualQUBOModel{T}, ::Source, x::VI, v::VV{T}) where {T}
-    model.source[x] = v
-end
-
-MOI.get(model::VirtualQUBOModel, ::Target)        = model.target
-MOI.get(model::VirtualQUBOModel, ::Target, y::VI) = model.target[y]
-
-function MOI.set(model::VirtualQUBOModel{T}, ::Target, y::VI, v::VV{T}) where {T}
-    model.target[y] = v
-end
-
-MOI.get(model::VirtualQUBOModel, ::Variables)   = model.variables
-MOI.get(model::VirtualQUBOModel, ::SourceModel) = model.source_model
-MOI.get(model::VirtualQUBOModel, ::TargetModel) = model.target_model
-
-function Base.show(io::IO, model::AbstractVirtualModel)
-    print(
-        io,
-        """
-        Virtual Model
-        with source:
-        $(MOI.get(model, SourceModel()))
-        with target:
-        $(MOI.get(model, TargetModel()))
-        """,
-    )
-end
-
-function MOI.add_variable(model::VirtualQUBOModel)
-    source_model = MOI.get(model, SourceModel())
-
-    return MOI.add_variable(source_model)
-end
-
-function MOI.add_constraint(
-    model::VirtualQUBOModel,
-    f::MOI.AbstractFunction,
-    s::MOI.AbstractSet,
-)
-    source_model = MOI.get(model, SourceModel())
-    
-    return MOI.add_constraint(source_model, f, s)
-end
-
-function MOI.set(model::VirtualQUBOModel, os::MOI.ObjectiveSense, s::MOI.OptimizationSense)
-    source_model = MOI.get(model, SourceModel())
-
-    MOI.set(source_model, os, s)
-end
-
-function MOI.set(model::VirtualQUBOModel, of::MOI.ObjectiveFunction, f::MOI.AbstractFunction)
-    source_model = MOI.get(model, SourceModel())
-
-    MOI.set(source_model, of, f)
+    return encode!(model, e, x, γ, a)
 end
