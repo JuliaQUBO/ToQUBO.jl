@@ -1,6 +1,6 @@
 import Base: isiterable
 
-@doc raw"""
+@doc raw"""     
 """
 function _parseterm end
 
@@ -20,53 +20,57 @@ _parseterm(::Type{S}, ::Type{T}, x::Tuple{<:Union{Vector{S},Set{S}},T}) where {S
     (Set{S}(first(x)), last(x))
 
 @doc raw"""
-A Pseudo-Boolean Function ``f \in \mathscr{F}`` over some field ``\mathbb{T}`` takes the form
+    PseudoBooleanFunction{V,T}(Ω::Dict{Union{Set{V},Nothing},T}) where {V,T}
+
+A Pseudo-Boolean Function[^Boros2002] ``f \in \mathscr{F}`` over some field ``\mathbb{T}`` takes the form
 
 ```math
-f(\mathbf{x}) = \sum_{\omega \in \Omega\left[f\right]} c_\omega \prod_{j \in \omega} \mathbb{x}_j
+f(\mathbf{x}) = \sum_{\omega \in \Omega\left[f\right]} c_\omega \prod_{j \in \omega} x_j
 ```
 
-where each ``\Omega\left[{f}\right]`` is the multi-linear representation of ``f`` as a set of terms. Each term is given by a unique set of indices ``\omega \subseteq \mathbb{S}`` related to some coefficient ``c_\omega \in \mathbb{T}``. We say that ``\omega \in \Omega\left[{f}\right] \iff c_\omega \neq 0``.
-Variables ``\mathbf{x}_i`` are indeed boolean, thus ``f : \mathbb{B}^{n} \to \mathbb{T}``.
+where each ``\Omega\left[{f}\right]`` is the multi-linear representation of ``f`` as a set of terms.
+Each term is given by a unique set of indices ``\omega \subseteq \mathbb{S}`` related to some coefficient ``c_\omega \in \mathbb{T}``.
+We say that ``\omega \in \Omega\left[{f}\right] \iff c_\omega \neq 0``.
+Variables ``x_j`` are boolean, thus ``f : \mathbb{B}^{n} \to \mathbb{T}``.
 
-## References
- * [1] Endre Boros, Peter L. Hammer, Pseudo-Boolean optimization, Discrete Applied Mathematics, 2002 [{doi}](https://doi.org/10.1016/S0166-218X(01)00341-9)
+[^Boros2002]:
+    Endre Boros, Peter L. Hammer, **Pseudo-Boolean optimization**, *Discrete Applied Mathematics*, 2002 [{doi}](https://doi.org/10.1016/S0166-218X(01)00341-9)
 """
-struct PseudoBooleanFunction{S,T}
-    Ω::Dict{Set{S},T}
+struct PseudoBooleanFunction{V,T}
+    Ω::Dict{Set{V},T}
 
-    function PseudoBooleanFunction{S,T}(Ω::Dict{<:Union{Set{S},Nothing},T}) where {S,T}
-        return new{S,T}(
-            Dict{Set{S},T}(isnothing(ω) ? Set{S}() : ω => c for (ω, c) in Ω if !iszero(c)),
+    function PseudoBooleanFunction{V,T}(Ω::Dict{<:Union{Set{V},Nothing},T}) where {V,T}
+        return new{V,T}(
+            Dict{Set{V},T}(isnothing(ω) ? Set{V}() : ω => c for (ω, c) in Ω if !iszero(c)),
         )
     end
 
-    function PseudoBooleanFunction{S,T}(v::Vector) where {S,T}
-        Ω = Dict{Set{S},T}()
+    function PseudoBooleanFunction{V,T}(v::Vector) where {V,T}
+        Ω = Dict{Set{V},T}()
 
         for x in v
-            ω, a = _parseterm(S, T, x)
+            ω, a = _parseterm(V, T, x)
             Ω[ω] = get(Ω, ω, zero(T)) + a
         end
 
-        return PseudoBooleanFunction{S,T}(Ω)
+        return PseudoBooleanFunction{V,T}(Ω)
     end
 
-    function PseudoBooleanFunction{S,T}(x::Base.Generator) where {S,T}
-        return PseudoBooleanFunction{S,T}(collect(x))
+    function PseudoBooleanFunction{V,T}(x::Base.Generator) where {V,T}
+        return PseudoBooleanFunction{V,T}(collect(x))
     end
 
-    function PseudoBooleanFunction{S,T}(x::Vararg{Any}) where {S,T}
-        return PseudoBooleanFunction{S,T}(collect(x))
+    function PseudoBooleanFunction{V,T}(x::Vararg{Any}) where {V,T}
+        return PseudoBooleanFunction{V,T}(collect(x))
     end
 
-    function PseudoBooleanFunction{S,T}() where {S,T}
-        return new{S,T}(Dict{Set{S},T}())
+    function PseudoBooleanFunction{V,T}() where {V,T}
+        return new{V,T}(Dict{Set{V},T}())
     end
 end
 
 # Alias 
-const PBF{S,T} = PseudoBooleanFunction{S,T}
+const PBF{V,T} = PseudoBooleanFunction{V,T}
 
 # Broadcast as scalar
 Base.broadcastable(f::PBF) = Ref(f)
