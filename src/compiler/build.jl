@@ -14,11 +14,10 @@ end
 function toqubo_hamiltonian!(model::VirtualModel{T}, ::AbstractArchitecture) where {T}
     empty!(model.H)
 
-    # TODO: Make this 'sizehint!' more precise
-    # IDEA:
-    N = length(model.f) + sum(length, model.g; init=0) + sum(length, model.h; init=0)
+    # Calculate an upper bound on the number of terms
+    num_terms = length(model.f) + sum(length, model.g; init=0) + sum(length, model.h; init=0)
 
-    sizehint!(model.H, N)
+    sizehint!(model.H, num_terms)
 
     for (ω, c) in model.f
         model.H[ω] += c
