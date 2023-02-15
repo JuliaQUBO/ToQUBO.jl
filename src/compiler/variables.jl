@@ -115,7 +115,7 @@ function toqubo_variables!(model::VirtualModel{T}, ::AbstractArchitecture) where
         end
     end
 
-    # Mirror Boolean Variables 😄 
+    # Mirror Boolean Variables
     for x in 𝔹
         encode!(model, Mirror(), x)
     end
