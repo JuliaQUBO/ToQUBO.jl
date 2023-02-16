@@ -13,7 +13,7 @@ ToQUBO.VirtualModel
 
 ## Virtual Variables
 Every virtual model stores a collection of virtual variables, intended to provide a link between those in the source and those to be created in the target model.
-Each virtual variable stores enconding information for later expansion and evaluation.
+Each virtual variable stores encoding information for later expansion and evaluation.
 
 ```@docs
 ToQUBO.VirtualVariable
