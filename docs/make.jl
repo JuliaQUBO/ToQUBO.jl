@@ -7,17 +7,17 @@ DocMeta.setdocmeta!(
 )
 
 makedocs(;
-    modules=[ToQUBO],
-    doctest=true,
-    clean=true,
-    format=Documenter.HTML(
-        assets = ["assets/extra_styles.css", "assets/favicon.ico"],
-        mathengine=Documenter.MathJax2(),
-        sidebar_sitename=false,
+    modules = [ToQUBO],
+    doctest = true,
+    clean   = true,
+    format  = Documenter.HTML(
+        assets           = ["assets/extra_styles.css", "assets/favicon.ico"],
+        mathengine       = Documenter.KaTeX(),
+        sidebar_sitename = false,
     ), 
-    sitename="ToQUBO.jl",
-    authors="Pedro Xavier and Tiago Andrade and Joaquim Garcia and David Bernal",
-    pages=[
+    sitename = "ToQUBO.jl",
+    authors  = "Pedro Maciel Xavier and Pedro Ripper and Tiago Andrade and Joaquim Dias Garcia and David E. Bernal Neira",
+    pages    = [
         "Home" => "index.md",
         "Manual" => [
             "Getting Started"   => "manual/1-start.md",
@@ -26,7 +26,7 @@ makedocs(;
             "Compiler Settings" => "manual/4-settings.md",
         ],
         "Examples" => [
-            "Knapsack" =>"examples/knapsack.md",
+            "Knapsack"            => "examples/knapsack.md",
             "Prime Factorization" => "examples/prime_factorization.md",
         ],
         "Booklet" => [

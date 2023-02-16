@@ -136,12 +136,12 @@ If you think this list is incomplete, consider creating an [Issue](https://githu
 If you use `ToQUBO.jl` in your work, we kindly ask you to include the following citation:
 ```tex
 @software{toqubo:2022,
-  author       = {Pedro Xavier and Tiago Andrade and Joaquim Garcia and David Bernal},
+  author       = {Pedro Maciel Xavier and Pedro Ripper and Tiago Andrade and Joaquim Dias Garcia and David E. Bernal Neira},
   title        = {{ToQUBO.jl}},
   month        = {mar},
   year         = {2022},
   publisher    = {Zenodo},
-  version      = {v0.1.0},
+  version      = {v0.1.5},
   doi          = {10.5281/zenodo.6387592},
   url          = {https://doi.org/10.5281/zenodo.6387592}
 }
