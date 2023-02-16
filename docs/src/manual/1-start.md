@@ -19,23 +19,8 @@ optimize!(model)
 solution_summary(model)
 ```
 
-## Compiler Flags
-
-### Architecture
-```@docs
-ToQUBO.Attributes.Architecture
-```
-
-### Quadratization
-```@docs
-ToQUBO.Attributes.Quadratize
-ToQUBO.Attributes.QuadratizationMethod
-ToQUBO.Attributes.StableQuadratization
-```
-
-### Variable & Constraint Encoding
-```@docs
-ToQUBO.Attributes.VariableEncodingMethod
-ToQUBO.Attributes.VariableEncodingPenalty
-ToQUBO.Attributes.ConstraintEncodingPenalty
+## Table of Contents
+```@contents
+Pages = ["2-model.md", "3-results.md", "4-settings.md"]
+Depth = 2
 ```

@@ -19,12 +19,24 @@ makedocs(;
     authors="Pedro Xavier and Tiago Andrade and Joaquim Garcia and David Bernal",
     pages=[
         "Home" => "index.md",
-        "Manual" => "manual.md",
+        "Manual" => [
+            "Getting Started"   => "manual/1-start.md",
+            "Running a Model"   => "manual/2-model.md",
+            "Gathering Results" => "manual/3-results.md",
+            "Compiler Settings" => "manual/4-settings.md",
+        ],
         "Examples" => [
             "Knapsack" =>"examples/knapsack.md",
             "Prime Factorization" => "examples/prime_factorization.md",
         ],
-        "Booklet" => "booklet.md"
+        "Booklet" => [
+            "Introduction"    => "booklet/1-intro.md",
+            "QUBO"            => "booklet/2-qubo.md",
+            "PBO"             => "booklet/3-pbo.md",
+            "Encoding"        => "booklet/4-encoding.md",
+            "Virtual Mapping" => "booklet/5-virtual.md",
+            "Solvers"         => "booklet/6-solvers.md",
+        ]
     ],
     workdir="."
 )

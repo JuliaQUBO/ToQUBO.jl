@@ -470,7 +470,17 @@ function encode!(
     return encode!(model, e, x, a, b, n)
 end
 
-abstract type SequentialEncoding <: Encoding end
+@doc raw"""
+    SequentialEncoding
+
+A *sequential encoding* is one of the form
+
+```math
+\xi(\mathbf{y}) = \sum_{i = 1}^{n} \gamma_{i} \left({y_{i + 1} \ast y_{i}}\right)
+```
+
+where ``\mathbf{y} \in \mathbb{B}^{n + 1}``.
+""" abstract type SequentialEncoding <: Encoding end
 
 function encode!(
     model::VirtualModel{T},
@@ -551,8 +561,17 @@ function encode!(
 end
 
 @doc raw"""
+    Bounded{E,T}(μ::T) where {E<:Encoding,T}
+
+The bounded-coefficient encoding method[^Karimi2019] consists in limiting the magnitude of the
+coefficients in the encoding expansion to a parameter ``\mu``.
+
+[^Karimi2019]:
+    Karimi, S. & Ronagh, P. **Practical integer-to-binary mapping for quantum annealers**. *Quantum Inf Process 18, 94* (2019). [{doi}](https://doi.org/10.1007/s11128-019-2213-x)
+
     Bounded{Binary,T}(μ::T) where {T}
 
+## Rationale
 Let ``x \in [a, b] \subset \mathbb{Z}`` and ``n = b - a``.
 
 First,
@@ -582,6 +601,7 @@ and
 \epsilon = n - 2^{k} + 1 - r \times \mu
 ```
 
+```math
 \gamma_{j} = \left\lbrace\begin{array}{cl}
     2^{j} & \text{if } 1 \le j \le k   \\
     \mu   & \text{if } k < j < r + k   \\
@@ -590,6 +610,8 @@ and
 ```
 
     Bounded{Unary,T}(μ::T) where {T}
+
+Let ``x \in [a, b] \subset \mathbb{Z}`` and ``n = b - a``.
 
 
 """ struct Bounded{E<:LinearEncoding,T} <: LinearEncoding

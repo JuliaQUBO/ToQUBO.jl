@@ -1,6 +1,14 @@
 module Attributes
 
-import ..ToQUBO
+import ..ToQUBO:
+    ToQUBO,
+    Unary,
+    Binary,
+    Arithmetic,
+    OneHot,
+    DomainWall,
+    Bounded
+
 import MathOptInterface as MOI
 const MOIU = MOI.Utilities
 const VI = MOI.VariableIndex
@@ -75,7 +83,7 @@ end
     QuadratizationMethod()
 
 Defines which quadratization method to use.
-Available options are defined in the [`PBO`](@ref) submodule.
+Available options are defined in the `PBO` submodule.
 """ struct QuadratizationMethod <: CompilerAttribute end
 
 function MOI.get(model::ToQUBO.VirtualModel, ::QuadratizationMethod)
@@ -293,7 +301,7 @@ end
 MOI.is_set_by_optimize(::ConstraintEncodingPenalty) = true
 
 @doc raw"""
-    QUBONormalForm
+    QUBONormalForm()
 """ struct QUBONormalForm <: CompilerAttribute end
 
 function MOI.get(
