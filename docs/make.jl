@@ -35,7 +35,7 @@ makedocs(;
             "PBO"             => "booklet/3-pbo.md",
             "Encoding"        => "booklet/4-encoding.md",
             "Virtual Mapping" => "booklet/5-virtual.md",
-            "The Compiler"    => "booklet/6-compiler.md" 
+            "The Compiler"    => "booklet/6-compiler.md",
             "Solvers"         => "booklet/7-solvers.md",
         ]
     ],
