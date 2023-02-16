@@ -12,7 +12,7 @@ end
 @doc raw"""
     quadratize!(aux::Function, f::PBF{S, T}, ::Quadratization{Q}) where {S,T,Q}
 
-Quadratizes a given PBF in-place, i.e. applies a mapping ``Q : \mathscr{F}^{k} \to \mathscr{F}^{2}``.
+Quadratizes a given PBF in-place, i.e. applies a mapping ``Q : \mathscr{F}^{k} \to \mathscr{F}^{2}``, where Q is the quadratization method.
 
 ```julia
 aux(::Nothing)::S
@@ -23,7 +23,11 @@ aux(::Integer)::Vector{S}
 @doc raw"""
     Quadratization{NTR_KZFD}(stable::Bool = false)
 
-NTR-KZFD (Kolmogorov & Zabih, 2004; Freedman & Drineas, 2005)
+Negative Term Reduction NTR-KZFD (Kolmogorov & Zabih, 2004; Freedman & Drineas, 2005)
+
+```math
+-x_1 x_2 \dots x_k \to (k-1) x_{aux} - \sum_i x_i x_{aux}
+```
 
 !!! info
     Introduces one new variable and no non-submodular terms.
@@ -63,7 +67,13 @@ end
 @doc raw"""
     Quadratization{PTR_BG}(stable::Bool = false)
 
-PTR-BG (Boros & Gruber, 2014)
+Positive Term Reduction PTR-BG (Boros & Gruber, 2014)
+
+```math
+x_1 x_2 \dots x_k \to \left[{
+        \sum^{k-2}_{i=1}x_{a_i} \left({k - i - 1 + x_i + \sum^k_{j=i+1} x_j}\right)
+    }\right] + x_{k-1}x_k
+```
 
 !!! info
     Introduces ``k - 2`` new variables and ``k - 1`` non-submodular terms.
@@ -154,6 +164,8 @@ end
 
 @doc raw"""
     infer_quadratization(f::PBF)
+
+For a given PBF, returns whether it should be quadratized or not, based on its degree.
 """
 function infer_quadratization(f::PBF, stable::Bool = false)
     k = degree(f)
