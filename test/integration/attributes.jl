@@ -22,5 +22,16 @@ function test_attributes()
         @test MOI.get(model, RandomSampler.NumberOfReads()) == 1_000
         MOI.set(model, RandomSampler.NumberOfReads(), 13)
         @test MOI.get(model, RandomSampler.NumberOfReads()) == 13
+
+        # Raw Attributes
+        @test MOI.get(model, MOI.RawOptimizerAttribute("seed")) |> isnothing
+        MOI.set(model, MOI.RawOptimizerAttribute("seed"), 13)
+        @test MOI.get(model, MOI.RawOptimizerAttribute("seed")) == 13
+
+        @test MOI.get(model, MOI.RawOptimizerAttribute("num_reads")) == 13
+        MOI.set(model, MOI.RawOptimizerAttribute("num_reads"), 1_000)
+        @test MOI.get(model, MOI.RawOptimizerAttribute("num_reads")) == 1_000
     end
+
+    return nothing
 end
