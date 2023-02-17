@@ -7,7 +7,16 @@ ToQUBO.PBO.PseudoBooleanFunction
 ```
 
 ## Quadratization
-In order to successfully achieve a QUBO formulation, sometimes it is needed to quadratize the resulting PBF, i.e., reduce its degree until reaching the quadratic case. There are many quadratization methods available[^Dattani2019], and `ToQUBO` implements a two of them for now. However, using Julia's multiple dispatch paradigm, it's possible to extend the quadratization method coverage with your own algorithms.
+In order to successfully achieve a QUBO formulation, sometimes it is needed to quadratize the resulting PBF, i.e., reduce its degree until reaching the quadratic case. 
+
+A quadratization is a mapping ``\mathcal{Q}: \mathscr{F} \to \mathscr{F}^{2}`` such that
+
+```math 
+\forall f \in \mathscr{F}, \forall x \in \{0, 1\}^{n}, \min_{y} \mathcal{Q}\left\lbrace{}f\right\rbrace{}(x; y) = f(x)
+
+```
+
+There are many quadratization methods available[^Dattani2019], and `ToQUBO` implements two of them for now. However, using Julia's multiple dispatch paradigm, it's possible to extend the quadratization method coverage with your own algorithms.
 
 ```@docs
 ToQUBO.PBO.quadratize!
@@ -32,7 +41,9 @@ f(X \cup Y) + f(X \cap Y) \le f(X) + f(Y) \forall X, Y \subset S
 
 holds.
 
-### 
+
+
+
 
 [^Dattani2019]:
-    Dattani, Nikesh S.., **Quadratization in discrete optimization and quantum mechanics**, *ArXiv*, 2019 [{link}](https://arxiv.org/abs/1901.04405)
+    Dattani, Nikesh S.., **Quadratization in discrete optimization and quantum mechanics**, *ArXiv*, 2019 [{doi}](https://doi.org/10.48550/arXiv.1901.04405)

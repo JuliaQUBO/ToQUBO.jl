@@ -83,5 +83,12 @@ Parses the given MOI function `f` into PBF `g`.
 """ function toqubo_build! end
 
 @doc raw"""
+    toqubo_quadratize!(model::VirtualModel, arch::AbstractArchitecture)
+
+Quadratizes the objective function from a model
+
+""" function toqubo_quadratize! end
+
+@doc raw"""
     toqubo_empty!(model::VirtualModel, ::AbstractArchitecture)
 """ function toqubo_empty! end

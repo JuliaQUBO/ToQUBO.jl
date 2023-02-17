@@ -12,7 +12,7 @@ end
 @doc raw"""
     quadratize!(aux::Function, f::PBF{S, T}, ::Quadratization{Q}) where {S,T,Q}
 
-Quadratizes a given PBF in-place, i.e. applies a mapping ``Q : \mathscr{F}^{k} \to \mathscr{F}^{2}``, where Q is the quadratization method.
+Quadratizes a given PBF in-place, i.e. applies a mapping ``\mathcal{Q} : \mathscr{F}^{k} \to \mathscr{F}^{2}``, where ``\mathcal{Q}`` is the quadratization method.
 
 ```julia
 aux(::Nothing)::S
@@ -139,6 +139,11 @@ function quadratize!(
     return nothing
 end
 
+@doc raw"""
+    quadratize!(aux::Function, f::PBF{S,T}, quad::Quadratization{TERM_BY_TERM}) where {S,T}
+
+    Receives a higher-degree pseudo-Boolean function 
+"""
 function quadratize!(
     aux::Function,
     f::PBF{S,T},
