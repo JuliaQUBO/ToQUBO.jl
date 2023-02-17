@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Maciel Xavier"
+  given-names: "Pedro"
+  orcid: "https://orcid.org/0000-0002-4678-4942"
+- family-names: "Pedro"
+  given-names: "Ripper"
+  orcid: "https://orcid.org/0000-0002-2227-3689"
+- family-names: "Tiago"
+  given-names: "Andrade"
+  orcid: "https://orcid.org/0000-0000-0000-0000"
+- family-names: "Joaquim"
+  given-names: "Dias Garcia"
+  orcid: "https://orcid.org/0000-0002-7721-8564"
+- family-names: "David"
+  given-names: "E. Bernal Neira"
+  orcid: "https://orcid.org/0000-0002-8308-5016"
+title: "ToQUBO.jl"
+version: 0.1.5
+doi: 10.5281/zenodo.7644291
+date-released: 2023-02-15
+url: "https://github.com/psrenergy/ToQUBO.jl"
