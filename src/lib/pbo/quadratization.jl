@@ -26,11 +26,12 @@ aux(::Integer)::Vector{S}
 Negative Term Reduction NTR-KZFD (Kolmogorov & Zabih, 2004; Freedman & Drineas, 2005)
 
 ```math
--x_1 x_2 \dots x_k \to (k-1) x_{aux} - \sum_i x_i x_{aux}
+f(x_{1}, \dots, x_{k}) = - x_{1} \cdots x_{k} \to
+\mathcal{Q}\left\lbrace{f}\right\rbrace(x_{1}, \dots, x_{k}; z) = (k - 1) z - \sum_{i = 1}^{k} x_{i} z
 ```
 
 !!! info
-    Introduces one new variable and no non-submodular terms.
+    Introduces a new variable ``z`` and no non-submodular terms.
 """ struct NTR_KZFD <: QuadratizationMethod end
 
 function quadratize!(
@@ -70,13 +71,14 @@ end
 Positive Term Reduction PTR-BG (Boros & Gruber, 2014)
 
 ```math
-x_1 x_2 \dots x_k \to \left[{
-        \sum^{k-2}_{i=1}x_{a_i} \left({k - i - 1 + x_i + \sum^k_{j=i+1} x_j}\right)
-    }\right] + x_{k-1}x_k
+f(x_{1}, \dots, x_{k}) = x_{1} x_{2} \dots x_{k} \to
+\mathcal{Q}\left\lbrace{f}\right\rbrace(x_{1}, \dots, x_{k}; z_{1}, \dots, z_{k-2} ) = \left[{
+    \sum_{i = 1}^{k-2} z_{i} \left({ k - i - 1 + x_{i} + \sum_{j = i+1}^{k} x_{j} }\right)
+}\right] + x_{k-1} x_{k}
 ```
 
 !!! info
-    Introduces ``k - 2`` new variables and ``k - 1`` non-submodular terms.
+    Introduces ``k - 2`` new variables ``z_{1}, \dots, z_{k-2}`` and ``k - 1`` non-submodular terms.
 """ struct PTR_BG <: QuadratizationMethod end
 
 function quadratize!(
