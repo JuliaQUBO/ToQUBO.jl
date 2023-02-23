@@ -20,7 +20,8 @@ We can represent a QUBO as follows.
 ## OK, but why QUBO?
 
 
-QUBOs are suited for representing non-convex global optimization problems. With that said, the significant advances in computing systems and algorithms specialized for sampling QUBOs have contributed to their popularity.
+QUBOs are suited for representing non-convex global optimization problems.
+With that said, the significant advances in computing systems and algorithms specialized for sampling QUBOs have contributed to their popularity.
 
 Some of the paradigms that stand out for running QUBOs are quantum gate-based optimization algorithms (QAOA and VQE), quantum annealers and hardware-accelerated platforms (Coherent Ising Machines and Simulated Bifurcation Machines).
 
