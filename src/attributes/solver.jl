@@ -18,7 +18,7 @@ function MOI.set(model::VirtualModel, raw_attr::MOI.RawOptimizerAttribute, args.
     return nothing
 end
 
-function MOI.supports(model::VirtualModel, raw_attr::MOI.AbstractOptimizerAttribute)
+function MOI.supports(model::VirtualModel, raw_attr::MOI.RawOptimizerAttribute)
     if !isnothing(model.optimizer)
         return MOI.supports(model.optimizer, raw_attr)
     else
