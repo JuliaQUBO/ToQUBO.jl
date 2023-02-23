@@ -1,3 +1,32 @@
+function MOI.get(model::VirtualModel, raw_attr::MOI.RawOptimizerAttribute)
+    if !isnothing(model.optimizer) && MOI.supports(model.optimizer, raw_attr)
+        return MOI.get(model.optimizer, raw_attr)
+    else
+        # Error if no underlying optimizer is present
+        MOI.get_fallback(model, raw_attr)
+    end
+end
+
+function MOI.set(model::VirtualModel, raw_attr::MOI.RawOptimizerAttribute, args...)
+    if !isnothing(model.optimizer) && MOI.supports(model.optimizer, raw_attr)
+        MOI.set(model.optimizer, raw_attr, args...)
+    else
+        # Error if no underlying optimizer is present
+        MOI.throw_set_error_fallback(model, raw_attr, args...)
+    end
+
+    return nothing
+end
+
+function MOI.supports(model::VirtualModel, raw_attr::MOI.AbstractOptimizerAttribute)
+    if !isnothing(model.optimizer)
+        return MOI.supports(model.optimizer, raw_attr)
+    else
+        # ToQUBO.Optimizer doesn't support any raw attributes
+        return false
+    end
+end
+
 function MOI.get(model::VirtualModel, attr::MOI.AbstractOptimizerAttribute)
     if !isnothing(model.optimizer) && MOI.supports(model.optimizer, attr)
         return MOI.get(model.optimizer, attr)
@@ -6,11 +35,11 @@ function MOI.get(model::VirtualModel, attr::MOI.AbstractOptimizerAttribute)
     end
 end
 
-function MOI.set(model::VirtualModel, attr::MOI.AbstractOptimizerAttribute, value::Any)
+function MOI.set(model::VirtualModel, attr::MOI.AbstractOptimizerAttribute, args...)
     if !isnothing(model.optimizer) && MOI.supports(model.optimizer, attr)
-        MOI.set(model.optimizer, attr, value)
+        MOI.set(model.optimizer, attr, args...)
     else
-        MOI.set(model.source_model, attr, value)
+        MOI.set(model.source_model, attr, args...)
     end
 
     return nothing
