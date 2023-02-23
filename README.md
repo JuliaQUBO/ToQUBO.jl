@@ -137,7 +137,7 @@ If you use `ToQUBO.jl` in your work, we kindly ask you to include the following 
 ```tex
 @software{toqubo:2023,
   author       = {Pedro Maciel Xavier and Pedro Ripper and Tiago Andrade and Joaquim Dias Garcia and David E. Bernal Neira},
-  title        = {ToQUBO.jl},
+  title        = {{ToQUBO.jl}},
   month        = {feb},
   year         = {2023},
   publisher    = {Zenodo},
