@@ -3,6 +3,13 @@
     margin: auto;
 }
 
-.mermaid {
+/* Center images & diagrams */
+p:has(img) {
+    text-align: center;
+    margin: 0 auto;
+}
+
+div.mermaid {
+    text-align: center;
     margin: 0 auto;
 }
