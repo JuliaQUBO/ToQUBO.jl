@@ -21,7 +21,7 @@ After running the `using Anneal` command, `RandomSampler.Optimizer` will be avai
 
 ## Exact Solver (Exhaustive Enumeration)
 Also made to be used in tests, the `ExactSolver.Optimizer` interface runs through all possible state configurations, which implies in an exponential time complexity on the number of variables.
-Thus, only problems with at most ``\sym 20`` variables should be provided since visiting ``2^{20} \sym 10^{6}`` can already take up to a few seconds.
+Thus, only problems with at most ``\approxeq 20`` variables should be provided since visiting ``2^{20} \approxeq 10^{6}`` states can already take up to a few seconds.
 
 ## Mixed-Integer Quadratic Programming
 The most accessible alternative to the forementioned methods are Mixed-Integer Quadratic Programming (MIQP) solvers such as [Gurobi](https://github.com/jump-dev/Gurobi.jl), [CPLEX](https://github.com/jump-dev/CPLEX.jl), [SCIP](https://github.com/scipopt/SCIP.jl) and [BARON](https://github.com/jump-dev/BARON.jl).

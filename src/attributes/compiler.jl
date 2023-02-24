@@ -7,7 +7,8 @@ import ..ToQUBO:
     Arithmetic,
     OneHot,
     DomainWall,
-    Bounded
+    Bounded,
+    GenericArchitecture
 
 import MathOptInterface as MOI
 const MOIU = MOI.Utilities
@@ -34,6 +35,9 @@ export
 
 @doc raw"""
     Architecture()
+
+Selects which solver architecture to use.
+Defaults to [`GenericArchitecture`](@ref).
 """ struct Architecture <: CompilerAttribute end
 
 function MOI.get(model::ToQUBO.VirtualModel, ::Architecture)::ToQUBO.AbstractArchitecture
@@ -120,6 +124,8 @@ end
 
 @doc raw"""
     DefaultVariableEncodingMethod()
+
+Fallback value for [`VariableEncodingMethod`](@ref).
 """ struct DefaultVariableEncodingMethod <: CompilerAttribute end
 
 function MOI.get(model::ToQUBO.VirtualModel, ::DefaultVariableEncodingMethod)::ToQUBO.Encoding
@@ -134,6 +140,8 @@ end
 
 @doc raw"""
     DefaultVariableEncodingATol()
+
+Fallback value for [`VariableEncodingATol`](@ref).
 """ struct DefaultVariableEncodingATol <: CompilerAttribute end
 
 function MOI.get(model::ToQUBO.VirtualModel{T}, ::DefaultVariableEncodingATol)::T where {T}

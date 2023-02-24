@@ -4,7 +4,9 @@
 
 ### Linear Encoding Methods
 ```@docs
+ToQUBO.Mirror
 ToQUBO.LinearEncoding
+ToQUBO.Linear
 ToQUBO.Binary
 ToQUBO.Unary
 ToQUBO.Arithmetic

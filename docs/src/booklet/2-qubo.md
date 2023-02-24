@@ -1,7 +1,7 @@
 # QUBO
 
 ## Definition
-QUBO stands for Quadratic Unconstrained Binary Optimization. 
+QUBO stands for _**Q**uadratic **U**nconstrained **B**inary **O**ptimization_. 
 
 So every QUBO model has the following characteristics:
 - Its objective function is at most quadratic
@@ -12,8 +12,8 @@ We can represent a QUBO as follows.
 
 ```math
 \begin{array}{rl}
-   \min        & \mathbf{x}' Q\,\mathbf{x} \\
-   \text{s.t.} & \mathbf{x} \in \mathbb{B}^{n}
+   \min          & \mathbf{x}' Q\,\mathbf{x} \\
+   \mathrm{s.t.} & \mathbf{x} \in \mathbb{B}^{n}
 \end{array}
 ```
 
@@ -25,7 +25,7 @@ With that said, the significant advances in computing systems and algorithms spe
 
 Some of the paradigms that stand out for running QUBOs are quantum gate-based optimization algorithms (QAOA and VQE), quantum annealers and hardware-accelerated platforms (Coherent Ising Machines and Simulated Bifurcation Machines).
 
-![D-Wave Washington 1000Q](../assets/figs/quantum-chip.png)
+![D-Wave Washington 1000Q](../assets/figures/quantum-chip.png)
 
 ```@docs
 ToQUBO.isqubo

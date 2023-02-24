@@ -6,6 +6,6 @@ The latter are advised to read the following sections, as they give a glimpse of
 
 ## Table of Contents
 ```@contents
-Pages = ["2-qubo.md", "3-pbo.md", "4-encoding.md", "5-virtual.md", "6-compiler.md", "7-solvers.md"]
+Pages = ["2-qubo.md", "3-pbo.md", "4-encoding.md", "5-virtual.md", "6-compiler.md", "7-solvers.md", "8-appendix.md"]
 Depth = 2
 ```

@@ -11,7 +11,11 @@ makedocs(;
     doctest = true,
     clean   = true,
     format  = Documenter.HTML(
-        assets           = ["assets/extra_styles.css", "assets/favicon.ico"],
+        assets           = [
+            "assets/extra_styles.css",
+            "assets/favicon.ico",
+            "assets/init.js",
+        ],
         mathengine       = Documenter.KaTeX(),
         sidebar_sitename = false,
     ), 
@@ -37,7 +41,8 @@ makedocs(;
             "Virtual Mapping" => "booklet/5-virtual.md",
             "The Compiler"    => "booklet/6-compiler.md",
             "Solvers"         => "booklet/7-solvers.md",
-        ]
+            "Appendix"        => "booklet/8-appendix.md",
+        ],
     ],
     workdir="."
 )
