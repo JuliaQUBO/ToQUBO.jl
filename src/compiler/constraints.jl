@@ -40,20 +40,29 @@ function toqubo_constraint(
 end
 
 @doc raw"""
-    toqubo_constraint(model::VirtualModel{T}, f::SAF{T}, s::EQ{T}, ::AbstractArchitecture) where {T}
+    toqubo_constraint(
+        model::VirtualModel{T}, 
+        f::SAF{T}, 
+        s::EQ{T}, 
+        ::AbstractArchitecture
+    ) where {T}
 
 Turns constraints of the form
 
 ```math
+
 \begin{array}{rl}
 \text{s.t} & \mathbf{a}'\mathbf{x} - b = 0
 \end{array}
+
 ```
 
 into 
 
 ```math
-\left\Vertg(\mathbf{x})\right\Vert_{\left\lbrace{0}\right\rbrace} = \left(\mathbf{a}'\mathbf{x} - b\right)^{2}
+
+\left\Vert(\mathbf{x})\right\Vert_{\left\lbrace{0}\right\rbrace} = \left(\mathbf{a}'\mathbf{x} - b\right)^{2}
+
 ```
 """
 function toqubo_constraint(
@@ -81,7 +90,12 @@ function toqubo_constraint(
 end
 
 @doc raw"""
-    toqubo_constraint(model::VirtualModel{T}, f::SAF{T}, s::LT{T}, ::AbstractArchitecture) where {T}
+    toqubo_constraint(
+        model::VirtualModel{T}, 
+        f::SAF{T}, 
+        s::LT{T}, 
+        ::AbstractArchitecture
+    ) where {T}
 
 Turns constraints of the form
 
@@ -94,7 +108,8 @@ Turns constraints of the form
 into 
 
 ```math
-\left\Vertg(\mathbf{x})\right\Vert_{\left\lbrace{0}\right\rbrace} = \left(\mathbf{a}'\mathbf{x} - b\right + z)^{2}
+\left\Vert(\mathbf{x})\right\Vert_{\left\lbrace{0}\right\rbrace} = (\mathbf{a}'\mathbf{x} - b + z)^{2}
+
 ```
 
 by adding a slack variable ``z``.
@@ -131,13 +146,37 @@ function toqubo_constraint(
     return g^2
 end
 
+@doc raw"""
+    toqubo_constraint(
+        model::VirtualModel{T},
+        f::SQF{T},
+        s::EQ{T},
+        arch::AbstractArchitecture,
+    ) where {T}
+
+Turns constraints of the form
+
+```math
+\begin{array}{rl}
+\text{s.t} & \mathbf{x}'\mathbf{Q}\mathbf{x} + \mathbf{a}'\mathbf{x} - b = 0
+\end{array}
+```
+
+into
+
+```math
+\left\Vert(\mathbf{x})\right\Vert_{\left\lbrace{0}\right\rbrace} = (\mathbf{x}'\mathbf{Q}\mathbf{x} + \mathbf{a}'\mathbf{x} - b)^{2}
+
+```
+
+"""
 function toqubo_constraint(
     model::VirtualModel{T},
     f::SQF{T},
     s::EQ{T},
     arch::AbstractArchitecture,
 ) where {T}
-    # Scalar Quadratic Equality Constraint: g(x) = x Q x + a x - b = 0
+    # Scalar Quadratic Equality Constraint: g(x) = x' Q x + a' x - b = 0
     g = toqubo_parse(model, f, s, arch)
 
     PBO.discretize!(g)
@@ -158,13 +197,39 @@ function toqubo_constraint(
     return g^2
 end
 
+
+@doc raw"""
+    toqubo_constraint(
+        model::VirtualModel{T},
+        f::SQF{T},
+        s::LT{T},
+        arch::AbstractArchitecture,
+    ) where {T}
+
+Turns constraints of the form
+
+```math
+\begin{array}{rl}
+\text{s.t} & \mathbf{x}'\mathbf{Q}\mathbf{x} + \mathbf{a}'\mathbf{x} - b \leq 0
+\end{array}
+```
+
+into
+
+```math
+\left\Vert(\mathbf{x})\right\Vert_{\left\lbrace{0}\right\rbrace} = (\mathbf{x}'\mathbf{Q}\mathbf{x} + \mathbf{a}'\mathbf{x} - b + z)^{2}
+
+```
+
+by adding a slack variable ``z``.
+"""
 function toqubo_constraint(
     model::VirtualModel{T},
     f::SQF{T},
     s::LT{T},
     arch::AbstractArchitecture,
 ) where {T}
-    # Scalar Quadratic Inequality Constraint: g(x) = x Q x + a x - b ≤ 0
+    # Scalar Quadratic Inequality Constraint: g(x) = x' Q x + a' x - b ≤ 0
     g = toqubo_parse(model, f, s, arch)
     
     PBO.discretize!(g)
@@ -193,6 +258,25 @@ function toqubo_constraint(
     return g^2
 end
 
+@doc raw"""
+    toqubo_constraint(
+        model::VirtualModel{T},
+        x::MOI.VectorOfVariables,
+        ::MOI.SOS1{T},
+        ::AbstractArchitecture,
+    ) where {T}
+
+Turns constraints of the form
+
+```math
+\begin{array}{rl}
+\text{s.t} & \sum{\mathbf{x}} \leq \min \mathbf{x}
+\end{array}
+```
+
+into
+
+"""
 function toqubo_constraint(
     model::VirtualModel{T},
     x::MOI.VectorOfVariables,

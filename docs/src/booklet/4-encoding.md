@@ -39,3 +39,16 @@ ToQUBO.Bounded
 ```
 
 ## Constraint Encoding
+
+As you should already know, a QUBO model is unconstrained. So when `ToQUBO` is reformulating a problem, it needs to encode all constraints into the objective function loosing as little information as possible.
+
+As constraints are introduced into the objective function, we need to make sure that they won't be violated. In order to do that, `ToQUBO` multiplies the encoded constraint by a large penalty $\rho$, so that any violation would result in an infeasible solution to the problem.
+
+Sometimes, moving a constraint to the objective fuction might introduce higher-order terms (degree > 2). If that is the case, `ToQUBO` needs to reduce it back to a quadratic function. 
+
+As of today, `ToQUBO` provides encoding for the following constraints:
+
+```@docs
+ToQUBO.toqubo_constraint
+```
+
