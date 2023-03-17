@@ -5,6 +5,9 @@
 ### Linear Encoding Methods
 ```@docs
 ToQUBO.Mirror
+```
+
+```@docs
 ToQUBO.LinearEncoding
 ToQUBO.Linear
 ToQUBO.Binary
@@ -24,4 +27,8 @@ ToQUBO.DomainWall
 ToQUBO.Bounded
 ```
 
-## Constraint Encoding
+### Constraint Encoding
+
+!!! warning "Work in progress"
+    We hope to write this part of the documentation soon.
+    Please come back later!

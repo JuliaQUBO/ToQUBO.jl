@@ -188,7 +188,7 @@ function encode!(
 end
 
 @doc raw"""
-    Mirror
+    Mirror()
 
 Mirrors binary variable ``x \in \mathbb{B}`` with a twin variable ``y \in \mathbb{B}``.
 """ struct Mirror <: LinearEncoding end
@@ -198,7 +198,7 @@ function encode!(model::VirtualModel{T}, e::Mirror, x::Union{VI,Nothing}) where 
 end
 
 @doc raw"""
-    Linear
+    Linear()
 """ struct Linear <: LinearEncoding end
 
 function encode!(
@@ -219,7 +219,7 @@ end
 Let ``x \in [a, b] \subset \mathbb{Z}, n = b - a, \mathbf{y} \in \mathbb{B}^{n}``.
 
 ```math
-x \approx \xi(\mathbf{y}) = a + \sum_{j = 1}^{b - a} y_{j}
+x = \xi(\mathbf{y}) = a + \sum_{j = 1}^{b - a} y_{j}
 ```
 """ struct Unary <: LinearEncoding end
 
@@ -271,7 +271,7 @@ function encode!(
 end
 
 @doc raw"""
-    Binary
+    Binary()
 
 Binary Expansion within the closed interval ``[\alpha, \beta]``.
 
@@ -338,7 +338,9 @@ function encode!(
 end
 
 @doc raw"""
-    Arithmetic
+    Arithmetic()
+
+
 """ struct Arithmetic <: LinearEncoding end
 
 function encode!(
@@ -476,10 +478,10 @@ end
 A *sequential encoding* is one of the form
 
 ```math
-\xi(\mathbf{y}) = \sum_{i = 1}^{n} \gamma_{i} \left({y_{i + 1} \ast y_{i}}\right)
+\xi(\mathbf{y}) = \sum_{i = 1}^{n} \gamma_{i} \left({y_{i + 1} \circast y_{i}}\right)
 ```
 
-where ``\mathbf{y} \in \mathbb{B}^{n + 1}``.
+where ``\mathbf{y} \in \mathbb{B}^{n + 1}`` and ``\circast`` is a binary operator.
 """ abstract type SequentialEncoding <: Encoding end
 
 function encode!(

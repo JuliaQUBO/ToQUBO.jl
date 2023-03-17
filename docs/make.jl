@@ -14,7 +14,8 @@ makedocs(;
         assets           = [
             "assets/extra_styles.css",
             "assets/favicon.ico",
-            "assets/init.js",
+            asset("https://tikzjax.com/v1/fonts.css"; class = :css),
+            asset("https://tikzjax.com/v1/tikzjax.js"; class = :js),
         ],
         mathengine       = Documenter.KaTeX(),
         sidebar_sitename = false,
