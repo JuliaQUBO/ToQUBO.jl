@@ -396,7 +396,7 @@ end
     OneHot()
 
 The one-hot encoding is a linear technique used to represent a variable
-``x \in \left\lbrace{\gamma_{j}}}\right\rbrace_{j \in \left[n\right]``.
+``x \in \{ \gamma_{j} \}_{j \in [n]}``.
 
 The encoding function is combined with a constraint assuring that only
 one and exactly one of the expansion's variables ``y_{j}`` is activated
