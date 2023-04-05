@@ -2,13 +2,13 @@
 
 ## Solvers, Annealers & Samplers
 [`ToQUBO.jl`](https://github.com/psrenergy/ToQUBO.jl)'s main goal is to make use of parameterized stochastic optimization solvers, particularly those relying on non-conventional hardware such as *Quantum Annealing* and other *Ising Machines*.
-A few `MOI`-compliant interfaces for annealers and samplers are bundled within [`ToQUBO.jl`](https://github.com/psrenergy/ToQUBO.jl) via the [`Anneal.jl`](https://github.com/psrenergy/Anneal.jl) companion package.
+A few `MOI`-compliant interfaces for annealers and samplers are bundled within [`ToQUBO.jl`](https://github.com/psrenergy/ToQUBO.jl) via the [`QUBODrivers.jl`](https://github.com/psrenergy/QUBODrivers.jl) companion package.
 Some of them are presented below.
 
 ## Simulated Annealing
 Provided by D-Wave's open-source code libraries, this [Simulated Annealing](https://en.wikipedia.org/wiki/Simulated_annealing) engine implements some of the features and configurations you would find using the Quantum API.
 Its adoption is recommended for basic usage, tests, and research due to its robustness, simplicity and ease of use.
-The [`DWaveNeal.jl`](https://github.com/psrenergy/DWaveNeal.jl) package uses [`Anneal.jl`](https://github.com/psrenergy/Anneal.jl) to deliver an interface to this sampler.
+The [`DWaveNeal.jl`](https://github.com/psrenergy/DWaveNeal.jl) package uses [`QUBODrivers.jl`](https://github.com/psrenergy/QUBODrivers.jl) to deliver an interface to this sampler.
 
 ## Quantum Annealing
 Interfacing with [D-Wave](https://www.dwavesys.com/)'s quantum annealer is one of the milestones we expect to achieve with this package.
@@ -17,7 +17,7 @@ In a first moment, for those willing to get started, the [`DWaveNeal.jl`](https:
 
 ## Random Sampling
 This sampler is implemented for test purposes and simply assigns 0 or 1 to each variable according to a given probability bias ``0 \le p \le 1``, which defaults to ``p = 0.5``.
-After running the `using Anneal` command, `RandomSampler.Optimizer` will be available.
+After running the `using QUBODrivers` command, `RandomSampler.Optimizer` will be available.
 
 ## Exact Solver (Exhaustive Enumeration)
 Also made to be used in tests, the `ExactSolver.Optimizer` interface runs through all possible state configurations, which implies in an exponential time complexity on the number of variables.
