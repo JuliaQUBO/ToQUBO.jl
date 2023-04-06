@@ -6,7 +6,7 @@ const VI = MOI.VariableIndex
 const CI = MOI.ConstraintIndex
 
 using ToQUBO: ToQUBO, PBO
-using Anneal
+using QUBODrivers
 using LinearAlgebra
 using TOML
 
