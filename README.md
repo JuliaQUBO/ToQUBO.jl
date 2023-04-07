@@ -20,7 +20,7 @@
 </div>
 
 ## Introduction
-ToQUBO.jl is a Julia package to reformulate general optimization problems into [QUBO](https://en.wikipedia.org/wiki/Quadratic_unconstrained_binary_optimization) (Quadratic Unconstrained Binary Optimization) instances. This tool aims to convert a broad range of [JuMP](https://github.com/jump-dev/JuMP.jl) problems for straightforward application in many physics and physics-inspired solution methods whose normal optimization form is equivalent to the QUBO. These methods include quantum annealing, quantum gate-circuit optimization algorithms (Quantum Optimization Alternating Ansatz, Variational Quantum Eigensolver), other hardware-accelerated platforms, such as Coherent Ising Machines and Simulated Bifurcation Machines, and more traditional methods such as simulated annealing. During execution, ToQUBO.jl encodes both discrete and continuous variables, maps constraints, and computes their penalties, performing a few model optimization steps along the process. A simple interface to connect various annealers and samplers as QUBO solvers is defined in [Anneal.jl](https://github.com/psrenergy/Anneal.jl).
+ToQUBO.jl is a Julia package to reformulate general optimization problems into [QUBO](https://en.wikipedia.org/wiki/Quadratic_unconstrained_binary_optimization) (Quadratic Unconstrained Binary Optimization) instances. This tool aims to convert a broad range of [JuMP](https://github.com/jump-dev/JuMP.jl) problems for straightforward application in many physics and physics-inspired solution methods whose normal optimization form is equivalent to the QUBO. These methods include quantum annealing, quantum gate-circuit optimization algorithms (Quantum Optimization Alternating Ansatz, Variational Quantum Eigensolver), other hardware-accelerated platforms, such as Coherent Ising Machines and Simulated Bifurcation Machines, and more traditional methods such as simulated annealing. During execution, ToQUBO.jl encodes both discrete and continuous variables, maps constraints, and computes their penalties, performing a few model optimization steps along the process. A simple interface to connect various annealers and samplers as QUBO solvers is defined in [QUBODrivers.jl](https://github.com/psrenergy/QUBODrivers.jl).
 
 ToQUBO.jl was written as a [MathOptInterface](https://github.com/jump-dev/MathOptInterface.jl) (MOI) layer that automatically maps between input and output models, thus providing a smooth JuMP modeling experience.
 
@@ -42,7 +42,7 @@ julia> Pkg.add("ToQUBO")
 ```julia
 using JuMP
 using ToQUBO
-using Anneal
+using QUBODrivers
 
 model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
 
@@ -153,7 +153,7 @@ If you use `ToQUBO.jl` in your work, we kindly ask you to include the following 
         <img width="200px" src="https://raw.githubusercontent.com/psrenergy/ToQUBO.jl/master/docs/src/assets/logo.svg" alt="ToQUBO.jl" />
     </a>
     <a href="https://github.com/psrenergy/Anneal.jl">
-        <img width="200px" src="https://raw.githubusercontent.com/psrenergy/Anneal.jl/master/docs/src/assets/logo.svg" alt="Anneal.jl" />
+        <img width="200px" src="https://raw.githubusercontent.com/psrenergy/QUBODrivers.jl/master/docs/src/assets/logo.svg" alt="QUBODrivers.jl" />
     </a>
     <a href="https://github.com/psrenergy/QUBOTools.jl">
         <img width="200px" src="https://raw.githubusercontent.com/psrenergy/QUBOTools.jl/main/docs/src/assets/logo.svg" alt="QUBOTools.jl" />
