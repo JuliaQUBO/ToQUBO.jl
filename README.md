@@ -152,7 +152,7 @@ If you use `ToQUBO.jl` in your work, we kindly ask you to include the following 
     <a href="https://github.com/psrenergy/ToQUBO.jl">
         <img width="200px" src="https://raw.githubusercontent.com/psrenergy/ToQUBO.jl/master/docs/src/assets/logo.svg" alt="ToQUBO.jl" />
     </a>
-    <a href="https://github.com/psrenergy/Anneal.jl">
+    <a href="https://github.com/psrenergy/QUBODrivers.jl">
         <img width="200px" src="https://raw.githubusercontent.com/psrenergy/QUBODrivers.jl/master/docs/src/assets/logo.svg" alt="QUBODrivers.jl" />
     </a>
     <a href="https://github.com/psrenergy/QUBOTools.jl">
