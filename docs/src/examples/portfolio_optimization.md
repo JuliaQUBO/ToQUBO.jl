@@ -3,7 +3,7 @@
 In this example, we will be exploring an optimization model for asset distribution where the expected return is maximized while mitigating the financial risk.
 The following approach was inspired by a [JuMP tutorial](https://jump.dev/JuMP.jl/stable/tutorials/nonlinear/portfolio/), where monthly stock prices for three assets are provided, namely `IBM`, `WMT` and `SEHI`.
 
-
+The modelling presented below aggregates the risk measurement ``\mathbf{x}' \Sigma \mathbf{x}`` as a penalty term to the objective function, thus yielding
 
 ```math
 \begin{array}{rll}
@@ -13,7 +13,7 @@ The following approach was inspired by a [JuMP tutorial](https://jump.dev/JuMP.j
 \end{array}
 ```
 
-where ``\mu_{i}`` is the expected return value for each investment ``i``; ``\Sigma`` is the covariance matrix and ``\lambda`` is a penalization factor.
+where ``\mu_{i} = \mathbb{E}[r_{i}]`` is the expected return value for each investment ``i``; ``\Sigma`` is the covariance matrix and ``\lambda`` is the risk-aversion penalty factor.
 
 ## Stock prices
 ```@example portfolio-optimization
