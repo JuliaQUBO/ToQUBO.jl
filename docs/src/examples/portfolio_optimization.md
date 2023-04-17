@@ -4,10 +4,11 @@ In this example, we will be exploring an optimization model for asset distributi
 The following approach was inspired by a [JuMP tutorial](https://jump.dev/JuMP.jl/stable/tutorials/nonlinear/portfolio/), where monthly stock prices for three assets are provided, namely `IBM`, `WMT` and `SEHI`.
 
 
+
 ```math
 \begin{array}{rll}
     \max_{\mathbf{x}} & \mathbf{\mu}'\mathbf{x} - \lambda\, \mathbf{x}' \Sigma \mathbf{x}             \\
-    \textrm{s.t.}     & 0 \leq {x}_{i} \leq 1                                             & \forall i \\
+    \textrm{s.t.}     & 0 \le {x}_{i} \le 1                                               & \forall i \\
                       & \sum_{i} {x}_{i} = 1
 \end{array}
 ```
@@ -85,7 +86,7 @@ end
 ```
 
 ```@example portfolio-optimization
-solve(df, λ) do model
+solve(df) do model
     JuMP.set_silent(model)
     JuMP.set_optimizer_attribute(model, "num_reads", 2_000)
 end
@@ -97,7 +98,7 @@ To finish our discussion, we are going to sketch some graphics to help our reaso
 ```@example portfolio-optimization
 using Plots; pythonplot()
 
-Λ = collect(0.:10.:100.)
+Λ = collect(0.:5.:50.)
 X = Dict{Symbol,Vector{Float64}}(tag => [] for tag in assets)
 
 for λ = Λ
