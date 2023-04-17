@@ -14,10 +14,12 @@ jobs:
       - uses: julia-actions/setup-julia@latest
         with:
           version: '1.6'
+      - name: Develop ToQUBO.jl
+        run: julia --project=docs -e 'using Pkg; Pkg.develop(path=pwd())'
       - uses: julia-actions/julia-buildpkg@latest
         with: 
-            project: "docs/"
+            project: "docs"
       - name: Build and deploy
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # For authentication with GitHub Actions token
-        run: julia --project=docs/ docs/make.jl
+        run: julia --project=docs docs/make.jl
