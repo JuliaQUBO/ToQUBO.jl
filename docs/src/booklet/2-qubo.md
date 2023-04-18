@@ -38,7 +38,7 @@ with strictly upper triangular ``J \in \mathbb{R}^{n \times n}`` and ``\mathbf{h
 
 [![D-Wave Washington 1000Q](../assets/figures/quantum-chip.png)](https://commons.wikimedia.org/wiki/File:D-Wave-Washington-1000Q.jpg)
 
-The Ising reformulation alternative draws the bridge between QUBO problems and hardware solvers which aim to find the absolute or approximate ground states of the Ising model[^Mohseni2022].
+The Ising reformulation alternative draws the bridge between QUBO problems and devices designed to sample global or approximate ground states of the Ising Hamiltonian with high probability[^Mohseni2022].
 Some of the paradigms that stand out in this context are quantum gate-based optimization algorithms (QAOA and VQE), quantum annealers, hardware-accelerated platforms (Coherent Ising Machines and Simulated Bifurcation Machines) and physics-inspired methods (Simulated Annealing, Parallel Tempering).
 The significant advances in these computing systems contributed to the growing popularity of the model across the literature.
 
