@@ -216,12 +216,31 @@ end
 @doc raw"""
     Unary()
 
+## Integer
 Let ``x \in [a, b] \subset \mathbb{Z}, n = b - a, \mathbf{y} \in \mathbb{B}^{n}``.
 
 ```math
-x = \xi(\mathbf{y}) = a + \sum_{j = 1}^{b - a} y_{j}
+\xi{[a, b]}(\mathbf{y}) = a + \sum_{j = 1}^{b - a} y_{j}
 ```
-""" struct Unary <: LinearEncoding end
+
+## Real
+Given ``n \in \mathbb{N}`` for ``x \in [a, b] \subset \mathbb{R}``,
+
+```math
+\xi{[a, b]}(\mathbf{y}) = a + \frac{b - a}{n} \sum_{j = 1}^{n} y_{j}
+```
+
+### Encoding error
+Given ``\tau > 0``, for the expected encoding error to be less than or equal to ``\tau``, at least
+
+```math
+n \ge 1 + \frac{b - a}{4 \tau}
+```
+
+binary variables become necessary.
+
+"""
+struct Unary <: LinearEncoding end
 
 function encode!(
     model::VirtualModel{T},
@@ -273,15 +292,28 @@ end
 @doc raw"""
     Binary()
 
-Binary Expansion within the closed interval ``[\alpha, \beta]``.
+## Integer
+Let ``x \in [a, b] \subset \mathbb{Z}``, ``n = \left\lceil \log_{2}(b - a) + 1 \right\rceil``, ``\mathbf{y} \in \mathbb{B}^{n}``.
 
-For a given variable ``x \in [\alpha, \beta]`` we approximate it by
-
-```math    
-x \approx \alpha + \frac{(\beta - \alpha)}{2^{n} - 1} \sum_{i=0}^{n-1} {2^{i}\, y_i}
+```math
+\xi{[a, b]}(\mathbf{y}) = a + \left(b - a - 2^{n - 1} + 1\right) y_{n} + \sum_{j = 1}^{n - 1} 2^{j - 1} y_{j}
 ```
 
-where ``n`` is the number of bits and ``y_i \in \mathbb{B}``.
+## Real
+Given ``n \in \mathbb{N}`` for ``x \in [a, b] \subset \mathbb{R}``,
+
+```math
+\xi{[a, b]}(\mathbf{y}) = a + \frac{b - a}{2^{n} - 1} \sum_{j = 1}^{n} 2^{j - 1} y_{j}
+```
+
+### Encoding error
+Given ``\tau > 0``, for the expected encoding error to be less than or equal to ``\tau``, at least
+
+```math
+n \ge \log_{2} \left[1 + \frac{b - a}{4 \tau}\right]
+```
+
+binary variables become necessary.
 """ struct Binary <: LinearEncoding end
 
 function encode!(
