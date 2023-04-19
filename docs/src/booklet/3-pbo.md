@@ -30,6 +30,12 @@ ToQUBO.PBO.quadratize!
 
 Currently, `ToQUBO` has two reduction algorithms, one for negative and another for positive terms.
 
+For these quadratization techniques, we have introduced a flag `StableQuadratization()`.
+
+```@docs
+ToQUBO.Attributes.StableQuadratization
+```
+
 ```@docs
 ToQUBO.PBO.NTR_KZFD
 ToQUBO.PBO.PTR_BG

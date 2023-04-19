@@ -340,7 +340,13 @@ end
 @doc raw"""
     Arithmetic()
 
+Let ``x \in [a, b] \subset \mathbb{Z}, n = b - a, \mathbf{y} \in \mathbb{B}^{n}``.
 
+```math
+x = \xi(\mathbf{y}) = a + \sum_{i = 1}^{N - 1} i\,y_{i} + \left({ n - \frac{N\,(N - 1)}{2}}\right)\,y_{N}
+```
+
+Where ``N = \left\lceil{ \frac{1}{2} {\sqrt{1 + 8 n}} - \frac{1}{2} }\right\rceil`` is the number of bits.
 """ struct Arithmetic <: LinearEncoding end
 
 function encode!(
