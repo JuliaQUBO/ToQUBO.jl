@@ -25,10 +25,13 @@ aux(::Integer)::Vector{S}
 
 Negative Term Reduction NTR-KZFD (Kolmogorov & Zabih, 2004; Freedman & Drineas, 2005)
 
+Let ``f(\mathbf{x}) = x_{1} x_{2} \dots x_{k}``.
+
 ```math
-f(x_{1}, \dots, x_{k}) = - x_{1} \cdots x_{k} \to
-\mathcal{Q}\left\lbrace{f}\right\rbrace(x_{1}, \dots, x_{k}; z) = (k - 1) z - \sum_{i = 1}^{k} x_{i} z
+\mathcal{Q}\left\lbrace{f}\right\rbrace(\mathbf{x}; z) = (k - 1) z - \sum_{i = 1}^{k} x_{i} z
 ```
+
+where ``\mathbf{x} \in \mathbb{B}^k``
 
 !!! info
     Introduces a new variable ``z`` and no non-submodular terms.
@@ -70,12 +73,14 @@ end
 
 Positive Term Reduction PTR-BG (Boros & Gruber, 2014)
 
+Let ``f(\mathbf{x}) = x_{1} x_{2} \dots x_{k}``.
+
 ```math
-f(x_{1}, \dots, x_{k}) = x_{1} x_{2} \dots x_{k} \to
-\mathcal{Q}\left\lbrace{f}\right\rbrace(x_{1}, \dots, x_{k}; z_{1}, \dots, z_{k-2} ) = \left[{
+\mathcal{Q}\left\lbrace{f}\right\rbrace(\mathbf{x}; \mathbf{z}) = \left[{
     \sum_{i = 1}^{k-2} z_{i} \left({ k - i - 1 + x_{i} + \sum_{j = i+1}^{k} x_{j} }\right)
 }\right] + x_{k-1} x_{k}
 ```
+where ``\mathbf{x} \in \mathbb{B}^k`` and ``\mathbf{z} \in \mathbb{B}^{k-2}``
 
 !!! info
     Introduces ``k - 2`` new variables ``z_{1}, \dots, z_{k-2}`` and ``k - 1`` non-submodular terms.

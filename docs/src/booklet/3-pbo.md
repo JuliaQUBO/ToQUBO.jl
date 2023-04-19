@@ -30,16 +30,19 @@ ToQUBO.PBO.quadratize!
 
 Currently, `ToQUBO` has two reduction algorithms, one for negative and another for positive terms.
 
-For these quadratization techniques, we have introduced a flag `StableQuadratization()`.
-
-```@docs
-ToQUBO.Attributes.StableQuadratization
-```
-
 ```@docs
 ToQUBO.PBO.NTR_KZFD
 ToQUBO.PBO.PTR_BG
 ```
+
+### Stable Quadratization
+
+The quadratization of a PBF does not guarantee that the resulting function will always be the same, as the order of terms can be different each time. This can be an issue in some situations where a deterministic output is required.
+
+With said that, we have introduced the concept of Stable Quadratization, where the terms of the PBF are sorted, guaranteeing that the resulting PBF will be the same every time.
+We have defined it as an attribute of the compiler, with the  [`ToQUBO.Attributes.StableQuadratization`](@ref) flag.
+
+
 
 ### A Primer on Submodularity
 A set function ``f : 2^{S} \to \mathbb{R}`` is said to be submodular if

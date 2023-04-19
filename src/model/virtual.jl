@@ -484,10 +484,10 @@ end
 A *sequential encoding* is one of the form
 
 ```math
-\xi(\mathbf{y}) = \sum_{i = 1}^{n} \gamma_{i} \left({y_{i + 1} \circast y_{i}}\right)
+\xi(\mathbf{y}) = \sum_{i = 1}^{n} \gamma_{i} \left({y_{i + 1} \ast y_{i}}\right)
 ```
 
-where ``\mathbf{y} \in \mathbb{B}^{n + 1}`` and ``\circast`` is a binary operator.
+where ``\mathbf{y} \in \mathbb{B}^{n + 1}`` and ``\ast`` is a binary operator.
 """ abstract type SequentialEncoding <: Encoding end
 
 function encode!(
