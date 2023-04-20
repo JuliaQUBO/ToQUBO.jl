@@ -265,17 +265,6 @@ end
         ::MOI.SOS1{T},
         ::AbstractArchitecture,
     ) where {T}
-
-Turns constraints of the form
-
-```math
-\begin{array}{rl}
-\text{s.t} & \sum{\mathbf{x}} \leq \min \mathbf{x}
-\end{array}
-```
-
-into
-
 """
 function toqubo_constraint(
     model::VirtualModel{T},

@@ -18,11 +18,10 @@ Also, they differ in the magnitude of their coefficients ``\Delta``.
 | Bounded-Coefficient   |    ``O(n)``        |    ``O(n)``      |       -             | ``O(1)``         |
 | Arithmetic Prog       |  ``O(\sqrt{n})``   |  ``O(\sqrt{n})`` |       -             | ``O(\sqrt{n})``  |
 
-
 ### Linear Encoding
 ```@docs
-ToQUBO.Binary
 ToQUBO.Unary
+ToQUBO.Binary
 ToQUBO.Arithmetic
 ToQUBO.OneHot
 ```
@@ -40,6 +39,32 @@ ToQUBO.DomainWall
 ```@docs
 ToQUBO.Bounded
 ```
+
+### Encoding Error
+Let ``\set{x_{i}}_{i \in [k]}`` be the collection of ``k`` evenly spaced samples from the discretization of an interval ``[a, b] \subseteq \mathbb{R}``.
+
+The representation error for a given point ``x`` with respect to ``\set{x_{i}}_{i \in [k]}`` is
+
+```math
+e_{k}(x) = \min_{i \in [k]} \left|x - x_{i}\right|
+```
+
+Assuming that ``x`` behaves as a uniformly distributed random variable, the expected absolute encoding error is
+
+```math
+\begin{align*}
+\mathbb{E}\left[{e_{k}(x)}\right] &= \frac{1}{b - a} \int_{a}^{b} e_{k}(x) ~\mathrm{d}x \\
+                              &= \frac{1}{4} \frac{b - a}{k - 1}
+\end{align*}
+```
+
+Thus, for encoding methods that rely on the regular division of an interval, it is possible to define the number of samples ``k`` necessary to limit the expected error according to an upper bound ``\tau``, that is,
+
+```math
+\mathbb{E}\left[{e_{k}(x)}\right] \le \tau \implies k \ge 1 + \frac{b - a}{4 \tau}
+```
+
+This allows the compiler to automatically infer the number of bits to allocate for an encoded variable given the tolerance factor.
 
 ## Constraints
 

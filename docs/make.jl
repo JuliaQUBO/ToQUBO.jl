@@ -11,14 +11,20 @@ makedocs(;
     doctest = true,
     clean   = true,
     format  = Documenter.HTML(
+        sidebar_sitename = false,
+        mathengine       = Documenter.KaTeX(
+            Dict(
+                :macros => Dict(
+                    raw"\set" => raw"\left\lbrace{#1}\right\rbrace"
+                )
+            )
+        ),
         assets           = [
             "assets/extra_styles.css",
             "assets/favicon.ico",
             asset("https://tikzjax.com/v1/fonts.css"; class = :css),
             asset("https://tikzjax.com/v1/tikzjax.js"; class = :js),
         ],
-        mathengine       = Documenter.KaTeX(),
-        sidebar_sitename = false,
     ), 
     sitename = "ToQUBO.jl",
     authors  = "Pedro Maciel Xavier and Pedro Ripper and Tiago Andrade and Joaquim Dias Garcia and David E. Bernal Neira",
