@@ -25,7 +25,7 @@ using ToQUBO
 using DWaveNeal
 
 function factor(R::Integer; optimizer = DWaveNeal.Optimizer)
-    return factor(identity, R; optimizer = optimizer)
+    return factor(identity, R; optimizer)
 end
 
 function factor(config!::Function, R::Integer; optimizer = DWaveNeal.Optimizer)

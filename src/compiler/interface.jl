@@ -54,11 +54,12 @@ Copies `MOI.ObjectiveSense` from `model.source_model` to `model.target_model`.
     toqubo_constraints!(model::VirtualModel, ::AbstractArchitecture)
 """ function toqubo_constraints! end
 
-@doc raw"""
-    toqubo_constraint
+# """
+#     toqubo_constraint
 
-Returns the pseudo-boolean function associated to a given constraint from the source model.
-""" function toqubo_constraint end
+# Returns the pseudo-boolean function associated to a given constraint from the source model.
+# """ 
+function toqubo_constraint end
 
 @doc raw"""
     toqubo_parse!(
@@ -81,6 +82,13 @@ Parses the given MOI function `f` into PBF `g`.
 @doc raw"""
     toqubo_build!(model::VirtualModel, ::AbstractArchitecture)
 """ function toqubo_build! end
+
+@doc raw"""
+    toqubo_quadratize!(model::VirtualModel, arch::AbstractArchitecture)
+
+Quadratizes the objective function from a model
+
+""" function toqubo_quadratize! end
 
 @doc raw"""
     toqubo_empty!(model::VirtualModel, ::AbstractArchitecture)

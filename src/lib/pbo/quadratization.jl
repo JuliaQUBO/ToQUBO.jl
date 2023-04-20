@@ -12,7 +12,7 @@ end
 @doc raw"""
     quadratize!(aux::Function, f::PBF{S, T}, ::Quadratization{Q}) where {S,T,Q}
 
-Quadratizes a given PBF in-place, i.e. applies a mapping ``Q : \mathscr{F}^{k} \to \mathscr{F}^{2}``.
+Quadratizes a given PBF in-place, i.e. applies a mapping ``\mathcal{Q} : \mathscr{F}^{k} \to \mathscr{F}^{2}``, where ``\mathcal{Q}`` is the quadratization method.
 
 ```julia
 aux(::Nothing)::S
@@ -23,10 +23,18 @@ aux(::Integer)::Vector{S}
 @doc raw"""
     Quadratization{NTR_KZFD}(stable::Bool = false)
 
-NTR-KZFD (Kolmogorov & Zabih, 2004; Freedman & Drineas, 2005)
+Negative Term Reduction NTR-KZFD (Kolmogorov & Zabih, 2004; Freedman & Drineas, 2005)
+
+Let ``f(\mathbf{x}) = x_{1} x_{2} \dots x_{k}``.
+
+```math
+\mathcal{Q}\left\lbrace{f}\right\rbrace(\mathbf{x}; z) = (k - 1) z - \sum_{i = 1}^{k} x_{i} z
+```
+
+where ``\mathbf{x} \in \mathbb{B}^k``
 
 !!! info
-    Introduces one new variable and no non-submodular terms.
+    Introduces a new variable ``z`` and no non-submodular terms.
 """ struct NTR_KZFD <: QuadratizationMethod end
 
 function quadratize!(
@@ -63,10 +71,19 @@ end
 @doc raw"""
     Quadratization{PTR_BG}(stable::Bool = false)
 
-PTR-BG (Boros & Gruber, 2014)
+Positive Term Reduction PTR-BG (Boros & Gruber, 2014)
+
+Let ``f(\mathbf{x}) = x_{1} x_{2} \dots x_{k}``.
+
+```math
+\mathcal{Q}\left\lbrace{f}\right\rbrace(\mathbf{x}; \mathbf{z}) = \left[{
+    \sum_{i = 1}^{k-2} z_{i} \left({ k - i - 1 + x_{i} + \sum_{j = i+1}^{k} x_{j} }\right)
+}\right] + x_{k-1} x_{k}
+```
+where ``\mathbf{x} \in \mathbb{B}^k`` and ``\mathbf{z} \in \mathbb{B}^{k-2}``
 
 !!! info
-    Introduces ``k - 2`` new variables and ``k - 1`` non-submodular terms.
+    Introduces ``k - 2`` new variables ``z_{1}, \dots, z_{k-2}`` and ``k - 1`` non-submodular terms.
 """ struct PTR_BG <: QuadratizationMethod end
 
 function quadratize!(
@@ -129,6 +146,11 @@ function quadratize!(
     return nothing
 end
 
+@doc raw"""
+    quadratize!(aux::Function, f::PBF{S,T}, quad::Quadratization{TERM_BY_TERM}) where {S,T}
+
+    Receives a higher-degree pseudo-Boolean function 
+"""
 function quadratize!(
     aux::Function,
     f::PBF{S,T},
@@ -154,6 +176,8 @@ end
 
 @doc raw"""
     infer_quadratization(f::PBF)
+
+For a given PBF, returns whether it should be quadratized or not, based on its degree.
 """
 function infer_quadratization(f::PBF, stable::Bool = false)
     k = degree(f)

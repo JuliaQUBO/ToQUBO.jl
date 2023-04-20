@@ -28,10 +28,7 @@ ToQUBO.jl was written as a [MathOptInterface](https://github.com/jump-dev/MathOp
 
 ### Installation
 ToQUBO is available via Julia's Pkg:
-```julia
-julia> ]add ToQUBO
-```
-or
+
 ```julia
 julia> using Pkg
 
@@ -53,9 +50,10 @@ model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
 optimize!(model)
 
 for i = 1:result_count(model)
-    xᵢ = value.(x, result = i)
-    yᵢ = objective_value(model, result = i)
-    println("f($xᵢ) = $yᵢ")
+    xi = value.(x, result = i)
+    yi = objective_value(model, result = i)
+
+    println("f($xi) = $yi")
 end
 ```
 
@@ -135,15 +133,15 @@ If you think this list is incomplete, consider creating an [Issue](https://githu
 ## Citing ToQUBO.jl
 If you use `ToQUBO.jl` in your work, we kindly ask you to include the following citation:
 ```tex
-@software{toqubo:2022,
-  author       = {Pedro Xavier and Tiago Andrade and Joaquim Garcia and David Bernal},
+@software{toqubo:2023,
+  author       = {Pedro Maciel Xavier and Pedro Ripper and Tiago Andrade and Joaquim Dias Garcia and David E. Bernal Neira},
   title        = {{ToQUBO.jl}},
-  month        = {mar},
-  year         = {2022},
+  month        = {feb},
+  year         = {2023},
   publisher    = {Zenodo},
-  version      = {v0.1.0},
-  doi          = {10.5281/zenodo.6387592},
-  url          = {https://doi.org/10.5281/zenodo.6387592}
+  version      = {v0.1.5},
+  doi          = {10.5281/zenodo.7644291},
+  url          = {https://doi.org/10.5281/zenodo.7644291}
 }
 ```
 

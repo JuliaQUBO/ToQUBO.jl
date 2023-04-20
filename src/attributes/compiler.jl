@@ -1,6 +1,15 @@
 module Attributes
 
-import ..ToQUBO
+import ..ToQUBO:
+    ToQUBO,
+    Unary,
+    Binary,
+    Arithmetic,
+    OneHot,
+    DomainWall,
+    Bounded,
+    GenericArchitecture
+
 import MathOptInterface as MOI
 const MOIU = MOI.Utilities
 const VI = MOI.VariableIndex
@@ -26,6 +35,9 @@ export
 
 @doc raw"""
     Architecture()
+
+Selects which solver architecture to use.
+Defaults to [`GenericArchitecture`](@ref).
 """ struct Architecture <: CompilerAttribute end
 
 function MOI.get(model::ToQUBO.VirtualModel, ::Architecture)::ToQUBO.AbstractArchitecture
@@ -75,7 +87,7 @@ end
     QuadratizationMethod()
 
 Defines which quadratization method to use.
-Available options are defined in the [`PBO`](@ref) submodule.
+Available options are defined in the `PBO` submodule.
 """ struct QuadratizationMethod <: CompilerAttribute end
 
 function MOI.get(model::ToQUBO.VirtualModel, ::QuadratizationMethod)
@@ -112,6 +124,8 @@ end
 
 @doc raw"""
     DefaultVariableEncodingMethod()
+
+Fallback value for [`VariableEncodingMethod`](@ref).
 """ struct DefaultVariableEncodingMethod <: CompilerAttribute end
 
 function MOI.get(model::ToQUBO.VirtualModel, ::DefaultVariableEncodingMethod)::ToQUBO.Encoding
@@ -126,6 +140,8 @@ end
 
 @doc raw"""
     DefaultVariableEncodingATol()
+
+Fallback value for [`VariableEncodingATol`](@ref).
 """ struct DefaultVariableEncodingATol <: CompilerAttribute end
 
 function MOI.get(model::ToQUBO.VirtualModel{T}, ::DefaultVariableEncodingATol)::T where {T}
@@ -293,7 +309,7 @@ end
 MOI.is_set_by_optimize(::ConstraintEncodingPenalty) = true
 
 @doc raw"""
-    QUBONormalForm
+    QUBONormalForm()
 """ struct QUBONormalForm <: CompilerAttribute end
 
 function MOI.get(

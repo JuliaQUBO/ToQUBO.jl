@@ -9,7 +9,8 @@ Maps newly created virtual variable `v` within the virtual model structure. It f
  1. Maps `v`'s source to it in the model's `source` mapping.
  2. For every one of `v`'s targets, maps it to itself and adds a binary constraint to it.
  2. Adds `v` to the end of the model's `varvec`.  
-""" function encode! end
+"""
+function encode! end
 
 @doc raw"""
 # Variable Expansion methods:
@@ -157,7 +158,8 @@ Every linear encoding ``\xi`` is of the form
 \xi(\mathbf{y}) = \alpha + \sum_{i = 1}^{n} \gamma_{i} y_{i}
 ```
 
-""" abstract type LinearEncoding <: Encoding end
+"""
+abstract type LinearEncoding <: Encoding end
 
 function VirtualVariable{T}(
     e::LinearEncoding,
@@ -188,18 +190,20 @@ function encode!(
 end
 
 @doc raw"""
-    Mirror
+    Mirror()
 
 Mirrors binary variable ``x \in \mathbb{B}`` with a twin variable ``y \in \mathbb{B}``.
-""" struct Mirror <: LinearEncoding end
+"""
+struct Mirror <: LinearEncoding end
 
 function encode!(model::VirtualModel{T}, e::Mirror, x::Union{VI,Nothing}) where {T}
     return encode!(model, e, x, ones(T, 1))
 end
 
 @doc raw"""
-    Linear
-""" struct Linear <: LinearEncoding end
+    Linear()
+"""
+struct Linear <: LinearEncoding end
 
 function encode!(
     model::VirtualModel{T},
@@ -216,12 +220,31 @@ end
 @doc raw"""
     Unary()
 
-Let ``x \in [a, b] \subset \mathbb{Z}, n = b - a, \mathbf{y} \in \mathbb{B}^{n}``.
+## Integer
+Let ``x \in [a, b] \subset \mathbb{Z}``, ``n = b - a`` and ``\mathbf{y} \in \mathbb{B}^{n}``.
 
 ```math
-x \approx \xi(\mathbf{y}) = a + \sum_{j = 1}^{b - a} y_{j}
+\xi{[a, b]}(\mathbf{y}) = a + \sum_{j = 1}^{b - a} y_{j}
 ```
-""" struct Unary <: LinearEncoding end
+
+## Real
+Given ``n \in \mathbb{N}`` for ``x \in [a, b] \subset \mathbb{R}``,
+
+```math
+\xi{[a, b]}(\mathbf{y}) = a + \frac{b - a}{n} \sum_{j = 1}^{n} y_{j}
+```
+
+### Encoding error
+Given ``\tau > 0``, for the expected encoding error to be less than or equal to ``\tau``, at least
+
+```math
+n \ge 1 + \frac{b - a}{4 \tau}
+```
+
+binary variables become necessary.
+
+"""
+struct Unary <: LinearEncoding end
 
 function encode!(
     model::VirtualModel{T},
@@ -271,18 +294,32 @@ function encode!(
 end
 
 @doc raw"""
-    Binary
+    Binary()
 
-Binary Expansion within the closed interval ``[\alpha, \beta]``.
+## Integer
+Let ``x \in [a, b] \subset \mathbb{Z}``, ``n = \left\lceil \log_{2}(b - a) + 1 \right\rceil`` and ``\mathbf{y} \in \mathbb{B}^{n}``.
 
-For a given variable ``x \in [\alpha, \beta]`` we approximate it by
-
-```math    
-x \approx \alpha + \frac{(\beta - \alpha)}{2^{n} - 1} \sum_{i=0}^{n-1} {2^{i}\, y_i}
+```math
+\xi{[a, b]}(\mathbf{y}) = a + \left(b - a - 2^{n - 1} + 1\right) y_{n} + \sum_{j = 1}^{n - 1} 2^{j - 1} y_{j}
 ```
 
-where ``n`` is the number of bits and ``y_i \in \mathbb{B}``.
-""" struct Binary <: LinearEncoding end
+## Real
+Given ``n \in \mathbb{N}`` for ``x \in [a, b] \subset \mathbb{R}``,
+
+```math
+\xi{[a, b]}(\mathbf{y}) = a + \frac{b - a}{2^{n} - 1} \sum_{j = 1}^{n} 2^{j - 1} y_{j}
+```
+
+### Encoding error
+Given ``\tau > 0``, for the expected encoding error to be less than or equal to ``\tau``, at least
+
+```math
+n \ge \log_{2} \left[1 + \frac{b - a}{4 \tau}\right]
+```
+
+binary variables become necessary.
+"""
+struct Binary <: LinearEncoding end
 
 function encode!(
     model::VirtualModel{T},
@@ -338,8 +375,31 @@ function encode!(
 end
 
 @doc raw"""
-    Arithmetic
-""" struct Arithmetic <: LinearEncoding end
+    Arithmetic()
+
+## Integer
+Let ``x \in [a, b] \subset \mathbb{Z}``, ``n = \left\lceil{ \frac{1}{2} {\sqrt{1 + 8 (b - a)}} - \frac{1}{2} }\right\rceil`` and ``\mathbf{y} \in \mathbb{B}^{n}``.
+
+```math
+\xi{[a, b]}(\mathbf{y}) = a + \left( {b - a - \frac{n (n - 1)}{2}} \right) y_{n} + \sum_{j = 1}^{n - 1} j y_{j}
+```
+
+## Real
+Given ``n \in \mathbb{N}`` for ``x \in [a, b] \subset \mathbb{R}``,
+
+```math
+\xi{[a, b]}(\mathbf{y}) = a + \frac{b - a}{n (n + 1)} \sum_{j = 1}^{n} j y_{j}
+```
+
+### Encoding error
+Given ``\tau > 0``, for the expected encoding error to be less than or equal to ``\tau``, at least
+
+```math
+n \ge \frac{1}{2} \left[ 1 + \sqrt{3 + \frac{(b - a)}{2 \tau})} \right]
+```
+
+"""
+struct Arithmetic <: LinearEncoding end
 
 function encode!(
     model::VirtualModel{T},
@@ -393,21 +453,24 @@ end
 @doc raw"""
     OneHot()
 
-The one-hot encoding is a linear technique used to represent a variable
-``x \in \left\lbrace{\gamma_{j}}}\right\rbrace_{j \in \left[n\right]``.
+The one-hot encoding is a linear technique used to represent a variable ``x \in \set{\gamma_{j}}_{j \in [n]}``.
 
-The encoding function is combined with a constraint assuring that only
-one and exactly one of the expansion's variables ``y_{j}`` is activated
-at a time.
+The associated encoding function is combined with a constraint assuring that only one and exactly one of the expansion's variables ``y_{j}`` is activated at a time.
 
 ```math
-\begin{array}{rl}
-x = \xi(\mathbf{y}) = &  \sum_{j = 1}^{n} \gamma_{j} y_{j} \\
-        \mathrm{s.t.} & \sum_{j = 1}^{n} y_{j} = 1
-\end{array}
+\xi[\set{\gamma_{j}}_{j \in [n]}](\mathbf{y}) = \sum_{j = 1}^{n} \gamma_{j} y_{j} ~\textrm{s.t.}~ \sum_{j = 1}^{n} y_{j} = 1
 ```
 
-""" struct OneHot <: LinearEncoding end
+When a variable is encoded following this approach, a penalty term of the form
+
+```math
+\rho \left[ \sum_{j = 1}^{n} y_{j} - 1 \right]^{2}
+```
+
+is added to the objective function.
+
+"""
+struct OneHot <: LinearEncoding end
 
 function VirtualVariable{T}(
     e::OneHot,
@@ -470,6 +533,17 @@ function encode!(
     return encode!(model, e, x, a, b, n)
 end
 
+@doc raw"""
+    SequentialEncoding
+
+A *sequential encoding* is one of the form
+
+```math
+\xi[\set{\gamma_{j}}_{j \in [n]}](\mathbf{y}) = \sum_{j = 1}^{n} \gamma_{j} \left({y_{j + 1} \ast y_{j}}\right)
+```
+
+where ``\mathbf{y} \in \mathbb{B}^{n + 1}`` and ``\ast`` is a binary operator.
+"""
 abstract type SequentialEncoding <: Encoding end
 
 function encode!(
@@ -489,17 +563,18 @@ end
 @doc raw"""
     DomainWall()
 
-The Domain Wall[^Chancellor2019] encoding method is a sequential approach that requires only
-``n - 1`` bits to represent ``n`` distinct values.
+The Domain Wall[^Chancellor2019] encoding method is a sequential approach that requires ``n - 1`` bits to represent ``n`` distinct values.
 
-!!! table "Encoding Analysis"
-    |             | bits      | linear | quadratic | ``\Delta`` |
-    | :-:         | :--:      | :----: | :-------: | :--------: |
-    | Domain Wall | ``n - 1`` | ``n``  |           | ``O(n)``   |
+```math
+\xi{[\set{\gamma_{j}}_{j \in [n]}]}(\mathbf{y}) = \sum_{j = 1}^{n} \gamma_{j} (y_{j} - y_{j + 1}) ~\textrm{s.t.}~ \sum_{j = 1}^{n} y_{j} \oplus y_{j + 1} = 1, y_{1} = 1, y_{n + 1} = 0
+```
+
+where ``\mathbf{y} \in \mathbb{B}^{n + 1}``.
 
 [^Chancellor2019]:
     Nicholas Chancellor, **Domain wall encoding of discrete variables for quantum annealing and QAOA**, *Quantum Science Technology 4*, 2019.
-""" struct DomainWall <: SequentialEncoding end
+"""
+struct DomainWall <: SequentialEncoding end
 
 function VirtualVariable{T}(
     e::DomainWall,
@@ -551,9 +626,22 @@ function encode!(
 end
 
 @doc raw"""
+    Bounded{E,T}(μ::T) where {E<:Encoding,T}
+
+The bounded-coefficient encoding method[^Karimi2019] consists in limiting the magnitude of the coefficients in the encoding expansion to a parameter ``\mu``.
+
+[^Karimi2019]:
+    Karimi, S. & Ronagh, P. **Practical integer-to-binary mapping for quantum annealers**. *Quantum Inf Process 18, 94* (2019). [{doi}](https://doi.org/10.1007/s11128-019-2213-x)
+
+This can be applied to the [`Unary`](@ref), [`Binary`](@ref) and [`Arithmetic`](@ref) encoding schemas, as discussed below.
+
+    Bounded{Unary,T}(μ::T) where {T}
+
+Given ``\mu > 0``, let ``x \in [a, b] \subset \mathbb{Z}`` and ``n = b - a``.
+
     Bounded{Binary,T}(μ::T) where {T}
 
-Let ``x \in [a, b] \subset \mathbb{Z}`` and ``n = b - a``.
+Given ``\mu > 0``, let ``x \in [a, b] \subset \mathbb{Z}`` and ``n = b - a``.
 
 First,
 
@@ -582,6 +670,15 @@ and
 \epsilon = n - 2^{k} + 1 - r \times \mu
 ```
 
+Therefore,
+
+```math
+\xi_{\mu}{[a, b]}(\mathbf{y}) = \sum_{j = 1} \gamma_{j} y_{j}
+```
+
+where
+
+```math
 \gamma_{j} = \left\lbrace\begin{array}{cl}
     2^{j} & \text{if } 1 \le j \le k   \\
     \mu   & \text{if } k < j < r + k   \\
@@ -589,10 +686,8 @@ and
 \end{array}\right.
 ```
 
-    Bounded{Unary,T}(μ::T) where {T}
-
-
-""" struct Bounded{E<:LinearEncoding,T} <: LinearEncoding
+"""
+struct Bounded{E<:LinearEncoding,T} <: LinearEncoding
     μ::T
 
     function Bounded{E,T}(μ::T) where {E,T}
