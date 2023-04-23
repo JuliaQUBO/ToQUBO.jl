@@ -1,4 +1,5 @@
 using Documenter
+using DocumenterDiagrams
 using ToQUBO
 
 # Set up to run docstrings with jldoctest
@@ -22,8 +23,6 @@ makedocs(;
         assets           = [
             "assets/extra_styles.css",
             "assets/favicon.ico",
-            asset("https://tikzjax.com/v1/fonts.css"; class = :css),
-            asset("https://tikzjax.com/v1/tikzjax.js"; class = :js),
         ],
     ), 
     sitename = "ToQUBO.jl",
