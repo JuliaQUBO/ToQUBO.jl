@@ -7,12 +7,12 @@
 ## Compilation Steps
 
 ```@docs
-ToQUBO.toqubo_sense!
-ToQUBO.toqubo_variables!
-ToQUBO.toqubo_constraint
-ToQUBO.toqubo_constraints!
-ToQUBO.toqubo_objective!
-ToQUBO.toqubo_penalties!
-ToQUBO.toqubo_parse!
-ToQUBO.toqubo_build!
+ToQUBO.Compiler.sense!
+ToQUBO.Compiler.variables!
+ToQUBO.Compiler.constraint
+ToQUBO.Compiler.constraints!
+ToQUBO.Compiler.objective!
+ToQUBO.Compiler.penalties!
+ToQUBO.Compiler.parse!
+ToQUBO.Compiler.build!
 ```

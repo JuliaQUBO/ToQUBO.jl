@@ -1,17 +1,17 @@
-function toqubo_build!(model::VirtualModel{T}, arch::AbstractArchitecture) where {T}
+function build!(model::VirtualModel{T}, arch::AbstractArchitecture) where {T}
     #  Assemble Objective Function 
-    toqubo_hamiltonian!(model, arch)
+    hamiltonian!(model, arch)
 
     #  Quadratization Step 
-    toqubo_quadratize!(model, arch)
+    quadratize!(model, arch)
 
     #  Write to MathOptInterface 
-    toqubo_output!(model, arch)
+    output!(model, arch)
 
     return nothing
 end
 
-function toqubo_hamiltonian!(model::VirtualModel{T}, ::AbstractArchitecture) where {T}
+function hamiltonian!(model::VirtualModel{T}, ::AbstractArchitecture) where {T}
     empty!(model.H)
 
     # Calculate an upper bound on the number of terms
@@ -42,7 +42,7 @@ function toqubo_hamiltonian!(model::VirtualModel{T}, ::AbstractArchitecture) whe
     return nothing
 end
 
-function toqubo_aux(model::VirtualModel, ::Nothing, ::AbstractArchitecture)::VI
+function aux(model::VirtualModel, ::Nothing, ::AbstractArchitecture)::VI
     target_model = model.target_model
 
     w = MOI.add_variable(target_model)
@@ -52,7 +52,7 @@ function toqubo_aux(model::VirtualModel, ::Nothing, ::AbstractArchitecture)::VI
     return w
 end
 
-function toqubo_aux(model::VirtualModel, n::Integer, ::AbstractArchitecture)::Vector{VI}
+function aux(model::VirtualModel, n::Integer, ::AbstractArchitecture)::Vector{VI}
     target_model = model.target_model
 
     w = MOI.add_variables(target_model, n)
@@ -62,7 +62,7 @@ function toqubo_aux(model::VirtualModel, n::Integer, ::AbstractArchitecture)::Ve
     return w
 end
 
-function toqubo_quadratize!(model::VirtualModel, arch::AbstractArchitecture)
+function quadratize!(model::VirtualModel, arch::AbstractArchitecture)
     if MOI.get(model, Attributes.Quadratize())
         method = MOI.get(model, Attributes.QuadratizationMethod())
         stable = MOI.get(model, Attributes.StableQuadratization())
@@ -71,14 +71,14 @@ function toqubo_quadratize!(model::VirtualModel, arch::AbstractArchitecture)
             model.H,
             PBO.Quadratization{method}(stable),
         ) do (n::Union{Integer,Nothing} = nothing)
-            return toqubo_aux(model, n, arch)
+            return aux(model, n, arch)
         end
     end
 
     return nothing
 end
 
-function toqubo_output!(model::VirtualModel{T}, ::AbstractArchitecture) where {T}
+function output!(model::VirtualModel{T}, ::AbstractArchitecture) where {T}
     Q = SQT{T}[]
     a = SAT{T}[]
     b = zero(T)

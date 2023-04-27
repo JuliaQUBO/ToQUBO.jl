@@ -30,6 +30,7 @@ const CI = MOI.ConstraintIndex
 
 # Library
 include("lib/error.jl")
+include("lib/architectures.jl")
 include("lib/pbo/PBO.jl")
 
 # Model
@@ -38,13 +39,13 @@ include("model/prequbo.jl")
 include("model/virtual.jl")
 include("model/wrapper.jl")
 
-# Compiler & Analysis
-include("compiler/compiler.jl")
-
 # Attributes
 include("attributes/model.jl")
 include("attributes/solver.jl")
 include("attributes/virtual.jl")
 include("attributes/compiler.jl")
+
+# Compiler & Analysis
+include("compiler/compiler.jl")
 
 end # module

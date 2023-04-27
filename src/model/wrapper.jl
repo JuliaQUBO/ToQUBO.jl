@@ -10,7 +10,7 @@ function MOI.optimize!(model::VirtualModel)
     index_map = MOIU.identity_index_map(model.source_model)
 
     # De facto JuMP to QUBO Compilation
-    ToQUBO.toqubo!(model)
+    ToQUBO.Compiler.toqubo!(model)
 
     if !isnothing(model.optimizer)
         MOI.optimize!(model.optimizer, model.target_model)

@@ -1,5 +1,34 @@
+module Compiler
+
+import ..ToQUBO:
+    PBO,
+    Attributes,
+    VirtualModel,
+    AbstractArchitecture,
+    GenericArchitecture,
+    encode!,
+    encoding,
+    expansion,
+    penaltyfn,
+    is_aux,
+    Encoding,
+    Mirror,
+    Unary,
+    Binary,
+    Arithmetic,
+    OneHot,
+    DomainWall,
+    MOI,
+    VI,
+    SAT,
+    SAF,
+    SQT,
+    SQF,
+    EQ,
+    LT,
+    GT
+
 include("analysis.jl")
-include("architectures.jl")
 include("interface.jl")
 include("parse.jl")
 include("variables.jl")
@@ -39,23 +68,20 @@ function toqubo!(
     arch::AbstractArchitecture = GenericArchitecture(),
 ) where {T}
     # Cleanup
-    toqubo_empty!(model, arch)
+    _empty!(model, arch)
 
     if is_qubo(model.source_model)
-        toqubo_copy!(model, arch)
+        _copy!(model, arch)
 
         return nothing
     end
 
-    toqubo_compile!(model, arch)
+    compile!(model, arch)
 
     return nothing
 end
 
-function toqubo_copy!(
-    model::VirtualModel{T},
-    ::AbstractArchitecture,
-) where {T}
+function _copy!(model::VirtualModel{T}, ::AbstractArchitecture) where {T}
     source_model = model.source_model
     target_model = model.target_model
 
@@ -78,38 +104,35 @@ function toqubo_copy!(
     return nothing
 end
 
-function toqubo_compile!(
+function compile!(
     model::VirtualModel{T},
     arch::AbstractArchitecture = GenericArchitecture(),
 ) where {T}
     # Objective Sense
-    toqubo_sense!(model, arch)
+    sense!(model, arch)
 
     # Problem Variables
-    toqubo_variables!(model, arch)
+    variables!(model, arch)
 
     # Objective Analysis
-    toqubo_objective!(model, arch)
+    objective!(model, arch)
 
     # Add Regular Constraints
-    toqubo_constraints!(model, arch)
+    constraints!(model, arch)
 
     # Add Encoding Constraints
-    toqubo_encoding_constraints!(model, arch)
+    encoding_constraints!(model, arch)
 
     # Compute penalties
-    toqubo_penalties!(model, arch)
+    penalties!(model, arch)
 
     # Build Final Model
-    toqubo_build!(model, arch)
+    build!(model, arch)
 
     return nothing
 end
 
-function toqubo_empty!(
-    model::VirtualModel,
-    ::AbstractArchitecture = GenericArchitecture(),
-)
+function _empty!(model::VirtualModel, ::AbstractArchitecture = GenericArchitecture())
     # Model
     MOI.empty!(model.target_model)
 
@@ -127,3 +150,5 @@ function toqubo_empty!(
 
     return nothing
 end
+
+end # module Compiler

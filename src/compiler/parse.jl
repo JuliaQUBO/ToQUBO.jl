@@ -1,4 +1,4 @@
-function toqubo_parse(
+function _parse(
     model::VirtualModel{T},
     f::MOI.AbstractFunction,
     s::MOI.AbstractSet,
@@ -6,12 +6,12 @@ function toqubo_parse(
 ) where {T}
     g = PBO.PBF{VI,T}()
 
-    toqubo_parse!(model, g, f, s, arch)
+    parse!(model, g, f, s, arch)
 
     return g
 end
 
-function toqubo_parse!(
+function parse!(
     model::VirtualModel{T},
     g::PBO.PBF{VI,T},
     vi::VI,
@@ -26,7 +26,7 @@ function toqubo_parse!(
     return nothing
 end
 
-function toqubo_parse!(
+function parse!(
     model::VirtualModel{T},
     g::PBO.PBF{VI,T},
     f::SAF{T},
@@ -51,35 +51,35 @@ function toqubo_parse!(
     return nothing
 end
 
-function toqubo_parse!(
+function parse!(
     model::VirtualModel{T},
     g::PBO.PBF{VI,T},
     f::SAF{T},
     s::EQ{T},
     arch::AbstractArchitecture,
 ) where {T}
-    toqubo_parse!(model, g, f, arch)
+    parse!(model, g, f, arch)
 
     g[nothing] -= s.value
 
     return nothing
 end
 
-function toqubo_parse!(
+function parse!(
     model::VirtualModel{T},
     g::PBO.PBF{VI,T},
     f::SAF{T},
     s::LT{T},
     arch::AbstractArchitecture,
 ) where {T}
-    toqubo_parse!(model, g, f, arch)
+    parse!(model, g, f, arch)
 
     g[nothing] -= s.upper
 
     return nothing
 end
 
-function toqubo_parse!(
+function parse!(
     model::VirtualModel{T},
     g::PBO.PBF{VI,T},
     f::SQF{T},
@@ -125,28 +125,28 @@ function toqubo_parse!(
     return nothing
 end
 
-function toqubo_parse!(
+function parse!(
     model::VirtualModel{T},
     g::PBO.PBF{VI,T},
     f::SQF{T},
     s::EQ{T},
     arch::AbstractArchitecture,
 ) where {T}
-    toqubo_parse!(model, g, f, arch)
+    parse!(model, g, f, arch)
 
     g[nothing] -= s.value
 
     return nothing
 end
 
-function toqubo_parse!(
+function parse!(
     model::VirtualModel{T},
     g::PBO.PBF{VI,T},
     f::SQF{T},
     s::LT{T},
     arch::AbstractArchitecture,
 ) where {T}
-    toqubo_parse!(model, g, f, arch)
+    parse!(model, g, f, arch)
 
     g[nothing] -= s.upper
 
