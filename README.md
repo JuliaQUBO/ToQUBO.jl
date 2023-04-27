@@ -11,6 +11,9 @@
     <a href="https://github.com/psrenergy/ToQUBO.jl/actions/workflows/ci.yml">
         <img src="https://github.com/psrenergy/ToQUBO.jl/actions/workflows/ci.yml/badge.svg?branch=master" alt="CI" />
     </a>
+    <a href="https://www.youtube.com/watch?v=OTmzlTbqdNo">
+        <img src="https://img.shields.io/badge/JuliaCon-2022-9558b2" alt="JuliaCon 2022">
+    </a>
     <a href="https://psrenergy.github.io/ToQUBO.jl/dev">
         <img src="https://img.shields.io/badge/docs-dev-blue.svg" alt="Docs">
     </a>
