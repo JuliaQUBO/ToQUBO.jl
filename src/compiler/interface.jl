@@ -30,7 +30,14 @@ function toqubo end
 function toqubo! end
 
 @doc raw"""
-    sense!(model::VirtualModel, ::AbstractArchitecture) where {T}
+    setup!(model::VirtualModel, ::AbstractArchitecture)
+
+
+"""
+function setup! end
+
+@doc raw"""
+    sense!(model::VirtualModel, ::AbstractArchitecture)
 
 Copies `MOI.ObjectiveSense` from `model.source_model` to `model.target_model`.
 """
@@ -67,7 +74,7 @@ function constraints! end
     constraint
 
 Returns the pseudo-boolean function associated to a given constraint from the source model.
-""" 
+"""
 function constraint end
 
 @doc raw"""

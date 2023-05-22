@@ -4,9 +4,9 @@
 This error indicates any failure during QUBO formulation
 """
 struct QUBOError <: Exception
-    msg::Union{String, Nothing}
+    msg::Union{String,Nothing}
 
-    function QUBOError(msg::Union{Nothing, String} = nothing)
+    function QUBOError(msg::Union{Nothing,String} = nothing)
         new(msg)
     end
 end

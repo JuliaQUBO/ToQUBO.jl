@@ -99,7 +99,7 @@ function variables!(model::VirtualModel{T}, ::AbstractArchitecture) where {T}
                     τ = MOI.get(model, Attributes.VariableEncodingATol(), x)
                     encode!(model, e, x, a, b, τ)
                 end
-            end 
+            end
         end
     end
 

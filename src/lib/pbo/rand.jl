@@ -1,8 +1,4 @@
-function Base.rand(
-    ::Type{PBF{S,T}},
-    args...;
-    kws...
-) where {S,T}
+function Base.rand(::Type{PBF{S,T}}, args...; kws...) where {S,T}
     return rand(Random.GLOBAL_RNG, PBF{S,T}, args...; kws...)
 end
 

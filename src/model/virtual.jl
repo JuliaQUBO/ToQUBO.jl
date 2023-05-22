@@ -749,7 +749,7 @@ function encode!(
     n = round(Int, b - a)
     k = ceil(Int, e.μ - 1)
     r = floor(Int, (n - k) / e.μ)
-    ϵ = n - k + - r * e.μ
+    ϵ = n - k + -r * e.μ
 
     if iszero(ϵ)
         γ = T[ones(T, k); [e.μ for _ = 1:r]]
@@ -779,12 +779,12 @@ function encode!(
     k = floor(Int, e.μ)
     m = (k * (k + 1)) ÷ 2
     r = floor(Int, (n - m) / e.μ)
-    ϵ = n - m + - r * e.μ
+    ϵ = n - m + -r * e.μ
 
     if iszero(ϵ)
-        γ = T[collect(T,1:k); [e.μ for _ = 1:r]]
+        γ = T[collect(T, 1:k); [e.μ for _ = 1:r]]
     else
-        γ = T[collect(T,1:k); [e.μ for _ = 1:r]; [ϵ]]
+        γ = T[collect(T, 1:k); [e.μ for _ = 1:r]; [ϵ]]
     end
 
     return encode!(model, e, x, γ, a)

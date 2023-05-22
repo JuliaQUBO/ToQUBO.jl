@@ -1,4 +1,5 @@
 module Assets
+
 using ToQUBO: PBO
 
 const S = Symbol

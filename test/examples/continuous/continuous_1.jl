@@ -33,17 +33,15 @@ function test_continuous_1()
         ᾱ = 1
         β̄ = 0
 
-        x̄ = Set{Matrix{Int}}([
-            [0 1 1;1 0 1;1 1 0]
-        ])
+        x̄ = Set{Matrix{Int}}([[0 1 1; 1 0 1; 1 1 0]])
         ȳ = 12
 
         # Model
         model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
 
-        set_optimizer_attribute(model, TQA.DefaultVariableEncodingATol(), 1E-1)
+        set_optimizer_attribute(model, Attributes.DefaultVariableEncodingATol(), 1E-1)
 
-        @variable(model, 0 <= x[1:n,1:n] <= 1)
+        @variable(model, 0 <= x[1:n, 1:n] <= 1)
         @objective(model, Max, sum(A .* x))
 
         optimize!(model)
@@ -53,7 +51,7 @@ function test_continuous_1()
 
         @test α ≈ ᾱ
         @test β ≈ β̄
-        @test Q ≈ Q̄/3
+        @test Q ≈ Q̄ / 3
 
         # Solutions
         x̂ = trunc.(Int, value.(x))

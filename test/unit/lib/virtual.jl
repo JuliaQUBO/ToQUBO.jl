@@ -28,8 +28,8 @@ function test_virtual()
                 )
                 @test isnothing(ToQUBO.penaltyfn(v))
 
-                @test model.variables                             == [v]
-                @test model.source[ToQUBO.source(v)]              == (v)
+                @test model.variables == [v]
+                @test model.source[ToQUBO.source(v)] == (v)
                 @test [model.target[y] for y in ToQUBO.target(v)] == [v, v, v]
             end
 
@@ -43,12 +43,12 @@ function test_virtual()
 
                 @test length(y) == 1
 
-                @test ToQUBO.source(v)    == x
+                @test ToQUBO.source(v) == x
                 @test ToQUBO.expansion(v) == PBO.PBF{VI,Float64}(y[1])
                 @test isnothing(ToQUBO.penaltyfn(v))
 
-                @test model.variables                             == [v]
-                @test model.source[ToQUBO.source(v)]              == (v)
+                @test model.variables == [v]
+                @test model.source[ToQUBO.source(v)] == (v)
                 @test [model.target[y] for y in ToQUBO.target(v)] == [v]
             end
 
@@ -73,8 +73,8 @@ function test_virtual()
                 )
                 @test isnothing(ToQUBO.penaltyfn(v))
 
-                @test model.variables                             == [v]
-                @test model.source[ToQUBO.source(v)]              == (v)
+                @test model.variables == [v]
+                @test model.source[ToQUBO.source(v)] == (v)
                 @test [model.target[y] for y in ToQUBO.target(v)] == [v, v, v, v]
             end
 
@@ -100,8 +100,8 @@ function test_virtual()
                 )
                 @test isnothing(ToQUBO.penaltyfn(v))
 
-                @test model.variables                             == [v]
-                @test model.source[ToQUBO.source(v)]              == (v)
+                @test model.variables == [v]
+                @test model.source[ToQUBO.source(v)] == (v)
                 @test [model.target[y] for y in ToQUBO.target(v)] == [v, v, v, v]
             end
 
@@ -125,8 +125,8 @@ function test_virtual()
                 )
                 @test isnothing(ToQUBO.penaltyfn(v))
 
-                @test model.variables                             == [v]
-                @test model.source[ToQUBO.source(v)]              == (v)
+                @test model.variables == [v]
+                @test model.source[ToQUBO.source(v)] == (v)
                 @test [model.target[y] for y in ToQUBO.target(v)] == [v, v, v]
             end
 
@@ -144,15 +144,15 @@ function test_virtual()
 
                 @test ToQUBO.source(v) == x
                 @test ToQUBO.expansion(v) ≈ PBO.PBF{VI,Float64}(
-                    y[1] =>  4 / 7,
-                    y[2] =>  8 / 7,
+                    y[1] => 4 / 7,
+                    y[2] => 8 / 7,
                     y[3] => 16 / 7,
                     nothing => a,
                 )
                 @test isnothing(ToQUBO.penaltyfn(v))
 
-                @test model.variables                             == [v]
-                @test model.source[ToQUBO.source(v)]              == (v)
+                @test model.variables == [v]
+                @test model.source[ToQUBO.source(v)] == (v)
                 @test [model.target[y] for y in ToQUBO.target(v)] == [v, v, v]
             end
 
@@ -176,8 +176,8 @@ function test_virtual()
                 )
                 @test isnothing(ToQUBO.penaltyfn(v))
 
-                @test model.variables                             == [v]
-                @test model.source[ToQUBO.source(v)]              == (v)
+                @test model.variables == [v]
+                @test model.source[ToQUBO.source(v)] == (v)
                 @test [model.target[y] for y in ToQUBO.target(v)] == [v, v, v]
             end
 
@@ -195,15 +195,15 @@ function test_virtual()
 
                 @test ToQUBO.source(v) == x
                 @test ToQUBO.expansion(v) ≈ PBO.PBF{VI,Float64}(
-                    y[1] =>  2 / 3,
-                    y[2] =>  4 / 3,
-                    y[3] =>  6 / 3,
+                    y[1] => 2 / 3,
+                    y[2] => 4 / 3,
+                    y[3] => 6 / 3,
                     nothing => a,
                 )
                 @test isnothing(ToQUBO.penaltyfn(v))
 
-                @test model.variables                             == [v]
-                @test model.source[ToQUBO.source(v)]              == (v)
+                @test model.variables == [v]
+                @test model.source[ToQUBO.source(v)] == (v)
                 @test [model.target[y] for y in ToQUBO.target(v)] == [v, v, v]
             end
 
@@ -227,8 +227,8 @@ function test_virtual()
                 )
                 @test ToQUBO.penaltyfn(v) ≈ (PBO.PBF{VI,Float64}(-1.0, y...)^2)
 
-                @test model.variables                             == [v]
-                @test model.source[ToQUBO.source(v)]              == (v)
+                @test model.variables == [v]
+                @test model.source[ToQUBO.source(v)] == (v)
                 @test [model.target[y] for y in ToQUBO.target(v)] == [v, v, v, v, v]
             end
 
@@ -252,8 +252,8 @@ function test_virtual()
                 )
                 @test ToQUBO.penaltyfn(v) ≈ (PBO.PBF{VI,Float64}(-1.0, y...)^2)
 
-                @test model.variables                             == [v]
-                @test model.source[ToQUBO.source(v)]              == (v)
+                @test model.variables == [v]
+                @test model.source[ToQUBO.source(v)] == (v)
                 @test [model.target[y] for y in ToQUBO.target(v)] == [v, v, v, v, v]
             end
             @testset "One Hot ℝ" begin
@@ -277,8 +277,8 @@ function test_virtual()
                 )
                 @test ToQUBO.penaltyfn(v) ≈ (PBO.PBF{VI,Float64}(-1.0, y...)^2)
 
-                @test model.variables                             == [v]
-                @test model.source[ToQUBO.source(v)]              == (v)
+                @test model.variables == [v]
+                @test model.source[ToQUBO.source(v)] == (v)
                 @test [model.target[y] for y in ToQUBO.target(v)] == [v, v, v, v, v]
             end
             @testset "Domain Wall ℤ" begin
@@ -308,8 +308,8 @@ function test_virtual()
                     [y[3], y[4]] => -2.0,
                 )
 
-                @test model.variables                             == [v]
-                @test model.source[ToQUBO.source(v)]              == (v)
+                @test model.variables == [v]
+                @test model.source[ToQUBO.source(v)] == (v)
                 @test [model.target[y] for y in ToQUBO.target(v)] == [v, v, v, v]
             end
 
@@ -341,8 +341,8 @@ function test_virtual()
                     [y[3], y[4]] => -2.0,
                 )
 
-                @test model.variables                             == [v]
-                @test model.source[ToQUBO.source(v)]              == (v)
+                @test model.variables == [v]
+                @test model.source[ToQUBO.source(v)] == (v)
                 @test [model.target[y] for y in ToQUBO.target(v)] == [v, v, v, v]
             end
 
@@ -355,8 +355,8 @@ function test_virtual()
                 v = ToQUBO.encode!(model, ToQUBO.Bounded{ToQUBO.Unary}(5.0), x, a, b)
                 y = ToQUBO.target(v)
 
-                @test length(y)           == 8
-                @test ToQUBO.source(v)    == x
+                @test length(y) == 8
+                @test ToQUBO.source(v) == x
                 @test ToQUBO.expansion(v) == PBO.PBF{VI,Float64}(
                     y[1] => 1.0,
                     y[2] => 1.0,
@@ -370,8 +370,8 @@ function test_virtual()
                 )
                 @test isnothing(ToQUBO.penaltyfn(v))
 
-                @test model.variables                             == [v]
-                @test model.source[ToQUBO.source(v)]              == (v)
+                @test model.variables == [v]
+                @test model.source[ToQUBO.source(v)] == (v)
                 @test [model.target[y] for y in ToQUBO.target(v)] == [v, v, v, v, v, v, v, v]
             end
 
@@ -384,8 +384,8 @@ function test_virtual()
                 v = ToQUBO.encode!(model, ToQUBO.Bounded{ToQUBO.Binary}(5.0), x, a, b)
                 y = ToQUBO.target(v)
 
-                @test length(y)           == 6
-                @test ToQUBO.source(v)    == x
+                @test length(y) == 6
+                @test ToQUBO.source(v) == x
                 @test ToQUBO.expansion(v) == PBO.PBF{VI,Float64}(
                     y[1] => 1.0,
                     y[2] => 2.0,
@@ -397,8 +397,8 @@ function test_virtual()
                 )
                 @test isnothing(ToQUBO.penaltyfn(v))
 
-                @test model.variables                             == [v]
-                @test model.source[ToQUBO.source(v)]              == (v)
+                @test model.variables == [v]
+                @test model.source[ToQUBO.source(v)] == (v)
                 @test [model.target[y] for y in ToQUBO.target(v)] == [v, v, v, v, v, v]
             end
 
@@ -411,8 +411,8 @@ function test_virtual()
                 v = ToQUBO.encode!(model, ToQUBO.Bounded{ToQUBO.Arithmetic}(5.0), x, a, b)
                 y = ToQUBO.target(v)
 
-                @test length(y)           == 6
-                @test ToQUBO.source(v)    == x
+                @test length(y) == 6
+                @test ToQUBO.source(v) == x
                 @test ToQUBO.expansion(v) == PBO.PBF{VI,Float64}(
                     y[1] => 1.0,
                     y[2] => 2.0,
@@ -424,8 +424,8 @@ function test_virtual()
                 )
                 @test isnothing(ToQUBO.penaltyfn(v))
 
-                @test model.variables                             == [v]
-                @test model.source[ToQUBO.source(v)]              == (v)
+                @test model.variables == [v]
+                @test model.source[ToQUBO.source(v)] == (v)
                 @test [model.target[y] for y in ToQUBO.target(v)] == [v, v, v, v, v, v]
             end
         end

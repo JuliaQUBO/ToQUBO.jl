@@ -100,7 +100,7 @@ end
 
 function ising(model, type::Type = Dict)
     n, L̄, Q̄, ᾱ, β̄ = MOI.get(model, Attributes.QUBONormalForm())
-    L, Q, α, β    = QUBOTools.cast(QUBOTools.𝔹, QUBOTools.𝕊, L̄, Q̄, ᾱ, β̄)
+    L, Q, α, β = QUBOTools.cast(QUBOTools.𝔹, QUBOTools.𝕊, L̄, Q̄, ᾱ, β̄)
 
     return QUBOTools.ising(type, n, L, Q, α, β)
 end

@@ -17,27 +17,49 @@ import ..ToQUBO:
     Binary,
     Arithmetic,
     OneHot,
-    DomainWall,
-    MOI,
-    VI,
-    SAT,
-    SAF,
-    SQT,
-    SQF,
-    EQ,
-    LT,
-    GT
+    DomainWall
+
+using MathOptInterface
+const MOI    = MathOptInterface
+const VI     = MOI.VariableIndex
+const SAT{T} = MOI.ScalarAffineTerm{T}
+const SAF{T} = MOI.ScalarAffineFunction{T}
+const SQT{T} = MOI.ScalarQuadraticTerm{T}
+const SQF{T} = MOI.ScalarQuadraticFunction{T}
+const EQ{T}  = MOI.EqualTo{T}
+const LT{T}  = MOI.LessThan{T}
+const GT{T}  = MOI.GreaterThan{T}
 
 include("analysis.jl")
 include("interface.jl")
 include("parse.jl")
+include("setup.jl")
 include("variables.jl")
 include("objective.jl")
 include("constraints.jl")
 include("penalties.jl")
 include("build.jl")
 
-# toqubo: MOI.ModelLike -> QUBO.Model 
+function toqubo!(model::VirtualModel)
+    arch = MOI.get(model, Attributes.Architecture())
+
+    toqubo!(model, arch)
+
+    return nothing
+end
+
+function toqubo!(model::VirtualModel, arch::AbstractArchitecture)
+    _empty!(model, arch) # Cleanup
+
+    if is_qubo(model.source_model)
+        _copy!(model, arch)
+    else
+        compile!(model, arch)
+    end
+
+    return nothing
+end
+
 toqubo(
     source::MOI.ModelLike,
     arch::Union{AbstractArchitecture,Nothing} = nothing,
@@ -63,51 +85,13 @@ function toqubo(
     return model
 end
 
-function toqubo!(
-    model::VirtualModel{T},
-    arch::AbstractArchitecture = GenericArchitecture(),
-) where {T}
-    # Cleanup
-    _empty!(model, arch)
-
-    if is_qubo(model.source_model)
-        _copy!(model, arch)
-
-        return nothing
-    end
-
-    compile!(model, arch)
-
-    return nothing
-end
-
-function _copy!(model::VirtualModel{T}, ::AbstractArchitecture) where {T}
-    source_model = model.source_model
-    target_model = model.target_model
-
-    # Map Variables
-    for vi in MOI.get(source_model, MOI.ListOfVariableIndices())
-        encode!(model, Mirror(), vi)
-    end
-
-    # Copy Objective Sense
-    s = MOI.get(source_model, MOI.ObjectiveSense())
-
-    MOI.set(target_model, MOI.ObjectiveSense(), s)
-
-    # Copy Objective Function
-    F = MOI.get(source_model, MOI.ObjectiveFunctionType())
-    f = MOI.get(source_model, MOI.ObjectiveFunction{F}())
-
-    MOI.set(target_model, MOI.ObjectiveFunction{F}(), f)
-
-    return nothing
-end
-
 function compile!(
     model::VirtualModel{T},
     arch::AbstractArchitecture = GenericArchitecture(),
 ) where {T}
+    # Compiler Settings
+    setup!(model, arch)
+
     # Objective Sense
     sense!(model, arch)
 
@@ -147,6 +131,29 @@ function _empty!(model::VirtualModel, ::AbstractArchitecture = GenericArchitectu
     empty!(model.h)
     empty!(model.ρ)
     empty!(model.θ)
+
+    return nothing
+end
+
+function _copy!(model::VirtualModel{T}, ::AbstractArchitecture) where {T}
+    source_model = model.source_model
+    target_model = model.target_model
+
+    # Map Variables
+    for vi in MOI.get(source_model, MOI.ListOfVariableIndices())
+        encode!(model, Mirror(), vi)
+    end
+
+    # Copy Objective Sense
+    s = MOI.get(source_model, MOI.ObjectiveSense())
+
+    MOI.set(target_model, MOI.ObjectiveSense(), s)
+
+    # Copy Objective Function
+    F = MOI.get(source_model, MOI.ObjectiveFunctionType())
+    f = MOI.get(source_model, MOI.ObjectiveFunction{F}())
+
+    MOI.set(target_model, MOI.ObjectiveFunction{F}(), f)
 
     return nothing
 end

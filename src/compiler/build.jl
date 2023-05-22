@@ -15,7 +15,8 @@ function hamiltonian!(model::VirtualModel{T}, ::AbstractArchitecture) where {T}
     empty!(model.H)
 
     # Calculate an upper bound on the number of terms
-    num_terms = length(model.f) + sum(length, model.g; init=0) + sum(length, model.h; init=0)
+    num_terms =
+        length(model.f) + sum(length, model.g; init = 0) + sum(length, model.h; init = 0)
 
     sizehint!(model.H, num_terms)
 

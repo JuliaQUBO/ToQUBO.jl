@@ -49,15 +49,15 @@ function test_quadratic_1()
         @objective(model, Max, x'A * x)
         @constraint(model, c1, x'A * x <= b)
 
-        set_optimizer_attribute(model, TQA.StableQuadratization(), true)
+        set_optimizer_attribute(model, Attributes.StableQuadratization(), true)
 
         optimize!(model)
 
         # Reformulation
-        ρ       = MOI.get(model, TQA.ConstraintEncodingPenalty(), c1)
+        ρ       = MOI.get(model, Attributes.ConstraintEncodingPenalty(), c1)
         Q, α, β = ToQUBO.qubo(model, Matrix)
 
-        @test ρ ≈ ρ̄    
+        @test ρ ≈ ρ̄
         @test α ≈ ᾱ
         @test β ≈ β̄
         @test Q ≈ Q̄

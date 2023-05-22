@@ -231,7 +231,7 @@ function constraint(
 ) where {T}
     # Scalar Quadratic Inequality Constraint: g(x) = x' Q x + a' x - b ≤ 0
     g = _parse(model, f, s, arch)
-    
+
     PBO.discretize!(g)
 
     # Bounds & Slack Variable 
@@ -277,7 +277,7 @@ function constraint(
 
     for xi in x.variables
         vi = model.source[xi]
-        
+
         if !(encoding(vi) isa Mirror)
             error("Currently, ToQUBO only supports SOS1 on binary variables")
         end
@@ -300,15 +300,12 @@ function constraint(
     return g^2
 end
 
-function encoding_constraints!(
-    model::VirtualModel{T},
-    ::AbstractArchitecture,
-) where {T}
+function encoding_constraints!(model::VirtualModel{T}, ::AbstractArchitecture) where {T}
     for v in model.variables
         if is_aux(v)
             continue
         end
-        
+
         h = penaltyfn(v)
 
         if !isnothing(h)

@@ -1,7 +1,7 @@
-include("attributes.jl")
+include("interface.jl")
 
 function test_integration()
     @testset "Integration" verbose = true begin
-        test_attributes()
+        test_interface()
     end
 end

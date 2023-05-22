@@ -37,7 +37,7 @@ function test_linear1()
         optimize!(model)
 
         # Reformulation
-        ρ       = MOI.get(model, TQA.ConstraintEncodingPenalty(), c1)
+        ρ       = MOI.get(model, Attributes.ConstraintEncodingPenalty(), c1)
         Q, α, β = ToQUBO.qubo(model, Matrix)
 
         @test ρ ≈ ρ̄

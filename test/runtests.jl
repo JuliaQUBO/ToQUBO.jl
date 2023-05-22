@@ -4,13 +4,12 @@ using JuMP
 const MOIU = MOI.Utilities
 const VI = MOI.VariableIndex
 const CI = MOI.ConstraintIndex
-
-using ToQUBO: ToQUBO, PBO
 using QUBODrivers
 using LinearAlgebra
 using TOML
 
-const TQA = ToQUBO.Attributes
+using ToQUBO
+using ToQUBO: PBO, Attributes
 
 include("assets/assets.jl")
 include("unit/unit.jl")

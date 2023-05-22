@@ -13,10 +13,10 @@ function test_logical_sos1()
 
         # Solution Data
         Q̄ = [
-             15 -28 -28 -32
-              0  15 -28 -32
-              0   0  15 -32
-              0   0   0  16
+            15 -28 -28 -32
+             0  15 -28 -32
+             0   0  15 -32
+             0   0   0  16
         ]
 
         ᾱ = 1
@@ -35,7 +35,7 @@ function test_logical_sos1()
         optimize!(model)
 
         # Reformulation
-        ρ       = MOI.get(model, TQA.ConstraintEncodingPenalty(), c1)
+        ρ       = MOI.get(model, Attributes.ConstraintEncodingPenalty(), c1)
         Q, α, β = ToQUBO.qubo(model, Matrix)
 
         @test ρ ≈ ρ̄

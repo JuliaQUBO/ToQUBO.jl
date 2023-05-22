@@ -82,11 +82,8 @@ function MOI.set(model::QUBOModel{T}, ::MOI.ObjectiveFunction{SAF{T}}, f::SAF{T}
 end
 
 function MOI.set(model::QUBOModel{T}, ::MOI.ObjectiveFunction{SQF{T}}, f::SQF{T}) where {T}
-    model.objective_function = SQF{T}(
-        copy(f.quadratic_terms),
-        copy(f.affine_terms),
-        f.constant
-    )
+    model.objective_function =
+        SQF{T}(copy(f.quadratic_terms), copy(f.affine_terms), f.constant)
 
     return nothing
 end

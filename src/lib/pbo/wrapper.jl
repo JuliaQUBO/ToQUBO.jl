@@ -63,5 +63,5 @@ end
 
 variable_map(f::PBF{S}) where {S} = Dict{S,Int}(v => i for (i, v) in enumerate(variables(f)))
 variable_inv(f::PBF{S}) where {S} = Dict{Int,S}(i => v for (i, v) in enumerate(variables(f)))
-variable_set(f::PBF{S}) where {S} = reduce(union!, keys(f); init=Set{S}())
+variable_set(f::PBF{S}) where {S} = reduce(union!, keys(f); init = Set{S}())
 variables(f::PBF)                 = sort(collect(variable_set(f)); lt = varlt)

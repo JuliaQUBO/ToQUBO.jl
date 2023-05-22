@@ -10,13 +10,13 @@ function test_compiler_constraints_quadratic()
     model = ToQUBO.VirtualModel{Float64}()
     arch  = ToQUBO.Compiler.GenericArchitecture()
     x, _  = MOI.add_constrained_variables(model.source_model, repeat([MOI.ZeroOne()], n))
-    
+
     ToQUBO.Compiler.variables!(model, arch)
 
     f = MOI.ScalarQuadraticFunction{Float64}(
         [MOI.ScalarQuadraticTerm(A[i, j], x[i], x[j]) for i = 1:n for j = 1:n if i != j],
         [MOI.ScalarAffineTerm(A[i, i] / 2.0, x[i]) for i = 1:n],
-        0.0
+        0.0,
     )
     s = MOI.EqualTo{Float64}(b)
     g = ToQUBO.Compiler.constraint(model, f, s, arch)

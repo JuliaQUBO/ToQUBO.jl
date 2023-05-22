@@ -62,7 +62,7 @@ function MOI.add_constraint(
 )
     return MOI.add_constraint(model.source_model, f, s)
 end
-    
+
 function MOI.set(
     model::VirtualModel,
     ::MOI.ObjectiveFunction{F},
