@@ -27,10 +27,30 @@ export Architecture,
 
 abstract type CompilerAttribute <: MOI.AbstractOptimizerAttribute end
 
-MOIU.map_indices(::Any, ::CompilerAttribute, x) = x
+abstract type CompilerVariableAttribute <: MOI.AbstractVariableAttribute end
 
-MOI.supports(::VirtualModel, ::CompilerAttribute) = true
-MOI.is_copyable(::CompilerAttribute) = true
+abstract type CompilerConstraintAttribute <: MOI.AbstractConstraintAttribute end
+
+@doc raw"""
+    Warnings()
+"""
+struct Warnings <: CompilerAttribute end
+
+function MOI.get(model::VirtualModel, ::Warnings)::Bool
+    return get(model.compiler_settings, :warnings, true)
+end
+
+function MOI.set(model::VirtualModel, ::Warnings, flag::Bool)
+    model.compiler_settings[:warnings] = flag
+
+    return nothing
+end
+
+function MOI.set(model::VirtualModel, ::Warnings, ::Nothing)
+    delete!(model.compiler_settings, :warnings)
+
+    return nothing
+end
 
 @doc raw"""
     Optimization()
@@ -45,6 +65,12 @@ function MOI.set(model::VirtualModel, ::Optimization, level::Integer)
     @assert level >= 0
 
     model.compiler_settings[:optimization] = level
+
+    return nothing
+end
+
+function MOI.set(model::VirtualModel, ::Optimization, ::Nothing)
+    delete!(model.compiler_settings, :optimization)
 
     return nothing
 end
@@ -67,7 +93,11 @@ function MOI.set(model::VirtualModel, ::Architecture, arch::AbstractArchitecture
     return nothing
 end
 
-MOI.is_set_by_optimize(::Architecture) = true
+function MOI.set(model::VirtualModel, ::Architecture, ::Nothing)
+    delete!(model.compiler_settings, :architecture)
+
+    return nothing
+end
 
 @doc raw"""
     Discretize()
@@ -82,6 +112,12 @@ end
 
 function MOI.set(model::VirtualModel, ::Discretize, flag::Bool)
     model.compiler_settings[:discretize] = flag
+
+    return nothing
+end
+
+function MOI.set(model::VirtualModel, ::Discretize, ::Nothing)
+    delete!(model.compiler_settings, :discretize)
 
     return nothing
 end
@@ -113,7 +149,7 @@ Available options are defined in the `PBO` submodule.
 struct QuadratizationMethod <: CompilerAttribute end
 
 function MOI.get(model::VirtualModel, ::QuadratizationMethod)
-    return get(model.compiler_settings, :QuadratizationMethod, PBO.INFER)
+    return get(model.compiler_settings, :quadratization_method, PBO.AUTOMATIC)
 end
 
 function MOI.set(
@@ -121,7 +157,13 @@ function MOI.set(
     ::QuadratizationMethod,
     ::Type{method},
 ) where {method<:PBO.QuadratizationMethod}
-    model.compiler_settings[:QuadratizationMethod] = method
+    model.compiler_settings[:quadratization_method] = method
+
+    return nothing
+end
+
+function MOI.set(model::VirtualModel, ::QuadratizationMethod, ::Nothing)
+    delete!(model.compiler_settings, :quadratization_method)
 
     return nothing
 end
@@ -145,6 +187,12 @@ function MOI.set(model::VirtualModel, ::StableQuadratization, flag::Bool)
     return nothing
 end
 
+function MOI.set(model::VirtualModel, ::StableQuadratization, ::Nothing)
+    delete!(model.compiler_settings, :stable_quadratization)
+
+    return nothing
+end
+
 @doc raw"""
     DefaultVariableEncodingMethod()
 
@@ -158,6 +206,12 @@ end
 
 function MOI.set(model::VirtualModel, ::DefaultVariableEncodingMethod, e::Encoding)
     model.compiler_settings[:default_variable_encoding_method] = e
+
+    return nothing
+end
+
+function MOI.set(model::VirtualModel, ::DefaultVariableEncodingMethod, ::Nothing)
+    delete!(model.compiler_settings, :default_variable_encoding_method)
 
     return nothing
 end
@@ -179,7 +233,11 @@ function MOI.set(model::VirtualModel{T}, ::DefaultVariableEncodingATol, τ::T) w
     return nothing
 end
 
-abstract type CompilerVariableAttribute <: MOI.AbstractVariableAttribute end
+function MOI.set(model::VirtualModel, ::DefaultVariableEncodingATol, ::Nothing)
+    delete!(model.compiler_settings, :default_variable_encoding_atol)
+
+    return nothing
+end
 
 @doc raw"""
     VariableEncodingATol()
@@ -203,6 +261,20 @@ function MOI.set(model::VirtualModel{T}, ::VariableEncodingATol, vi::VI, τ::T) 
         model.variable_settings[attr] = Dict{VI,Any}(vi => τ)
     else
         model.variable_settings[attr][vi] = τ
+    end
+
+    return nothing
+end
+
+function MOI.set(model::VirtualModel, ::VariableEncodingATol, vi::VI, ::Nothing)
+    attr = :variable_encoding_atol
+
+    if haskey(model.variable_settings, attr)
+        delete!(model.variable_settings[attr], vi)
+
+        if isempty(model.variable_settings[attr])
+            delete!(model.variable_settings, attr)
+        end
     end
 
     return nothing
@@ -266,6 +338,10 @@ function MOI.set(model::VirtualModel, ::VariableEncodingBits, vi::VI, ::Nothing)
 
     if haskey(model.variable_settings, attr)
         delete!(model.variable_settings[attr], vi)
+
+        if isempty(model.variable_settings[attr])
+            delete!(model.variable_settings, attr)
+        end
     end
 
     return nothing
@@ -314,6 +390,10 @@ function MOI.set(model::VirtualModel, ::VariableEncodingMethod, vi::VI, ::Nothin
 
     if haskey(model.variable_settings, attr)
         delete!(model.variable_settings[attr], vi)
+
+        if isempty(model.variable_settings[attr])
+            delete!(model.variable_settings, attr)
+        end
     end
 
     return nothing
@@ -348,10 +428,6 @@ function MOI.set(
     return nothing
 end
 
-MOI.is_set_by_optimize(::VariableEncodingPenalty) = true
-
-abstract type CompilerConstraintAttribute <: MOI.AbstractConstraintAttribute end
-
 @doc raw"""
     ConstraintEncodingPenalty()
 
@@ -384,8 +460,6 @@ function MOI.set(
 
     return nothing
 end
-
-MOI.is_set_by_optimize(::ConstraintEncodingPenalty) = true
 
 @doc raw"""
     QUBONormalForm()

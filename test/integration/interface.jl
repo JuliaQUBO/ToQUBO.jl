@@ -154,7 +154,7 @@ function test_interface_moi()
                 MOI.set(model, Attributes.Quadratize(), true)
                 @test MOI.get(model, Attributes.Quadratize()) === true
 
-                @test MOI.get(model, Attributes.QuadratizationMethod()) === PBO.INFER
+                @test MOI.get(model, Attributes.QuadratizationMethod()) === PBO.AUTOMATIC
                 MOI.set(model, Attributes.QuadratizationMethod(), PBO.TERM_BY_TERM)
                 @test MOI.get(model, Attributes.QuadratizationMethod()) === PBO.TERM_BY_TERM
 

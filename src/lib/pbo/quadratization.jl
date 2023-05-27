@@ -171,8 +171,8 @@ end
 
 
 @doc raw"""
-    Quadratization{INFER}(stable::Bool = false)
-""" struct INFER <: QuadratizationMethod end
+    Quadratization{AUTOMATIC}(stable::Bool = false)
+""" struct AUTOMATIC <: QuadratizationMethod end
 
 @doc raw"""
     infer_quadratization(f::PBF)
@@ -191,7 +191,7 @@ function infer_quadratization(f::PBF, stable::Bool = false)
     end
 end
 
-function quadratize!(aux::Function, f::PBF, quad::Quadratization{INFER})
+function quadratize!(aux::Function, f::PBF, quad::Quadratization{AUTOMATIC})
     quadratize!(aux, f, infer_quadratization(f, quad.stable))
 
     return nothing
