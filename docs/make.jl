@@ -38,7 +38,7 @@ makedocs(;
         "Examples" => [
             "Knapsack"               => "examples/knapsack.md",
             "Prime Factorization"    => "examples/prime_factorization.md",
-            "Portfolio Optimization" => "examples/portfolio_optimization.md",
+            "Portfolio Optimization" => "examples/portfolio.md",
         ],
         "Booklet" => [
             "Introduction"    => "booklet/1-intro.md",

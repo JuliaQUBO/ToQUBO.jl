@@ -46,13 +46,13 @@ df = DataFrames.DataFrame(
 ```@example portfolio-optimization
 using JuMP
 using ToQUBO
-using DWaveNeal
+using PySA # <- Your favourite solver here
 
 function solve(
     config!::Function,
     df::DataFrame,
     λ::Float64 = 10.;
-    optimizer = DWaveNeal.Optimizer
+    optimizer = PySA.Optimizer
 )
     # Number of assets
     n = size(df, 2)
@@ -66,7 +66,7 @@ function solve(
     # Covariance matrix
     Σ = Statistics.cov(r)
 
-    # Build model
+    # Build and run model
     model = Model(() -> ToQUBO.Optimizer(optimizer))
 
     @variable(model, 0 <= x[1:n] <= 1)
@@ -77,37 +77,60 @@ function solve(
 
     optimize!(model)
 
+    # Return investment choices
     return value.(x)
 end
 
-function solve(df::DataFrame, λ::Float64 = 10.; optimizer = DWaveNeal.Optimizer)
+function solve(df::DataFrame, λ::Float64 = 10.; optimizer = PySA.Optimizer)
     return solve(identity, df, λ; optimizer)
 end
 ```
 
 ```@example portfolio-optimization
 solve(df) do model
-    JuMP.set_silent(model)
-    JuMP.set_optimizer_attribute(model, "num_reads", 2_000)
+    # JuMP.set_silent(model)
+    JuMP.set_optimizer_attribute(model, "n_replicas", 128)
 end
 ```
 
 ## Penalty Analysis
 To finish our discussion, we are going to sketch some graphics to help our reasoning on how the penalty factor ``\lambda`` affects our investments.
 
-```@example portfolio-optimization
+```@setup portfolio-optimization
 using Plots; pythonplot()
+
+# Number of assets
+n = size(df, 2)
+
+# Relative monthly return
+r = diff(Matrix(df); dims = 1) ./ Matrix(df[1:end-1, :])
+
+# Expected monthly return value for each stock
+μ = vec(Statistics.mean(r; dims = 1))
 
 Λ = collect(0.:5.:50.)
 X = Dict{Symbol,Vector{Float64}}(tag => [] for tag in assets)
+Y = Vector{Float64}()
 
 for λ = Λ
-    x = solve(df, λ)
+    x = solve(df, λ) do model
+        # JuMP.set_silent(model)
+        JuMP.set_optimizer_attribute(model, "n_replicas", 128)
+    end
+    y = μ'x
 
     for (i, tag) in enumerate(assets)
         push!(X[tag], x[i])
     end
+
+    push!(Y, y)
 end
+
+colors = Dict{Symbol,Symbol}(
+    :IBM => :black,
+    :WMT => :blue,
+    :SEHI => :green,
+)
 
 plt = plot(;
     title="Portfolio Optimization",
@@ -116,8 +139,14 @@ plt = plot(;
 )
 
 for tag in assets
-    plot!(plt, Λ, X[tag]; label=string(tag))
+    plot!(plt, Λ, X[tag]; label=string(tag), linecolor=color[tag])
 end
 
-plt
+plot!(twinx(plt), Λ, Y; label=nothing, ylabel=raw"expected return ($\mu'x$)", linestyle=:dash, linecolor=:red)
+
+savefig(plt, "portfolio.png")
+
+nothing
 ```
+
+![Analysis Plot](portfolio.png)
