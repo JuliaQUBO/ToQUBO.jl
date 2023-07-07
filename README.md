@@ -5,6 +5,9 @@
         <img src="/docs/src/assets/logo.svg" width=400px alt="ToQUBO.jl" />
     </a>
     <br>
+    <a href="https://arxiv.org/abs/2307.02577">
+        <img src="https://img.shields.io/badge/arXiv-2307.02577-b31b1b.svg" alt="arXiv"/>
+    </a>
     <a href="https://codecov.io/gh/psrenergy/ToQUBO.jl">
         <img src="https://codecov.io/gh/psrenergy/ToQUBO.jl/branch/master/graph/badge.svg?token=ECM5OQ9T67"/>
     </a>
