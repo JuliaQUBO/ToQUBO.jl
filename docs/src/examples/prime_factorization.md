@@ -22,7 +22,7 @@ From the definition and the basics of number theory, we are able to retrieve a f
 ```@example prime-factorization
 using JuMP
 using ToQUBO
-using DWaveNeal
+using DWaveNeal # <- Your favourtite solver here
 
 function factor(R::Integer; optimizer = DWaveNeal.Optimizer)
     return factor(identity, R; optimizer)
