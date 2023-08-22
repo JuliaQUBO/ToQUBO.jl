@@ -3,8 +3,8 @@ function MOI.is_empty(model::VirtualModel)
 end
 
 function MOI.empty!(model::VirtualModel)
-    # Source Model
     MOI.empty!(model.source_model)
+    MOI.empty!(model.target_model)
 
     # Underlying Optimizer
     if !isnothing(model.optimizer)

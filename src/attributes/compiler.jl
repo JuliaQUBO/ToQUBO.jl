@@ -5,12 +5,14 @@ import ..ToQUBO: QUBO_NORMAL_FORM, VirtualModel
 import ..ToQUBO: Encoding, Unary, Binary, Arithmetic, OneHot, DomainWall, Bounded
 import ..ToQUBO.PBO
 
-import MathOptInterface as MOI
+using MathOptInterface
+const MOI = MathOptInterface
 const MOIU = MOI.Utilities
 const VI = MOI.VariableIndex
 const CI = MOI.ConstraintIndex
 
-export Architecture,
+export Warnings,
+    Architecture,
     Discretize,
     Quadratize,
     QuadratizationMethod,
@@ -27,9 +29,9 @@ export Architecture,
 
 abstract type CompilerAttribute <: MOI.AbstractOptimizerAttribute end
 
-abstract type CompilerVariableAttribute <: MOI.AbstractVariableAttribute end
+MOI.supports(::VirtualModel, ::CompilerAttribute) = true
 
-abstract type CompilerConstraintAttribute <: MOI.AbstractConstraintAttribute end
+MOIU.map_indices(::Any, ::CompilerAttribute, x) = x
 
 @doc raw"""
     Warnings()
@@ -240,47 +242,6 @@ function MOI.set(model::VirtualModel, ::DefaultVariableEncodingATol, ::Nothing)
 end
 
 @doc raw"""
-    VariableEncodingATol()
-"""
-struct VariableEncodingATol <: CompilerVariableAttribute end
-
-function MOI.get(model::VirtualModel{T}, ::VariableEncodingATol, vi::VI)::T where {T}
-    attr = :variable_encoding_atol
-
-    if !haskey(model.variable_settings, attr) || !haskey(model.variable_settings[attr], vi)
-        return MOI.get(model, DefaultVariableEncodingATol())
-    else
-        return model.variable_settings[attr][vi]
-    end
-end
-
-function MOI.set(model::VirtualModel{T}, ::VariableEncodingATol, vi::VI, τ::T) where {T}
-    attr = :variable_encoding_atol
-
-    if !haskey(model.variable_settings, attr)
-        model.variable_settings[attr] = Dict{VI,Any}(vi => τ)
-    else
-        model.variable_settings[attr][vi] = τ
-    end
-
-    return nothing
-end
-
-function MOI.set(model::VirtualModel, ::VariableEncodingATol, vi::VI, ::Nothing)
-    attr = :variable_encoding_atol
-
-    if haskey(model.variable_settings, attr)
-        delete!(model.variable_settings[attr], vi)
-
-        if isempty(model.variable_settings[attr])
-            delete!(model.variable_settings, attr)
-        end
-    end
-
-    return nothing
-end
-
-@doc raw"""
     DefaultVariableEncodingBits()
 """
 struct DefaultVariableEncodingBits <: CompilerAttribute end
@@ -301,6 +262,102 @@ function MOI.set(model::VirtualModel, ::DefaultVariableEncodingBits, ::Nothing)
     return nothing
 end
 
+
+@doc raw"""
+    QUBONormalForm()
+"""
+struct QUBONormalForm <: CompilerAttribute end
+
+function MOI.get(model::VirtualModel{T}, ::QUBONormalForm)::QUBO_NORMAL_FORM{T} where {T}
+    target_model = model.target_model
+
+    n = MOI.get(target_model, MOI.NumberOfVariables())
+    F = MOI.get(target_model, MOI.ObjectiveFunctionType())
+    f = MOI.get(target_model, MOI.ObjectiveFunction{F}())
+
+    linear_terms    = sizehint!(Dict{Int,T}(), length(f.affine_terms))
+    quadratic_terms = sizehint!(Dict{Tuple{Int,Int},T}(), length(f.quadratic_terms))
+
+    for a in f.affine_terms
+        c = a.coefficient
+        i = a.variable.value
+
+        linear_terms[i] = get(linear_terms, i, zero(T)) + c
+    end
+
+    for q in f.quadratic_terms
+        c = q.coefficient
+        i = q.variable_1.value
+        j = q.variable_2.value
+
+        if i == j
+            linear_terms[i] = get(linear_terms, i, zero(T)) + c / 2
+        elseif i > j
+            quadratic_terms[(j, i)] = get(quadratic_terms, (j, i), zero(T)) + c
+        else
+            quadratic_terms[(i, j)] = get(quadratic_terms, (i, j), zero(T)) + c
+        end
+    end
+
+    scale  = one(T)
+    offset = f.constant
+
+    return (n, linear_terms, quadratic_terms, scale, offset)
+end
+
+abstract type CompilerVariableAttribute <: MOI.AbstractVariableAttribute end
+
+MOI.supports(::VirtualModel, ::CompilerVariableAttribute, ::Type{VI}) = true
+
+MOIU.map_indices(::Any, ::CompilerVariableAttribute, x) = x
+
+@doc raw"""
+    VariableEncodingATol()
+"""
+struct VariableEncodingATol <: CompilerVariableAttribute end
+
+function MOI.get(model::VirtualModel{T}, ::VariableEncodingATol, vi::VI)::T where {T}
+    attr = :variable_encoding_atol
+
+    if haskey(model.variable_settings, attr)
+        return get(model.variable_settings[attr], vi, nothing)
+    else
+        return nothing
+    end
+end
+
+function MOI.set(model::VirtualModel{T}, ::VariableEncodingATol, vi::VI, τ::T) where {T}
+    attr = :variable_encoding_atol
+
+    if !haskey(model.variable_settings, attr)
+        model.variable_settings[attr] = Dict{VI,Any}()
+    end
+
+    model.variable_settings[attr][vi] = τ
+
+    return nothing
+end
+
+function MOI.set(model::VirtualModel, ::VariableEncodingATol, vi::VI, ::Nothing)
+    attr = :variable_encoding_atol
+
+    if haskey(model.variable_settings, attr)
+        delete!(model.variable_settings[attr], vi)
+    end
+
+    return nothing
+end
+
+function variable_encoding_atol(model::VirtualModel{T}, vi::VI)::T where {T}
+    τ = MOI.get(model, VariableEncodingATol(), vi)
+
+    if τ === nothing
+        return MOI.get(model, DefaultVariableEncodingATol())
+    else
+        return τ
+    end
+end
+
 @doc raw"""
     VariableEncodingBits()
 """
@@ -313,10 +370,10 @@ function MOI.get(
 )::Union{Integer,Nothing}
     attr = :variable_encoding_bits
 
-    if !haskey(model.variable_settings, attr) || !haskey(model.variable_settings[attr], vi)
-        return MOI.get(model, DefaultVariableEncodingBits())
+    if haskey(model.variable_settings, attr)
+        return get(model.variable_settings[attr], vi, nothing)
     else
-        return model.variable_settings[attr][vi]
+        return nothing
     end
 end
 
@@ -367,7 +424,7 @@ function MOI.get(model::VirtualModel, ::VariableEncodingMethod, vi::VI)::Encodin
     attr = :variable_encoding_method
 
     if !haskey(model.variable_settings, attr) || !haskey(model.variable_settings[attr], vi)
-        return MOI.get(model, DefaultVariableEncodingMethod())
+        return nothing
     else
         return model.variable_settings[attr][vi]
     end
@@ -428,6 +485,12 @@ function MOI.set(
     return nothing
 end
 
+abstract type CompilerConstraintAttribute <: MOI.AbstractConstraintAttribute end
+
+MOI.supports(::VirtualModel, ::CompilerConstraintAttribute, ::CI) = true
+
+MOIU.map_indices(::Any, ::CompilerConstraintAttribute, x) = x
+
 @doc raw"""
     ConstraintEncodingPenalty()
 
@@ -461,46 +524,4 @@ function MOI.set(
     return nothing
 end
 
-@doc raw"""
-    QUBONormalForm()
-"""
-struct QUBONormalForm <: CompilerAttribute end
-
-function MOI.get(model::VirtualModel{T}, ::QUBONormalForm)::QUBO_NORMAL_FORM{T} where {T}
-    target_model = model.target_model
-
-    n = MOI.get(target_model, MOI.NumberOfVariables())
-    F = MOI.get(target_model, MOI.ObjectiveFunctionType())
-    f = MOI.get(target_model, MOI.ObjectiveFunction{F}())
-
-    linear_terms    = sizehint!(Dict{Int,T}(), length(f.affine_terms))
-    quadratic_terms = sizehint!(Dict{Tuple{Int,Int},T}(), length(f.quadratic_terms))
-
-    for a in f.affine_terms
-        c = a.coefficient
-        i = a.variable.value
-
-        linear_terms[i] = get(linear_terms, i, zero(T)) + c
-    end
-
-    for q in f.quadratic_terms
-        c = q.coefficient
-        i = q.variable_1.value
-        j = q.variable_2.value
-
-        if i == j
-            linear_terms[i] = get(linear_terms, i, zero(T)) + c / 2
-        elseif i > j
-            quadratic_terms[(j, i)] = get(quadratic_terms, (j, i), zero(T)) + c
-        else
-            quadratic_terms[(i, j)] = get(quadratic_terms, (i, j), zero(T)) + c
-        end
-    end
-
-    scale  = one(T)
-    offset = f.constant
-
-    return (n, linear_terms, quadratic_terms, scale, offset)
-end
-
-end # module Settings
+end # module Attributes

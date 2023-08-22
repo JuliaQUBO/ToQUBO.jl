@@ -1,4 +1,4 @@
-MOI.get(::VirtualModel, ::MOI.SolverName)    = "Virtual Model"
+MOI.get(::VirtualModel, ::MOI.SolverName)    = "Virtual QUBO Model"
 MOI.get(::VirtualModel, ::MOI.SolverVersion) = PROJECT_VERSION
 
 const MOI_MODEL_ATTRIBUTE = Union{
@@ -42,11 +42,8 @@ function Base.show(io::IO, model::VirtualModel)
     print(
         io,
         """
-        Virtual Model
-        with source:
+        $(MOI.get(model, MOI.SolverName()))
         $(model.source_model)
-        with target:
-        $(model.target_model)
         """,
     )
 end

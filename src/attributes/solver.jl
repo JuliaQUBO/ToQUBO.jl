@@ -112,11 +112,17 @@ end
 MOI.supports(::VirtualModel, ::MOI.VariablePrimalStart, ::MOI.VariableIndex) = true
 
 function MOI.get(model::VirtualModel{T}, vp::MOI.VariablePrimal, x::VI) where {T}
+    if !haskey(model.source, x)
+        error("Variable '$x' not present in the model")
+
+        return nothing
+    end
+
     if isnothing(model.optimizer)
         return zero(T)
     else
-        s = zero(T)
         v = model.source[x]
+        s = zero(T)
 
         for (ω, c) in expansion(v)
             for y in ω
