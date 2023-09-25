@@ -115,10 +115,10 @@ Quadratizes the objective function from a model.
 function quadratize! end
 
 @doc raw"""
-    _empty!(model::VirtualModel, arch::AbstractArchitecture)
+    reset!(model::VirtualModel, arch::AbstractArchitecture)
 
 """
-function _empty! end
+function reset! end
 
 @doc raw"""
     _copy!(model::VirtualModel, arch::AbstractArchitecture)

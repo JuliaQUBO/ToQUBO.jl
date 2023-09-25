@@ -49,7 +49,7 @@ function toqubo!(model::VirtualModel)
 end
 
 function toqubo!(model::VirtualModel, arch::AbstractArchitecture)
-    _empty!(model, arch) # Cleanup
+    # reset!(model, arch) # Cleanup
 
     if is_qubo(model.source_model)
         _copy!(model, arch)
@@ -116,7 +116,7 @@ function compile!(
     return nothing
 end
 
-function _empty!(model::VirtualModel, ::AbstractArchitecture = GenericArchitecture())
+function reset!(model::VirtualModel, ::AbstractArchitecture = GenericArchitecture())
     # Model
     MOI.empty!(model.target_model)
 

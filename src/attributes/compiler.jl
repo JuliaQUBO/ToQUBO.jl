@@ -29,10 +29,6 @@ export Warnings,
 
 abstract type CompilerAttribute <: MOI.AbstractOptimizerAttribute end
 
-MOI.supports(::VirtualModel, ::CompilerAttribute) = true
-
-MOIU.map_indices(::Any, ::CompilerAttribute, x) = x
-
 @doc raw"""
     Warnings()
 """
@@ -307,14 +303,20 @@ end
 
 abstract type CompilerVariableAttribute <: MOI.AbstractVariableAttribute end
 
-MOI.supports(::VirtualModel, ::CompilerVariableAttribute, ::Type{VI}) = true
-
-MOIU.map_indices(::Any, ::CompilerVariableAttribute, x) = x
-
 @doc raw"""
     VariableEncodingATol()
 """
 struct VariableEncodingATol <: CompilerVariableAttribute end
+
+function variable_encoding_atol(model::VirtualModel{T}, vi::VI)::T where {T}
+    τ = MOI.get(model, VariableEncodingATol(), vi)
+
+    if τ === nothing
+        return MOI.get(model, DefaultVariableEncodingATol())
+    else
+        return τ
+    end
+end
 
 function MOI.get(model::VirtualModel{T}, ::VariableEncodingATol, vi::VI)::T where {T}
     attr = :variable_encoding_atol
@@ -348,20 +350,20 @@ function MOI.set(model::VirtualModel, ::VariableEncodingATol, vi::VI, ::Nothing)
     return nothing
 end
 
-function variable_encoding_atol(model::VirtualModel{T}, vi::VI)::T where {T}
-    τ = MOI.get(model, VariableEncodingATol(), vi)
-
-    if τ === nothing
-        return MOI.get(model, DefaultVariableEncodingATol())
-    else
-        return τ
-    end
-end
-
 @doc raw"""
     VariableEncodingBits()
 """
 struct VariableEncodingBits <: CompilerVariableAttribute end
+
+function variable_encoding_bits(model::VirtualModel, vi::VI)::Union{Integer,Nothing}
+    n = MOI.get(model, VariableEncodingBits(), vi)
+
+    if isnothing(n)
+        return MOI.get(model, DefaultVariableEncodingBits())
+    else
+        return n
+    end
+end
 
 function MOI.get(
     model::VirtualModel,
@@ -420,11 +422,21 @@ expansion coefficients bounded by parametrizing the [`Bounded`](@ref) encoding.
 """
 struct VariableEncodingMethod <: CompilerVariableAttribute end
 
-function MOI.get(model::VirtualModel, ::VariableEncodingMethod, vi::VI)::Encoding
+function variable_encoding_method(model::VirtualModel, vi::VI)::Encoding
+    e = MOI.get(model, VariableEncodingMethod(), vi)
+
+    if isnothing(e)
+        return MOI.get(model, DefaultVariableEncodingMethod())
+    else
+        return e
+    end
+end
+
+function MOI.get(model::VirtualModel, ::VariableEncodingMethod, vi::VI)::Union{Encoding,Nothing}
     attr = :variable_encoding_method
 
     if !haskey(model.variable_settings, attr) || !haskey(model.variable_settings[attr], vi)
-        return MOI.get(model, DefaultVariableEncodingMethod())
+        return nothing
     else
         return model.variable_settings[attr][vi]
     end
@@ -464,6 +476,10 @@ constraints are involved.
 """
 struct VariableEncodingPenalty <: CompilerVariableAttribute end
 
+function variable_encoding_penalty(model::VirtualModel, vi::VI)
+    return MOI.get(model, VariableEncodingPenalty(), vi)
+end
+
 function MOI.get(model::VirtualModel{T}, ::VariableEncodingPenalty, vi::VI) where {T}
     return get(model.θ, vi, nothing)
 end
@@ -485,9 +501,6 @@ function MOI.set(
     return nothing
 end
 
-MOI.is_copyable(::VariableEncodingPenalty) = true
-MOI.is_set_by_optimize(::VariableEncodingPenalty) = true
-
 abstract type CompilerConstraintAttribute <: MOI.AbstractConstraintAttribute end
 
 MOI.supports(::VirtualModel, ::CompilerConstraintAttribute, ::CI) = true
@@ -500,6 +513,10 @@ MOIU.map_indices(::Any, ::CompilerConstraintAttribute, x) = x
 Allows the user to set and retrieve the coefficients used for encoding constraints.
 """
 struct ConstraintEncodingPenalty <: CompilerConstraintAttribute end
+
+function constraint_encoding_penalty(model::VirtualModel, ci::CI)
+    return MOI.get(model, ConstraintEncodingPenalty(), ci)
+end
 
 function MOI.get(model::VirtualModel{T}, ::ConstraintEncodingPenalty, ci::CI) where {T}
     return get(model.ρ, ci, nothing)
@@ -526,8 +543,5 @@ function MOI.set(
 
     return nothing
 end
-
-MOI.is_copyable(::ConstraintEncodingPenalty) = true
-MOI.is_set_by_optimize(::ConstraintEncodingPenalty) = true
 
 end # module Attributes

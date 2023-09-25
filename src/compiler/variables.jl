@@ -90,13 +90,14 @@ function variables!(model::VirtualModel{T}, ::AbstractArchitecture) where {T}
             # TODO: Add τ as parameter (DONE)
             # TODO: Move this comment to the documentation
             let
-                e = MOI.get(model, Attributes.VariableEncodingMethod(), x)
-                n = MOI.get(model, Attributes.VariableEncodingBits(), x)
+                e = Attributes.variable_encoding_method(model, x)
+                n = Attributes.variable_encoding_bits(model, x)
 
                 if !isnothing(n)
                     encode!(model, e, x, a, b, n)
                 else
-                    τ = MOI.get(model, Attributes.VariableEncodingATol(), x)
+                    τ = Attributes.variable_encoding_atol(model, x)
+
                     encode!(model, e, x, a, b, τ)
                 end
             end
@@ -109,7 +110,8 @@ function variables!(model::VirtualModel{T}, ::AbstractArchitecture) where {T}
             error("Unbounded variable $(x) ∈ ℤ")
         else
             let
-                e = MOI.get(model, Attributes.VariableEncodingMethod(), x)
+                e = Attributes.variable_encoding_method(model, x)
+
                 encode!(model, e, x, a, b)
             end
         end

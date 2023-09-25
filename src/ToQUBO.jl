@@ -40,7 +40,6 @@ include("model/wrapper.jl")
 # Attributes
 include("attributes/model.jl")
 include("attributes/solver.jl")
-include("attributes/virtual.jl")
 include("attributes/compiler.jl")
 
 # Compiler & Analysis

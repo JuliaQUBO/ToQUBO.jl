@@ -1,7 +1,7 @@
 MOI.get(::VirtualModel, ::MOI.SolverName)    = "Virtual QUBO Model"
 MOI.get(::VirtualModel, ::MOI.SolverVersion) = PROJECT_VERSION
 
-const MOI_MODEL_ATTRIBUTE = Union{
+const MODEL_ATTRIBUES = Union{
     MOI.ListOfConstraintAttributesSet,
     MOI.ListOfConstraintIndices,
     MOI.ListOfConstraintTypesPresent,
@@ -11,17 +11,19 @@ const MOI_MODEL_ATTRIBUTE = Union{
     MOI.NumberOfConstraints,
     MOI.NumberOfVariables,
     MOI.Name,
+    MOI.VariableName,
+    MOI.ConstraintName,
     MOI.ObjectiveFunction,
     MOI.ObjectiveFunctionType,
     MOI.ObjectiveSense,
 }
 
-function MOI.get(model::VirtualModel, attr::MOI_MODEL_ATTRIBUTE)
-    return MOI.get(model.source_model, attr)
+function MOI.get(model::VirtualModel, attr::MODEL_ATTRIBUES, args...)
+    return MOI.get(model.source_model, attr, args...)
 end
 
-function MOI.set(model::VirtualModel, attr::MOI_MODEL_ATTRIBUTE, value::Any)
-    MOI.set(model.source_model, attr, value)
+function MOI.set(model::VirtualModel, attr::MODEL_ATTRIBUES, args::Any...)
+    MOI.set(model.source_model, attr, args...)
 
     return nothing
 end

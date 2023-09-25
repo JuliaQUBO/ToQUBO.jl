@@ -6,6 +6,23 @@
 #   3. `MOI.optimize!(::VirtualModel)`
 # is called.
 
+function MOI.is_empty(model::VirtualModel)
+    return MOI.is_empty(model.source_model)
+end
+
+function MOI.empty!(model::VirtualModel)
+    MOI.empty!(model.source_model)
+
+    Compiler.reset!(model)
+
+    # Underlying Optimizer
+    if !isnothing(model.optimizer)
+        MOI.empty!(model.optimizer)
+    end
+
+    return nothing
+end
+
 function MOI.optimize!(model::VirtualModel)
     index_map = MOIU.identity_index_map(model.source_model)
 
@@ -24,13 +41,63 @@ function MOI.copy_to(model::VirtualModel{T}, source::MOI.ModelLike) where {T}
         error("QUBO Model is not empty")
     end
 
-    # Copy Attributes
+    # Build Index Map
+    index_map = MOIU.IndexMap()
 
     # Copy to PreQUBOModel + Add Bridges
     bridge_model = MOIB.full_bridge_optimizer(model.source_model, T)
 
-    # Copy to source using bridges
-    return MOI.copy_to(bridge_model, source) # index_map
+    # Copy Objective Function
+    let F = MOI.get(source, MOI.ObjectiveFunctionType())
+        MOI.set(
+            bridge_model,
+            MOI.ObjectiveFunction{F}(),
+            MOI.get(source, MOI.ObjectiveFunction{F}()),
+        )
+    end
+
+    # Copy Objective Sense
+    MOI.set(bridge_model, MOI.ObjectiveSense(), MOI.get(source, MOI.ObjectiveSense()))
+
+    # Copy Variables
+    for vi in MOI.get(source, MOI.ListOfVariableIndices())
+        index_map[vi] = MOI.add_variable(bridge_model)
+    end
+
+    # Copy Constraints
+    for (F, S) in MOI.get(source, MOI.ListOfConstraintTypesPresent())
+        # TODO: Add function barrier
+        # (https://jump.dev/MathOptInterface.jl/stable/submodules/Utilities/overview/#DoubleDicts)
+        for ci in MOI.get(source, MOI.ListOfConstraintIndices{F,S}())
+            f = MOI.get(source, MOI.ConstraintFunction(), ci)
+            s = MOI.get(source, MOI.ConstraintSet(), ci)
+
+            index_map[ci] = MOI.add_constraint(bridge_model, f, s)
+        end
+    end
+
+    # Copy Attributes
+    for attr in MOI.get(source, MOI.ListOfModelAttributesSet())
+        MOI.set(model, attr, MOI.get(source, attr))
+    end
+
+    for attr in MOI.get(source, MOI.ListOfVariableAttributesSet())
+        for vi in MOI.get(source, MOI.ListOfVariableIndices())
+            MOI.set(model, attr, index_map[vi], MOI.get(source, attr, vi))
+        end
+    end
+
+    for (F, S) in MOI.get(source, MOI.ListOfConstraintTypesPresent())
+        # TODO: Add function barrier
+        # (https://jump.dev/MathOptInterface.jl/stable/submodules/Utilities/overview/#DoubleDicts)
+        for attr in MOI.get(source, MOI.ListOfConstraintAttributesSet{F,S}())
+            for ci in MOI.get(source, MOI.ListOfConstraintIndices{F,S}())
+                MOI.set(model, attr, index_map[ci], MOI.get(source, attr, ci))
+            end
+        end
+    end
+
+    return index_map
 end
 
 # Objective Function Support
