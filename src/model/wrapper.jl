@@ -24,6 +24,8 @@ function MOI.copy_to(model::VirtualModel{T}, source::MOI.ModelLike) where {T}
         error("QUBO Model is not empty")
     end
 
+    # Copy Attributes
+
     # Copy to PreQUBOModel + Add Bridges
     bridge_model = MOIB.full_bridge_optimizer(model.source_model, T)
 
@@ -65,42 +67,4 @@ MOI.supports_add_constrained_variable(
     },
 ) where {T} = true
 
-
-PBO.showvar(x::VI) = PBO.showvar(x.value)
-
-PBO.varlt(x::VI, y::VI) = PBO.varlt(x.value, y.value)
-
-function PBO.varlt(x::Set{V}, y::Set{V}) where {V}
-    if length(x) == length(y)
-        xv = sort!(collect(x); lt = PBO.varlt)
-        yv = sort!(collect(y); lt = PBO.varlt)
-
-        for (xi, yi) in zip(xv, yv)
-            if xi == yi
-                continue
-            else
-                return PBO.varlt(xi, yi)
-            end
-        end
-
-        return false
-    else
-        return length(x) < length(y)
-    end
-end
-
 const Optimizer{T} = VirtualModel{T}
-
-# QUBOTools
-function qubo(model, type::Type = Dict)
-    n, L, Q, α, β = MOI.get(model, Attributes.QUBONormalForm())
-
-    return QUBOTools.qubo(type, n, L, Q, α, β)
-end
-
-function ising(model, type::Type = Dict)
-    n, L̄, Q̄, ᾱ, β̄ = MOI.get(model, Attributes.QUBONormalForm())
-    L, Q, α, β = QUBOTools.cast(QUBOTools.𝔹, QUBOTools.𝕊, L̄, Q̄, ᾱ, β̄)
-
-    return QUBOTools.ising(type, n, L, Q, α, β)
-end

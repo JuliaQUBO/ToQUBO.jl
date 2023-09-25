@@ -7,4 +7,4 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [compat]
 JuMP = "1"
-QUBODrivers = "0.2"
+QUBODrivers = "0.3"

@@ -103,7 +103,7 @@ function output!(model::VirtualModel{T}, ::AbstractArchitecture) where {T}
             # HINT: When debugging this, a good place to start is to check if the 'Quadratize'
             # flag is set or not. If missing, it should mean that some constraint might induce
             # PBFs of higher degree without calling 'MOI.set(model, Quadratize(), true)'.     
-            throw(QUBOError("Quadratization failed"))
+            compilation_error("Quadratization failed")
         end
     end
 

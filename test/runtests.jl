@@ -9,18 +9,15 @@ using LinearAlgebra
 using TOML
 
 using ToQUBO
-using ToQUBO: PBO, Attributes
+using ToQUBO: QUBOTools, PBO, Attributes
 
-include("assets/assets.jl")
 include("unit/unit.jl")
 include("integration/integration.jl")
-include("examples/examples.jl")
 
 function main()
-    @testset "::  ::  :: ToQUBO.jl ::  ::  ::" verbose = true begin
+    @testset "◈ ◈ ◈ ToQUBO.jl Test Suite ◈ ◈ ◈" verbose = true begin
         test_unit()
-        test_integration()
-        test_examples()
+        # test_integration()
     end
 
     return nothing

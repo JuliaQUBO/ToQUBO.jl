@@ -7,11 +7,11 @@ const PROJECT_VERSION   = VersionNumber(getindex(TOML.parsefile(PROJECT_FILE_PAT
 
 # QUBOTools
 import QUBOTools
-
-const QUBO_NORMAL_FORM{T} = Tuple{Int,Dict{Int,T},Dict{Tuple{Int,Int},T},T,T}
+import QUBOTools: PBO
 
 # External Imports
 import MathOptInterface as MOI
+
 const MOIU = MOI.Utilities
 const MOIB = MOI.Bridges
 
@@ -29,9 +29,7 @@ const VI = MOI.VariableIndex
 const CI = MOI.ConstraintIndex
 
 # Library
-include("lib/error.jl")
-include("lib/architectures.jl")
-include("lib/pbo/PBO.jl")
+include("error.jl")
 
 # Model
 include("model/qubo.jl")

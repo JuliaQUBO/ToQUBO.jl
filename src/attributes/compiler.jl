@@ -1,15 +1,15 @@
 module Attributes
 
-import ..ToQUBO: AbstractArchitecture, GenericArchitecture
-import ..ToQUBO: QUBO_NORMAL_FORM, VirtualModel
-import ..ToQUBO: Encoding, Unary, Binary, Arithmetic, OneHot, DomainWall, Bounded
-import ..ToQUBO.PBO
+import QUBOTools: PBO
+import QUBOTools: AbstractArchitecture, GenericArchitecture
 
-using MathOptInterface
-const MOI = MathOptInterface
+import MathOptInterface as MOI
 const MOIU = MOI.Utilities
-const VI = MOI.VariableIndex
-const CI = MOI.ConstraintIndex
+const VI   = MOI.VariableIndex
+const CI   = MOI.ConstraintIndex
+
+import ..ToQUBO: VirtualModel
+import ..ToQUBO: Encoding, Unary, Binary, Arithmetic, OneHot, DomainWall, Bounded
 
 export Warnings,
     Architecture,
@@ -151,7 +151,7 @@ Available options are defined in the `PBO` submodule.
 struct QuadratizationMethod <: CompilerAttribute end
 
 function MOI.get(model::VirtualModel, ::QuadratizationMethod)
-    return get(model.compiler_settings, :quadratization_method, PBO.AUTOMATIC)
+    return get(model.compiler_settings, :quadratization_method, PBO.DEFAULT)
 end
 
 function MOI.set(
@@ -373,7 +373,7 @@ function MOI.get(
     if haskey(model.variable_settings, attr)
         return get(model.variable_settings[attr], vi, nothing)
     else
-        return nothing
+        return MOI.get(model, DefaultVariableEncodingBits())
     end
 end
 
@@ -424,7 +424,7 @@ function MOI.get(model::VirtualModel, ::VariableEncodingMethod, vi::VI)::Encodin
     attr = :variable_encoding_method
 
     if !haskey(model.variable_settings, attr) || !haskey(model.variable_settings[attr], vi)
-        return nothing
+        return MOI.get(model, DefaultVariableEncodingMethod())
     else
         return model.variable_settings[attr][vi]
     end
@@ -485,6 +485,9 @@ function MOI.set(
     return nothing
 end
 
+MOI.is_copyable(::VariableEncodingPenalty) = true
+MOI.is_set_by_optimize(::VariableEncodingPenalty) = true
+
 abstract type CompilerConstraintAttribute <: MOI.AbstractConstraintAttribute end
 
 MOI.supports(::VirtualModel, ::CompilerConstraintAttribute, ::CI) = true
@@ -523,5 +526,8 @@ function MOI.set(
 
     return nothing
 end
+
+MOI.is_copyable(::ConstraintEncodingPenalty) = true
+MOI.is_set_by_optimize(::ConstraintEncodingPenalty) = true
 
 end # module Attributes

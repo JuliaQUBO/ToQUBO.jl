@@ -1,11 +1,11 @@
 module Compiler
 
+import QUBOTools: PBO
+import QUBOTools: AbstractArchitecture, GenericArchitecture
+
 import ..ToQUBO:
-    PBO,
     Attributes,
     VirtualModel,
-    AbstractArchitecture,
-    GenericArchitecture,
     encode!,
     encoding,
     expansion,

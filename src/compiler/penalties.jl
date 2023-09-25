@@ -3,13 +3,13 @@ function penalties!(model::VirtualModel{T}, ::AbstractArchitecture) where {T}
     s = MOI.get(model, MOI.ObjectiveSense()) === MOI.MAX_SENSE ? -1 : 1
 
     β = one(T) # TODO: This should be made a parameter too? Yes!
-    δ = PBO.gap(model.f)
+    δ = PBO.maxgap(model.f)
 
     for (ci, g) in model.g
         ρ = MOI.get(model, Attributes.ConstraintEncodingPenalty(), ci)
 
         if ρ === nothing
-            ϵ = PBO.sharpness(g)
+            ϵ = PBO.mingap(g)
             ρ = s * (δ / ϵ + β)
         end
 
@@ -20,7 +20,7 @@ function penalties!(model::VirtualModel{T}, ::AbstractArchitecture) where {T}
         ρ = MOI.get(model, Attributes.VariableEncodingPenalty(), vi)
 
         if ρ === nothing
-            ϵ = PBO.sharpness(h)
+            ϵ = PBO.mingap(h)
             ρ = s * (δ / ϵ + β)
         end
 
