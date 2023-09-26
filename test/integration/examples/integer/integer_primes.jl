@@ -37,13 +37,17 @@ function test_integer_primes()
         optimize!(model)
 
         # Reformulation
-        ρ       = MOI.get(model, Attributes.ConstraintEncodingPenalty(), c1)
-        Q, α, β = ToQUBO.qubo(model, Matrix)
+        ρ = get_attribute(c1, Attributes.ConstraintEncodingPenalty())
 
+        n, L, Q, α, β = QUBOTools.qubo(model, :dense)
+
+        Q̂ = Q + diagm(L)
+
+        @test n == 10
         @test ρ ≈ ρ̄
         @test α ≈ ᾱ
         @test β ≈ β̄
-        @test Q ≈ Q̄
+        @test Q̂ ≈ Q̄
 
         # Solutions
         p̂ = trunc(Int, value(p))

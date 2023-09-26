@@ -46,21 +46,24 @@ function test_quadratic_1()
         model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
 
         @variable(model, x[1:n], Bin)
-        @objective(model, Max, x'A * x)
-        @constraint(model, c1, x'A * x <= b)
+        @objective(model, Max, x'* A * x)
+        @constraint(model, c1, x'* A * x <= b)
 
         set_optimizer_attribute(model, Attributes.StableQuadratization(), true)
 
         optimize!(model)
 
         # Reformulation
-        ρ       = MOI.get(model, Attributes.ConstraintEncodingPenalty(), c1)
-        Q, α, β = ToQUBO.qubo(model, Matrix)
+        ρ = get_attribute(c1, Attributes.ConstraintEncodingPenalty())
+        n, L, Q, α, β = QUBOTools.qubo(model, :dense)
 
+        Q̂ = Q + diagm(L)
+
+        @test n == 20
         @test ρ ≈ ρ̄
         @test α ≈ ᾱ
         @test β ≈ β̄
-        @test Q ≈ Q̄
+        @test Q̂ ≈ Q̄
 
         # Solutions
         x̂ = trunc.(Int, value.(x))

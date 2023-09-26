@@ -11,13 +11,17 @@ using TOML
 using ToQUBO
 using ToQUBO: QUBOTools, PBO, Attributes
 
+function QUBOTools.backend(model::JuMP.Model)
+    return QUBOTools.backend(JuMP.unsafe_backend(model))
+end
+
 include("unit/unit.jl")
 include("integration/integration.jl")
 
 function main()
     @testset "◈ ◈ ◈ ToQUBO.jl Test Suite ◈ ◈ ◈" verbose = true begin
         test_unit()
-        # test_integration()
+        test_integration()
     end
 
     return nothing

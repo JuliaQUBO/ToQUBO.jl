@@ -35,13 +35,15 @@ function test_logical_sos1()
         optimize!(model)
 
         # Reformulation
-        ρ       = MOI.get(model, Attributes.ConstraintEncodingPenalty(), c1)
-        Q, α, β = ToQUBO.qubo(model, Matrix)
+        ρ = get_attribute(c1, Attributes.ConstraintEncodingPenalty())
+        n, L, Q, α, β = QUBOTools.qubo(model, :dense)
+
+        Q̂ = Q + diagm(L)
 
         @test ρ ≈ ρ̄
         @test α ≈ ᾱ
         @test β ≈ β̄
-        @test Q ≈ Q̄
+        @test Q̂ ≈ Q̄
 
         # Solutions
         x̂ = trunc.(Int, value.(x))

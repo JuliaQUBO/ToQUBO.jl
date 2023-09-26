@@ -51,15 +51,18 @@ function test_logical_tsp()
         optimize!(model)
 
         # Reformulation
-        ρi      = MOI.get.(model, Attributes.ConstraintEncodingPenalty(), ci)
-        ρk      = MOI.get.(model, Attributes.ConstraintEncodingPenalty(), ck)
-        ρ       = [ρi; ρk]
-        Q, α, β = ToQUBO.qubo(model, Matrix)
+        ρi = get_attribute.(ci, Attributes.ConstraintEncodingPenalty())
+        ρk = get_attribute.(ck, Attributes.ConstraintEncodingPenalty())
+        ρ  = [ρi; ρk]
+        n, L, Q, α, β = QUBOTools.qubo(model, :dense)
 
+        Q̂ = Q + diagm(L)
+
+        @test n == 10
         @test ρ ≈ ρ̄
         @test α ≈ ᾱ
         @test β ≈ β̄
-        @test Q ≈ Q̄
+        @test Q̂ ≈ Q̄
 
         # Solutions
         x̂ = trunc.(Int, value.(x))

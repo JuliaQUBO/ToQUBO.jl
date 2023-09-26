@@ -36,6 +36,33 @@ function MOI.optimize!(model::VirtualModel)
     return (index_map, false)
 end
 
+function _copy_constraints!(::Type{F}, ::Type{S}, source, target, index_map) where {F,S}
+    for ci in MOI.get(source, MOI.ListOfConstraintIndices{F,S}())
+        f = MOI.get(source, MOI.ConstraintFunction(), ci)
+        s = MOI.get(source, MOI.ConstraintSet(), ci)
+
+        index_map[ci] = MOI.add_constraint(target, f, s)
+    end
+
+    return nothing
+end
+
+function _copy_constraint_attributes(
+    ::Type{F},
+    ::Type{S},
+    source,
+    target,
+    index_map,
+) where {F,S}
+    for attr in MOI.get(source, MOI.ListOfConstraintAttributesSet{F,S}())
+        for ci in MOI.get(source, MOI.ListOfConstraintIndices{F,S}())
+            MOI.set(target, attr, index_map[ci], MOI.get(source, attr, ci))
+        end
+    end
+
+    return nothing
+end
+
 function MOI.copy_to(model::VirtualModel{T}, source::MOI.ModelLike) where {T}
     if !MOI.is_empty(model)
         error("QUBO Model is not empty")
@@ -66,14 +93,7 @@ function MOI.copy_to(model::VirtualModel{T}, source::MOI.ModelLike) where {T}
 
     # Copy Constraints
     for (F, S) in MOI.get(source, MOI.ListOfConstraintTypesPresent())
-        # TODO: Add function barrier
-        # (https://jump.dev/MathOptInterface.jl/stable/submodules/Utilities/overview/#DoubleDicts)
-        for ci in MOI.get(source, MOI.ListOfConstraintIndices{F,S}())
-            f = MOI.get(source, MOI.ConstraintFunction(), ci)
-            s = MOI.get(source, MOI.ConstraintSet(), ci)
-
-            index_map[ci] = MOI.add_constraint(bridge_model, f, s)
-        end
+        _copy_constraints!(F, S, source, bridge_model, index_map)
     end
 
     # Copy Attributes
@@ -88,13 +108,7 @@ function MOI.copy_to(model::VirtualModel{T}, source::MOI.ModelLike) where {T}
     end
 
     for (F, S) in MOI.get(source, MOI.ListOfConstraintTypesPresent())
-        # TODO: Add function barrier
-        # (https://jump.dev/MathOptInterface.jl/stable/submodules/Utilities/overview/#DoubleDicts)
-        for attr in MOI.get(source, MOI.ListOfConstraintAttributesSet{F,S}())
-            for ci in MOI.get(source, MOI.ListOfConstraintIndices{F,S}())
-                MOI.set(model, attr, index_map[ci], MOI.get(source, attr, ci))
-            end
-        end
+        _copy_constraint_attributes(F, S, source, model, index_map)
     end
 
     return index_map
@@ -135,3 +149,17 @@ MOI.supports_add_constrained_variable(
 ) where {T} = true
 
 const Optimizer{T} = VirtualModel{T}
+
+function Base.show(io::IO, model::VirtualModel)
+    print(
+        io,
+        """
+        $(MOI.get(model, MOI.SolverName()))
+        $(model.source_model)
+        """,
+    )
+end
+
+function QUBOTools.backend(model::Optimizer{T}) where {T}
+    return QUBOTools.Model{T}(model.target_model)
+end

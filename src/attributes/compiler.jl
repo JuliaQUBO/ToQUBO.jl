@@ -29,6 +29,8 @@ export Warnings,
 
 abstract type CompilerAttribute <: MOI.AbstractOptimizerAttribute end
 
+MOI.supports(::VirtualModel, ::A) where {A<:CompilerAttribute} = true
+
 @doc raw"""
     Warnings()
 """
@@ -259,49 +261,9 @@ function MOI.set(model::VirtualModel, ::DefaultVariableEncodingBits, ::Nothing)
 end
 
 
-@doc raw"""
-    QUBONormalForm()
-"""
-struct QUBONormalForm <: CompilerAttribute end
-
-function MOI.get(model::VirtualModel{T}, ::QUBONormalForm)::QUBO_NORMAL_FORM{T} where {T}
-    target_model = model.target_model
-
-    n = MOI.get(target_model, MOI.NumberOfVariables())
-    F = MOI.get(target_model, MOI.ObjectiveFunctionType())
-    f = MOI.get(target_model, MOI.ObjectiveFunction{F}())
-
-    linear_terms    = sizehint!(Dict{Int,T}(), length(f.affine_terms))
-    quadratic_terms = sizehint!(Dict{Tuple{Int,Int},T}(), length(f.quadratic_terms))
-
-    for a in f.affine_terms
-        c = a.coefficient
-        i = a.variable.value
-
-        linear_terms[i] = get(linear_terms, i, zero(T)) + c
-    end
-
-    for q in f.quadratic_terms
-        c = q.coefficient
-        i = q.variable_1.value
-        j = q.variable_2.value
-
-        if i == j
-            linear_terms[i] = get(linear_terms, i, zero(T)) + c / 2
-        elseif i > j
-            quadratic_terms[(j, i)] = get(quadratic_terms, (j, i), zero(T)) + c
-        else
-            quadratic_terms[(i, j)] = get(quadratic_terms, (i, j), zero(T)) + c
-        end
-    end
-
-    scale  = one(T)
-    offset = f.constant
-
-    return (n, linear_terms, quadratic_terms, scale, offset)
-end
-
 abstract type CompilerVariableAttribute <: MOI.AbstractVariableAttribute end
+
+MOI.supports(::VirtualModel, ::A, ::Type{VI}) where {A<:CompilerVariableAttribute} = true
 
 @doc raw"""
     VariableEncodingATol()
@@ -318,7 +280,7 @@ function variable_encoding_atol(model::VirtualModel{T}, vi::VI)::T where {T}
     end
 end
 
-function MOI.get(model::VirtualModel{T}, ::VariableEncodingATol, vi::VI)::T where {T}
+function MOI.get(model::VirtualModel{T}, ::VariableEncodingATol, vi::VI)::Union{T,Nothing} where {T}
     attr = :variable_encoding_atol
 
     if haskey(model.variable_settings, attr)
@@ -503,9 +465,7 @@ end
 
 abstract type CompilerConstraintAttribute <: MOI.AbstractConstraintAttribute end
 
-MOI.supports(::VirtualModel, ::CompilerConstraintAttribute, ::CI) = true
-
-MOIU.map_indices(::Any, ::CompilerConstraintAttribute, x) = x
+MOI.supports(::VirtualModel, ::A, ::Type{<:CI}) where {A<:CompilerConstraintAttribute} = true
 
 @doc raw"""
     ConstraintEncodingPenalty()
@@ -513,6 +473,8 @@ MOIU.map_indices(::Any, ::CompilerConstraintAttribute, x) = x
 Allows the user to set and retrieve the coefficients used for encoding constraints.
 """
 struct ConstraintEncodingPenalty <: CompilerConstraintAttribute end
+
+MOI.is_set_by_optimize(::ConstraintEncodingPenalty) = true
 
 function constraint_encoding_penalty(model::VirtualModel, ci::CI)
     return MOI.get(model, ConstraintEncodingPenalty(), ci)

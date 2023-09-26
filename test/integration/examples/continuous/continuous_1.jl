@@ -47,11 +47,14 @@ function test_continuous_1()
         optimize!(model)
 
         # Reformulation
-        Q, α, β = ToQUBO.qubo(model, Matrix)
+        n, L, Q, α, β = QUBOTools.qubo(model, :dense)
 
+        Q̂ = Q + diagm(L)
+
+        @test n == 18
         @test α ≈ ᾱ
         @test β ≈ β̄
-        @test Q ≈ Q̄ / 3
+        @test Q̂ ≈ Q̄ / 3
 
         # Solutions
         x̂ = trunc.(Int, value.(x))

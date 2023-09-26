@@ -1,7 +1,8 @@
 MOI.get(::VirtualModel, ::MOI.SolverName)    = "Virtual QUBO Model"
 MOI.get(::VirtualModel, ::MOI.SolverVersion) = PROJECT_VERSION
 
-const MODEL_ATTRIBUES = Union{
+const SOURCE_MODEL_ATTRIBUES{T} = Union{
+    MOIB.ListOfNonstandardBridges{T},
     MOI.ListOfConstraintAttributesSet,
     MOI.ListOfConstraintIndices,
     MOI.ListOfConstraintTypesPresent,
@@ -18,14 +19,18 @@ const MODEL_ATTRIBUES = Union{
     MOI.ObjectiveSense,
 }
 
-function MOI.get(model::VirtualModel, attr::MODEL_ATTRIBUES, args...)
+function MOI.get(model::VirtualModel{T}, attr::SOURCE_MODEL_ATTRIBUES{T}, args...) where {T}
     return MOI.get(model.source_model, attr, args...)
 end
 
-function MOI.set(model::VirtualModel, attr::MODEL_ATTRIBUES, args::Any...)
+function MOI.set(model::VirtualModel{T}, attr::SOURCE_MODEL_ATTRIBUES{T}, args::Any...) where {T}
     MOI.set(model.source_model, attr, args...)
 
     return nothing
+end
+
+function MOI.supports(::VirtualModel{T}, ::SOURCE_MODEL_ATTRIBUES{T}) where {T}
+    return true
 end
 
 function MOI.get(
@@ -38,16 +43,6 @@ end
 
 function MOI.get(model::VirtualModel, attr::MOI.VariableName, x::VI)
     return MOI.get(model.source_model, attr, x)
-end
-
-function Base.show(io::IO, model::VirtualModel)
-    print(
-        io,
-        """
-        $(MOI.get(model, MOI.SolverName()))
-        $(model.source_model)
-        """,
-    )
 end
 
 function MOI.add_variable(model::VirtualModel)

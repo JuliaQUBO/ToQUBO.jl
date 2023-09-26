@@ -30,11 +30,14 @@ function test_qba2()
         optimize!(model)
 
         # Reformulation
-        Q, α, β = ToQUBO.qubo(model, Matrix)
+        n, L, Q, α, β = QUBOTools.qubo(model, :dense)
 
+        Q̂ = Q + diagm(L)
+
+        @test n == 4
         @test α ≈ ᾱ
         @test β ≈ β̄
-        @test Q ≈ Q̄
+        @test Q̂ ≈ Q̄
 
         # Solution
         x̂ = value.(x)

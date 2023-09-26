@@ -42,11 +42,14 @@ function test_qba3_1()
 
         optimize!(model)
 
-        Q, _, c = ToQUBO.qubo(model, Matrix)
-
         # Reformulation
+        n, L, Q, _, c = QUBOTools.qubo(model, :dense)
+
+        Q̂ = Q + diagm(L)
+
+        @test n == 8
         @test c ≈ c̄
-        @test Q ≈ 4Q̄
+        @test Q̂ ≈ 4Q̄
 
         # Solution
         x̂ = trunc.(Int, value.(x))
