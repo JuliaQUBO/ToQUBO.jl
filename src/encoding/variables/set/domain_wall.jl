@@ -17,46 +17,23 @@ struct DomainWall{T} <: SetVariableEncodingMethod end
 function encode(
     var::Function,
     ::DomainWall{T},
-    γ::Vector{T},
-    a::T = zero(T),
+    γ::AbstractVector{T},
 ) where {T}
-    n = length(γ) - 1
+    n = length(γ)
 
-    if n > 0
-        y = var(n + 1)::Vector{VI}
-        ξ = a + PBO.PBF{VI,T}(y[i] => (γ[i] - γ[i+1]) for i = 1:n)
-        χ = 2 * (PBO.PBF{VI,T}(y[2:n]) - PBO.PBF{VI,T}((y[i], y[i-1]) for i = 2:n))
-    else
+    if n == 0
         y = VI[]
-        ξ = PBO.PBF{VI,T}(a)
+        ξ = PBO.PBF{VI,T}()
         χ = nothing
+    elseif n == 1
+        y = Vector{VI}()
+        ξ = PBO.PBF{VI,T}(γ[1])
+        χ = nothing
+    else
+        y = var(n)::Vector{VI}
+        ξ = PBO.PBF{VI,T}(y[i] => (γ[i] - γ[i+1]) for i = 1:n)
+        χ = 2 * (PBO.PBF{VI,T}(y[2:n]) - PBO.PBF{VI,T}((y[i], y[i-1]) for i = 2:n))
     end
 
     return (y, ξ, χ)
-end
-
-function encode(
-    var::Function,
-    e::DomainWall{T},
-    S::Tuple{T,T},
-) where {T}
-    a, b = integer_interval(S)
-
-    M = trunc(Int, b - a)
-    γ = collect(T, 0:M)
-
-    return encode(var, e, γ, a)
-end
-
-function encode(
-    var::Function,
-    e::DomainWall{T},
-    n::Integer,
-    S::Tuple{T,T},
-) where {T}
-    a, b = integer_interval(S)
-
-    γ = (b - a) / (n - 1) * collect(T, 0:n-1)
-
-    return encode(var, e, γ, a)
 end

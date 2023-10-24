@@ -32,14 +32,15 @@ struct Binary{T} <: IntervalVariableEncodingMethod end
 Binary() = Binary{Float64}()
 
 # Integer
-function encode(var::Function, ::Binary{T}, S::Tuple{T,T}) where {T}
+function encode(var::Function, e::Binary{T}, S::Tuple{T,T}; tol::Union{T,Nothing} = nothing) where {T}
+    isnothing(tol) || return encode(var, e, S, nothing; tol)
+
     a, b = integer_interval(S)
 
     @assert b > a
 
-    M = floor(Int, b - a)
+    M = trunc(Int, b - a)
     N = ceil(Int, log2(M + 1))
-
 
     if N == 0
         y = VI[]
@@ -49,7 +50,7 @@ function encode(var::Function, ::Binary{T}, S::Tuple{T,T}) where {T}
         ξ = PBO.PBF{VI,T}(
             [
                 a
-                [y[i] => (b - a) * 2^(i - 1) / (2^N - 1) for i = 1:N-1]
+                [y[i] => 2^(i - 1) for i = 1:N-1]
                 y[N] => M - 2^(N - 1) + 1
             ],
         )
@@ -156,6 +157,8 @@ function encode(
     end
 
     @assert n >= 0
+
+    a, b = S
 
     if n == 0
         y = Vector{VI}()

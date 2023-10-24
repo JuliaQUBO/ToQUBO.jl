@@ -35,7 +35,7 @@ function encode(
     a, b = integer_interval(S)
 
     m = floor(Int, e.μ)
-    n = b - a
+    n = trunc(Int, b - a)
     r = n ÷ m
     d = n - r * m
 

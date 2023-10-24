@@ -37,12 +37,14 @@ Given ``S = [a, b] \subset \mathbb{Z}``, ``a < b``, let ``n = b - a`` and ``\mat
 \xi{[a, b]}(\mathbf{y}) = a + \sum_{j = 1}^{b - a} y_{j}
 ```
 """
-function encode(var::Function, ::Unary{T}, S::Tuple{T,T}) where {T}
+function encode(var::Function, e::Unary{T}, S::Tuple{T,T}; tol::Union{T,Nothing} = nothing) where {T}
+    isnothing(tol) || return encode(var, e, S, nothing; tol)
+
     a, b = integer_interval(S)
 
     @assert b > a
 
-    N = floor(Int, b - a)
+    N = trunc(Int, b - a)
 
     y = var(N)::Vector{VI}
     ξ = if N == 0
@@ -112,7 +114,6 @@ function encode(
 
     a, b = S
 
-    
     if n == 0
         y = Vector{VI}()
         ξ = PBO.PBF{VI,T}((a + b) / 2)

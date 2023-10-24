@@ -50,7 +50,7 @@ function test_compiler_constraints_quadratic()
 end
 
 function test_compiler_constraints()
-    @testset "Constraints" verbose = true begin
+    @testset "→ Constraints" verbose = true begin
         test_compiler_constraints_quadratic()
     end
 

@@ -22,12 +22,7 @@ is added to the objective function.
 struct OneHot{T} <: SetVariableEncodingMethod end
 
 # Arbitrary set
-function encode(
-    var::Function,
-    ::OneHot{T},
-    γ::AbstractVector{T},
-    a::T = zero(T),
-) where {T}
+function encode(var::Function, ::OneHot{T}, γ::AbstractVector{T}) where {T}
     n = length(γ)
 
     y = var(n)::Vector{VI}
@@ -35,70 +30,4 @@ function encode(
     χ = PBO.PBF{VI,T}([y; -one(T)])^2
 
     return (y, ξ, χ)
-end
-
-# Integer
-function encode(
-    var::Function,
-    ::OneHot{T},
-    S::Tuple{T,T},
-) where {T}
-    ā, b̄ = S
-    a, b = ā < b̄ ? (ceil(ā), floor(b̄)) : (ceil(b̄), floor(ā))
-
-    N = floor(Int, b - a)
-
-    if N == 0
-        y = VI[]
-        ξ = PBO.PBF{VI,T}((a + b) / 2)
-        χ = nothing
-    else
-        y = var(N)::Vector{VI}
-        ξ = PBO.PBF{VI,T}([a; [y[i] => (i - one(T)) for i = 1:N]])
-        χ = (PBO.PBF{VI,T}(y) - one(T))^2
-    end
-
-    return (y, ξ, χ)
-end
-
-# Real (fixed)
-function encode(
-    var::Function,
-    ::OneHot{T},
-    n::Integer,
-    S::Tuple{T,T},
-) where {T}
-    a, b = S
-
-    @assert n >= 0
-
-    y = var(n)::Vector{VI}
-    ξ = if n == 0
-        PBO.PBF{VI,T}((a + b) / 2)
-    else
-        PBO.PBF{VI,T}([a; [y[i] => (i - 1) * (b - a) / (n - 1) for i = 1:n]])
-    end
-    χ = if n == 0
-        nothing
-    else
-        (PBO.PBF{VI,T}(y) - one(T))^2
-    end
-
-    return (y, ξ, χ)
-end
-
-# Real (tolerance)
-function encode(
-    var::Function,
-    e::OneHot{T},
-    S::Tuple{T,T},
-    tol::T
-) where {T}
-    a, b = S
-
-    @assert tol > zero(T)
-
-    n = ceil(Int, (1 + abs(b - a) / 4tol))
-
-    return encode(var, e, n, S)
 end

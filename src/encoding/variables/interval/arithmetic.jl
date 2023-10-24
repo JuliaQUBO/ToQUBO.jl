@@ -29,7 +29,9 @@ Arithmetic() = Arithmetic{Float64}()
 @doc raw"""
     encode(var::Function, ::Arithmetic{T}, S::Tuple{T,T}) where {T}
 """
-function encode(var::Function, ::Arithmetic{T}, S::Tuple{T,T}) where {T}
+function encode(var::Function, e::Arithmetic{T}, S::Tuple{T,T}; tol::Union{T,Nothing} = nothing) where {T}
+    isnothing(tol) || return encode(var, e, S, nothing; tol)
+
     a, b = integer_interval(S)
 
     @assert b > a
@@ -45,7 +47,7 @@ function encode(var::Function, ::Arithmetic{T}, S::Tuple{T,T}) where {T}
         ξ = PBO.PBF{VI,T}(
             [
                 a
-                [y[i] => 2i * (b - a) / (N * (N + 1)) for i = 1:N-1]
+                [y[i] => i for i = 1:N-1]
                 y[N] => M - N * (N - 1) / 2
             ],
         )
@@ -85,18 +87,18 @@ end
 #     return (y, ξ, nothing) # No penalty function
 # end
 
-# function encoding_bits(::Arithmetic{T}, S::Tuple{T,T}, tol::T) where {T}
-#     @assert tol > zero(T)
+function encoding_bits(::Arithmetic{T}, S::Tuple{T,T}, tol::T) where {T}
+    @assert tol > zero(T)
 
-#     a, b = S
+    a, b = S
 
-#     return ceil(Int, (1 + sqrt(3 + (b - a) / 2tol)) / 2)
-# end
+    return ceil(Int, (1 + sqrt(3 + (b - a) / 2tol)) / 2)
+end
 
 # Real (fixed)
 function encode(
     var::Function,
-    ::Arithmetic{T},
+    e::Arithmetic{T},
     S::Tuple{T,T},
     n::Union{Integer,Nothing};
     tol::Union{T,Nothing} = nothing,
@@ -108,6 +110,8 @@ function encode(
     end
 
     @assert n >= 0
+
+    a, b = S
 
     if n == 0
         y = Vector{VI}()
