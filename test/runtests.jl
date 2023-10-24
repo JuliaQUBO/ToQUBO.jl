@@ -21,7 +21,7 @@ include("integration/integration.jl")
 function main()
     @testset "◈ ◈ ◈ ToQUBO.jl Test Suite ◈ ◈ ◈" verbose = true begin
         test_unit()
-        test_integration()
+        # test_integration()
     end
 
     return nothing

@@ -19,54 +19,54 @@ function isqubo end
         optimizer::Union{Nothing, Type{<:MOI.AbstractOptimizer}} = nothing
     )
 
-Low-level interface to create a `::VirtualModel{T}` from `::MOI.ModelLike` instance.
+Low-level interface to create a `::Virtual.Model{T}` from `::MOI.ModelLike` instance.
 If provided, an `::MOI.AbstractOptimizer` is attached to the model.
 """
 function toqubo end
 
 @doc raw"""
-    toqubo!(model::VirtualModel{T}, ::AbstractArchitecture) where {T}
+    toqubo!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
 """
 function toqubo! end
 
 @doc raw"""
-    setup!(model::VirtualModel, ::AbstractArchitecture)
+    setup!(model::Virtual.Model, ::AbstractArchitecture)
 
 
 """
 function setup! end
 
 @doc raw"""
-    sense!(model::VirtualModel, ::AbstractArchitecture)
+    sense!(model::Virtual.Model, ::AbstractArchitecture)
 
 Copies `MOI.ObjectiveSense` from `model.source_model` to `model.target_model`.
 """
 function sense! end
 
 @doc raw"""
-    variables!(model::VirtualModel{T}) where {T}
+    variables!(model::Virtual.Model{T}) where {T}
 """
 function variables! end
 
 @doc raw"""
-    variable!(model::VirtualModel{T}) where {T}
+    variable!(model::Virtual.Model{T}) where {T}
 """
 function variable! end
 
 @doc raw"""
-    objective!(model::VirtualModel, ::AbstractArchitecture)
+    objective!(model::Virtual.Model, ::AbstractArchitecture)
 """
 function objective! end
 
 @doc raw"""
-    objective(model::VirtualModel, F::VI, ::AbstractArchitecture)
-    objective(model::VirtualModel{T}, F::SAF{T}, ::AbstractArchitecture) where {T}
-    objective(model::VirtualModel{T}, F::SQF{T}, ::AbstractArchitecture) where {T}
+    objective(model::Virtual.Model, F::VI, ::AbstractArchitecture)
+    objective(model::Virtual.Model{T}, F::SAF{T}, ::AbstractArchitecture) where {T}
+    objective(model::Virtual.Model{T}, F::SQF{T}, ::AbstractArchitecture) where {T}
 """
 function objective end
 
 @doc raw"""
-    constraints!(model::VirtualModel, ::AbstractArchitecture)
+    constraints!(model::Virtual.Model, ::AbstractArchitecture)
 """
 function constraints! end
 
@@ -83,7 +83,7 @@ function _parse end
 
 @doc raw"""
     parse!(
-        model::VirtualModel{T},
+        model::Virtual.Model{T},
         g::PBO.PBF{VI,T},
         f::MOI.AbstractFunction,
         arch::AbstractArchitecture
@@ -94,7 +94,7 @@ Parses the given MOI function `f` into PBF `g`.
 function parse! end
 
 @doc raw"""
-    penalties!(model::VirtualModel, arch::AbstractArchitecture)
+    penalties!(model::Virtual.Model, arch::AbstractArchitecture)
 """
 function penalties! end
 
@@ -103,25 +103,25 @@ function penalties! end
 function penalty end
 
 @doc raw"""
-    build!(model::VirtualModel, arch::AbstractArchitecture)
+    build!(model::Virtual.Model, arch::AbstractArchitecture)
 """
 function build! end
 
 @doc raw"""
-    quadratize!(model::VirtualModel, arch::AbstractArchitecture)
+    quadratize!(model::Virtual.Model, arch::AbstractArchitecture)
 
 Quadratizes the objective function from a model.
 """
 function quadratize! end
 
 @doc raw"""
-    reset!(model::VirtualModel, arch::AbstractArchitecture)
+    reset!(model::Virtual.Model, arch::AbstractArchitecture)
 
 """
 function reset! end
 
 @doc raw"""
-    _copy!(model::VirtualModel, arch::AbstractArchitecture)
+    _copy!(model::Virtual.Model, arch::AbstractArchitecture)
 
 """
 function _copy! end

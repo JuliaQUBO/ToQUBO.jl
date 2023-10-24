@@ -1,4 +1,4 @@
-function sense!(model::VirtualModel, ::AbstractArchitecture)
+function sense!(model::Virtual.Model, ::AbstractArchitecture)
     if MOI.get(model, MOI.ObjectiveSense()) === MOI.MAX_SENSE
         MOI.set(model.target_model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
     else
@@ -9,7 +9,7 @@ function sense!(model::VirtualModel, ::AbstractArchitecture)
     return nothing
 end
 
-function objective!(model::VirtualModel, arch::AbstractArchitecture)
+function objective!(model::Virtual.Model, arch::AbstractArchitecture)
     F = MOI.get(model, MOI.ObjectiveFunctionType())
     f = MOI.get(model, MOI.ObjectiveFunction{F}())
 

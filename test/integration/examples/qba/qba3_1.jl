@@ -1,13 +1,12 @@
+raw"""
+Quote from [1]:
+
+The Number Partitioning problem has numerous applications cited in the bibliography. A
+common version of this problem involves partitioning a set of numbers into two subsets
+such that the subset sums are as close to each other as possible.
+"""
 function test_qba3_1()
-    @testset "Number Partitioning" begin
-        #=
-        Quote from [1]:
-
-        The Number Partitioning problem has numerous applications cited in the bibliography. A
-        common version of this problem involves partitioning a set of numbers into two subsets
-        such that the subset sums are as close to each other as possible.
-        =#
-
+    @testset "3.1: Number Partitioning" begin
         # Problem Data
         S = Int[25, 7, 13, 31, 42, 17, 21, 10]
         m = 8

@@ -1,16 +1,17 @@
 # Notes on the optimize! interface
 # After `JuMP.optimize!(model)` there are a few layers before reaching
-#   1. `MOI.optimize!(::VirtualModel, ::MOI.ModelLike)`
+#   1. `MOI.optimize!(::Optimizer, ::MOI.ModelLike)`
 # Then, 
-#   2. `MOI.copy_to(::VirtualModel, ::MOI.ModelLike)`
-#   3. `MOI.optimize!(::VirtualModel)`
+#   2. `MOI.copy_to(::Optimizer, ::MOI.ModelLike)`
+#   3. `MOI.optimize!(::Optimizer)`
 # is called.
+const Optimizer{T} = Virtual.Model{T}
 
-function MOI.is_empty(model::VirtualModel)
+function MOI.is_empty(model::Optimizer)
     return MOI.is_empty(model.source_model)
 end
 
-function MOI.empty!(model::VirtualModel)
+function MOI.empty!(model::Optimizer)
     MOI.empty!(model.source_model)
 
     Compiler.reset!(model)
@@ -23,7 +24,7 @@ function MOI.empty!(model::VirtualModel)
     return nothing
 end
 
-function MOI.optimize!(model::VirtualModel)
+function MOI.optimize!(model::Optimizer)
     index_map = MOIU.identity_index_map(model.source_model)
 
     # De facto JuMP to QUBO Compilation
@@ -63,7 +64,7 @@ function _copy_constraint_attributes(
     return nothing
 end
 
-function MOI.copy_to(model::VirtualModel{T}, source::MOI.ModelLike) where {T}
+function MOI.copy_to(model::Optimizer{T}, source::MOI.ModelLike) where {T}
     if !MOI.is_empty(model)
         error("QUBO Model is not empty")
     end
@@ -111,18 +112,20 @@ function MOI.copy_to(model::VirtualModel{T}, source::MOI.ModelLike) where {T}
         _copy_constraint_attributes(F, S, source, model, index_map)
     end
 
+    model.bridge_model = bridge_model
+
     return index_map
 end
 
 # Objective Function Support
 MOI.supports(
-    ::VirtualModel{T},
+    ::Optimizer{T},
     ::MOI.ObjectiveFunction{<:Union{VI,SAF{T},SQF{T}}},
 ) where {T} = true
 
 # Constraint Support
 MOI.supports_constraint(
-    ::VirtualModel{T},
+    ::Optimizer{T},
     ::Type{VI},
     ::Type{
         <:Union{MOI.ZeroOne,MOI.Integer,MOI.Interval{T},MOI.LessThan{T},MOI.GreaterThan{T}},
@@ -130,27 +133,25 @@ MOI.supports_constraint(
 ) where {T} = true
 
 MOI.supports_constraint(
-    ::VirtualModel{T},
+    ::Optimizer{T},
     ::Type{<:Union{SAF{T},SQF{T}}},
     ::Type{<:Union{MOI.EqualTo{T},MOI.LessThan{T}}},
 ) where {T} = true
 
 MOI.supports_constraint(
-    ::VirtualModel{T},
+    ::Optimizer{T},
     ::Type{<:MOI.VectorOfVariables},
     ::Type{<:MOI.SOS1},
 ) where {T} = true
 
 MOI.supports_add_constrained_variable(
-    ::VirtualModel{T},
+    ::Optimizer{T},
     ::Type{
         <:Union{MOI.ZeroOne,MOI.Integer,MOI.Interval{T},MOI.LessThan{T},MOI.GreaterThan{T}},
     },
 ) where {T} = true
 
-const Optimizer{T} = VirtualModel{T}
-
-function Base.show(io::IO, model::VirtualModel)
+function Base.show(io::IO, model::Optimizer)
     print(
         io,
         """

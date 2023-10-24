@@ -1,17 +1,14 @@
 module Compiler
 
+# Imports
+import MathOptInterface as MOI
+
 import QUBOTools: PBO
 import QUBOTools: AbstractArchitecture, GenericArchitecture
 
-import ..ToQUBO:
-    Attributes,
-    VirtualModel,
+import ..Encoding:
     encode!,
-    encoding,
-    expansion,
-    penaltyfn,
-    is_aux,
-    Encoding,
+    VariableEncodingMethod,
     Mirror,
     Unary,
     Binary,
@@ -19,8 +16,15 @@ import ..ToQUBO:
     OneHot,
     DomainWall
 
-using MathOptInterface
-const MOI    = MathOptInterface
+import ..Virtual:
+    Virtual,
+    encoding,
+    expansion,
+    penaltyfn
+
+import ..Attributes
+
+# Constants
 const VI     = MOI.VariableIndex
 const SAT{T} = MOI.ScalarAffineTerm{T}
 const SAF{T} = MOI.ScalarAffineFunction{T}
@@ -40,7 +44,7 @@ include("constraints.jl")
 include("penalties.jl")
 include("build.jl")
 
-function toqubo!(model::VirtualModel)
+function toqubo!(model::Virtual.Model)
     arch = MOI.get(model, Attributes.Architecture())
 
     toqubo!(model, arch)
@@ -48,7 +52,7 @@ function toqubo!(model::VirtualModel)
     return nothing
 end
 
-function toqubo!(model::VirtualModel, arch::AbstractArchitecture)
+function toqubo!(model::Virtual.Model, arch::AbstractArchitecture)
     # reset!(model, arch) # Cleanup
 
     if is_qubo(model.source_model)
@@ -72,7 +76,7 @@ function toqubo(
     arch::Union{AbstractArchitecture,Nothing} = nothing;
     optimizer = nothing,
 ) where {T}
-    model = VirtualModel{T}(optimizer)
+    model = Virtual.Model{T}(optimizer)
 
     MOI.copy_to(model, source)
 
@@ -86,7 +90,7 @@ function toqubo(
 end
 
 function compile!(
-    model::VirtualModel{T},
+    model::Virtual.Model{T},
     arch::AbstractArchitecture = GenericArchitecture(),
 ) where {T}
     # Compiler Settings
@@ -116,7 +120,7 @@ function compile!(
     return nothing
 end
 
-function reset!(model::VirtualModel, ::AbstractArchitecture = GenericArchitecture())
+function reset!(model::Virtual.Model, ::AbstractArchitecture = GenericArchitecture())
     # Model
     MOI.empty!(model.target_model)
 
@@ -135,7 +139,7 @@ function reset!(model::VirtualModel, ::AbstractArchitecture = GenericArchitectur
     return nothing
 end
 
-function _copy!(model::VirtualModel{T}, ::AbstractArchitecture) where {T}
+function _copy!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
     source_model = model.source_model
     target_model = model.target_model
 

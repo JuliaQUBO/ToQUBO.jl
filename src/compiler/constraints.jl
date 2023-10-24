@@ -1,4 +1,4 @@
-function constraints!(model::VirtualModel, arch::AbstractArchitecture)
+function constraints!(model::Virtual.Model, arch::AbstractArchitecture)
     for (F, S) in MOI.get(model, MOI.ListOfConstraintTypesPresent())
         for ci in MOI.get(model, MOI.ListOfConstraintIndices{F,S}())
             f = MOI.get(model, MOI.ConstraintFunction(), ci)
@@ -16,7 +16,7 @@ end
 
 @doc raw"""
     constraint(
-        ::VirtualModel{T},
+        ::Virtual.Model{T},
         ::VI,
         ::Union{
             MOI.ZeroOne,
@@ -31,7 +31,7 @@ end
 This method skips bound constraints over variables.
 """
 function constraint(
-    ::VirtualModel{T},
+    ::Virtual.Model{T},
     ::VI,
     ::Union{MOI.ZeroOne,MOI.Integer,MOI.Interval{T},LT{T},GT{T}},
     ::AbstractArchitecture,
@@ -41,7 +41,7 @@ end
 
 @doc raw"""
     constraint(
-        model::VirtualModel{T}, 
+        model::Virtual.Model{T}, 
         f::SAF{T}, 
         s::EQ{T}, 
         ::AbstractArchitecture
@@ -66,7 +66,7 @@ into
 ```
 """
 function constraint(
-    model::VirtualModel{T},
+    model::Virtual.Model{T},
     f::SAF{T},
     s::EQ{T},
     arch::AbstractArchitecture,
@@ -91,7 +91,7 @@ end
 
 @doc raw"""
     constraint(
-        model::VirtualModel{T}, 
+        model::Virtual.Model{T}, 
         f::SAF{T}, 
         s::LT{T}, 
         ::AbstractArchitecture
@@ -115,7 +115,7 @@ into
 by adding a slack variable ``z``.
 """
 function constraint(
-    model::VirtualModel{T},
+    model::Virtual.Model{T},
     f::SAF{T},
     s::LT{T},
     arch::AbstractArchitecture,
@@ -148,7 +148,7 @@ end
 
 @doc raw"""
     constraint(
-        model::VirtualModel{T},
+        model::Virtual.Model{T},
         f::SQF{T},
         s::EQ{T},
         arch::AbstractArchitecture,
@@ -171,7 +171,7 @@ into
 
 """
 function constraint(
-    model::VirtualModel{T},
+    model::Virtual.Model{T},
     f::SQF{T},
     s::EQ{T},
     arch::AbstractArchitecture,
@@ -200,7 +200,7 @@ end
 
 @doc raw"""
     constraint(
-        model::VirtualModel{T},
+        model::Virtual.Model{T},
         f::SQF{T},
         s::LT{T},
         arch::AbstractArchitecture,
@@ -224,7 +224,7 @@ into
 by adding a slack variable ``z``.
 """
 function constraint(
-    model::VirtualModel{T},
+    model::Virtual.Model{T},
     f::SQF{T},
     s::LT{T},
     arch::AbstractArchitecture,
@@ -260,14 +260,14 @@ end
 
 @doc raw"""
     constraint(
-        model::VirtualModel{T},
+        model::Virtual.Model{T},
         x::MOI.VectorOfVariables,
         ::MOI.SOS1{T},
         ::AbstractArchitecture,
     ) where {T}
 """
 function constraint(
-    model::VirtualModel{T},
+    model::Virtual.Model{T},
     x::MOI.VectorOfVariables,
     ::MOI.SOS1{T},
     ::AbstractArchitecture,
@@ -300,16 +300,18 @@ function constraint(
     return g^2
 end
 
-function encoding_constraints!(model::VirtualModel{T}, ::AbstractArchitecture) where {T}
+function encoding_constraints!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
     for v in model.variables
-        if is_aux(v)
+        x = source(v)
+
+        if isnothing(x)
             continue
         end
 
-        h = penaltyfn(v)
+        χ = penaltyfn(v)
 
-        if !isnothing(h)
-            model.h[source(v)] = h
+        if !isnothing(χ)
+            model.h[x] = χ
         end
     end
 

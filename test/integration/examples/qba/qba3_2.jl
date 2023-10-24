@@ -1,21 +1,23 @@
+raw"""
+
+Quote from [1]:
+
+The Max Cut problem is one of the most famous problems in combinatorial optimization.
+Given an undirected graph G(V, E) with a vertex set V and an edge set E, the Max-Cut
+problem seeks to partition V into two sets such that the number of edges between the
+two sets (considered to be severed by the cut), is a large as possible.
+
+Graph G:
+
+    (1)-(2)
+     |   |
+    (3)-(4)
+      \ /
+      (5)
+
+"""
 function test_qba3_2()
-    @testset "Max-Cut" begin
-        #=
-        Quote from [1]:
-
-        The Max Cut problem is one of the most famous problems in combinatorial optimization.
-        Given an undirected graph G(V, E) with a vertex set V and an edge set E, the Max-Cut
-        problem seeks to partition V into two sets such that the number of edges between the
-        two sets (considered to be severed by the cut), is a large as possible.
-
-        Graph G:
-        (1)-(2)
-         |   |
-        (3)-(4)
-          \ /
-          (5)
-        =#
-
+    @testset "3.2: Max-Cut" begin
         ⊻(x::VariableRef, y::VariableRef) = x + y - 2 * x * y
 
         # Problem Data
@@ -51,7 +53,7 @@ function test_qba3_2()
         model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
 
         @variable(model, x[1:m], Bin)
-        @objective(model, Max, sum(Gᵢⱼ * (x[i] ⊻ x[j]) for ((i, j), Gᵢⱼ) in G))
+        @objective(model, Max, sum(Gij * (x[i] ⊻ x[j]) for ((i, j), Gij) in G))
 
         optimize!(model)
 

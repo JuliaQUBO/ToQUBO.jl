@@ -1,4 +1,4 @@
-function build!(model::VirtualModel{T}, arch::AbstractArchitecture) where {T}
+function build!(model::Virtual.Model{T}, arch::AbstractArchitecture) where {T}
     #  Assemble Objective Function 
     hamiltonian!(model, arch)
 
@@ -11,12 +11,11 @@ function build!(model::VirtualModel{T}, arch::AbstractArchitecture) where {T}
     return nothing
 end
 
-function hamiltonian!(model::VirtualModel{T}, ::AbstractArchitecture) where {T}
+function hamiltonian!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
     empty!(model.H)
 
     # Calculate an upper bound on the number of terms
-    num_terms =
-        length(model.f) + sum(length, model.g; init = 0) + sum(length, model.h; init = 0)
+    num_terms = length(model.f) + sum(length, model.g; init = 0) + sum(length, model.h; init = 0)
 
     sizehint!(model.H, num_terms)
 
@@ -43,7 +42,7 @@ function hamiltonian!(model::VirtualModel{T}, ::AbstractArchitecture) where {T}
     return nothing
 end
 
-function aux(model::VirtualModel, ::Nothing, ::AbstractArchitecture)::VI
+function aux(model::Virtual.Model, ::Nothing, ::AbstractArchitecture)::VI
     target_model = model.target_model
 
     w = MOI.add_variable(target_model)
@@ -53,7 +52,7 @@ function aux(model::VirtualModel, ::Nothing, ::AbstractArchitecture)::VI
     return w
 end
 
-function aux(model::VirtualModel, n::Integer, ::AbstractArchitecture)::Vector{VI}
+function aux(model::Virtual.Model, n::Integer, ::AbstractArchitecture)::Vector{VI}
     target_model = model.target_model
 
     w = MOI.add_variables(target_model, n)
@@ -63,23 +62,36 @@ function aux(model::VirtualModel, n::Integer, ::AbstractArchitecture)::Vector{VI
     return w
 end
 
-function quadratize!(model::VirtualModel, arch::AbstractArchitecture)
+function quadratize!(model::Virtual.Model, arch::AbstractArchitecture)
     if MOI.get(model, Attributes.Quadratize())
         method = MOI.get(model, Attributes.QuadratizationMethod())
         stable = MOI.get(model, Attributes.StableQuadratization())
 
-        PBO.quadratize!(
-            model.H,
-            PBO.Quadratization{method}(stable),
-        ) do (n::Union{Integer,Nothing} = nothing)
-            return aux(model, n, arch)
+        if MOI.get(model, MOI.ObjectiveSense()) === MOI.MIN_SENSE
+            PBO.quadratize!(
+                model.H,
+                    PBO.Quadratization{method}(stable),
+                ) do (n::Union{Integer,Nothing} = nothing)
+                    return aux(model, n, arch)
+            end
+        else # MOI.get(model, MOI.ObjectiveSense()) === MOI.MAX_SENSE
+            let H = -model.H
+                PBO.quadratize!(
+                    H,
+                    PBO.Quadratization{method}(stable),
+                ) do (n::Union{Integer,Nothing} = nothing)
+                    return aux(model, n, arch)
+                end
+
+                copy!(model.H, -H)
+            end
         end
     end
 
     return nothing
 end
 
-function output!(model::VirtualModel{T}, ::AbstractArchitecture) where {T}
+function output!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
     Q = SQT{T}[]
     a = SAT{T}[]
     b = zero(T)

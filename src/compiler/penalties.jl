@@ -1,4 +1,4 @@
-function penalties!(model::VirtualModel{T}, ::AbstractArchitecture) where {T}
+function penalties!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
     # Adjust Sign
     s = MOI.get(model, MOI.ObjectiveSense()) === MOI.MAX_SENSE ? -1 : 1
 

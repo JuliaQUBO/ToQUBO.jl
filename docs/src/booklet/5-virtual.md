@@ -16,7 +16,7 @@ This is done in a transparent fashion for both agents since the user will mostly
 
 ## Virtual Model
 ```@docs
-ToQUBO.VirtualModel
+ToQUBO.Virtual.Model
 ```
 
 ## Virtual Variables

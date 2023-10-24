@@ -1,5 +1,5 @@
 function _parse(
-    model::VirtualModel{T},
+    model::Virtual.Model{T},
     f::MOI.AbstractFunction,
     s::MOI.AbstractSet,
     arch::AbstractArchitecture,
@@ -12,7 +12,7 @@ function _parse(
 end
 
 function parse!(
-    model::VirtualModel{T},
+    model::Virtual.Model{T},
     g::PBO.PBF{VI,T},
     vi::VI,
     ::AbstractArchitecture,
@@ -27,7 +27,7 @@ function parse!(
 end
 
 function parse!(
-    model::VirtualModel{T},
+    model::Virtual.Model{T},
     g::PBO.PBF{VI,T},
     f::SAF{T},
     ::AbstractArchitecture,
@@ -52,7 +52,7 @@ function parse!(
 end
 
 function parse!(
-    model::VirtualModel{T},
+    model::Virtual.Model{T},
     g::PBO.PBF{VI,T},
     f::SAF{T},
     s::EQ{T},
@@ -66,7 +66,7 @@ function parse!(
 end
 
 function parse!(
-    model::VirtualModel{T},
+    model::Virtual.Model{T},
     g::PBO.PBF{VI,T},
     f::SAF{T},
     s::LT{T},
@@ -80,7 +80,7 @@ function parse!(
 end
 
 function parse!(
-    model::VirtualModel{T},
+    model::Virtual.Model{T},
     g::PBO.PBF{VI,T},
     f::SQF{T},
     ::AbstractArchitecture,
@@ -126,7 +126,7 @@ function parse!(
 end
 
 function parse!(
-    model::VirtualModel{T},
+    model::Virtual.Model{T},
     g::PBO.PBF{VI,T},
     f::SQF{T},
     s::EQ{T},
@@ -140,7 +140,7 @@ function parse!(
 end
 
 function parse!(
-    model::VirtualModel{T},
+    model::Virtual.Model{T},
     g::PBO.PBF{VI,T},
     f::SQF{T},
     s::LT{T},

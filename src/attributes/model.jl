@@ -1,5 +1,5 @@
-MOI.get(::VirtualModel, ::MOI.SolverName)    = "Virtual QUBO Model"
-MOI.get(::VirtualModel, ::MOI.SolverVersion) = PROJECT_VERSION
+MOI.get(::Virtual.Model, ::MOI.SolverName)    = "Virtual QUBO Model"
+MOI.get(::Virtual.Model, ::MOI.SolverVersion) = __VERSION__
 
 const SOURCE_MODEL_ATTRIBUES{T} = Union{
     MOIB.ListOfNonstandardBridges{T},
@@ -19,38 +19,38 @@ const SOURCE_MODEL_ATTRIBUES{T} = Union{
     MOI.ObjectiveSense,
 }
 
-function MOI.get(model::VirtualModel{T}, attr::SOURCE_MODEL_ATTRIBUES{T}, args...) where {T}
+function MOI.get(model::Virtual.Model{T}, attr::SOURCE_MODEL_ATTRIBUES{T}, args...) where {T}
     return MOI.get(model.source_model, attr, args...)
 end
 
-function MOI.set(model::VirtualModel{T}, attr::SOURCE_MODEL_ATTRIBUES{T}, args::Any...) where {T}
+function MOI.set(model::Virtual.Model{T}, attr::SOURCE_MODEL_ATTRIBUES{T}, args::Any...) where {T}
     MOI.set(model.source_model, attr, args...)
 
     return nothing
 end
 
-function MOI.supports(::VirtualModel{T}, ::SOURCE_MODEL_ATTRIBUES{T}) where {T}
+function MOI.supports(::Virtual.Model{T}, ::SOURCE_MODEL_ATTRIBUES{T}) where {T}
     return true
 end
 
 function MOI.get(
-    model::VirtualModel,
+    model::Virtual.Model,
     attr::Union{MOI.ConstraintFunction,MOI.ConstraintSet},
     ci::MOI.ConstraintIndex,
 )
     return MOI.get(model.source_model, attr, ci)
 end
 
-function MOI.get(model::VirtualModel, attr::MOI.VariableName, x::VI)
+function MOI.get(model::Virtual.Model, attr::MOI.VariableName, x::VI)
     return MOI.get(model.source_model, attr, x)
 end
 
-function MOI.add_variable(model::VirtualModel)
+function MOI.add_variable(model::Virtual.Model)
     return MOI.add_variable(model.source_model)
 end
 
 function MOI.add_constraint(
-    model::VirtualModel,
+    model::Virtual.Model,
     f::MOI.AbstractFunction,
     s::MOI.AbstractSet,
 )
@@ -58,7 +58,7 @@ function MOI.add_constraint(
 end
 
 function MOI.set(
-    model::VirtualModel,
+    model::Virtual.Model,
     ::MOI.ObjectiveFunction{F},
     f::F,
 ) where {F<:MOI.AbstractFunction}

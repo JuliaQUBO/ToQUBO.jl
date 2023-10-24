@@ -1,4 +1,4 @@
-function variables!(model::VirtualModel{T}, ::AbstractArchitecture) where {T}
+function variables!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
     # Set of all source variables
     Ω = Vector{VI}(MOI.get(model, MOI.ListOfVariableIndices()))
 
@@ -94,11 +94,11 @@ function variables!(model::VirtualModel{T}, ::AbstractArchitecture) where {T}
                 n = Attributes.variable_encoding_bits(model, x)
 
                 if !isnothing(n)
-                    encode!(model, e, x, a, b, n)
+                    encode!(model, e, x, n, (a, b))
                 else
                     τ = Attributes.variable_encoding_atol(model, x)
 
-                    encode!(model, e, x, a, b, τ)
+                    encode!(model, e, x, (a, b), τ)
                 end
             end
         end
@@ -112,17 +112,17 @@ function variables!(model::VirtualModel{T}, ::AbstractArchitecture) where {T}
             let
                 e = Attributes.variable_encoding_method(model, x)
 
-                encode!(model, e, x, a, b)
+                encode!(model, e, x, (a, b))
             end
         end
     end
 
     # Mirror Boolean Variables
     for x in 𝔹
-        encode!(model, Mirror(), x)
+        encode!(model, Mirror{T}(), x)
     end
 
     return nothing
 end
 
-function variable(model::VirtualModel, ::AbstractArchitecture) end
+function variable(model::Virtual.Model, ::AbstractArchitecture) end

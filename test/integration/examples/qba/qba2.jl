@@ -1,5 +1,5 @@
 function test_qba2()
-    @testset "Illustrative Example" begin
+    @testset "2: Illustrative Example" begin
         # Problem Data
         Q̄ = [
             -5  4  8  0

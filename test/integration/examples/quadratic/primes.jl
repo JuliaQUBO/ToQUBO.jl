@@ -1,4 +1,4 @@
-function test_integer_primes()
+function test_primes()
     @testset "Prime Factoring: 15 = 3 × 5" begin
         #  Problem Data  #
         R = 15
@@ -21,7 +21,6 @@ function test_integer_primes()
               0   0   0   0   0   0   0   0  0  8
         ]
 
-
         ρ̄ = 1
         p̄ = 3
         q̄ = 5
@@ -35,6 +34,8 @@ function test_integer_primes()
         set_optimizer_attribute(model, Attributes.StableQuadratization(), true)
 
         optimize!(model)
+
+        @info MOI.get(unsafe_backend(model).target_model, MOI.ObjectiveSense())
 
         # Reformulation
         ρ = get_attribute(c1, Attributes.ConstraintEncodingPenalty())
