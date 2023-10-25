@@ -16,14 +16,15 @@ function test_variable_encoding_methods()
         @testset "⊛ Interval" begin
             @testset "⋅ Unary" begin
                 let e = ToQUBO.Encoding.Unary{Float64}()
-                    S = (-2.0, 2.0)
-
                     @testset "ℤ" begin
                         let φ = PBO.vargen(VI)
+                            S = (-2.0, 2.0)
+                            n = 4
+
                             y, ξ, χ = ToQUBO.Encoding.encode(φ, e, S)
 
-                            @test length(y) == 4
-                            @test y == VI.([1, 2, 3, 4])
+                            @test length(y) == n
+                            @test y == VI.(1:n)
                             @test ξ == PBO.PBF{VI,Float64}(
                                 y[1] => 1.0,
                                 y[2] => 1.0,
@@ -35,12 +36,36 @@ function test_variable_encoding_methods()
                         end
                     end
 
+                    @testset "ℤ (bounded)" begin
+                        let μ = 2.0
+                            ê = ToQUBO.Encoding.Bounded(e, μ)
+                            φ = PBO.vargen(VI)
+                            S = (-2.0, 2.0)
+                            n = 3
+
+                            y, ξ, χ = ToQUBO.Encoding.encode(φ, ê, S)
+
+                            @test length(y) == n
+                            @test y == VI.(1:n)
+                            @test ξ == PBO.PBF{VI,Float64}(
+                                y[1] => 1.0,
+                                y[2] => 1.0,
+                                y[3] => 2.0,
+                                -2.0,
+                            )
+                            @test isnothing(χ)
+                        end
+                    end
+
                     @testset "ℝ (fixed)" begin
                         let φ = PBO.vargen(VI)
-                            y, ξ, χ = ToQUBO.Encoding.encode(φ, e, S, 8)
+                            S = (-2.0, 2.0)
+                            n = 8
 
-                            @test length(y) == 8
-                            @test y == VI.([1, 2, 3, 4, 5, 6, 7, 8])
+                            y, ξ, χ = ToQUBO.Encoding.encode(φ, e, S, n)
+
+                            @test length(y) == n
+                            @test y == VI.(1:n)
                             @test ξ == PBO.PBF{VI,Float64}(
                                 y[1] => 0.5,
                                 y[2] => 0.5,
@@ -56,14 +81,68 @@ function test_variable_encoding_methods()
                         end
                     end
 
+                    @testset "ℝ (fixed, bounded)" begin
+                        let μ = 2.0
+                            ê = ToQUBO.Encoding.Bounded(e, μ)
+                            φ = PBO.vargen(VI)
+                            S = (-2.0, 2.0)
+                            n = 8
+
+                            y, ξ, χ = ToQUBO.Encoding.encode(φ, ê, S, n)
+
+                            @test length(y) == n
+                            @test y == VI.(1:n)
+                            @test ξ == PBO.PBF{VI,Float64}(
+                                y[1] => 0.125,
+                                y[2] => 0.125,
+                                y[3] => 0.125,
+                                y[4] => 0.125,
+                                y[5] => 0.125,
+                                y[6] => 0.125,
+                                y[7] => 0.125,
+                                y[8] => 2.0,
+                                -2.0,
+                            )
+                            @test isnothing(χ)
+                        end
+                    end
+
                     @testset "ℝ (tolerance)" begin
                         let φ = PBO.vargen(VI)
-                            @test ToQUBO.Encoding.encoding_bits(e, S, 1 / 4) == 5
+                            S = (-2.0, 2.0)
+                            n = 5
+
+                            @test ToQUBO.Encoding.encoding_bits(e, S, 1 / 4) == n
 
                             y, ξ, χ = ToQUBO.Encoding.encode(φ, e, S; tol = 1 / 4)
 
-                            @test length(y) == 5
-                            @test y == VI.([1, 2, 3, 4, 5])
+                            @test length(y) == n
+                            @test y == VI.(1:n)
+                            @test ξ == PBO.PBF{VI,Float64}(
+                                y[1] => 4 / 5,
+                                y[2] => 4 / 5,
+                                y[3] => 4 / 5,
+                                y[4] => 4 / 5,
+                                y[5] => 4 / 5,
+                                -2.0,
+                            )
+                            @test isnothing(χ)
+                        end
+                    end
+
+                    @testset "ℝ (tolerance, bounded)" begin
+                        let μ = 2.0
+                            ê = ToQUBO.Encoding.Bounded(e, μ)
+                            φ = PBO.vargen(VI)
+                            S = (-2.0, 2.0)
+                            n = 5
+
+                            @test ToQUBO.Encoding.encoding_bits(ê, S, 1 / 4) == n
+
+                            y, ξ, χ = ToQUBO.Encoding.encode(φ, ê, S; tol = 1 / 4)
+
+                            @test length(y) == n
+                            @test y == VI.(1:n)
                             @test ξ == PBO.PBF{VI,Float64}(
                                 y[1] => 4 / 5,
                                 y[2] => 4 / 5,
@@ -80,14 +159,15 @@ function test_variable_encoding_methods()
 
             @testset "⋅ Binary" begin
                 let e = ToQUBO.Encoding.Binary{Float64}()
-                    S = (-2.0, 2.0)
-
                     @testset "ℤ" begin
                         let φ = PBO.vargen(VI)
+                            S = (-2.0, 2.0)
+                            n = 3
+
                             y, ξ, χ = ToQUBO.Encoding.encode(φ, e, S)
 
-                            @test length(y) == 3
-                            @test y == VI.([1, 2, 3])
+                            @test length(y) == n
+                            @test y == VI.(1:n)
                             @test ξ == PBO.PBF{VI,Float64}(
                                 y[1] => 1.0,
                                 y[2] => 2.0,
@@ -100,10 +180,13 @@ function test_variable_encoding_methods()
 
                     @testset "ℝ (fixed)" begin
                         let φ = PBO.vargen(VI)
-                            y, ξ, χ = ToQUBO.Encoding.encode(φ, e, S, 8)
+                            S = (-2.0, 2.0)
+                            n = 8
 
-                            @test length(y) == 8
-                            @test y == VI.([1, 2, 3, 4, 5, 6, 7, 8])
+                            y, ξ, χ = ToQUBO.Encoding.encode(φ, e, S, n)
+
+                            @test length(y) == n
+                            @test y == VI.(1:n)
                             @test ξ == PBO.PBF{VI,Float64}(
                                 y[1] => 4 / 255,
                                 y[2] => 8 / 255,
@@ -121,12 +204,15 @@ function test_variable_encoding_methods()
 
                     @testset "ℝ (tolerance)" begin
                         let φ = PBO.vargen(VI)
-                            @test ToQUBO.Encoding.encoding_bits(e, S, 1 / 4) == 3
+                            S = (-2.0, 2.0)
+                            n = 3
+
+                            @test ToQUBO.Encoding.encoding_bits(e, S, 1 / 4) == n
 
                             y, ξ, χ = ToQUBO.Encoding.encode(φ, e, S; tol = 1 / 4)
 
-                            @test length(y) == 3
-                            @test y == VI.([1, 2, 3])
+                            @test length(y) == n
+                            @test y == VI.(1:n)
                             @test ξ == PBO.PBF{VI,Float64}(
                                 y[1] => 4 / 7,
                                 y[2] => 8 / 7,
@@ -148,7 +234,7 @@ function test_variable_encoding_methods()
                             y, ξ, χ = ToQUBO.Encoding.encode(φ, e, S)
 
                             @test length(y) == 3
-                            @test y == VI.([1, 2, 3])
+                            @test y == VI.(1:3)
                             @test ξ == PBO.PBF{VI,Float64}(
                                 y[1] => 1.0,
                                 y[2] => 2.0,
@@ -164,7 +250,7 @@ function test_variable_encoding_methods()
                             y, ξ, χ = ToQUBO.Encoding.encode(φ, e, S, 8)
 
                             @test length(y) == 8
-                            @test y == VI.([1, 2, 3, 4, 5, 6, 7, 8])
+                            @test y == VI.(1:8)
                             @test ξ == PBO.PBF{VI,Float64}(
                                 y[1] => 8 / 72,
                                 y[2] => 16 / 72,
@@ -187,7 +273,7 @@ function test_variable_encoding_methods()
                             y, ξ, χ = ToQUBO.Encoding.encode(φ, e, S; tol = 1 / 12)
 
                             @test length(y) == 4
-                            @test y == VI.([1, 2, 3, 4])
+                            @test y == VI.(1:4)
                             @test ξ == PBO.PBF{VI,Float64}(
                                 y[1] => 8 / 20,
                                 y[2] => 16 / 20,
@@ -205,15 +291,15 @@ function test_variable_encoding_methods()
         @testset "⊛ Set" begin
             @testset "⋅ One-Hot" begin
                 let e = ToQUBO.Encoding.OneHot{Float64}()
-                    S = (-2.0, 2.0)
-                    Γ = [-1.0, -0.5, 0.0, 0.5, 1.0]
-
                     @testset "Γ ⊂ ℝ" begin
                         let φ = PBO.vargen(VI)
+                            Γ = [-1.0, -0.5, 0.0, 0.5, 1.0]
+                            n = 5
+
                             y, ξ, χ = ToQUBO.Encoding.encode(φ, e, Γ)
 
-                            @test length(y) == 5
-                            @test y == VI.([1, 2, 3, 4, 5])
+                            @test length(y) == n
+                            @test y == VI.(1:n)
                             @test ξ == PBO.PBF{VI,Float64}(
                                 y[1] => -1.0,
                                 y[2] => -0.5,
@@ -224,8 +310,8 @@ function test_variable_encoding_methods()
                             @test χ == PBO.PBF{VI,Float64}(
                                 [
                                     1.0
-                                    [y[i] => -1.0 for i = 1:5]
-                                    [(y[i], y[j]) => 2.0 for i = 1:5 for j = (i+1):5]
+                                    [y[i] => -1.0 for i = 1:n]
+                                    [(y[i], y[j]) => 2.0 for i = 1:n for j = (i+1):n]
                                 ],
                             )
                         end
@@ -233,10 +319,13 @@ function test_variable_encoding_methods()
 
                     @testset "ℤ" begin
                         let φ = PBO.vargen(VI)
+                            S = (-2.0, 2.0)
+                            n = 5
+
                             y, ξ, χ = ToQUBO.Encoding.encode(φ, e, S)
 
-                            @test length(y) == 5
-                            @test y == VI.([1, 2, 3, 4, 5])
+                            @test length(y) == n
+                            @test y == VI.(1:n)
                             @test ξ == PBO.PBF{VI,Float64}(
                                 y[1] => -2.0,
                                 y[2] => -1.0,
@@ -247,8 +336,8 @@ function test_variable_encoding_methods()
                             @test χ == PBO.PBF{VI,Float64}(
                                 [
                                     1.0
-                                    [y[i] => -1.0 for i = 1:5]
-                                    [(y[i], y[j]) => 2.0 for i = 1:5 for j = (i+1):5]
+                                    [y[i] => -1.0 for i = 1:n]
+                                    [(y[i], y[j]) => 2.0 for i = 1:n for j = (i+1):n]
                                 ],
                             )
                         end
@@ -256,13 +345,73 @@ function test_variable_encoding_methods()
 
                     @testset "ℝ (fixed)" begin
                         let φ = PBO.vargen(VI)
+                            S = (-2.0, 2.0)
+                            n = 9
 
+                            y, ξ, χ = ToQUBO.Encoding.encode(φ, e, S, n)
+
+                            @test length(y) == n
+                            @test y == VI.(1:n)
+                            @test ξ == PBO.PBF{VI,Float64}(
+                                y[1] => -2.0,
+                                y[2] => -1.5,
+                                y[3] => -1.0,
+                                y[4] => -0.5,
+                                y[5] => 0.0,
+                                y[6] => 0.5,
+                                y[7] => 1.0,
+                                y[8] => 1.5,
+                                y[9] => 2.0,
+                            )
+                            @test χ == PBO.PBF{VI,Float64}(
+                                [
+                                    1.0
+                                    [y[i] => -1.0 for i = 1:n]
+                                    [(y[i], y[j]) => 2.0 for i = 1:n for j = (i+1):n]
+                                ],
+                            )
                         end
                     end
 
                     @testset "ℝ (tolerance)" begin
                         let φ = PBO.vargen(VI)
+                            S = (-2.0, 2.0)
+                            τ = 1/4
+                            n = 17
 
+                            @test ToQUBO.Encoding.encoding_points(e, S, τ) == n
+                            @test ToQUBO.Encoding.encoding_bits(e, S, τ) == n
+
+                            y, ξ, χ = ToQUBO.Encoding.encode(φ, e, S; tol = τ)
+
+                            @test length(y) == n
+                            @test y == VI.(1:n)
+                            @test ξ == PBO.PBF{VI,Float64}(
+                                y[1] => -2.0,
+                                y[2] => -1.75,
+                                y[3] => -1.5,
+                                y[4] => -1.25,
+                                y[5] => -1.0,
+                                y[6] => -0.75,
+                                y[7] => -0.5,
+                                y[8] => -0.25,
+                                y[9] => 0.0,
+                                y[10] => 0.25,
+                                y[11] => 0.5,
+                                y[12] => 0.75,
+                                y[13] => 1.0,
+                                y[14] => 1.25,
+                                y[15] => 1.5,
+                                y[16] => 1.75,
+                                y[17] => 2.0,
+                            )
+                            @test χ == PBO.PBF{VI,Float64}(
+                                [
+                                    1.0
+                                    [y[i] => -1.0 for i = 1:n]
+                                    [(y[i], y[j]) => 2.0 for i = 1:n for j = (i+1):n]
+                                ],
+                            )
                         end
                     end
                 end
@@ -270,286 +419,128 @@ function test_variable_encoding_methods()
 
             @testset "⋅ Domain Wall" begin
                 let e = ToQUBO.Encoding.DomainWall{Float64}()
-                    S = (-2.0, 2.0)
-                    Γ = [-1.0, -0.5, 0.0, 0.5, 1.0]
+                    @testset "Γ ⊂ ℝ" begin
+                        let φ = PBO.vargen(VI)
+                            Γ = [-1.0, -0.25, 0.0, 0.25, 1.0]
+                            n = 4
+
+                            y, ξ, χ = ToQUBO.Encoding.encode(φ, e, Γ)
+
+                            @test length(y) == n
+                            @test y == VI.(1:n)
+                            @test ξ == PBO.PBF{VI,Float64}(
+                                -1.0,
+                                y[1] =>  0.75,
+                                y[2] =>  0.25,
+                                y[3] =>  0.25,
+                                y[4] =>  0.75,
+                            )
+                            @test χ == PBO.PBF{VI,Float64}(
+                                [
+                                    [y[i] => 2.0 for i = 2:n]
+                                    [(y[i], y[i+1]) => -2.0 for i = 1:(n-1)]
+                                ],
+                            )
+                        end
+                    end
 
                     @testset "ℤ" begin
                         let φ = PBO.vargen(VI)
+                            S = (-2.0, 2.0)
+                            n = 4
 
+                            y, ξ, χ = ToQUBO.Encoding.encode(φ, e, S)
+
+                            @test length(y) == n
+                            @test y == VI.(1:n)
+                            @test ξ == PBO.PBF{VI,Float64}(
+                                -2.0,
+                                y[1] => 1.0,
+                                y[2] => 1.0,
+                                y[3] => 1.0,
+                                y[4] => 1.0,
+                            )
+                            @test χ == PBO.PBF{VI,Float64}(
+                                [
+                                    [y[i] => 2.0 for i = 2:n]
+                                    [(y[i], y[i+1]) => -2.0 for i = 1:(n-1)]
+                                ],
+                            )
                         end
                     end
 
                     @testset "ℝ (fixed)" begin
                         let φ = PBO.vargen(VI)
+                            S = (-2.0, 2.0)
+                            n = 8
 
+                            y, ξ, χ = ToQUBO.Encoding.encode(φ, e, S, n)
+
+                            @test length(y) == n
+                            @test y == VI.(1:n)
+                            @test ξ == PBO.PBF{VI,Float64}(
+                                -2.0,
+                                y[1] => 0.5,
+                                y[2] => 0.5,
+                                y[3] => 0.5,
+                                y[4] => 0.5,
+                                y[5] => 0.5,
+                                y[6] => 0.5,
+                                y[7] => 0.5,
+                                y[8] => 0.5,
+                            )
+                            @test χ == PBO.PBF{VI,Float64}(
+                                [
+                                    [y[i] => 2.0 for i = 2:n]
+                                    [(y[i], y[i+1]) => -2.0 for i = 1:(n-1)]
+                                ],
+                            )
+                        end
+                    end
+
+                    @testset "ℝ (tolerance)" begin
+                        let φ = PBO.vargen(VI)
+                            S = (-2.0, 2.0)
+                            τ = 1/4
+                            n = 16
+
+                            @test ToQUBO.Encoding.encoding_points(e, S, τ) == n + 1
+                            @test ToQUBO.Encoding.encoding_bits(e, S, τ) == n
+
+                            y, ξ, χ = ToQUBO.Encoding.encode(φ, e, S; tol = τ)
+
+                            @test length(y) == n
+                            @test y == VI.(1:n)
+                            @test ξ == PBO.PBF{VI,Float64}(
+                                -2.0,
+                                y[1] => 0.25,
+                                y[2] => 0.25,
+                                y[3] => 0.25,
+                                y[4] => 0.25,
+                                y[5] => 0.25,
+                                y[6] => 0.25,
+                                y[7] => 0.25,
+                                y[8] => 0.25,
+                                y[9] => 0.25,
+                                y[10] => 0.25,
+                                y[11] => 0.25,
+                                y[12] => 0.25,
+                                y[13] => 0.25,
+                                y[14] => 0.25,
+                                y[15] => 0.25,
+                                y[16] => 0.25,
+                            )
+                            @test χ == PBO.PBF{VI,Float64}(
+                                [
+                                    [y[i] => 2.0 for i = 2:n]
+                                    [(y[i], y[i+1]) => -2.0 for i = 1:(n-1)]
+                                ],
+                            )
                         end
                     end
                 end
             end
         end
-
-        #=
-
-            @testset "One Hot" begin
-                model = ToQUBO.Virtual.Model()
-
-                x = MOI.add_variable(model.source_model)
-                γ = [-1.0, -0.5, 0.0, 0.5, 1.0]
-
-                v = ToQUBO.Encoding.encode!(model, ToQUBO.Encoding.OneHot{Float64}(), x, γ)
-                y = ToQUBO.Virtual.target(v)
-
-                @test length(y) == length(γ)
-
-                @test ToQUBO.Virtual.source(v) == x
-                @test ToQUBO.Encoding.expansion(v) ≈ PBO.PBF{VI,Float64}(
-                    y[1] => -1.0,
-                    y[2] => -0.5,
-                    y[4] => 0.5,
-                    y[5] => 1.0,
-                )
-                @test ToQUBO.Encoding.penaltyfn(v) ≈ (PBO.PBF{VI,Float64}(-1.0, y...)^2)
-
-                @test model.variables == [v]
-                @test model.source[ToQUBO.Virtual.source(v)] == (v)
-                @test [model.target[y] for y in ToQUBO.Virtual.target(v)] == [v, v, v, v, v]
-            end
-
-            @testset "One Hot ℤ" begin
-                model = ToQUBO.Virtual.Model()
-
-                x = MOI.add_variable(model.source_model)
-                a, b = (-2.0, 2.0)
-
-                v = ToQUBO.Encoding.encode!(
-                    model,
-                    ToQUBO.Encoding.OneHot{Float64}(),
-                    x,
-                    (a, b),
-                )
-                y = ToQUBO.Virtual.target(v)
-
-                @test length(y) == 5
-
-                @test ToQUBO.Virtual.source(v) == x
-                @test ToQUBO.Encoding.expansion(v) ≈ PBO.PBF{VI,Float64}(
-                    y[1] => -2.0,
-                    y[2] => -1.0,
-                    y[4] => 1.0,
-                    y[5] => 2.0,
-                )
-                @test ToQUBO.Encoding.penaltyfn(v) ≈ (PBO.PBF{VI,Float64}(-1.0, y...)^2)
-
-                @test model.variables == [v]
-                @test model.source[ToQUBO.Virtual.source(v)] == (v)
-                @test [model.target[y] for y in ToQUBO.Virtual.target(v)] == [v, v, v, v, v]
-            end
-            @testset "One Hot ℝ" begin
-                model = ToQUBO.Virtual.Model()
-
-                x = MOI.add_variable(model.source_model)
-                a, b = (-2.0, 2.0)
-                n = 5
-
-                v = ToQUBO.Encoding.encode!(
-                    model,
-                    ToQUBO.Encoding.OneHot{Float64}(),
-                    x,
-                    n,
-                    (a, b),
-                )
-                y = ToQUBO.Virtual.target(v)
-
-                @test length(y) == n
-
-                @test ToQUBO.Virtual.source(v) == x
-                @test ToQUBO.Encoding.expansion(v) ≈ PBO.PBF{VI,Float64}(
-                    y[1] => -2.0,
-                    y[2] => -1.0,
-                    y[4] => 1.0,
-                    y[5] => 2.0,
-                )
-                @test ToQUBO.Encoding.penaltyfn(v) ≈ (PBO.PBF{VI,Float64}(-1.0, y...)^2)
-
-                @test model.variables == [v]
-                @test model.source[ToQUBO.Virtual.source(v)] == (v)
-                @test [model.target[y] for y in ToQUBO.Virtual.target(v)] == [v, v, v, v, v]
-            end
-            @testset "Domain Wall ℤ" begin
-                model = ToQUBO.Virtual.Model()
-
-                x = MOI.add_variable(model.source_model)
-                a, b = (-2.0, 2.0)
-
-                v = ToQUBO.Encoding.encode!(
-                    model,
-                    ToQUBO.Encoding.DomainWall{Float64}(),
-                    x,
-                    (a, b),
-                )
-                y = ToQUBO.Virtual.target(v)
-
-                @test length(y) == 4
-
-                @test ToQUBO.Virtual.source(v) == x
-                @test ToQUBO.Encoding.expansion(v) ≈ PBO.PBF{VI,Float64}(
-                    y[1] => -1.0,
-                    y[2] => -1.0,
-                    y[3] => -1.0,
-                    y[4] => -1.0,
-                )
-                @test ToQUBO.Encoding.penaltyfn(v) ≈ PBO.PBF{VI,Float64}(
-                    y[2] => 2.0,
-                    y[3] => 2.0,
-                    y[4] => 2.0,
-                    [y[1], y[2]] => -2.0,
-                    [y[2], y[3]] => -2.0,
-                    [y[3], y[4]] => -2.0,
-                )
-
-                @test model.variables == [v]
-                @test model.source[ToQUBO.Virtual.source(v)] == (v)
-                @test [model.target[y] for y in ToQUBO.Virtual.target(v)] == [v, v, v, v]
-            end
-
-            @testset "Domain Wall ℝ" begin
-                model = ToQUBO.Virtual.Model()
-
-                x = MOI.add_variable(model.source_model)
-                a, b = (-2.0, 2.0)
-                n = 5
-
-                v = ToQUBO.Encoding.encode!(
-                    model,
-                    ToQUBO.Encoding.DomainWall{Float64}(),
-                    x,
-                    n,
-                    (a, b),
-                )
-                y = ToQUBO.Virtual.target(v)
-
-                @test length(y) == n - 1
-
-                @test ToQUBO.Virtual.source(v) == x
-                @test ToQUBO.Encoding.expansion(v) ≈ PBO.PBF{VI,Float64}(
-                    y[1] => -1.0,
-                    y[2] => -1.0,
-                    y[3] => -1.0,
-                    y[4] => -1.0,
-                )
-                @test ToQUBO.Encoding.penaltyfn(v) ≈ PBO.PBF{VI,Float64}(
-                    y[2] => 2.0,
-                    y[3] => 2.0,
-                    y[4] => 2.0,
-                    [y[1], y[2]] => -2.0,
-                    [y[2], y[3]] => -2.0,
-                    [y[3], y[4]] => -2.0,
-                )
-
-                @test model.variables == [v]
-                @test model.source[ToQUBO.Virtual.source(v)] == (v)
-                @test [model.target[y] for y in ToQUBO.Virtual.target(v)] == [v, v, v, v]
-            end
-
-            @testset "Bounded(Unary) ℤ" begin
-                model = ToQUBO.Virtual.Model()
-
-                x = MOI.add_variable(model.source_model)
-                a, b = (-10.0, 10.0)
-
-                v = ToQUBO.Encoding.encode!(
-                    model,
-                    ToQUBO.Encoding.Bounded(ToQUBO.Encoding.Unary{Float64}(), 5.0),
-                    x,
-                    (a, b),
-                )
-                y = ToQUBO.Virtual.target(v)
-
-                @test length(y) == 8
-                @test ToQUBO.Virtual.source(v) == x
-                @test ToQUBO.Encoding.expansion(v) == PBO.PBF{VI,Float64}(
-                    y[1] => 1.0,
-                    y[2] => 1.0,
-                    y[3] => 1.0,
-                    y[4] => 1.0,
-                    y[5] => 1.0,
-                    y[6] => 5.0,
-                    y[7] => 5.0,
-                    y[8] => 5.0,
-                    nothing => a,
-                )
-                @test isnothing(ToQUBO.Encoding.penaltyfn(v))
-
-                @test model.variables == [v]
-                @test model.source[ToQUBO.Virtual.source(v)] == (v)
-                @test [model.target[y] for y in ToQUBO.Virtual.target(v)] == [v, v, v, v, v, v, v, v]
-            end
-
-            @testset "Bounded(Binary) ℤ" begin
-                model = ToQUBO.Virtual.Model()
-
-                x = MOI.add_variable(model.source_model)
-                a, b = (-10.0, 10.0)
-
-                v = ToQUBO.Encoding.encode!(
-                    model,
-                    ToQUBO.Encoding.Bounded(ToQUBO.Encoding.Binary{Float64}(), 5.0),
-                    x,
-                    (a, b),
-                )
-                y = ToQUBO.Virtual.target(v)
-
-                @test length(y) == 6
-                @test ToQUBO.Virtual.source(v) == x
-                @test ToQUBO.Encoding.expansion(v) == PBO.PBF{VI,Float64}(
-                    y[1] => 1.0,
-                    y[2] => 2.0,
-                    y[3] => 4.0,
-                    y[4] => 3.0,
-                    y[5] => 5.0,
-                    y[6] => 5.0,
-                    nothing => a,
-                )
-                @test isnothing(ToQUBO.Encoding.penaltyfn(v))
-
-                @test model.variables == [v]
-                @test model.source[ToQUBO.Virtual.source(v)] == (v)
-                @test [model.target[y] for y in ToQUBO.Virtual.target(v)] == [v, v, v, v, v, v]
-            end
-
-            @testset "Bounded(Arithmetic) ℤ" begin
-                model = ToQUBO.Virtual.Model()
-
-                x = MOI.add_variable(model.source_model)
-                a, b = (-10.0, 10.0)
-
-                v = ToQUBO.Encoding.encode!(
-                    model,
-                    ToQUBO.Encoding.Bounded(ToQUBO.Encoding.Arithmetic{Float64}(), 5.0),
-                    x,
-                    (a, b),
-                )
-                y = ToQUBO.Virtual.target(v)
-
-                @test length(y) == 6
-                @test ToQUBO.Virtual.source(v) == x
-                @test ToQUBO.Encoding.expansion(v) == PBO.PBF{VI,Float64}(
-                    y[1] => 1.0,
-                    y[2] => 2.0,
-                    y[3] => 3.0,
-                    y[4] => 4.0,
-                    y[5] => 5.0,
-                    y[6] => 5.0,
-                    nothing => a,
-                )
-                @test isnothing(ToQUBO.Encoding.penaltyfn(v))
-
-                @test model.variables == [v]
-                @test model.source[ToQUBO.Virtual.source(v)] == (v)
-                @test [model.target[y] for y in ToQUBO.Virtual.target(v)] == [v, v, v, v, v, v]
-            end
-        end
-        =#
     end
 
     return nothing

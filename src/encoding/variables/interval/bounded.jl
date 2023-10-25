@@ -39,7 +39,9 @@ function encode(
     r = n ÷ m
     d = n - r * m
 
-    y0, ξ0, χ0 = encode(var, e.e, (0, d + r))
+    Δ::Tuple{T,T} = (0, d + r)
+
+    y0, ξ0, χ0 = encode(var, e.e, Δ)
 
     @assert isnothing(χ0)
 
@@ -66,11 +68,13 @@ function encode(
 
     r = ceil(Int, (b - a) / e.μ - 1)
     δ = b - a - r * e.μ
+
+    Δ::Tuple{T,T} = (0, δ + r)
     
     y0, ξ0, χ0 = if isnothing(n)
-        encode(var, e.e, (0, δ), nothing; tol)
+        encode(var, e.e, Δ, nothing; tol)
     else
-        encode(var, e.e, (0, δ), n - r; tol)
+        encode(var, e.e, Δ, n - (r - 1); tol)
     end
 
     @assert isnothing(χ0)

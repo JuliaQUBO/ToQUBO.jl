@@ -16,11 +16,21 @@ function encode end
 function encode! end
 
 @doc raw"""
+    encoding_bits(e::VariableEncodingMethod, S::Tuple{T,T}, tol::T) where {T}
+"""
+function encoding_bits end
+
+@doc raw"""
     SetVariableEncodingMethod
 
 Abstract type for methods that encode variables over an arbitrary set.
 """
 abstract type SetVariableEncodingMethod <: VariableEncodingMethod end
+
+@doc raw"""
+    encoding_points(e::SetVariableEncodingMethod, S::Tuple{T,T}, tol::T) where {T}
+"""
+function encoding_points end
 
 @doc raw"""
     IntervalVariableEncodingMethod
@@ -32,8 +42,3 @@ Abstract type for methods that encode variables using a linear function, e.g.,
 ```
 """
 abstract type IntervalVariableEncodingMethod <: VariableEncodingMethod end
-
-@doc raw"""
-    encoding_bits(e::IntervalVariableEncodingMethod, S::Tuple{T,T}, tol::T) where {T}
-"""
-function encoding_bits end

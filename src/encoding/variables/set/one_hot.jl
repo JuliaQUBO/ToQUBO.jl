@@ -22,12 +22,82 @@ is added to the objective function.
 struct OneHot{T} <: SetVariableEncodingMethod end
 
 # Arbitrary set
-function encode(var::Function, ::OneHot{T}, γ::AbstractVector{T}) where {T}
-    n = length(γ)
+function encode(var::Function, e::OneHot{T}, γ::AbstractVector{T}) where {T}
+    p = length(γ)
+    n = encoding_bits(e, p)
 
-    y = var(n)::Vector{VI}
-    ξ = PBO.PBF{VI,T}([a; [y[i] => γ[i] for i = 1:n]])
-    χ = PBO.PBF{VI,T}([y; -one(T)])^2
+    if p == 0
+        y = Vector{VI}()
+        ξ = PBO.PBF{VI,T}()
+        χ = nothing
+    elseif p == 1
+        y = Vector{VI}()
+        ξ = PBO.PBF{VI,T}(γ[1])
+        χ = nothing
+    else
+        y = var(n)::Vector{VI}
+        ξ = PBO.PBF{VI,T}([y[i] => γ[i] for i = 1:p])
+        χ = PBO.PBF{VI,T}([y; -1])^2
+    end
 
     return (y, ξ, χ)
+end
+
+# Integer
+function encode(
+    var::Function,
+    e::E,
+    S::Tuple{T,T};
+    tol::Union{T,Nothing} = nothing,
+) where {T,E<:OneHot{T}}
+    isnothing(tol) || return encode(var, e, S, nothing; tol)
+
+    a, b = integer_interval(S)
+
+    return encode(var, e, collect(a:b))
+end
+
+function encoding_points(
+    ::E,
+    S::Tuple{T,T},
+    tol::T,
+) where {T,E<:OneHot{T}}
+    a, b = S
+
+    return ceil(Int, ((b - a)^2 / 4tol) + 1)
+end
+
+function encoding_points(::OneHot, n::Integer)
+    return n
+end
+
+function encoding_bits(e::E, S::Tuple{T,T}, tol::T) where {T,E<:OneHot{T}}
+    return encoding_points(e, S, tol)
+end
+
+function encoding_bits(::OneHot, p::Integer)
+    return p
+end
+
+# Real
+function encode(
+    var::Function,
+    e::E,
+    S::Tuple{T,T},
+    n::Union{Integer,Nothing};
+    tol::Union{T,Nothing} = nothing,
+) where {T,E<:OneHot{T}}
+    @assert !(isnothing(n) && isnothing(tol))
+
+    p = if isnothing(n)
+        encoding_points(e, S, tol)
+    else
+        encoding_points(e, n)
+    end
+
+    a, b = S
+
+    Γ = collect(range(a, b; length = p))
+
+    return encode(var, e, Γ)
 end
