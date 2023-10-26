@@ -1,14 +1,21 @@
 @doc raw"""
     Bounded{E,T}(μ::T) where {E<:Encoding,T}
 
-The bounded-coefficient encoding method[^Karimi2019] consists in limiting the magnitude of the coefficients in the encoding expansion to a parameter ``\mu``.
+The bounded-coefficient encoding method[^Karimi2019] consists in limiting the
+magnitude of the coefficients in the encoding expansion to a parameter ``\mu``.
+This can be applied to the [`Unary`](@ref), [`Binary`](@ref) and [`Arithmetic`](@ref)
+encoding methods.
+
+Let ``\xi[a, b] : \mathbb{B}^{n} \to [a, b]`` be an encoding function over the
+closed interval ``[a, b]``.
+The bounded-coefficient encoding function given ``\mu`` is defined as
+
+```math
+\xi_{\mu}[a, b] = \xi[0, \delta](y_{1}, \dots, y_{k}) + \sum_{j = k + 1}^{r} \mu y{j}
+```
 
 [^Karimi2019]:
     Karimi, S. & Ronagh, P. **Practical integer-to-binary mapping for quantum annealers**. *Quantum Inf Process 18, 94* (2019). [{doi}](https://doi.org/10.1007/s11128-019-2213-x)
-
-This can be applied to the [`Unary`](@ref), [`Binary`](@ref) and [`Arithmetic`](@ref) encoding schemas.
-
-    Bounded{Binary,T}(μ::T) where {T}
 ```
 
 """
@@ -46,7 +53,7 @@ function encode(
     @assert isnothing(χ0)
 
     y1 = var(r - 1)::Vector{VI}
-    ξ1 = PBO.PBF{VI,T}(y1[i] => m for i = 1:(r - 1))
+    ξ1 = PBO.PBF{VI,T}(y1[i] => m for i = 1:(r-1))
 
     y = [y0; y1]
     ξ = a + ξ0 + ξ1
@@ -54,7 +61,11 @@ function encode(
     return (y, ξ, nothing) # No penalty function
 end
 
-# Real
+@doc raw"""
+    encode(var::Function, e::Bounded{E,T}, S::Tuple{T,T}, n::integer) where {E<:IntervalVariableEncodingMethod,T}
+
+
+"""
 function encode(
     var::Function,
     e::Bounded{E,T},
@@ -66,24 +77,41 @@ function encode(
 
     a, b = S
 
-    r = ceil(Int, (b - a) / e.μ - 1)
-    δ = b - a - r * e.μ
+    ℓ = abs(b - a)
+    r = ceil(Int, ℓ / e.μ - 1)
+    δ = ℓ - r * e.μ
 
-    Δ::Tuple{T,T} = (0, δ + r)
-    
-    y0, ξ0, χ0 = if isnothing(n)
+    Δ::Tuple{T,T} = (0, δ)
+
+    yδ, ξδ, χδ = if isnothing(n)
         encode(var, e.e, Δ, nothing; tol)
     else
-        encode(var, e.e, Δ, n - (r - 1); tol)
+        encode(var, e.e, Δ, n - r; tol)
     end
 
-    @assert isnothing(χ0)
+    @assert isnothing(χδ)
 
-    y1 = var(r - 1)::Vector{VI}
-    ξ1 = PBO.PBF{VI,T}(y1[i] => e.μ for i = 1:(r - 1))
+    yμ = var(r)::Vector{VI}
+    ξμ = PBO.PBF{VI,T}(yμ[i] => e.μ for i = 1:r)
 
-    y = [y0; y1]
-    ξ = a + ξ0 + ξ1
+    y = [yδ; yμ]
+    ξ = a + ξδ + ξμ
 
     return (y, ξ, nothing) # No penalty function    
+end
+
+function encoding_bits(
+    e::Bounded{E,T},
+    S::Tuple{T,T},
+    tol::T,
+) where {T,E<:IntervalVariableEncodingMethod}
+    a, b = S
+
+    ℓ = abs(b - a)
+    r = ceil(Int, ℓ / e.μ - 1)
+    δ = ℓ - r * e.μ
+
+    Δ::Tuple{T,T} = (0, δ)
+
+    return r + encoding_bits(e.e, Δ, tol)
 end

@@ -93,13 +93,13 @@ function test_variable_encoding_methods()
                             @test length(y) == n
                             @test y == VI.(1:n)
                             @test ξ == PBO.PBF{VI,Float64}(
-                                y[1] => 0.125,
-                                y[2] => 0.125,
-                                y[3] => 0.125,
-                                y[4] => 0.125,
-                                y[5] => 0.125,
-                                y[6] => 0.125,
-                                y[7] => 0.125,
+                                y[1] => 2 / 7,
+                                y[2] => 2 / 7,
+                                y[3] => 2 / 7,
+                                y[4] => 2 / 7,
+                                y[5] => 2 / 7,
+                                y[6] => 2 / 7,
+                                y[7] => 2 / 7,
                                 y[8] => 2.0,
                                 -2.0,
                             )
@@ -135,7 +135,7 @@ function test_variable_encoding_methods()
                             ê = ToQUBO.Encoding.Bounded(e, μ)
                             φ = PBO.vargen(VI)
                             S = (-2.0, 2.0)
-                            n = 5
+                            n = 4
 
                             @test ToQUBO.Encoding.encoding_bits(ê, S, 1 / 4) == n
 
@@ -144,11 +144,10 @@ function test_variable_encoding_methods()
                             @test length(y) == n
                             @test y == VI.(1:n)
                             @test ξ == PBO.PBF{VI,Float64}(
-                                y[1] => 4 / 5,
-                                y[2] => 4 / 5,
-                                y[3] => 4 / 5,
-                                y[4] => 4 / 5,
-                                y[5] => 4 / 5,
+                                y[1] => 2 / 3,
+                                y[2] => 2 / 3,
+                                y[3] => 2 / 3,
+                                y[4] => 2.0,
                                 -2.0,
                             )
                             @test isnothing(χ)
@@ -376,7 +375,7 @@ function test_variable_encoding_methods()
                     @testset "ℝ (tolerance)" begin
                         let φ = PBO.vargen(VI)
                             S = (-2.0, 2.0)
-                            τ = 1/4
+                            τ = 1 / 4
                             n = 17
 
                             @test ToQUBO.Encoding.encoding_points(e, S, τ) == n
@@ -430,10 +429,10 @@ function test_variable_encoding_methods()
                             @test y == VI.(1:n)
                             @test ξ == PBO.PBF{VI,Float64}(
                                 -1.0,
-                                y[1] =>  0.75,
-                                y[2] =>  0.25,
-                                y[3] =>  0.25,
-                                y[4] =>  0.75,
+                                y[1] => 0.75,
+                                y[2] => 0.25,
+                                y[3] => 0.25,
+                                y[4] => 0.75,
                             )
                             @test χ == PBO.PBF{VI,Float64}(
                                 [
@@ -501,7 +500,7 @@ function test_variable_encoding_methods()
                     @testset "ℝ (tolerance)" begin
                         let φ = PBO.vargen(VI)
                             S = (-2.0, 2.0)
-                            τ = 1/4
+                            τ = 1 / 4
                             n = 16
 
                             @test ToQUBO.Encoding.encoding_points(e, S, τ) == n + 1

@@ -92,7 +92,7 @@ function encoding_bits(::Arithmetic{T}, S::Tuple{T,T}, tol::T) where {T}
 
     a, b = S
 
-    return ceil(Int, (1 + sqrt(3 + (b - a) / 2tol)) / 2)
+    return ceil(Int, (1 + sqrt(3 + abs(b - a) / 2tol)) / 2)
 end
 
 # Real (fixed)
