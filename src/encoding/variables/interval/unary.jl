@@ -15,7 +15,8 @@ Given ``n \in \mathbb{N}`` for ``x \in [a, b] \subset \mathbb{R}``,
 \xi{[a, b]}(\mathbf{y}) = a + \frac{b - a}{n} \sum_{j = 1}^{n} y_{j}
 ```
 
-### Encoding error
+### Representation error
+
 Given ``\tau > 0``, for the expected encoding error to be less than or equal to ``\tau``, at least
 
 ```math
@@ -56,38 +57,6 @@ function encode(var::Function, e::Unary{T}, S::Tuple{T,T}; tol::Union{T,Nothing}
     return (y, ξ, nothing) # No penalty function
 end
 
-# @doc raw"""
-#     encode(var::Function, ::Bounded{Unary{T},T}, S::Tuple{T,T}) where {T}
-
-# Given ``\mu > 0``, let ``x \in [a, b] \subset \mathbb{Z}`` and ``n = b - a``.
-# """
-# function encode(var::Function, e::Bounded{Unary{T},T}, S::Tuple{T,T}) where {T}
-#     a, b = integer_interval(S)
-
-#     n = round(Int, b - a)
-#     k = ceil(Int, e.μ - 1)
-#     r = floor(Int, (n - k) / e.μ)
-#     ϵ = n - k - r * e.μ
-
-#     γ = if iszero(ϵ)
-#         T[ones(T, k); fill(e.μ, r)]
-#     else
-#         T[ones(T, k); ϵ; fill(e.μ, r)]
-#     end
-
-#     N = length(γ)
-
-#     if N == 0
-#         y = VI[]
-#         ξ = PBO.PBF{VI,T}((a + b) / 2)
-#     else
-#         y = var(N)::Vector{VI}
-#         ξ = PBO.PBF{VI,T}([a; [y[i] => γ[i] for i = 1:N]])
-#     end
-
-#     return (y, ξ, nothing) # No penalty function
-# end
-
 function encoding_bits(::Unary{T}, S::Tuple{T,T}, tol::T) where {T}
     @assert tol > zero(T)
 
@@ -124,4 +93,3 @@ function encode(
 
     return (y, ξ, nothing) # No penalty function
 end
-

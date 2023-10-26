@@ -15,7 +15,8 @@ Given ``n \in \mathbb{N}`` for ``x \in [a, b] \subset \mathbb{R}``,
 \xi{[a, b]}(\mathbf{y}) = a + \frac{b - a}{n (n + 1)} \sum_{j = 1}^{n} j y_{j}
 ```
 
-### Encoding error
+### Representation error
+
 Given ``\tau > 0``, for the expected encoding error to be less than or equal to ``\tau``, at least
 
 ```math
@@ -55,37 +56,6 @@ function encode(var::Function, e::Arithmetic{T}, S::Tuple{T,T}; tol::Union{T,Not
 
     return (y, ξ, nothing) # No penalty function
 end
-
-# @doc raw"""
-#     encode(var::Function, e::Bounded{Arithmetic{T},T}, S::Tuple{T,T}) where {T}
-# """
-# function encode(var::Function, e::Bounded{Arithmetic{T},T}, S::Tuple{T,T}) where {T}
-#     a, b = integer_interval(S)
-
-#     n = round(Int, b - a)
-#     k = floor(Int, e.μ)
-#     m = (k * (k + 1)) ÷ 2
-#     r = floor(Int, (n - m) / e.μ)
-#     ϵ = n - m + -r * e.μ
-
-#     γ = if iszero(ϵ)
-#         T[collect(T, 1:k); fill(e.μ, r)]
-#     else
-#         T[collect(T, 1:k); ϵ; fill(e.μ, r)]
-#     end
-
-#     N = length(γ)
-
-#     if N == 0
-#         y = VI[]
-#         ξ = PBO.PBF{VI,T}((a + b) / 2)
-#     else
-#         y = var(N)::Vector{VI}
-#         ξ = PBO.PBF{VI,T}([a; [y[i] => γ[i] for i = 1:N]])
-#     end
-
-#     return (y, ξ, nothing) # No penalty function
-# end
 
 function encoding_bits(::Arithmetic{T}, S::Tuple{T,T}, tol::T) where {T}
     @assert tol > zero(T)
