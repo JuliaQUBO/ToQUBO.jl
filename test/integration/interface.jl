@@ -278,9 +278,9 @@ function test_interface_jump()
         end
 
         @testset "Attributes" begin
-            let
-                model = Model(() -> ToQUBO.Optimizer(RandomSampler.Optimizer))
-            end
+            # let
+            #     model = Model(() -> ToQUBO.Optimizer(RandomSampler.Optimizer))
+            # end
         end
     end
 

@@ -76,7 +76,7 @@ function variables!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
         if isnothing(a) || isnothing(b)
             error("Unbounded variable $(x) ∈ ℝ")
         else
-            # TODO: Solve this bit-guessing magic???
+            # TODO: Solve this bit-guessing magic??? (DONE)
             # IDEA: 
             #     Let x̂ ~ U[a, b], K = 2ᴺ, γ = [a, b]
             #       𝔼[|xᵢ - x̂|] = ∫ᵧ |xᵢ - x̂| f(x̂) dx̂
@@ -89,16 +89,16 @@ function variables!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
             # where τ is the (absolute) tolerance
             # TODO: Add τ as parameter (DONE)
             # TODO: Move this comment to the documentation
-            let
-                e = Attributes.variable_encoding_method(model, x)
+            let e = Attributes.variable_encoding_method(model, x)
                 n = Attributes.variable_encoding_bits(model, x)
+                S = (a, b)
 
                 if !isnothing(n)
-                    encode!(model, e, x, n, (a, b))
+                    Encoding.encode!(model, x, e, S, n)
                 else
                     τ = Attributes.variable_encoding_atol(model, x)
 
-                    encode!(model, e, x, (a, b), τ)
+                    Encoding.encode!(model, x, e, S; tol = τ)
                 end
             end
         end
@@ -109,17 +109,19 @@ function variables!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
         if isnothing(a) || isnothing(b)
             error("Unbounded variable $(x) ∈ ℤ")
         else
-            let
-                e = Attributes.variable_encoding_method(model, x)
+            let e = Attributes.variable_encoding_method(model, x)
+                S = (a, b)
 
-                encode!(model, e, x, (a, b))
+                Encoding.encode!(model, x, e, S)
             end
         end
     end
 
     # Mirror Boolean Variables
-    for x in 𝔹
-        encode!(model, Mirror{T}(), x)
+    let e = Mirror{T}()
+        for x in 𝔹
+            Encoding.encode!(model, x, e)
+        end
     end
 
     return nothing

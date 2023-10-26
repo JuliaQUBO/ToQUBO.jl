@@ -150,14 +150,14 @@ Available options are defined in the `PBO` submodule.
 struct QuadratizationMethod <: CompilerAttribute end
 
 function MOI.get(model::Optimizer, ::QuadratizationMethod)
-    return get(model.compiler_settings, :quadratization_method, PBO.DEFAULT)
+    return get(model.compiler_settings, :quadratization_method, PBO.DEFAULT())
 end
 
 function MOI.set(
     model::Optimizer,
     ::QuadratizationMethod,
-    ::Type{method},
-) where {method<:PBO.QuadratizationMethod}
+    method::PBO.QuadratizationMethod,
+)
     model.compiler_settings[:quadratization_method] = method
 
     return nothing
@@ -205,7 +205,7 @@ function MOI.get(
     model::Optimizer,
     ::DefaultVariableEncodingMethod,
 )::Encoding.VariableEncodingMethod
-    return get(model.compiler_settings, :default_variable_encoding_method, Binary())
+    return get(model.compiler_settings, :default_variable_encoding_method, Encoding.Binary())
 end
 
 function MOI.set(

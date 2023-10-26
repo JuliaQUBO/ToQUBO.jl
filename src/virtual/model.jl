@@ -3,7 +3,7 @@
 
 This Virtual Model links the final QUBO formulation to the original one, allowing variable value retrieving and other features.
 """
-struct Model{T} <: MOI.AbstractOptimizer
+mutable struct Model{T} <: MOI.AbstractOptimizer
     #  Underlying Optimizer  #
     optimizer::Union{MOI.AbstractOptimizer,Nothing}
 

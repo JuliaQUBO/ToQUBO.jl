@@ -1,14 +1,20 @@
+function constraints!(model::Virtual.Model, ::Type{F}, ::Type{S}, arch::AbstractArchitecture) where {F,S}
+    for ci in MOI.get(model, MOI.ListOfConstraintIndices{F,S}())
+        f = MOI.get(model, MOI.ConstraintFunction(), ci)
+        s = MOI.get(model, MOI.ConstraintSet(), ci)
+        g = constraint(model, f, s, arch)
+
+        if !isnothing(g)
+            model.g[ci] = g
+        end
+    end
+
+    return nothing
+end
+
 function constraints!(model::Virtual.Model, arch::AbstractArchitecture)
     for (F, S) in MOI.get(model, MOI.ListOfConstraintTypesPresent())
-        for ci in MOI.get(model, MOI.ListOfConstraintIndices{F,S}())
-            f = MOI.get(model, MOI.ConstraintFunction(), ci)
-            s = MOI.get(model, MOI.ConstraintSet(), ci)
-            g = constraint(model, f, s, arch)
-
-            if !isnothing(g)
-                model.g[ci] = g
-            end
-        end
+        constraints!(model, F, S, arch)
     end
 
     return nothing
@@ -136,10 +142,12 @@ function constraint(
     end
 
     # Slack Variable
+    x = nothing
     e = MOI.get(model, Attributes.DefaultVariableEncodingMethod())
-    z = encode!(model, e, nothing, zero(T), abs(l))
+    S = (zero(T), abs(l))
+    z = Encoding.encode!(model, x, e, S)
 
-    for (ω, c) in expansion(z)
+    for (ω, c) in Virtual.expansion(z)
         g[ω] += c
     end
 
@@ -245,10 +253,12 @@ function constraint(
     end
 
     # Slack Variable
+    x = nothing
     e = MOI.get(model, Attributes.DefaultVariableEncodingMethod())
-    z = encode!(model, e, nothing, zero(T), abs(l))
+    S = (zero(T), abs(l))
+    z = Encoding.encode!(model, x, e, S)
 
-    for (ω, c) in expansion(z)
+    for (ω, c) in Virtual.expansion(z)
         g[ω] += c
     end
 
@@ -282,16 +292,17 @@ function constraint(
             error("Currently, ToQUBO only supports SOS1 on binary variables")
         end
 
-        for (ωi, _) in expansion(vi)
+        for (ωi, _) in Virtual.expansion(vi)
             g[ωi] = one(T)
         end
     end
 
     # Slack variable
-    e = Mirror()
-    z = encode!(model, e, nothing)
+    x = nothing
+    e = Encoding.Mirror{T}()
+    z = Encoding.encode!(model, x, e)
 
-    for (ω, c) in expansion(z)
+    for (ω, c) in Virtual.expansion(z)
         g[ω] += c
     end
 
@@ -302,13 +313,13 @@ end
 
 function encoding_constraints!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
     for v in model.variables
-        x = source(v)
+        x = Virtual.source(v)
 
         if isnothing(x)
             continue
         end
 
-        χ = penaltyfn(v)
+        χ = Virtual.penaltyfn(v)
 
         if !isnothing(χ)
             model.h[x] = χ

@@ -1,13 +1,14 @@
 module Compiler
 
 # Imports
-import MathOptInterface as MOI
+using MathOptInterface
+const MOI = MathOptInterface
 
 import QUBOTools: PBO
 import QUBOTools: AbstractArchitecture, GenericArchitecture
 
 import ..Encoding:
-    encode!,
+    Encoding,
     VariableEncodingMethod,
     Mirror,
     Unary,
@@ -145,7 +146,7 @@ function _copy!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
 
     # Map Variables
     for vi in MOI.get(source_model, MOI.ListOfVariableIndices())
-        encode!(model, Mirror(), vi)
+        Encoding.encode!(model, vi, Encoding.Mirror{T}())
     end
 
     # Copy Objective Sense

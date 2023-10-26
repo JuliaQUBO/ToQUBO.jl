@@ -124,7 +124,7 @@ function MOI.get(model::Virtual.Model{T}, vp::MOI.VariablePrimal, x::VI) where {
         v = model.source[x]
         s = zero(T)
 
-        for (ω, c) in expansion(v)
+        for (ω, c) in Virtual.expansion(v)
             for y in ω
                 c *= MOI.get(model.optimizer, vp, y)
             end

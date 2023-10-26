@@ -70,7 +70,7 @@ function quadratize!(model::Virtual.Model, arch::AbstractArchitecture)
         if MOI.get(model, MOI.ObjectiveSense()) === MOI.MIN_SENSE
             PBO.quadratize!(
                 model.H,
-                    PBO.Quadratization{method}(stable),
+                    PBO.Quadratization(method; stable),
                 ) do (n::Union{Integer,Nothing} = nothing)
                     return aux(model, n, arch)
             end
@@ -78,7 +78,7 @@ function quadratize!(model::Virtual.Model, arch::AbstractArchitecture)
             let H = -model.H
                 PBO.quadratize!(
                     H,
-                    PBO.Quadratization{method}(stable),
+                    PBO.Quadratization(method; stable),
                 ) do (n::Union{Integer,Nothing} = nothing)
                     return aux(model, n, arch)
                 end
