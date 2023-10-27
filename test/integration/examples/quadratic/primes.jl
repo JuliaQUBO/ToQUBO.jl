@@ -1,3 +1,6 @@
+raw"""
+
+"""
 function test_primes()
     @testset "Prime Factoring: 15 = 3 × 5" begin
         #  Problem Data  #
@@ -35,7 +38,7 @@ function test_primes()
 
         optimize!(model)
 
-        @info MOI.get(unsafe_backend(model).target_model, MOI.ObjectiveSense())
+        MOI.get(unsafe_backend(model).target_model, MOI.ObjectiveSense())
 
         # Reformulation
         ρ = get_attribute(c1, Attributes.ConstraintEncodingPenalty())
