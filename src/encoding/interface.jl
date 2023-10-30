@@ -16,6 +16,11 @@ function encode end
 function encode! end
 
 @doc raw"""
+    encodes(f::AbstractPBF, S::Tuple{T,T}, tol::T) where {T}
+"""
+function encodes end
+
+@doc raw"""
     encoding_bits(e::VariableEncodingMethod, S::Tuple{T,T}, tol::T) where {T}
 """
 function encoding_bits end

@@ -78,7 +78,7 @@ function encode(
     a, b = S
 
     ℓ = abs(b - a)
-    r = ceil(Int, ℓ / e.μ - 1)
+    r = floor(Int, ℓ / e.μ - 1)
     δ = ℓ - r * e.μ
 
     Δ::Tuple{T,T} = (0, δ)
@@ -108,7 +108,7 @@ function encoding_bits(
     a, b = S
 
     ℓ = abs(b - a)
-    r = ceil(Int, ℓ / e.μ - 1)
+    r = floor(Int, ℓ / e.μ - 1)
     δ = ℓ - r * e.μ
 
     Δ::Tuple{T,T} = (0, δ)

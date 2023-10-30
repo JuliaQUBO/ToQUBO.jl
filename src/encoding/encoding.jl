@@ -1,7 +1,7 @@
 module Encoding
 
 import MathOptInterface as MOI
-import QUBOTools: PBO
+import PseudoBooleanOptimization as PBO
 
 const VI = MOI.VariableIndex
 

@@ -226,7 +226,7 @@ function test_variable_encoding_methods()
                         let μ = 1.0
                             ê = ToQUBO.Encoding.Bounded(e, μ)
                             φ = PBO.vargen(VI)
-                            S = (-2.0, 2.0)
+                            S = (-1.0, 2.5)
                             n = 8
 
                             y, ξ, χ = ToQUBO.Encoding.encode(φ, ê, S, n)
@@ -234,15 +234,15 @@ function test_variable_encoding_methods()
                             @test length(y) == n
                             @test y == VI.(1:n)
                             @test ξ == PBO.PBF{VI,Float64}(
-                                y[1] => 1 / 31,
-                                y[2] => 2 / 31,
-                                y[3] => 4 / 31,
-                                y[4] => 8 / 31,
-                                y[5] => 16 / 31,
-                                y[6] => 1.0,
+                                y[1] => 1.5 / 63,
+                                y[2] => 3 / 63,
+                                y[3] => 6 / 63,
+                                y[4] => 12 / 63,
+                                y[5] => 24 / 63,
+                                y[6] => 48 / 63,
                                 y[7] => 1.0,
                                 y[8] => 1.0,
-                                -2.0,
+                                -1.0,
                             )
                             @test isnothing(χ)
                         end
