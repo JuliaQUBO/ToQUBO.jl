@@ -123,6 +123,10 @@ function MOI.set(model::Optimizer, ::Discretize, ::Nothing)
     return nothing
 end
 
+function discretize(model::Optimizer)::Bool
+    return MOI.get(model, Discretize())
+end
+
 @doc raw"""
     Quadratize()
 
@@ -139,6 +143,10 @@ function MOI.set(model::Optimizer, ::Quadratize, flag::Bool)
     model.compiler_settings[:quadratize] = flag
 
     return nothing
+end
+
+function quadratize(model::Optimizer)::Bool
+    return MOI.get(model, Quadratize())
 end
 
 @doc raw"""
@@ -169,6 +177,10 @@ function MOI.set(model::Optimizer, ::QuadratizationMethod, ::Nothing)
     return nothing
 end
 
+function quadratization_method(model::Optimizer)
+    return MOI.get(model, QuadratizationMethod())
+end
+
 @doc raw"""
     StableQuadratization()
 
@@ -192,6 +204,37 @@ function MOI.set(model::Optimizer, ::StableQuadratization, ::Nothing)
     delete!(model.compiler_settings, :stable_quadratization)
 
     return nothing
+end
+
+function stable_quadratization(model::Optimizer)::Bool
+    return stable_compilation(model) || MOI.get(model, StableQuadratization())
+end
+
+@doc raw"""
+    StableCompilation()
+
+When set, this boolean flag enables stable reformulation methods, thus yielding predictable results.
+"""
+struct StableCompilation <: CompilerAttribute end
+
+function MOI.get(model::Optimizer, ::StableCompilation)::Bool
+    return get(model.compiler_settings, :stable_compilation, false)
+end
+
+function MOI.set(model::Optimizer, ::StableCompilation, flag::Bool)
+    model.compiler_settings[:stable_compilation] = flag
+
+    return nothing
+end
+
+function MOI.set(model::Optimizer, ::StableCompilation, ::Nothing)
+    delete!(model.compiler_settings, :stable_compilation)
+
+    return nothing
+end
+
+function stable_compilation(model::Optimizer)::Bool
+    return MOI.get(model, StableCompilation())
 end
 
 @doc raw"""

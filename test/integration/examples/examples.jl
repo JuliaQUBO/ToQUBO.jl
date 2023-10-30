@@ -12,4 +12,6 @@ function test_examples()
         test_logical()
         test_continuous()
     end
+
+    return nothing
 end

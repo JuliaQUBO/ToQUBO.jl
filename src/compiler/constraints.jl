@@ -86,7 +86,10 @@ function constraint(
     l, u = PBO.bounds(g)
 
     if u < zero(T) # Always feasible
-        @warn "Always-feasible constraint detected"
+        @warn """
+        Always-feasible constraint detected:
+        $(f) ≤ $(s.value)
+        """
         return nothing
     elseif l > zero(T) # Infeasible
         @warn "Infeasible constraint detected"
@@ -135,7 +138,10 @@ function constraint(
     l, u = PBO.bounds(g)
 
     if u < zero(T) # Always feasible
-        @warn "Always-feasible constraint detected"
+        @warn """
+        Always-feasible constraint detected:
+        $(f) ≤ $(s.upper)
+        """
         return nothing
     elseif l > zero(T) # Infeasible
         @warn "Infeasible constraint detected"
@@ -193,7 +199,10 @@ function constraint(
     l, u = PBO.bounds(g)
 
     if u < zero(T) # Always feasible
-        @warn "Always-feasible constraint detected"
+        @warn """
+        Always-feasible constraint detected:
+        $(f) ≤ $(s.value)
+        """
         return nothing
     elseif l > zero(T) # Infeasible
         @warn "Infeasible constraint detected"
@@ -246,7 +255,10 @@ function constraint(
     l, u = PBO.bounds(g)
 
     if u < zero(T) # Always feasible
-        @warn "Always-feasible constraint detected"
+        @warn """
+        Always-feasible constraint detected:
+        $(f) ≤ $(s.upper)
+        """
         return nothing
     elseif l > zero(T) # Infeasible
         @warn "Infeasible constraint detected"

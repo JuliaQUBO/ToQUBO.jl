@@ -5,7 +5,7 @@ import MathOptInterface as MOI
 import PseudoBooleanOptimization as PBO 
 
 import ..ToQUBO: QUBOModel, PreQUBOModel
-import ..Encoding: VariableEncodingMethod, encode!, encode
+import ..Encoding: Encoding, VariableEncodingMethod, encode!
 
 # Constants
 const MOIB    = MOI.Bridges

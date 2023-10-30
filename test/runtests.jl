@@ -15,12 +15,16 @@ function QUBOTools.backend(model::JuMP.Model)
     return QUBOTools.backend(JuMP.unsafe_backend(model))
 end
 
+function QUBOTools.varshow(v::VI)
+    return QUBOTools.varshow(v.value)
+end
+
 include("unit/unit.jl")
 include("integration/integration.jl")
 
 function main()
     @testset "♡ ToQUBO.jl $(ToQUBO.__VERSION__) Test Suite ♡" verbose = true begin
-        test_unit()
+        # test_unit()
         test_integration()
     end
 

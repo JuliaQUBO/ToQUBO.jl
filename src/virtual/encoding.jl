@@ -1,4 +1,4 @@
-function encode!(model::Model{T}, v::Variable{T}) where {T}
+function Encoding.encode!(model::Model{T}, v::Variable{T}) where {T}
     x = source(v)
 
     if !isnothing(x)
@@ -16,8 +16,8 @@ function encode!(model::Model{T}, v::Variable{T}) where {T}
     return v
 end
 
-function encode!(model::Model{T}, x::Union{VI,Nothing}, e::VariableEncodingMethod) where {T}
-    y, ξ, χ = encode(e) do (nv::Union{Integer,Nothing} = nothing)
+function Encoding.encode!(model::Model{T}, x::Union{VI,Nothing}, e::VariableEncodingMethod) where {T}
+    y, ξ, χ = Encoding.encode(e) do (nv::Union{Integer,Nothing} = nothing)
         if isnothing(nv)
             return MOI.add_variable(model.target_model)
         else
@@ -27,16 +27,16 @@ function encode!(model::Model{T}, x::Union{VI,Nothing}, e::VariableEncodingMetho
 
     v = Variable{T}(e, x, y, ξ, χ)
 
-    return encode!(model, v)
+    return Encoding.encode!(model, v)
 end
 
-function encode!(
+function Encoding.encode!(
     model::Model{T},
     x::Union{VI,Nothing},
     e::VariableEncodingMethod,
     γ::AbstractVector{T},
 ) where {T}
-    y, ξ, χ = encode(e, γ) do (nv::Union{Integer,Nothing} = nothing)
+    y, ξ, χ = Encoding.encode(e, γ) do (nv::Union{Integer,Nothing} = nothing)
         if isnothing(nv)
             return MOI.add_variable(model.target_model)
         else
@@ -46,7 +46,7 @@ function encode!(
 
     v = Variable{T}(e, x, y, ξ, χ)
 
-    return encode!(model, v)
+    return Encoding.encode!(model, v)
 end
 
 function encode!(
@@ -56,7 +56,7 @@ function encode!(
     S::Tuple{T,T};
     tol::Union{T,Nothing} = nothing,
 ) where {T}
-    y, ξ, χ = encode(e, S; tol) do (nv::Union{Integer,Nothing} = nothing)
+    y, ξ, χ = Encoding.encode(e, S; tol) do (nv::Union{Integer,Nothing} = nothing)
         if isnothing(nv)
             return MOI.add_variable(model.target_model)
         else
@@ -66,17 +66,17 @@ function encode!(
 
     v = Variable{T}(e, x, y, ξ, χ)
 
-    return encode!(model, v)
+    return Encoding.encode!(model, v)
 end
 
-function encode!(
+function Encoding.encode!(
     model::Model{T},
     x::Union{VI,Nothing},
     e::VariableEncodingMethod,
     S::Tuple{T,T},
     n::Integer,
 ) where {T}
-    y, ξ, χ = encode(e, S, n) do (nv::Union{Integer,Nothing} = nothing)
+    y, ξ, χ = Encoding.encode(e, S, n) do (nv::Union{Integer,Nothing} = nothing)
         if isnothing(nv)
             return MOI.add_variable(model.target_model)
         else
@@ -86,5 +86,5 @@ function encode!(
 
     v = Variable{T}(e, x, y, ξ, χ)
 
-    return encode!(model, v)
+    return Encoding.encode!(model, v)
 end

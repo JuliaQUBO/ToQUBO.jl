@@ -64,18 +64,17 @@ end
 
 function quadratize!(model::Virtual.Model, arch::AbstractArchitecture)
     if MOI.get(model, Attributes.Quadratize())
-        method = MOI.get(model, Attributes.QuadratizationMethod())
-        stable = MOI.get(model, Attributes.StableQuadratization())
+        method = Attributes.quadratization_method(model)
+        stable = Attributes.stable_quadratization(model)
 
-        if MOI.get(model, MOI.ObjectiveSense()) === MOI.MIN_SENSE
-            PBO.quadratize!(
-                model.H,
-                    PBO.Quadratization(method; stable),
-                ) do (n::Union{Integer,Nothing} = nothing)
-                    return aux(model, n, arch)
-            end
-        else # MOI.get(model, MOI.ObjectiveSense()) === MOI.MAX_SENSE
+        if MOI.get(model, MOI.ObjectiveSense()) === MOI.MAX_SENSE
+            # NOTE: Here it is necessary to invert the sign of the
+            # Hamiltonian since PBO adopts the minimization sense
+            # convention.
+            # TODO: Add an in-place version of 'quadratize!' that 
+            # provides support for maximization problems.
             let H = -model.H
+
                 PBO.quadratize!(
                     H,
                     PBO.Quadratization(method; stable),
@@ -83,7 +82,15 @@ function quadratize!(model::Virtual.Model, arch::AbstractArchitecture)
                     return aux(model, n, arch)
                 end
 
+                # NOTE: This setup leads to avoidable allocations.
                 copy!(model.H, -H)
+            end
+        else # === MOI.MIN_SENSE || === MOI.FEASIBILITY
+            PBO.quadratize!(
+                model.H,
+                PBO.Quadratization(method; stable),
+            ) do (n::Union{Integer,Nothing} = nothing)
+                return aux(model, n, arch)
             end
         end
     end
