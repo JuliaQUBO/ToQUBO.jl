@@ -16,13 +16,13 @@ import MathOptInterface as MOI
 const MOIU = MOI.Utilities
 
 using ToQUBO
-using DWaveNeal # <- Your favourite Annealer / Sampler / Solver here
+using DWave # <- Your favourite Annealer / Sampler / Solver here
 
 # Example from https://jump.dev/MathOptInterface.jl/stable/tutorials/example/
 
 # Virtual QUBO Model
 model = MOI.instantiate(
-   () -> ToQUBO.Optimizer(DWaveNeal.Optimizer),
+   () -> ToQUBO.Optimizer(DWave.Neal.Optimizer),
    with_bridge_type = Float64,
 )
 
@@ -88,9 +88,9 @@ df = CSV.read("knapsack.csv", DataFrame)
 ```@example dwave-knapsack
 using JuMP
 using ToQUBO
-using DWaveNeal # <- Your favourite Annealer/Sampler/Solver here
+using DWave # <- Your favourite Annealer/Sampler/Solver here
 
-model = Model(() -> ToQUBO.Optimizer(DWaveNeal.Optimizer))
+model = Model(() -> ToQUBO.Optimizer(DWave.Neal.Optimizer))
 
 n = size(df, 1)
 c = collect(Float64, df[!, :cost])

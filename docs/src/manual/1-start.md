@@ -1,12 +1,13 @@
 # Manual
 
 ## Quick Start Guide
+
 ```@example quick-start
 using JuMP
 using ToQUBO
-using DWaveNeal # <- Your favourite Annealer/Sampler/Solver here
+using DWave # <- Your favourite Annealer/Sampler/Solver here
 
-model = Model(() -> ToQUBO.Optimizer(DWaveNeal.Optimizer))
+model = Model(() -> ToQUBO.Optimizer(DWave.Neal.Optimizer))
 
 @variable(model, x[1:3], Bin)
 

@@ -43,16 +43,17 @@ df = DataFrames.DataFrame(
 ```
 
 ## Solving
+
 ```@example portfolio-optimization
 using JuMP
 using ToQUBO
-using DWaveNeal
+using DWave
 
 function solve(
     config!::Function,
     df::DataFrame,
     λ::Float64 = 10.;
-    optimizer = DWaveNeal.Optimizer
+    optimizer = DWave.Neal.Optimizer
 )
     # Number of assets
     n = size(df, 2)
@@ -80,7 +81,7 @@ function solve(
     return value.(x)
 end
 
-function solve(df::DataFrame, λ::Float64 = 10.; optimizer = DWaveNeal.Optimizer)
+function solve(df::DataFrame, λ::Float64 = 10.; optimizer = DWave.Neal.Optimizer)
     return solve(identity, df, λ; optimizer)
 end
 ```
@@ -93,6 +94,7 @@ end
 ```
 
 ## Penalty Analysis
+
 To finish our discussion, we are going to sketch some graphics to help our reasoning on how the penalty factor ``\lambda`` affects our investments.
 
 ```@example portfolio-optimization
