@@ -15,10 +15,6 @@ function QUBOTools.backend(model::JuMP.Model)
     return QUBOTools.backend(JuMP.unsafe_backend(model))
 end
 
-function QUBOTools.varshow(v::VI)
-    return QUBOTools.varshow(v.value)
-end
-
 include("unit/unit.jl")
 include("integration/integration.jl")
 

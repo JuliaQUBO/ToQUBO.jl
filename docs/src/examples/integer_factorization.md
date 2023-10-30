@@ -7,6 +7,7 @@ often regarded as one of the major theoretical landmarks in Quantum Computing, b
 driving increasingly greater interest to the area.
 
 A naïve approach to model this problem can be stated as a quadratically-constrained integer program:
+
 ```math
 \begin{array}{rl}
 \text{s.t.} & p \times q = R \\

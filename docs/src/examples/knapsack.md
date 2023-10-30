@@ -88,7 +88,7 @@ df = CSV.read("knapsack.csv", DataFrame)
 ```@example dwave-knapsack
 using JuMP
 using ToQUBO
-using DWave # <- Your favourite Annealer/Sampler/Solver here
+using DWave
 
 model = Model(() -> ToQUBO.Optimizer(DWave.Neal.Optimizer))
 
@@ -104,5 +104,5 @@ C = round(0.8 * sum(w))
 optimize!(model)
 
 # Add Results as a new column
-insertcols!(df, 3, :select => map((ξ) -> (ξ > 0.0) ? "Yes" : "No", value.(x)))
+df[:,:select] = map((xi) -> (xi > 0.0) ? "Yes" : "No", value.(x))
 ```

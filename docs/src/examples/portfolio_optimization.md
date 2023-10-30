@@ -98,7 +98,7 @@ end
 To finish our discussion, we are going to sketch some graphics to help our reasoning on how the penalty factor ``\lambda`` affects our investments.
 
 ```@example portfolio-optimization
-using Plots; pythonplot()
+using Plots
 
 Λ = collect(0.:5.:50.)
 X = Dict{Symbol,Vector{Float64}}(tag => [] for tag in assets)

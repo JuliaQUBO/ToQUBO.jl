@@ -1,16 +1,13 @@
 # Compiler Settings
 
 ## Working with solver architectures
+
 ```@docs
 ToQUBO.Attributes.Architecture
 ```
 
-```@docs
-ToQUBO.AbstractArchitecture
-ToQUBO.GenericArchitecture
-```
-
 ## Quadratization
+
 ```@docs
 ToQUBO.Attributes.Quadratize
 ToQUBO.Attributes.QuadratizationMethod
@@ -18,6 +15,7 @@ ToQUBO.Attributes.StableQuadratization
 ```
 
 ## Variable & Constraint Encoding
+
 ```@docs
 ToQUBO.Attributes.VariableEncodingBits
 ToQUBO.Attributes.DefaultVariableEncodingBits
@@ -30,6 +28,7 @@ ToQUBO.Attributes.ConstraintEncodingPenalty
 ```
 
 ## Discretization
+
 ```@docs
 ToQUBO.Attributes.Discretize
 ```

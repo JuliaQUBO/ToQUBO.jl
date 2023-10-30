@@ -1,32 +1,16 @@
 module Attributes
 
-import QUBOTools: PBO
-import QUBOTools: AbstractArchitecture, GenericArchitecture
-
 import MathOptInterface as MOI
 const MOIU = MOI.Utilities
 const VI   = MOI.VariableIndex
 const CI   = MOI.ConstraintIndex
 
+import PseudoBooleanOptimization as PBO
+import QUBOTools
+
 import ..ToQUBO: Optimizer
 import ..Encoding
 import ..Virtual
-
-export Warnings,
-    Architecture,
-    Discretize,
-    Quadratize,
-    QuadratizationMethod,
-    StableQuadratization,
-    DefaultVariableEncodingATol,
-    DefaultVariableEncodingBits,
-    DefaultVariableEncodingMethod,
-    VariableEncodingATol,
-    VariableEncodingBits,
-    VariableEncodingMethod,
-    VariableEncodingPenalty,
-    ConstraintEncodingPenalty,
-    QUBONormalForm
 
 abstract type CompilerAttribute <: MOI.AbstractOptimizerAttribute end
 
@@ -80,15 +64,15 @@ end
     Architecture()
 
 Selects which solver architecture to use.
-Defaults to [`GenericArchitecture`](@ref).
+Defaults to [`QUBOTools.GenericArchitecture`](@ref).
 """
 struct Architecture <: CompilerAttribute end
 
-function MOI.get(model::Optimizer, ::Architecture)::AbstractArchitecture
-    return get(model.compiler_settings, :architecture, GenericArchitecture())
+function MOI.get(model::Optimizer, ::Architecture)::QUBOTools.AbstractArchitecture
+    return get(model.compiler_settings, :architecture, QUBOTools.GenericArchitecture())
 end
 
-function MOI.set(model::Optimizer, ::Architecture, arch::AbstractArchitecture)
+function MOI.set(model::Optimizer, ::Architecture, arch::QUBOTools.AbstractArchitecture)
     model.compiler_settings[:architecture] = arch
 
     return nothing
