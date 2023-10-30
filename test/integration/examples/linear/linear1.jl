@@ -38,6 +38,7 @@ function test_linear1()
 
         # Reformulation
         ρ = get_attribute(c1, Attributes.ConstraintEncodingPenalty())
+        
         n, L, Q, α, β = QUBOTools.qubo(model, :dense)
 
         Q̂ = Q + diagm(L)

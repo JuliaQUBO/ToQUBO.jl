@@ -7,6 +7,15 @@ struct SuperArchitecture <: QUBOTools.AbstractArchitecture
     end
 end
 
+function test_interface()
+    @testset "□ Interface" verbose = true begin
+        test_interface_moi()
+        # test_interface_jump()
+    end
+
+    return nothing
+end
+
 function test_interface_moi()
     @testset "MathOptInterface" begin
         @testset "Instantiate" begin
@@ -35,8 +44,7 @@ function test_interface_moi()
 
         @testset "Models" begin
             @testset "Binary Knapsack" begin
-                let
-                    n = 3               # size
+                let n = 3               # size
                     v = [1.0, 2.0, 3.0] # value
                     w = [0.3, 0.5, 1.0] # weight
                     C = 3.2             # capacity
@@ -152,13 +160,13 @@ function test_interface_moi()
                 # @test MOI.get(model, Attributes.Architecture()) isa SuperArchitecture
                 # @test MOI.get(model, Attributes.Architecture()).super === true
 
-                # @test MOI.get(model, Attributes.Discretize()) === false
-                # MOI.set(model, Attributes.Discretize(), true)
-                # @test MOI.get(model, Attributes.Discretize()) === true
+                @test MOI.get(model, Attributes.Discretize()) === false
+                MOI.set(model, Attributes.Discretize(), true)
+                @test MOI.get(model, Attributes.Discretize()) === true
 
-                # @test MOI.get(model, Attributes.Quadratize()) === false
-                # MOI.set(model, Attributes.Quadratize(), true)
-                # @test MOI.get(model, Attributes.Quadratize()) === true
+                @test MOI.get(model, Attributes.Quadratize()) === false
+                MOI.set(model, Attributes.Quadratize(), true)
+                @test MOI.get(model, Attributes.Quadratize()) === true
 
                 # @test MOI.get(model, Attributes.QuadratizationMethod()) === PBO.DEFAULT
                 # MOI.set(model, Attributes.QuadratizationMethod(), PBO.PTR_BG)
@@ -282,15 +290,6 @@ function test_interface_jump()
             #     model = Model(() -> ToQUBO.Optimizer(RandomSampler.Optimizer))
             # end
         end
-    end
-
-    return nothing
-end
-
-function test_interface()
-    @testset "Interface" begin
-        test_interface_moi()
-        test_interface_jump()
     end
 
     return nothing

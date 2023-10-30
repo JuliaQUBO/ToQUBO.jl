@@ -5,7 +5,7 @@ include("logical/logical.jl")
 include("continuous/continuous.jl")
 
 function test_examples()
-    @testset "Examples" verbose = true begin
+    @testset "□ Examples" verbose = true begin
         test_qba()
         test_linear()
         test_quadratic()
