@@ -15,9 +15,9 @@ julia> Pkg.add("ToQUBO")
 ```@example
 using JuMP
 using ToQUBO
-using DWaveNeal
+using DWave
 
-model = Model(() -> ToQUBO.Optimizer(DWaveNeal.Optimizer))
+model = Model(() -> ToQUBO.Optimizer(DWave.Neal.Optimizer))
 
 @variable(model, x[1:3], Bin)
 @objective(model, Max, 1.0*x[1] + 2.0*x[2] + 3.0*x[3])

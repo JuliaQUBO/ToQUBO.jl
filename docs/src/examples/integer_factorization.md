@@ -16,19 +16,20 @@ A naïve approach to model this problem can be stated as a quadratically-constra
 ```
 
 From the definition and the basics of number theory, we are able to retrieve a few assumptions about the problem's variables:
+
 - ``p`` and ``q`` are bounded to the interval ``\left[1, R\right]``
 - Moreover, it is fine to assume ``1 < p \le \sqrt{R} \le q \le R \div 2``.
 
 ```@example prime-factorization
 using JuMP
 using ToQUBO
-using DWaveNeal
+using DWave
 
-function factor(R::Integer; optimizer = DWaveNeal.Optimizer)
+function factor(R::Integer; optimizer = DWave.Neal.Optimizer)
     return factor(identity, R; optimizer)
 end
 
-function factor(config!::Function, R::Integer; optimizer = DWaveNeal.Optimizer)
+function factor(config!::Function, R::Integer; optimizer = DWave.Neal.Optimizer)
     model = Model(() -> ToQUBO.Optimizer(optimizer))
 
     @variable(model,  1 <= p <= √R, Int)
