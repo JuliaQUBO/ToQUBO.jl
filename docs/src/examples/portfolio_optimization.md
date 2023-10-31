@@ -99,6 +99,7 @@ To finish our discussion, we are going to sketch some graphics to help our reaso
 
 ```@setup portfolio-optimization
 using Plots
+using Measures
 
 # Make plots look professional
 Plots.default(;
@@ -108,6 +109,7 @@ Plots.default(;
     guidefontsize       = 12,
     legendfontsize      = 10,
     tickfontsize        = 10,
+    margin              = 5mm,
 )
 ```
 
