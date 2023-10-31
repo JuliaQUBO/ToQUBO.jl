@@ -64,7 +64,7 @@ end
     Architecture()
 
 Selects which solver architecture to use.
-Defaults to [`QUBOTools.GenericArchitecture`](@ref).
+Defaults to `QUBOTools.GenericArchitecture`.
 """
 struct Architecture <: CompilerAttribute end
 
@@ -407,15 +407,16 @@ end
     VariableEncodingMethod()
 
 Available methods are:
-- [`Binary`](@ref) (default)
-- [`Unary`](@ref)
-- [`Arithmetic`](@ref)
-- [`OneHot`](@ref)
-- [`DomainWall`](@ref)
-- [`Bounded`](@ref)
+- [`Encoding.Binary`](@ref) (default)
+- [`Encoding.Unary`](@ref)
+- [`Encoding.Arithmetic`](@ref)
+- [`Encoding.OneHot`](@ref)
+- [`Encoding.DomainWall`](@ref)
+- [`Encoding.Bounded`](@ref)
 
-The [`Binary`](@ref), [`Unary`](@ref) and [`Arithmetic`](@ref) encodings can have their
-expansion coefficients bounded by parametrizing the [`Bounded`](@ref) encoding.
+The [`Encoding.Binary`](@ref), [`Encoding.Unary`](@ref) and [`Encoding.Arithmetic`](@ref)
+encodings can have their expansion coefficients bounded by wrapping them with the
+[`Encoding.Bounded`](@ref) method.
 """
 struct VariableEncodingMethod <: CompilerVariableAttribute end
 

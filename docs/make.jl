@@ -8,7 +8,7 @@ makedocs(;
     modules  = [ToQUBO],
     doctest  = true,
     clean    = true,
-    warnonly = [:missing_docs],
+    warnonly = [:missing_docs, :cross_references],
     format   = Documenter.HTML( #
         sidebar_sitename = false,
         mathengine       = Documenter.KaTeX(
@@ -49,7 +49,7 @@ makedocs(;
             "Appendix"        => "booklet/8-appendix.md",
         ]
     ],
-    workdir  = ".",
+    workdir = @__DIR__,
 )
 
 if "--skip-deploy" ∈ ARGS

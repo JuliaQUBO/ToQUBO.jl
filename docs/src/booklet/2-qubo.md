@@ -15,6 +15,7 @@ where ``Q \in \mathbb{R}^{n \times n}`` is symmetric and ``\mathbb{B} = \lbrace{
 Note that, since ``x^{2} = x`` holds for ``x \in \mathbb{B}``, the linear terms of the objective function are stored in the main diagonal of ``Q``.
 
 ## OK, but why QUBO?
+
 Mathematically speaking, there is a notorious equivalence between QUBO and [Max-Cut](https://en.wikipedia.org/wiki/Maximum_cut) problems, e.g. for every QUBO instance there is an information preserving Max-Cut reformulation and vice versa.
 This statement is followed by two immediate implications:
 

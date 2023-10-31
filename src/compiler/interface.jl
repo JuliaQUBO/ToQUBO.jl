@@ -12,27 +12,7 @@ For it to be true, a few conditions must be met:
 function isqubo end
 
 @doc raw"""
-    toqubo(
-        [T=Float64,]
-        source::MOI.ModelLike,
-        ::AbstractArchitecture;
-        optimizer::Union{Nothing, Type{<:MOI.AbstractOptimizer}} = nothing
-    )
-
-Low-level interface to create a `::Virtual.Model{T}` from `::MOI.ModelLike` instance.
-If provided, an `::MOI.AbstractOptimizer` is attached to the model.
-"""
-function toqubo end
-
-@doc raw"""
-    toqubo!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
-"""
-function toqubo! end
-
-@doc raw"""
     setup!(model::Virtual.Model, ::AbstractArchitecture)
-
-
 """
 function setup! end
 
@@ -57,13 +37,6 @@ function variable! end
     objective!(model::Virtual.Model, ::AbstractArchitecture)
 """
 function objective! end
-
-@doc raw"""
-    objective(model::Virtual.Model, F::VI, ::AbstractArchitecture)
-    objective(model::Virtual.Model{T}, F::SAF{T}, ::AbstractArchitecture) where {T}
-    objective(model::Virtual.Model{T}, F::SQF{T}, ::AbstractArchitecture) where {T}
-"""
-function objective end
 
 @doc raw"""
     constraints!(model::Virtual.Model, ::AbstractArchitecture)
@@ -99,10 +72,6 @@ function parse! end
 function penalties! end
 
 @doc raw"""
-"""
-function penalty end
-
-@doc raw"""
     build!(model::Virtual.Model, arch::AbstractArchitecture)
 """
 function build! end
@@ -121,7 +90,7 @@ function quadratize! end
 function reset! end
 
 @doc raw"""
-    _copy!(model::Virtual.Model, arch::AbstractArchitecture)
+    copy!(model::Virtual.Model, arch::AbstractArchitecture)
 
 """
-function _copy! end
+function copy! end

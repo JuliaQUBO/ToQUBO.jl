@@ -28,7 +28,7 @@ function MOI.optimize!(model::Optimizer)
     index_map = MOIU.identity_index_map(model.source_model)
 
     # De facto JuMP to QUBO Compilation
-    ToQUBO.Compiler.toqubo!(model)
+    ToQUBO.Compiler.compile!(model)
 
     if !isnothing(model.optimizer)
         MOI.optimize!(model.optimizer, model.target_model)
@@ -69,6 +69,9 @@ function MOI.copy_to(model::Optimizer{T}, source::MOI.ModelLike) where {T}
         error("QUBO Model is not empty")
     end
 
+    variable_indices = MOI.get(source, MOI.ListOfVariableIndices())
+    constraint_types = MOI.get(source, MOI.ListOfConstraintTypesPresent())
+
     # Build Index Map
     index_map = MOIU.IndexMap()
 
@@ -88,12 +91,12 @@ function MOI.copy_to(model::Optimizer{T}, source::MOI.ModelLike) where {T}
     MOI.set(bridge_model, MOI.ObjectiveSense(), MOI.get(source, MOI.ObjectiveSense()))
 
     # Copy Variables
-    for vi in MOI.get(source, MOI.ListOfVariableIndices())
+    for vi in variable_indices
         index_map[vi] = MOI.add_variable(bridge_model)
     end
 
     # Copy Constraints
-    for (F, S) in MOI.get(source, MOI.ListOfConstraintTypesPresent())
+    for (F, S) in constraint_types
         _copy_constraints!(F, S, source, bridge_model, index_map)
     end
 
@@ -103,12 +106,12 @@ function MOI.copy_to(model::Optimizer{T}, source::MOI.ModelLike) where {T}
     end
 
     for attr in MOI.get(source, MOI.ListOfVariableAttributesSet())
-        for vi in MOI.get(source, MOI.ListOfVariableIndices())
+        for vi in variable_indices
             MOI.set(model, attr, index_map[vi], MOI.get(source, attr, vi))
         end
     end
 
-    for (F, S) in MOI.get(source, MOI.ListOfConstraintTypesPresent())
+    for (F, S) in constraint_types
         _copy_constraint_attributes(F, S, source, model, index_map)
     end
 

@@ -5,6 +5,7 @@
 ## Quick Start
 
 ### Installation
+
 ```julia
 julia> import Pkg
 
@@ -12,6 +13,7 @@ julia> Pkg.add("ToQUBO")
 ```
 
 ### Example
+
 ```@example
 using JuMP
 using ToQUBO

@@ -13,6 +13,11 @@ This is done in a transparent fashion for both agents since the user will mostly
 ToQUBO.Virtual.Model
 ```
 
+```@docs
+ToQUBO.Virtual.source
+ToQUBO.Virtual.target
+```
+
 ## Virtual Variables
 
 Every virtual model stores a collection of virtual variables, intended to provide a link between those in the source and those to be created in the target model.
@@ -20,5 +25,10 @@ Each virtual variable stores encoding information for later expansion and evalua
 
 ```@docs
 ToQUBO.Virtual.Variable
-ToQUBO.Encoding.encode!
+```
+
+```@docs
+ToQUBO.Virtual.encoding
+ToQUBO.Virtual.expansion
+ToQUBO.Virtual.penaltyfn
 ```

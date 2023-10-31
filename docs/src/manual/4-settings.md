@@ -1,6 +1,22 @@
 # Compiler Settings
 
-## Working with solver architectures
+```@docs
+ToQUBO.Attributes.StableCompilation
+```
+
+## Compiler Messages
+
+```@docs
+ToQUBO.Attributes.Warnings
+```
+
+## Compiler Optimization
+
+```@docs
+ToQUBO.Attributes.Optimization
+```
+
+## Working with target architectures
 
 ```@docs
 ToQUBO.Attributes.Architecture

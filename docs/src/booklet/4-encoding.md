@@ -1,9 +1,15 @@
 # Encoding Methods
 
+```@docs
+ToQUBO.Encoding.encode
+ToQUBO.Encoding.encode!
+ToQUBO.Encoding.encodes
+```
+
 ## Variables
 
 As you may already know, QUBO models are comprised only of binary variables.
-So when we are reformulating general optimization problems, one important step is to encode variables into binary ones. 
+So when we are reformulating general optimization problems, one important step is to encode variables into binary ones.
 
 `ToQUBO` currently implements 6 encoding techniques.
 Each method introduces a different number of variables, quadratic terms and linear terms.
@@ -21,12 +27,14 @@ Also, they differ in the magnitude of their coefficients ``\Delta``.
 ### Mirror Encoding
 
 ```@docs
+ToQUBO.Encoding.VariableEncodingMethod
 ToQUBO.Encoding.Mirror
 ```
 
 ### Interval Encoding
 
 ```@docs
+ToQUBO.Encoding.IntervalVariableEncodingMethod
 ToQUBO.Encoding.Unary
 ToQUBO.Encoding.Binary
 ToQUBO.Encoding.Arithmetic
@@ -41,11 +49,17 @@ ToQUBO.Encoding.Bounded
 ### Arbitrary Set Encoding
 
 ```@docs
+ToQUBO.Encoding.SetVariableEncodingMethod
 ToQUBO.Encoding.OneHot
 ToQUBO.Encoding.DomainWall
 ```
 
 ### Representation Error
+
+```@docs
+ToQUBO.Encoding.encoding_bits
+ToQUBO.Encoding.encoding_points
+```
 
 Let ``\set{x_{i}}_{i \in [k]}`` be the collection of ``k`` evenly spaced samples from the discretization of an interval ``[a, b] \subseteq \mathbb{R}``.
 

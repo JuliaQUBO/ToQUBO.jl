@@ -8,20 +8,9 @@ import QUBOTools: PBO
 import QUBOTools: AbstractArchitecture, GenericArchitecture
 
 import ..Encoding:
-    Encoding,
-    VariableEncodingMethod,
-    Mirror,
-    Unary,
-    Binary,
-    Arithmetic,
-    OneHot,
-    DomainWall
+    Encoding, VariableEncodingMethod, Mirror, Unary, Binary, Arithmetic, OneHot, DomainWall
 
-import ..Virtual:
-    Virtual,
-    encoding,
-    expansion,
-    penaltyfn
+import ..Virtual: Virtual, encoding, expansion, penaltyfn
 
 import ..Attributes
 
@@ -45,55 +34,21 @@ include("constraints.jl")
 include("penalties.jl")
 include("build.jl")
 
-function toqubo!(model::Virtual.Model)
+function compile!(model::Virtual.Model)
     arch = MOI.get(model, Attributes.Architecture())
 
-    toqubo!(model, arch)
+    compile!(model, arch)
 
     return nothing
 end
 
-function toqubo!(model::Virtual.Model, arch::AbstractArchitecture)
-    # reset!(model, arch) # Cleanup
-
+function compile!(model::Virtual.Model{T}, arch::AbstractArchitecture) where {T}
     if is_qubo(model.source_model)
-        _copy!(model, arch)
-    else
-        compile!(model, arch)
+        Compiler.copy!(model, arch)
+
+        return nothing
     end
 
-    return nothing
-end
-
-toqubo(
-    source::MOI.ModelLike,
-    arch::Union{AbstractArchitecture,Nothing} = nothing,
-    optimizer = nothing,
-) = toqubo(Float64, source, arch; optimizer)
-
-function toqubo(
-    ::Type{T},
-    source::MOI.ModelLike,
-    arch::Union{AbstractArchitecture,Nothing} = nothing;
-    optimizer = nothing,
-) where {T}
-    model = Virtual.Model{T}(optimizer)
-
-    MOI.copy_to(model, source)
-
-    if isnothing(arch)
-        arch = infer_architecture(optimizer)
-    end
-
-    toqubo!(model, arch)
-
-    return model
-end
-
-function compile!(
-    model::Virtual.Model{T},
-    arch::AbstractArchitecture = GenericArchitecture(),
-) where {T}
     # Compiler Settings
     setup!(model, arch)
 
@@ -140,25 +95,23 @@ function reset!(model::Virtual.Model, ::AbstractArchitecture = GenericArchitectu
     return nothing
 end
 
-function _copy!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
-    source_model = model.source_model
-    target_model = model.target_model
-
+function Compiler.copy!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
     # Map Variables
-    for vi in MOI.get(source_model, MOI.ListOfVariableIndices())
+    for vi in MOI.get(model.source_model, MOI.ListOfVariableIndices())
         Encoding.encode!(model, vi, Encoding.Mirror{T}())
     end
 
     # Copy Objective Sense
-    s = MOI.get(source_model, MOI.ObjectiveSense())
-
-    MOI.set(target_model, MOI.ObjectiveSense(), s)
+    let s = MOI.get(model.source_model, MOI.ObjectiveSense())
+        MOI.set(model.target_model, MOI.ObjectiveSense(), s)
+    end
 
     # Copy Objective Function
-    F = MOI.get(source_model, MOI.ObjectiveFunctionType())
-    f = MOI.get(source_model, MOI.ObjectiveFunction{F}())
+    let F = MOI.get(model.source_model, MOI.ObjectiveFunctionType())
+        f = MOI.get(model.source_model, MOI.ObjectiveFunction{F}())
 
-    MOI.set(target_model, MOI.ObjectiveFunction{F}(), f)
+        MOI.set(model.target_model, MOI.ObjectiveFunction{F}(), f)
+    end
 
     return nothing
 end

@@ -15,7 +15,8 @@ function hamiltonian!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
     empty!(model.H)
 
     # Calculate an upper bound on the number of terms
-    num_terms = length(model.f) + sum(length, model.g; init = 0) + sum(length, model.h; init = 0)
+    num_terms =
+        length(model.f) + sum(length, model.g; init = 0) + sum(length, model.h; init = 0)
 
     sizehint!(model.H, num_terms)
 
@@ -42,24 +43,14 @@ function hamiltonian!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
     return nothing
 end
 
-function aux(model::Virtual.Model, ::Nothing, ::AbstractArchitecture)::VI
-    target_model = model.target_model
+function aux(model::Virtual.Model{T}, ::Nothing, ::AbstractArchitecture)::VI where {T}
+    w = Encoding.encode!(model, nothing, Encoding.Mirror{T}())::Virtual.Variable{T}
 
-    w = MOI.add_variable(target_model)
-
-    MOI.add_constraint(target_model, w, MOI.ZeroOne())
-
-    return w
+    return first(Virtual.target(w))
 end
 
-function aux(model::Virtual.Model, n::Integer, ::AbstractArchitecture)::Vector{VI}
-    target_model = model.target_model
-
-    w = MOI.add_variables(target_model, n)
-
-    MOI.add_constraint.(target_model, w, MOI.ZeroOne())
-
-    return w
+function aux(model::Virtual.Model, n::Integer, arch::AbstractArchitecture)::Vector{VI}
+    return VI[aux(model, nothing, arch) for _ = 1:n]
 end
 
 function quadratize!(model::Virtual.Model, arch::AbstractArchitecture)
@@ -67,29 +58,23 @@ function quadratize!(model::Virtual.Model, arch::AbstractArchitecture)
         method = Attributes.quadratization_method(model)
         stable = Attributes.stable_quadratization(model)
 
+        quad = PBO.Quadratization(method; stable)
+
         if MOI.get(model, MOI.ObjectiveSense()) === MOI.MAX_SENSE
             # NOTE: Here it is necessary to invert the sign of the
             # Hamiltonian since PBO adopts the minimization sense
             # convention.
             # TODO: Add an in-place version of 'quadratize!' that 
             # provides support for maximization problems.
-            let H = -model.H
-
-                PBO.quadratize!(
-                    H,
-                    PBO.Quadratization(method; stable),
-                ) do (n::Union{Integer,Nothing} = nothing)
+            let H = PBO.quadratize!(-model.H, quad) do (n::Union{Integer,Nothing} = nothing)
                     return aux(model, n, arch)
                 end
 
                 # NOTE: This setup leads to avoidable allocations.
-                copy!(model.H, -H)
+                Base.copy!(model.H, -H)
             end
         else # === MOI.MIN_SENSE || === MOI.FEASIBILITY
-            PBO.quadratize!(
-                model.H,
-                PBO.Quadratization(method; stable),
-            ) do (n::Union{Integer,Nothing} = nothing)
+            PBO.quadratize!(model.H, quad) do (n::Union{Integer,Nothing} = nothing)
                 return aux(model, n, arch)
             end
         end
