@@ -31,7 +31,9 @@ solution_summary(model)
 ```
 
 ## Citing ToQUBO.jl
+
 If you use `ToQUBO.jl` in your work, we kindly ask you to include the following citation:
+
 ```tex
 @software{toqubo:2023,
   author       = {Pedro Maciel Xavier and Pedro Ripper and Tiago Andrade and Joaquim Dias Garcia and David E. Bernal Neira},
