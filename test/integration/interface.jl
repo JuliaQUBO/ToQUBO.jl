@@ -47,7 +47,7 @@ function test_interface_moi()
                 let n = 3               # size
                     v = [1.0, 2.0, 3.0] # value
                     w = [0.3, 0.5, 1.0] # weight
-                    C = 3.2             # capacity
+                    C = 1.6             # capacity
 
                     model = MOI.instantiate(
                         () ->
@@ -79,7 +79,7 @@ function test_interface_moi()
 
                     MOI.optimize!(model)
 
-                    @test MOI.get.(model, MOI.VariablePrimal(), x) ≈ [1.0, 1.0, 1.0]
+                    @test MOI.get.(model, MOI.VariablePrimal(), x) ≈ [0.0, 1.0, 1.0]
                 end
             end
         end
@@ -155,10 +155,14 @@ function test_interface_moi()
                 @test MOI.get(model, MOI.RawOptimizerAttribute("num_reads")) == 1_001
 
                 # ToQUBO Attributes
-                # @test MOI.get(model, Attributes.Architecture()) isa ToQUBO.GenericArchitecture
-                # MOI.set(model, Attributes.Architecture(), SuperArchitecture(true))
-                # @test MOI.get(model, Attributes.Architecture()) isa SuperArchitecture
-                # @test MOI.get(model, Attributes.Architecture()).super === true
+                @test MOI.get(model, Attributes.Architecture()) isa QUBOTools.GenericArchitecture
+                MOI.set(model, Attributes.Architecture(), SuperArchitecture(true))
+                @test MOI.get(model, Attributes.Architecture()) isa SuperArchitecture
+                @test MOI.get(model, Attributes.Architecture()).super === true
+
+                @test MOI.get(model, Attributes.Optimization()) === 0
+                MOI.set(model, Attributes.Optimization(), 3)
+                @test MOI.get(model, Attributes.Optimization()) === 3
 
                 @test MOI.get(model, Attributes.Discretize()) === false
                 MOI.set(model, Attributes.Discretize(), true)
@@ -168,71 +172,115 @@ function test_interface_moi()
                 MOI.set(model, Attributes.Quadratize(), true)
                 @test MOI.get(model, Attributes.Quadratize()) === true
 
-                # @test MOI.get(model, Attributes.QuadratizationMethod()) === PBO.DEFAULT
-                # MOI.set(model, Attributes.QuadratizationMethod(), PBO.PTR_BG)
-                # @test MOI.get(model, Attributes.QuadratizationMethod()) === PBO.PTR_BG
+                @test MOI.get(model, Attributes.Warnings()) === true
+                MOI.set(model, Attributes.Warnings(), false)
+                @test MOI.get(model, Attributes.Warnings()) === false
 
-                # @test MOI.get(model, Attributes.StableQuadratization()) === false
-                # MOI.set(model, Attributes.StableQuadratization(), true)
-                # @test MOI.get(model, Attributes.StableQuadratization()) === true
+                @test MOI.get(model, Attributes.QuadratizationMethod()) isa PBO.DEFAULT
+                MOI.set(model, Attributes.QuadratizationMethod(), PBO.PTR_BG())
+                @test MOI.get(model, Attributes.QuadratizationMethod()) isa PBO.PTR_BG
 
-                # # Variable Encoding Method
-                # @test MOI.get(model, Attributes.DefaultVariableEncodingMethod()) isa ToQUBO.Binary
-                # MOI.set(model, Attributes.DefaultVariableEncodingMethod(), ToQUBO.Unary())
-                # @test MOI.get(model, Attributes.DefaultVariableEncodingMethod()) isa ToQUBO.Unary
+                @test MOI.get(model, Attributes.StableQuadratization()) === false
+                MOI.set(model, Attributes.StableQuadratization(), true)
+                @test MOI.get(model, Attributes.StableQuadratization()) === true
 
-                # @test MOI.get(model, Attributes.VariableEncodingMethod(), x[1]) === nothing
-                # @test MOI.get(model, Attributes.VariableEncodingMethod(), x[2]) === nothing
+                # Variable Encoding Method
+                @test MOI.get(model, Attributes.DefaultVariableEncodingMethod()) isa Encoding.Binary
+                MOI.set(model, Attributes.DefaultVariableEncodingMethod(), Encoding.Unary())
+                @test MOI.get(model, Attributes.DefaultVariableEncodingMethod()) isa Encoding.Unary
 
-                # MOI.set(model, Attributes.VariableEncodingMethod(), x[1], ToQUBO.Arithmetic())
-                # MOI.set(model, Attributes.VariableEncodingMethod(), x[2], ToQUBO.Arithmetic())
+                @test MOI.get(model, Attributes.VariableEncodingMethod(), x[1]) === nothing
+                @test MOI.get(model, Attributes.VariableEncodingMethod(), x[2]) === nothing
 
-                # @test MOI.get(model, Attributes.VariableEncodingMethod(), x[1]) isa ToQUBO.Arithmetic
-                # @test MOI.get(model, Attributes.VariableEncodingMethod(), x[2]) isa ToQUBO.Arithmetic
+                MOI.set(model, Attributes.VariableEncodingMethod(), x[1], Encoding.Arithmetic())
+                MOI.set(model, Attributes.VariableEncodingMethod(), x[2], Encoding.Arithmetic())
 
-                # # Variable Encoding ATol
-                # @test MOI.get(model, Attributes.DefaultVariableEncodingATol()) ≈ 1 / 4
-                # MOI.set(model, Attributes.DefaultVariableEncodingATol(), 1E-6)
-                # @test MOI.get(model, Attributes.DefaultVariableEncodingATol()) ≈ 1E-6
+                @test MOI.get(model, Attributes.VariableEncodingMethod(), x[1]) isa Encoding.Arithmetic
+                @test MOI.get(model, Attributes.VariableEncodingMethod(), x[2]) isa Encoding.Arithmetic
 
-                # @test MOI.get(model, Attributes.VariableEncodingATol(), x[1]) === nothing
-                # @test MOI.get(model, Attributes.VariableEncodingATol(), x[2]) === nothing
+                # Variable Encoding ATol
+                @test MOI.get(model, Attributes.DefaultVariableEncodingATol()) ≈ 1 / 4
+                MOI.set(model, Attributes.DefaultVariableEncodingATol(), 1E-6)
+                @test MOI.get(model, Attributes.DefaultVariableEncodingATol()) ≈ 1E-6
 
-                # MOI.set(model, Attributes.VariableEncodingATol(), x[1], 1.0)
-                # MOI.set(model, Attributes.VariableEncodingATol(), x[2], 2.0)
+                @test MOI.get(model, Attributes.VariableEncodingATol(), x[1]) === nothing
+                @test MOI.get(model, Attributes.VariableEncodingATol(), x[2]) === nothing
 
-                # @test MOI.get(model, Attributes.VariableEncodingATol(), x[1]) ≈ 1.0
-                # @test MOI.get(model, Attributes.VariableEncodingATol(), x[2]) ≈ 2.0
+                MOI.set(model, Attributes.VariableEncodingATol(), x[1], 1 / 2)
+                MOI.set(model, Attributes.VariableEncodingATol(), x[2], 1 / 3)
+
+                @test MOI.get(model, Attributes.VariableEncodingATol(), x[1]) ≈ 1 / 2
+                @test MOI.get(model, Attributes.VariableEncodingATol(), x[2]) ≈ 1 / 3
 
                 # # Variable Encoding Bits
-                # @test MOI.get(model, Attributes.DefaultVariableEncodingBits()) === nothing
-                # MOI.set(model, Attributes.DefaultVariableEncodingBits(), 3)
-                # @test MOI.get(model, Attributes.DefaultVariableEncodingBits()) == 3
+                @test MOI.get(model, Attributes.DefaultVariableEncodingBits()) === nothing
+                MOI.set(model, Attributes.DefaultVariableEncodingBits(), 3)
+                @test MOI.get(model, Attributes.DefaultVariableEncodingBits()) == 3
 
-                # @test MOI.get(model, Attributes.VariableEncodingBits(), x[1]) == nothing
-                # @test MOI.get(model, Attributes.VariableEncodingBits(), x[2]) == nothing
+                @test MOI.get(model, Attributes.VariableEncodingBits(), x[1]) === nothing
+                @test MOI.get(model, Attributes.VariableEncodingBits(), x[2]) === nothing
 
-                # MOI.set(model, Attributes.VariableEncodingBits(), x[1], 1)
-                # MOI.set(model, Attributes.VariableEncodingBits(), x[2], 2)
+                MOI.set(model, Attributes.VariableEncodingBits(), x[1], 1)
+                MOI.set(model, Attributes.VariableEncodingBits(), x[2], 2)
 
-                # @test MOI.get(model, Attributes.VariableEncodingBits(), x[1]) == 1
-                # @test MOI.get(model, Attributes.VariableEncodingBits(), x[2]) == 2
+                @test MOI.get(model, Attributes.VariableEncodingBits(), x[1]) == 1
+                @test MOI.get(model, Attributes.VariableEncodingBits(), x[2]) == 2
 
                 # # ToQUBO Variable Attributes
-                # @test MOI.get(model, Attributes.VariableEncodingPenalty(), x[1]) === nothing
-                # @test MOI.get(model, Attributes.VariableEncodingPenalty(), x[2]) === nothing
+                @test MOI.get(model, Attributes.VariableEncodingPenalty(), x[1]) === nothing
+                @test MOI.get(model, Attributes.VariableEncodingPenalty(), x[2]) === nothing
 
-                # MOI.set(model, Attributes.VariableEncodingPenalty(), x[1], -1.0)
-                # MOI.set(model, Attributes.VariableEncodingPenalty(), x[2], -2.0)
+                MOI.set(model, Attributes.VariableEncodingPenalty(), x[1], -1.0)
+                MOI.set(model, Attributes.VariableEncodingPenalty(), x[2], -2.0)
 
-                # @test MOI.get(model, Attributes.VariableEncodingPenalty(), x[1]) == -1.0
-                # @test MOI.get(model, Attributes.VariableEncodingPenalty(), x[2]) == -2.0
+                @test MOI.get(model, Attributes.VariableEncodingPenalty(), x[1]) == -1.0
+                @test MOI.get(model, Attributes.VariableEncodingPenalty(), x[2]) == -2.0
 
-                # # Call to MOI.optimize!
-                # MOI.optimize!(model)
+                # Call to MOI.optimize!
+                MOI.optimize!(model)
 
-                # @test MOI.get(model, Attributes.VariableEncodingATol(), x[3]) ≈ 1E-6
-                # @test MOI.get(model, Attributes.VariableEncodingBits(), x[2]) == 3
+                let virtual_model = model.model.optimizer
+                    @test MOI.get(virtual_model, Attributes.Architecture()) isa SuperArchitecture
+                    @test MOI.get(virtual_model, Attributes.Architecture()).super === true
+                    @test Attributes.architecture(virtual_model) isa SuperArchitecture
+                    @test Attributes.architecture(virtual_model).super === true
+
+                    @test MOI.get(virtual_model, Attributes.Optimization()) === 3
+                    @test Attributes.optimization(virtual_model) === 3
+
+                    @test MOI.get(virtual_model, Attributes.Discretize()) === true
+                    @test Attributes.discretize(virtual_model) === true
+
+                    @test MOI.get(virtual_model, Attributes.Quadratize()) === true
+                    @test Attributes.quadratize(virtual_model) === true
+
+                    @test MOI.get(virtual_model, Attributes.Warnings()) === false
+                    @test Attributes.warnings(virtual_model) === false
+
+                    @test MOI.get(virtual_model, Attributes.QuadratizationMethod()) isa PBO.PTR_BG
+                    @test Attributes.quadratization_method(virtual_model) isa PBO.PTR_BG
+
+                    @test MOI.get(virtual_model, Attributes.StableQuadratization()) === true
+                    @test Attributes.stable_quadratization(virtual_model) === true
+
+                    @test MOI.get(virtual_model, Attributes.DefaultVariableEncodingMethod()) isa Encoding.Unary
+
+                    @test MOI.get(virtual_model, Attributes.VariableEncodingMethod(), x[1]) isa Encoding.Arithmetic
+                    @test Attributes.variable_encoding_method(virtual_model, x[1]) isa Encoding.Arithmetic
+                    @test MOI.get(virtual_model, Attributes.VariableEncodingMethod(), x[2]) isa Encoding.Arithmetic
+                    @test Attributes.variable_encoding_method(virtual_model, x[2]) isa Encoding.Arithmetic
+                    @test MOI.get(virtual_model, Attributes.VariableEncodingMethod(), x[3]) === nothing
+                    @test Attributes.variable_encoding_method(virtual_model, x[3]) isa Encoding.Unary
+
+                    @test MOI.get(virtual_model, Attributes.DefaultVariableEncodingATol()) ≈ 1E-6
+
+                    @test MOI.get(virtual_model, Attributes.VariableEncodingATol(), x[1]) ≈ 1 / 2
+                    @test Attributes.variable_encoding_atol(virtual_model, x[1]) ≈ 1 / 2
+                    @test MOI.get(virtual_model, Attributes.VariableEncodingATol(), x[2]) ≈ 1 / 3
+                    @test Attributes.variable_encoding_atol(virtual_model, x[2]) ≈ 1 / 3
+                    @test MOI.get(virtual_model, Attributes.VariableEncodingATol(), x[3]) === nothing
+                    @test Attributes.variable_encoding_atol(virtual_model, x[3]) ≈ 1E-6
+                end
             end
         end
     end

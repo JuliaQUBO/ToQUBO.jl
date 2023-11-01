@@ -12,6 +12,10 @@ import ..ToQUBO: Optimizer
 import ..Encoding
 import ..Virtual
 
+function MOIU.map_indices(::Function, e::Encoding.VariableEncodingMethod)
+    return e
+end
+
 abstract type CompilerAttribute <: MOI.AbstractOptimizerAttribute end
 
 MOI.supports(::Optimizer, ::A) where {A<:CompilerAttribute} = true
@@ -37,6 +41,10 @@ function MOI.set(model::Optimizer, ::Warnings, ::Nothing)
     return nothing
 end
 
+function warnings(model::Optimizer)::Bool
+    return MOI.get(model, Warnings())
+end
+
 @doc raw"""
     Optimization()
 """
@@ -58,6 +66,10 @@ function MOI.set(model::Optimizer, ::Optimization, ::Nothing)
     delete!(model.compiler_settings, :optimization)
 
     return nothing
+end
+
+function optimization(model::Optimizer)::Integer
+    return MOI.get(model, Optimization())
 end
 
 @doc raw"""
@@ -82,6 +94,10 @@ function MOI.set(model::Optimizer, ::Architecture, ::Nothing)
     delete!(model.compiler_settings, :architecture)
 
     return nothing
+end
+
+function architecture(model::Optimizer)::QUBOTools.AbstractArchitecture
+    return MOI.get(model, Architecture())
 end
 
 @doc raw"""
@@ -305,16 +321,6 @@ MOI.supports(::Optimizer, ::A, ::Type{VI}) where {A<:CompilerVariableAttribute} 
 """
 struct VariableEncodingATol <: CompilerVariableAttribute end
 
-function variable_encoding_atol(model::Optimizer{T}, vi::VI)::T where {T}
-    τ = MOI.get(model, VariableEncodingATol(), vi)
-
-    if τ === nothing
-        return MOI.get(model, DefaultVariableEncodingATol())
-    else
-        return τ
-    end
-end
-
 function MOI.get(
     model::Optimizer{T},
     ::VariableEncodingATol,
@@ -351,20 +357,20 @@ function MOI.set(model::Optimizer, ::VariableEncodingATol, vi::VI, ::Nothing)
     return nothing
 end
 
+function variable_encoding_atol(model::Optimizer{T}, vi::VI)::T where {T}
+    τ = MOI.get(model, VariableEncodingATol(), vi)
+
+    if τ === nothing
+        return MOI.get(model, DefaultVariableEncodingATol())
+    else
+        return τ
+    end
+end
+
 @doc raw"""
     VariableEncodingBits()
 """
 struct VariableEncodingBits <: CompilerVariableAttribute end
-
-function variable_encoding_bits(model::Optimizer, vi::VI)::Union{Integer,Nothing}
-    n = MOI.get(model, VariableEncodingBits(), vi)
-
-    if isnothing(n)
-        return MOI.get(model, DefaultVariableEncodingBits())
-    else
-        return n
-    end
-end
 
 function MOI.get(model::Optimizer, ::VariableEncodingBits, vi::VI)::Union{Integer,Nothing}
     attr = :variable_encoding_bits
@@ -388,7 +394,6 @@ function MOI.set(model::Optimizer, ::VariableEncodingBits, vi::VI, n::Integer)
     return nothing
 end
 
-
 function MOI.set(model::Optimizer, ::VariableEncodingBits, vi::VI, ::Nothing)
     attr = :variable_encoding_bits
 
@@ -401,6 +406,16 @@ function MOI.set(model::Optimizer, ::VariableEncodingBits, vi::VI, ::Nothing)
     end
 
     return nothing
+end
+
+function variable_encoding_bits(model::Optimizer, vi::VI)::Union{Integer,Nothing}
+    n = MOI.get(model, VariableEncodingBits(), vi)
+
+    if isnothing(n)
+        return MOI.get(model, DefaultVariableEncodingBits())
+    else
+        return n
+    end
 end
 
 @doc raw"""

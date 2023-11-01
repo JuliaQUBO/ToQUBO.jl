@@ -9,7 +9,19 @@ using LinearAlgebra
 using TOML
 
 using ToQUBO
-using ToQUBO: QUBOTools, PBO, Attributes
+using ToQUBO: Attributes, Encoding
+
+import QUBOTools
+import PseudoBooleanOptimization as PBO
+
+# Move this to QUBOTools / PBO
+function MOIU.map_indices(::Function, arch::QUBOTools.AbstractArchitecture)
+    return arch
+end
+
+function MOIU.map_indices(::Function, quad::PBO.QuadratizationMethod)
+    return quad
+end
 
 function QUBOTools.backend(model::JuMP.Model)
     return QUBOTools.backend(JuMP.unsafe_backend(model))
