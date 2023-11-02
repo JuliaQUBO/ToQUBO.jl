@@ -56,7 +56,7 @@ function _copy_constraint_attributes(
     index_map,
 ) where {F,S}
     for attr in MOI.get(source, MOI.ListOfConstraintAttributesSet{F,S}())
-        for ci in MOI.get(source, MOI.ListOfConstraintIndices{F,S}())
+        for ci in MOI.get(source, MOI.ListOfConstraintsWithAttributeSet{F,S}(attr))
             MOI.set(target, attr, index_map[ci], MOI.get(source, attr, ci))
         end
     end
@@ -69,7 +69,6 @@ function MOI.copy_to(model::Optimizer{T}, source::MOI.ModelLike) where {T}
         error("QUBO Model is not empty")
     end
 
-    variable_indices = MOI.get(source, MOI.ListOfVariableIndices())
     constraint_types = MOI.get(source, MOI.ListOfConstraintTypesPresent())
 
     # Build Index Map
@@ -91,7 +90,7 @@ function MOI.copy_to(model::Optimizer{T}, source::MOI.ModelLike) where {T}
     MOI.set(bridge_model, MOI.ObjectiveSense(), MOI.get(source, MOI.ObjectiveSense()))
 
     # Copy Variables
-    for vi in variable_indices
+    for vi in MOI.get(source, MOI.ListOfVariableIndices())
         index_map[vi] = MOI.add_variable(bridge_model)
     end
 
@@ -100,17 +99,19 @@ function MOI.copy_to(model::Optimizer{T}, source::MOI.ModelLike) where {T}
         _copy_constraints!(F, S, source, bridge_model, index_map)
     end
 
-    # Copy Attributes
+    # Copy Attributes - Model
     for attr in MOI.get(source, MOI.ListOfModelAttributesSet())
         MOI.set(model, attr, MOI.get(source, attr))
     end
 
+    # Copy Attributes - Variables
     for attr in MOI.get(source, MOI.ListOfVariableAttributesSet())
-        for vi in variable_indices
+        for vi in MOI.get(source, MOI.ListOfVariablesWithAttributeSet(attr))
             MOI.set(model, attr, index_map[vi], MOI.get(source, attr, vi))
         end
     end
 
+    # Copy Attributes - Constraints
     for (F, S) in constraint_types
         _copy_constraint_attributes(F, S, source, model, index_map)
     end
