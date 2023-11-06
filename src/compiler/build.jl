@@ -1,6 +1,6 @@
 function build!(model::Virtual.Model{T}, arch::AbstractArchitecture) where {T}
     #  Assemble Objective Function 
-    hamiltonian!(model, arch)
+    objective_function(model, arch)
 
     #  Quadratization Step 
     quadratize!(model, arch)
@@ -11,7 +11,7 @@ function build!(model::Virtual.Model{T}, arch::AbstractArchitecture) where {T}
     return nothing
 end
 
-function hamiltonian!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
+function objective_function(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
     empty!(model.H)
 
     # Calculate an upper bound on the number of terms
