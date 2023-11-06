@@ -534,7 +534,9 @@ Allows the user to set and retrieve the coefficients used for encoding constrain
 """
 struct ConstraintEncodingPenalty <: CompilerConstraintAttribute end
 
-MOI.is_set_by_optimize(::ConstraintEncodingPenalty) = true
+MOI.supports(::Optimizer, ::ConstraintEncodingPenalty, ::Type{<:CI}) = true
+MOI.is_set_by_optimize(::ConstraintEncodingPenalty)                  = true
+MOI.is_copyable(::ConstraintEncodingPenalty)                         = true
 
 function constraint_encoding_penalty(model::Optimizer, ci::CI)
     return MOI.get(model, ConstraintEncodingPenalty(), ci)
