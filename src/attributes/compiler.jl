@@ -536,6 +536,10 @@ struct ConstraintEncodingPenalty <: CompilerConstraintAttribute end
 
 MOI.is_set_by_optimize(::ConstraintEncodingPenalty) = true
 
+function MOI.supports(::Optimizer, ::ConstraintEncodingPenalty, ::Type{<:CI})
+    return true
+end
+
 function constraint_encoding_penalty(model::Optimizer, ci::CI)
     return MOI.get(model, ConstraintEncodingPenalty(), ci)
 end

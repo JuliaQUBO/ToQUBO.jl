@@ -88,10 +88,11 @@ function test_interface_moi()
             let
                 # Create Model
                 # max x1 + x2 + x3
-                # st  x1 + x2 + x3 <= 1
-                #     0 <= x1 <= 1
-                #     0 <= x2 <= 1
-                #     0 <= x3 <= 1
+                # st  x1 + x2 <= 1
+                #     x2 + x3 <= 1
+                #     x1 ∈ {0, 1} 
+                #     x2 ∈ {0, 1} 
+                #     x3 ∈ {0, 1} 
                 model = MOI.instantiate(
                     () -> ToQUBO.Optimizer(RandomSampler.Optimizer);
                     with_bridge_type = Float64,
@@ -114,17 +115,29 @@ function test_interface_moi()
                     ),
                 )
 
-                c = MOI.add_constraint(
-                    model,
-                    MOI.ScalarAffineFunction{Float64}(
-                        MOI.ScalarAffineTerm{Float64}[
-                            MOI.ScalarAffineTerm{Float64}(1.0, x[1]),
-                            MOI.ScalarAffineTerm{Float64}(1.0, x[2]),
-                            MOI.ScalarAffineTerm{Float64}(1.0, x[3]),
-                        ],
-                        0.0,
+                c = (
+                    MOI.add_constraint(
+                        model,
+                        MOI.ScalarAffineFunction{Float64}(
+                            MOI.ScalarAffineTerm{Float64}[
+                                MOI.ScalarAffineTerm{Float64}(1.0, x[1]),
+                                MOI.ScalarAffineTerm{Float64}(1.0, x[2]),
+                            ],
+                            0.0,
+                        ),
+                        MOI.LessThan{Float64}(1.0),
                     ),
-                    MOI.LessThan{Float64}(1.0),
+                    MOI.add_constraint(
+                        model,
+                        MOI.ScalarAffineFunction{Float64}(
+                            MOI.ScalarAffineTerm{Float64}[
+                                MOI.ScalarAffineTerm{Float64}(1.0, x[2]),
+                                MOI.ScalarAffineTerm{Float64}(1.0, x[3]),
+                            ],
+                            0.0,
+                        ),
+                        MOI.LessThan{Float64}(1.0),
+                    ),
                 )
 
                 # MOI Attributes
@@ -212,7 +225,7 @@ function test_interface_moi()
                 @test MOI.get(model, Attributes.VariableEncodingATol(), x[1]) ≈ 1 / 2
                 @test MOI.get(model, Attributes.VariableEncodingATol(), x[2]) ≈ 1 / 3
 
-                # # Variable Encoding Bits
+                # Variable Encoding Bits
                 @test MOI.get(model, Attributes.DefaultVariableEncodingBits()) === nothing
                 MOI.set(model, Attributes.DefaultVariableEncodingBits(), 3)
                 @test MOI.get(model, Attributes.DefaultVariableEncodingBits()) == 3
@@ -226,7 +239,7 @@ function test_interface_moi()
                 @test MOI.get(model, Attributes.VariableEncodingBits(), x[1]) == 1
                 @test MOI.get(model, Attributes.VariableEncodingBits(), x[2]) == 2
 
-                # # ToQUBO Variable Attributes
+                # ToQUBO Variable Attributes
                 @test MOI.get(model, Attributes.VariableEncodingPenalty(), x[1]) === nothing
                 @test MOI.get(model, Attributes.VariableEncodingPenalty(), x[2]) === nothing
 
@@ -235,6 +248,14 @@ function test_interface_moi()
 
                 @test MOI.get(model, Attributes.VariableEncodingPenalty(), x[1]) == -1.0
                 @test MOI.get(model, Attributes.VariableEncodingPenalty(), x[2]) == -2.0
+
+                # ToQUBO Constraint Attributes
+                @test MOI.get(model, Attributes.ConstraintEncodingPenalty(), c[1]) === nothing
+                @test MOI.get(model, Attributes.ConstraintEncodingPenalty(), c[2]) === nothing
+
+                MOI.set(model, Attributes.ConstraintEncodingPenalty(), c[1], -1.0)
+                
+                @test MOI.get(model, Attributes.ConstraintEncodingPenalty(), c[1]) == -1.0
 
                 # Call to MOI.optimize!
                 MOI.optimize!(model)
@@ -280,6 +301,15 @@ function test_interface_moi()
                     @test Attributes.variable_encoding_atol(virtual_model, x[2]) ≈ 1 / 3
                     @test MOI.get(virtual_model, Attributes.VariableEncodingATol(), x[3]) === nothing
                     @test Attributes.variable_encoding_atol(virtual_model, x[3]) ≈ 1E-6
+
+                    @test MOI.get(virtual_model, Attributes.DefaultVariableEncodingBits()) == 3
+
+                    @test MOI.get(virtual_model, Attributes.VariableEncodingBits(), x[1]) == 1
+                    @test Attributes.variable_encoding_bits(virtual_model, x[1]) == 1
+                    @test MOI.get(virtual_model, Attributes.VariableEncodingBits(), x[2]) == 2
+                    @test Attributes.variable_encoding_bits(virtual_model, x[2]) == 2
+                    @test MOI.get(virtual_model, Attributes.VariableEncodingBits(), x[3]) === nothing
+                    @test Attributes.variable_encoding_bits(virtual_model, x[3]) == 3
                 end
             end
         end
