@@ -10,7 +10,7 @@ end
 function test_interface()
     @testset "□ Interface" verbose = true begin
         test_interface_moi()
-        # test_interface_jump()
+        test_interface_jump()
     end
 
     return nothing
