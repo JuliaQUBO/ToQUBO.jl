@@ -64,14 +64,23 @@ function quadratize!(model::Virtual.Model, arch::AbstractArchitecture)
             # NOTE: Here it is necessary to invert the sign of the
             # Hamiltonian since PBO adopts the minimization sense
             # convention.
+
             # TODO: Add an in-place version of 'quadratize!' that 
             # provides support for maximization problems.
-            let H = PBO.quadratize!(-model.H, quad) do (n::Union{Integer,Nothing} = nothing)
-                    return aux(model, n, arch)
-                end
+            
+            # IDEA: As an easy fix, just modify 'model.H' in-place.
+            # Support for this is expected to be provided by PBO soon.
+            for (ω, c) in model.H
+                model.H[ω] = -c
+            end
 
-                # NOTE: This setup leads to avoidable allocations.
-                Base.copy!(model.H, -H)
+            PBO.quadratize!(model.H, quad) do (n::Union{Integer,Nothing} = nothing)
+                return aux(model, n, arch)
+            end
+
+            # Take it back to the original state
+            for (ω, c) in model.H
+                model.H[ω] = -c
             end
         else # === MOI.MIN_SENSE || === MOI.FEASIBILITY
             PBO.quadratize!(model.H, quad) do (n::Union{Integer,Nothing} = nothing)

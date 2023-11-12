@@ -386,10 +386,10 @@ function MOI.set(model::Optimizer, ::VariableEncodingBits, vi::VI, n::Integer)
     attr = :variable_encoding_bits
 
     if !haskey(model.variable_settings, attr)
-        model.variable_settings[attr] = Dict{VI,Any}(vi => n)
-    else
-        model.variable_settings[attr][vi] = n
+        model.variable_settings[attr] = Dict{VI,Any}()
     end
+
+    model.variable_settings[attr][vi] = n
 
     return nothing
 end
@@ -399,10 +399,6 @@ function MOI.set(model::Optimizer, ::VariableEncodingBits, vi::VI, ::Nothing)
 
     if haskey(model.variable_settings, attr)
         delete!(model.variable_settings[attr], vi)
-
-        if isempty(model.variable_settings[attr])
-            delete!(model.variable_settings, attr)
-        end
     end
 
     return nothing
@@ -468,10 +464,10 @@ function MOI.set(
     attr = :variable_encoding_method
 
     if !haskey(model.variable_settings, attr)
-        model.variable_settings[attr] = Dict{VI,Any}(vi => e)
-    else
-        model.variable_settings[attr][vi] = e
+        model.variable_settings[attr] = Dict{VI,Any}()
     end
+
+    model.variable_settings[attr][vi] = e
 
     return nothing
 end
@@ -481,10 +477,59 @@ function MOI.set(model::Optimizer, ::Attributes.VariableEncodingMethod, vi::VI, 
 
     if haskey(model.variable_settings, attr)
         delete!(model.variable_settings[attr], vi)
+    end
 
-        if isempty(model.variable_settings[attr])
-            delete!(model.variable_settings, attr)
-        end
+    return nothing
+end
+
+@doc raw"""
+    VariableEncodingPenaltyHint()
+
+Allows the user to set the coefficients used for encoding constraints.
+"""
+struct VariableEncodingPenaltyHint <: CompilerVariableAttribute end
+
+function variable_encoding_penalty_hint(model::Optimizer, vi::VI)
+    return MOI.get(model, VariableEncodingPenaltyHint(), vi)
+end
+
+function MOI.get(model::Optimizer{T}, ::VariableEncodingPenaltyHint, vi::VI) where {T}
+    attr = :variable_encoding_penalty_hint
+
+    if !haskey(model.variable_settings, attr) || !haskey(model.variable_settings[attr], vi)
+        return nothing
+    else
+        return model.variable_settings[attr][vi]::T
+    end
+end
+
+function MOI.set(
+    model::Optimizer{T},
+    ::VariableEncodingPenaltyHint,
+    vi::VI,
+    ρ,
+) where {T}
+    attr = :variable_encoding_penalty_hint
+
+    if !haskey(model.variable_settings, attr)
+        model.variable_settings[attr] = Dict{VI,Any}()
+    end
+    
+    model.variable_settings[attr][vi] = convert(T, ρ)
+
+    return nothing
+end
+
+function MOI.set(
+    model::Optimizer{T},
+    ::VariableEncodingPenaltyHint,
+    vi::VI,
+    ::Nothing,
+) where {T}
+    attr = :variable_encoding_penalty_hint
+
+    if haskey(model.variable_settings, attr)
+        delete!(model.variable_settings[attr], vi)
     end
 
     return nothing
@@ -498,6 +543,8 @@ constraints are involved.
 """
 struct VariableEncodingPenalty <: CompilerVariableAttribute end
 
+MOI.is_set_by_optimize(::VariableEncodingPenalty) = true
+
 function variable_encoding_penalty(model::Optimizer, vi::VI)
     return MOI.get(model, VariableEncodingPenalty(), vi)
 end
@@ -506,8 +553,8 @@ function MOI.get(model::Optimizer{T}, ::VariableEncodingPenalty, vi::VI) where {
     return get(model.θ, vi, nothing)
 end
 
-function MOI.set(model::Optimizer{T}, ::VariableEncodingPenalty, vi::VI, θ::T) where {T}
-    model.θ[vi] = θ
+function MOI.set(model::Optimizer{T}, ::VariableEncodingPenalty, vi::VI, θ) where {T}
+    model.θ[vi] = convert(T, θ)
 
     return nothing
 end
@@ -528,15 +575,66 @@ abstract type CompilerConstraintAttribute <: MOI.AbstractConstraintAttribute end
 MOI.supports(::Optimizer, ::A, ::Type{<:CI}) where {A<:CompilerConstraintAttribute} = true
 
 @doc raw"""
+    ConstraintEncodingPenaltyHint()
+
+Allows the user to set the coefficients used for encoding constraints.
+"""
+struct ConstraintEncodingPenaltyHint <: CompilerConstraintAttribute end
+
+function constraint_encoding_penalty_hint(model::Optimizer, ci::CI)
+    return MOI.get(model, ConstraintEncodingPenaltyHint(), ci)
+end
+
+function MOI.get(model::Optimizer{T}, ::ConstraintEncodingPenaltyHint, ci::CI) where {T}
+    attr = :constraint_encoding_penalty_hint
+
+    if !haskey(model.constraint_settings, attr) || !haskey(model.constraint_settings[attr], ci)
+        return nothing
+    else
+        return model.constraint_settings[attr][ci]::T
+    end
+end
+
+function MOI.set(
+    model::Optimizer{T},
+    ::ConstraintEncodingPenaltyHint,
+    ci::CI,
+    ρ::Any,
+) where {T}
+    attr = :constraint_encoding_penalty_hint
+
+    if !haskey(model.constraint_settings, attr)
+        model.constraint_settings[attr] = Dict{CI,Any}()
+    end
+    
+    model.constraint_settings[attr][ci] = convert(T, ρ)
+
+    return nothing
+end
+
+function MOI.set(
+    model::Optimizer{T},
+    ::ConstraintEncodingPenaltyHint,
+    ci::CI,
+    ::Nothing,
+) where {T}
+    attr = :constraint_encoding_penalty_hint
+
+    if haskey(model.constraint_settings, attr)
+        delete!(model.constraint_settings[attr], ci)
+    end
+
+    return nothing
+end
+
+@doc raw"""
     ConstraintEncodingPenalty()
 
-Allows the user to set and retrieve the coefficients used for encoding constraints.
+Allows the user to retrieve the coefficients used for encoding constraints.
 """
 struct ConstraintEncodingPenalty <: CompilerConstraintAttribute end
 
-MOI.supports(::Optimizer, ::ConstraintEncodingPenalty, ::Type{<:CI}) = true
-MOI.is_set_by_optimize(::ConstraintEncodingPenalty)                  = true
-MOI.is_copyable(::ConstraintEncodingPenalty)                         = true
+MOI.is_set_by_optimize(::ConstraintEncodingPenalty) = true
 
 function constraint_encoding_penalty(model::Optimizer, ci::CI)
     return MOI.get(model, ConstraintEncodingPenalty(), ci)

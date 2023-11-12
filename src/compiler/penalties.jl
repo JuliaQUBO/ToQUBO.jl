@@ -6,7 +6,7 @@ function penalties!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
     δ = PBO.maxgap(model.f)
 
     for (ci, g) in model.g
-        ρ = Attributes.constraint_encoding_penalty(model, ci)
+        ρ = Attributes.constraint_encoding_penalty_hint(model, ci)
 
         if isnothing(ρ)
             ϵ = PBO.mingap(g)
@@ -17,7 +17,7 @@ function penalties!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
     end
 
     for (vi, h) in model.h
-        θ = Attributes.variable_encoding_penalty(model, vi)
+        θ = Attributes.variable_encoding_penalty_hint(model, vi)
 
         if isnothing(θ)
             ϵ = PBO.mingap(h)

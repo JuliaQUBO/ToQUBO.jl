@@ -240,19 +240,27 @@ function test_interface_moi()
                 @test MOI.get(model, Attributes.VariableEncodingBits(), x[1]) == 1
                 @test MOI.get(model, Attributes.VariableEncodingBits(), x[2]) == 2
 
-                # ToQUBO Variable Attributes
-                @test MOI.get(model, Attributes.VariableEncodingPenalty(), x[1]) === nothing
-                @test MOI.get(model, Attributes.VariableEncodingPenalty(), x[2]) === nothing
+                # Variable Encoding Penalty
+                @test MOI.get(model, Attributes.VariableEncodingPenaltyHint(), x[1]) === nothing
+                @test MOI.get(model, Attributes.VariableEncodingPenaltyHint(), x[2]) === nothing
 
-                MOI.set(model, Attributes.VariableEncodingPenalty(), x[1], -1.0)
-                MOI.set(model, Attributes.VariableEncodingPenalty(), x[2], -2.0)
+                MOI.set(model, Attributes.VariableEncodingPenaltyHint(), x[1], -1.0)
 
-                @test MOI.get(model, Attributes.VariableEncodingPenalty(), x[1]) == -1.0
-                @test MOI.get(model, Attributes.VariableEncodingPenalty(), x[2]) == -2.0
+                @test MOI.get(model, Attributes.VariableEncodingPenaltyHint(), x[1]) == -1.0
+
+                @test_throws Exception MOI.get(model, Attributes.VariableEncodingPenalty(), x[1])
+                @test_throws Exception MOI.get(model, Attributes.VariableEncodingPenalty(), x[2])
 
                 # ToQUBO Constraint Attributes
-                @test_broken MOI.get(model, Attributes.ConstraintEncodingPenalty(), c[1]) === nothing
-                @test_broken MOI.get(model, Attributes.ConstraintEncodingPenalty(), c[2]) === nothing
+                @test MOI.get(model, Attributes.ConstraintEncodingPenaltyHint(), c[1]) === nothing
+                @test MOI.get(model, Attributes.ConstraintEncodingPenaltyHint(), c[2]) === nothing
+
+                MOI.set(model, Attributes.ConstraintEncodingPenaltyHint(), c[1], -10.0)
+
+                @test MOI.get(model, Attributes.ConstraintEncodingPenaltyHint(), c[1]) == -10.0
+
+                @test_throws Exception MOI.get(model, Attributes.ConstraintEncodingPenalty(), c[1])
+                @test_throws Exception MOI.get(model, Attributes.ConstraintEncodingPenalty(), c[2])
 
                 # Call to MOI.optimize!
                 MOI.optimize!(model)
@@ -298,6 +306,32 @@ function test_interface_moi()
                     @test Attributes.variable_encoding_atol(virtual_model, x[2]) ≈ 1 / 3
                     @test MOI.get(virtual_model, Attributes.VariableEncodingATol(), x[3]) === nothing
                     @test Attributes.variable_encoding_atol(virtual_model, x[3]) ≈ 1E-6
+
+                    @test MOI.get(virtual_model, Attributes.DefaultVariableEncodingBits()) == 3
+
+                    @test MOI.get(virtual_model, Attributes.VariableEncodingBits(), x[1]) == 1
+                    @test Attributes.variable_encoding_bits(virtual_model, x[1]) == 1
+                    @test MOI.get(virtual_model, Attributes.VariableEncodingBits(), x[2]) == 2
+                    @test Attributes.variable_encoding_bits(virtual_model, x[2]) == 2
+                    @test MOI.get(virtual_model, Attributes.VariableEncodingBits(), x[3]) === nothing
+                    @test Attributes.variable_encoding_bits(virtual_model, x[3]) == 3
+
+                    @test MOI.get(virtual_model, Attributes.VariableEncodingPenaltyHint(), x[1]) == -1.0
+                    @test Attributes.variable_encoding_penalty_hint(virtual_model, x[1]) == -1.0
+                    @test MOI.get(virtual_model, Attributes.VariableEncodingPenaltyHint(), x[2]) === nothing
+                    @test Attributes.variable_encoding_penalty_hint(virtual_model, x[2]) === nothing
+                    @test MOI.get(virtual_model, Attributes.VariableEncodingPenaltyHint(), x[3]) === nothing
+                    @test Attributes.variable_encoding_penalty_hint(virtual_model, x[3]) === nothing
+
+                    @test MOI.get(virtual_model, Attributes.ConstraintEncodingPenaltyHint(), c[1]) == -10.0
+                    @test Attributes.constraint_encoding_penalty_hint(virtual_model, c[1]) == -10.0
+                    @test MOI.get(virtual_model, Attributes.ConstraintEncodingPenaltyHint(), c[2]) === nothing
+                    @test Attributes.constraint_encoding_penalty_hint(virtual_model, c[2]) === nothing
+
+                    @test MOI.get(virtual_model, Attributes.ConstraintEncodingPenalty(), c[1]) == -10.0
+                    @test Attributes.constraint_encoding_penalty(virtual_model, c[1]) == -10.0
+                    @test MOI.get(virtual_model, Attributes.ConstraintEncodingPenalty(), c[2]) == -4.0
+                    @test Attributes.constraint_encoding_penalty(virtual_model, c[2]) == -4.0
                 end
             end
         end
@@ -310,16 +344,14 @@ function test_interface_jump()
     @testset "JuMP" begin
         @testset "Instantiate" begin
             @testset "Compiler mode" begin
-                let
-                    model = Model(ToQUBO.Optimizer)
+                let model = Model(ToQUBO.Optimizer)
 
                     @test isempty(model)
                 end
             end
 
             @testset "Optimizer mode" begin
-                let
-                    model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
+                let model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
 
                     @test isempty(model)
                 end
@@ -332,7 +364,7 @@ function test_interface_jump()
                     n = 3               # size
                     v = [1.0, 2.0, 3.0] # value
                     w = [0.3, 0.5, 1.0] # weight
-                    C = 3.2             # capacity
+                    C = 1.6             # capacity
 
                     model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
 
@@ -346,7 +378,7 @@ function test_interface_jump()
 
                     optimize!(model)
 
-                    @test value.(x) ≈ [1.0, 1.0, 1.0]
+                    @test value.(x) ≈ [0.0, 1.0, 1.0]
                 end
             end
         end
