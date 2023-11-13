@@ -85,8 +85,7 @@ function test_interface_moi()
         end
 
         @testset "Attributes" begin
-            let
-                # Create Model
+            let # Create Model
                 # max x1 + x2 + x3
                 # st  x1 + x2 <= 1 (c1)
                 #     x2 + x3 <= 1 (c2)
@@ -268,70 +267,70 @@ function test_interface_moi()
                 let virtual_model = model.model.optimizer
                     @test MOI.get(virtual_model, Attributes.Architecture()) isa SuperArchitecture
                     @test MOI.get(virtual_model, Attributes.Architecture()).super === true
-                    @test Attributes.architecture(virtual_model) isa SuperArchitecture
-                    @test Attributes.architecture(virtual_model).super === true
+
+
 
                     @test MOI.get(virtual_model, Attributes.Optimization()) === 3
-                    @test Attributes.optimization(virtual_model) === 3
+
 
                     @test MOI.get(virtual_model, Attributes.Discretize()) === true
-                    @test Attributes.discretize(virtual_model) === true
+
 
                     @test MOI.get(virtual_model, Attributes.Quadratize()) === true
-                    @test Attributes.quadratize(virtual_model) === true
+
 
                     @test MOI.get(virtual_model, Attributes.Warnings()) === false
-                    @test Attributes.warnings(virtual_model) === false
+
 
                     @test MOI.get(virtual_model, Attributes.QuadratizationMethod()) isa PBO.PTR_BG
-                    @test Attributes.quadratization_method(virtual_model) isa PBO.PTR_BG
+
 
                     @test MOI.get(virtual_model, Attributes.StableQuadratization()) === true
-                    @test Attributes.stable_quadratization(virtual_model) === true
+
 
                     @test MOI.get(virtual_model, Attributes.DefaultVariableEncodingMethod()) isa Encoding.Unary
 
                     @test MOI.get(virtual_model, Attributes.VariableEncodingMethod(), x[1]) isa Encoding.Arithmetic
-                    @test Attributes.variable_encoding_method(virtual_model, x[1]) isa Encoding.Arithmetic
+
                     @test MOI.get(virtual_model, Attributes.VariableEncodingMethod(), x[2]) isa Encoding.Arithmetic
-                    @test Attributes.variable_encoding_method(virtual_model, x[2]) isa Encoding.Arithmetic
+
                     @test MOI.get(virtual_model, Attributes.VariableEncodingMethod(), x[3]) === nothing
-                    @test Attributes.variable_encoding_method(virtual_model, x[3]) isa Encoding.Unary
+
 
                     @test MOI.get(virtual_model, Attributes.DefaultVariableEncodingATol()) ≈ 1E-6
 
                     @test MOI.get(virtual_model, Attributes.VariableEncodingATol(), x[1]) ≈ 1 / 2
-                    @test Attributes.variable_encoding_atol(virtual_model, x[1]) ≈ 1 / 2
+
                     @test MOI.get(virtual_model, Attributes.VariableEncodingATol(), x[2]) ≈ 1 / 3
-                    @test Attributes.variable_encoding_atol(virtual_model, x[2]) ≈ 1 / 3
+
                     @test MOI.get(virtual_model, Attributes.VariableEncodingATol(), x[3]) === nothing
-                    @test Attributes.variable_encoding_atol(virtual_model, x[3]) ≈ 1E-6
+
 
                     @test MOI.get(virtual_model, Attributes.DefaultVariableEncodingBits()) == 3
 
                     @test MOI.get(virtual_model, Attributes.VariableEncodingBits(), x[1]) == 1
-                    @test Attributes.variable_encoding_bits(virtual_model, x[1]) == 1
+
                     @test MOI.get(virtual_model, Attributes.VariableEncodingBits(), x[2]) == 2
-                    @test Attributes.variable_encoding_bits(virtual_model, x[2]) == 2
+
                     @test MOI.get(virtual_model, Attributes.VariableEncodingBits(), x[3]) === nothing
-                    @test Attributes.variable_encoding_bits(virtual_model, x[3]) == 3
+
 
                     @test MOI.get(virtual_model, Attributes.VariableEncodingPenaltyHint(), x[1]) == -1.0
-                    @test Attributes.variable_encoding_penalty_hint(virtual_model, x[1]) == -1.0
+
                     @test MOI.get(virtual_model, Attributes.VariableEncodingPenaltyHint(), x[2]) === nothing
-                    @test Attributes.variable_encoding_penalty_hint(virtual_model, x[2]) === nothing
+
                     @test MOI.get(virtual_model, Attributes.VariableEncodingPenaltyHint(), x[3]) === nothing
-                    @test Attributes.variable_encoding_penalty_hint(virtual_model, x[3]) === nothing
+
 
                     @test MOI.get(virtual_model, Attributes.ConstraintEncodingPenaltyHint(), c[1]) == -10.0
-                    @test Attributes.constraint_encoding_penalty_hint(virtual_model, c[1]) == -10.0
+
                     @test MOI.get(virtual_model, Attributes.ConstraintEncodingPenaltyHint(), c[2]) === nothing
-                    @test Attributes.constraint_encoding_penalty_hint(virtual_model, c[2]) === nothing
+
 
                     @test MOI.get(virtual_model, Attributes.ConstraintEncodingPenalty(), c[1]) == -10.0
-                    @test Attributes.constraint_encoding_penalty(virtual_model, c[1]) == -10.0
+
                     @test MOI.get(virtual_model, Attributes.ConstraintEncodingPenalty(), c[2]) == -4.0
-                    @test Attributes.constraint_encoding_penalty(virtual_model, c[2]) == -4.0
+
                 end
             end
         end
@@ -384,9 +383,181 @@ function test_interface_jump()
         end
 
         @testset "Attributes" begin
-            # let
-            #     model = Model(() -> ToQUBO.Optimizer(RandomSampler.Optimizer))
-            # end
+            let # Create Model
+                # max x1 + x2 + x3
+                # st  x1 + x2 <= 1 (c1)
+                #     x2 + x3 <= 1 (c2)
+                #     x1 ∈ {0, 1}
+                #     x2 ∈ {0, 1}
+                #     x3 ∈ {0, 1}
+                model = Model(() -> ToQUBO.Optimizer(RandomSampler.Optimizer))
+
+                @variable(model, x[1:3], Bin)
+
+                @objective(model, Max, sum(x))
+
+                @constraint(model, c[i = 1:2], x[i] + x[i + 1] <= 1)
+
+                # MOI Attributes
+                @test JuMP.num_variables(model) == 3
+
+                # @test JuMP.time_limit_sec(model) === nothing
+                # JuMP.set_time_limit_sec(model, 1.0)
+                # @test JuMP.time_limit_sec(model) == 1.0
+
+                # Solver Attributes
+                @test JuMP.get_attribute(model, RandomSampler.RandomSeed()) === nothing
+                JuMP.set_attribute(model, RandomSampler.RandomSeed(), 13)
+                @test JuMP.get_attribute(model, RandomSampler.RandomSeed()) == 13
+
+                @test JuMP.get_attribute(model, RandomSampler.NumberOfReads()) == 1_000
+                JuMP.set_attribute(model, RandomSampler.NumberOfReads(), 13)
+                @test JuMP.get_attribute(model, RandomSampler.NumberOfReads()) == 13
+
+                # Raw Solver Attributes
+                @test JuMP.get_attribute(model, "seed") == 13
+                JuMP.set_attribute(model, "seed", 1_001)
+                @test JuMP.get_attribute(model, "seed") == 1_001
+
+                @test JuMP.get_attribute(model, "num_reads") == 13
+                JuMP.set_attribute(model, "num_reads", 1_001)
+                @test JuMP.get_attribute(model, "num_reads") == 1_001
+
+                # ToQUBO Attributes
+                @test JuMP.get_attribute(model, Attributes.Architecture()) isa QUBOTools.GenericArchitecture
+                JuMP.set_attribute(model, Attributes.Architecture(), SuperArchitecture(true))
+                @test JuMP.get_attribute(model, Attributes.Architecture()) isa SuperArchitecture
+                @test JuMP.get_attribute(model, Attributes.Architecture()).super === true
+
+                @test JuMP.get_attribute(model, Attributes.Optimization()) === 0
+                JuMP.set_attribute(model, Attributes.Optimization(), 3)
+                @test JuMP.get_attribute(model, Attributes.Optimization()) == 3
+
+                @test JuMP.get_attribute(model, Attributes.Discretize()) === false
+                JuMP.set_attribute(model, Attributes.Discretize(), true)
+                @test JuMP.get_attribute(model, Attributes.Discretize()) === true
+
+                @test JuMP.get_attribute(model, Attributes.Quadratize()) === false
+                JuMP.set_attribute(model, Attributes.Quadratize(), true)
+                @test JuMP.get_attribute(model, Attributes.Quadratize()) === true
+
+                @test JuMP.get_attribute(model, Attributes.Warnings()) === true
+                JuMP.set_attribute(model, Attributes.Warnings(), false)
+                @test JuMP.get_attribute(model, Attributes.Warnings()) === false
+
+                @test JuMP.get_attribute(model, Attributes.QuadratizationMethod()) isa PBO.DEFAULT
+                JuMP.set_attribute(model, Attributes.QuadratizationMethod(), PBO.PTR_BG())
+                @test JuMP.get_attribute(model, Attributes.QuadratizationMethod()) isa PBO.PTR_BG
+
+                @test JuMP.get_attribute(model, Attributes.StableQuadratization()) === false
+                JuMP.set_attribute(model, Attributes.StableQuadratization(), true)
+                @test JuMP.get_attribute(model, Attributes.StableQuadratization()) === true
+
+                # Variable Encoding Method
+                @test JuMP.get_attribute(model, Attributes.DefaultVariableEncodingMethod()) isa Encoding.Binary
+                JuMP.set_attribute(model, Attributes.DefaultVariableEncodingMethod(), Encoding.Unary())
+                @test JuMP.get_attribute(model, Attributes.DefaultVariableEncodingMethod()) isa Encoding.Unary
+
+                @test JuMP.get_attribute(x[1], Attributes.VariableEncodingMethod()) === nothing
+                @test JuMP.get_attribute(x[2], Attributes.VariableEncodingMethod()) === nothing
+
+                JuMP.set_attribute(x[1], Attributes.VariableEncodingMethod(), Encoding.Arithmetic())
+                JuMP.set_attribute(x[2], Attributes.VariableEncodingMethod(), Encoding.Arithmetic())
+
+                @test JuMP.get_attribute(x[1], Attributes.VariableEncodingMethod()) isa Encoding.Arithmetic
+                @test JuMP.get_attribute(x[2], Attributes.VariableEncodingMethod()) isa Encoding.Arithmetic
+
+                # Variable Encoding ATol
+                @test JuMP.get_attribute(model, Attributes.DefaultVariableEncodingATol()) ≈ 1 / 4
+                JuMP.set_attribute(model, Attributes.DefaultVariableEncodingATol(), 1E-6)
+                @test JuMP.get_attribute(model, Attributes.DefaultVariableEncodingATol()) ≈ 1E-6
+
+                @test JuMP.get_attribute(x[1], Attributes.VariableEncodingATol()) === nothing
+                @test JuMP.get_attribute(x[2], Attributes.VariableEncodingATol()) === nothing
+
+                JuMP.set_attribute(x[1], Attributes.VariableEncodingATol(), 1 / 2)
+                JuMP.set_attribute(x[2], Attributes.VariableEncodingATol(), 1 / 3)
+
+                @test JuMP.get_attribute(x[1], Attributes.VariableEncodingATol()) ≈ 1 / 2
+                @test JuMP.get_attribute(x[2], Attributes.VariableEncodingATol()) ≈ 1 / 3
+
+                # Variable Encoding Bits
+                @test JuMP.get_attribute(model, Attributes.DefaultVariableEncodingBits()) === nothing
+                JuMP.set_attribute(model, Attributes.DefaultVariableEncodingBits(), 3)
+                @test JuMP.get_attribute(model, Attributes.DefaultVariableEncodingBits()) == 3
+
+                @test JuMP.get_attribute(x[1], Attributes.VariableEncodingBits()) === nothing
+                @test JuMP.get_attribute(x[2], Attributes.VariableEncodingBits()) === nothing
+
+                JuMP.set_attribute(x[1], Attributes.VariableEncodingBits(), 1)
+                JuMP.set_attribute(x[2], Attributes.VariableEncodingBits(), 2)
+
+                @test JuMP.get_attribute(x[1], Attributes.VariableEncodingBits()) == 1
+                @test JuMP.get_attribute(x[2], Attributes.VariableEncodingBits()) == 2
+
+                # Variable Encoding Penalty
+                @test JuMP.get_attribute(x[1], Attributes.VariableEncodingPenaltyHint()) === nothing
+                @test JuMP.get_attribute(x[2], Attributes.VariableEncodingPenaltyHint()) === nothing
+
+                JuMP.set_attribute(x[1], Attributes.VariableEncodingPenaltyHint(), -1.0)
+
+                @test JuMP.get_attribute(x[1], Attributes.VariableEncodingPenaltyHint()) == -1.0
+
+                @test_throws Exception JuMP.get_attribute(x[1], Attributes.VariableEncodingPenalty())
+                @test_throws Exception JuMP.get_attribute(x[2], Attributes.VariableEncodingPenalty())
+
+                # ToQUBO Constraint Attributes
+                @test JuMP.get_attribute(c[1], Attributes.ConstraintEncodingPenaltyHint()) === nothing
+                @test JuMP.get_attribute(c[2], Attributes.ConstraintEncodingPenaltyHint()) === nothing
+
+                JuMP.set_attribute(c[1], Attributes.ConstraintEncodingPenaltyHint(), -10.0)
+
+                @test JuMP.get_attribute(c[1], Attributes.ConstraintEncodingPenaltyHint()) == -10.0
+
+                @test_throws Exception JuMP.get_attribute(c[1], Attributes.ConstraintEncodingPenalty())
+                @test_throws Exception JuMP.get_attribute(c[2], Attributes.ConstraintEncodingPenalty())
+
+                JuMP.optimize!(model)
+
+                @test JuMP.get_attribute(model, Attributes.Architecture()) isa SuperArchitecture
+                @test JuMP.get_attribute(model, Attributes.Architecture()).super === true
+
+                @test JuMP.get_attribute(model, Attributes.Optimization()) === 3
+                @test JuMP.get_attribute(model, Attributes.Discretize()) === true
+                @test JuMP.get_attribute(model, Attributes.Quadratize()) === true
+                @test JuMP.get_attribute(model, Attributes.Warnings()) === false
+
+                @test JuMP.get_attribute(model, Attributes.QuadratizationMethod()) isa PBO.PTR_BG
+                @test JuMP.get_attribute(model, Attributes.StableQuadratization()) === true
+
+                @test JuMP.get_attribute(model, Attributes.DefaultVariableEncodingMethod()) isa Encoding.Unary
+
+                @test JuMP.get_attribute(x[1], Attributes.VariableEncodingMethod()) isa Encoding.Arithmetic
+                @test JuMP.get_attribute(x[2], Attributes.VariableEncodingMethod()) isa Encoding.Arithmetic
+                @test JuMP.get_attribute(x[3], Attributes.VariableEncodingMethod()) === nothing
+
+                @test JuMP.get_attribute(model, Attributes.DefaultVariableEncodingATol()) ≈ 1E-6
+
+                @test JuMP.get_attribute(x[1], Attributes.VariableEncodingATol()) ≈ 1 / 2
+                @test JuMP.get_attribute(x[2], Attributes.VariableEncodingATol()) ≈ 1 / 3
+                @test JuMP.get_attribute(x[3], Attributes.VariableEncodingATol()) === nothing
+
+                @test JuMP.get_attribute(model, Attributes.DefaultVariableEncodingBits()) == 3
+
+                @test JuMP.get_attribute(x[1], Attributes.VariableEncodingBits()) == 1
+                @test JuMP.get_attribute(x[2], Attributes.VariableEncodingBits()) == 2
+                @test JuMP.get_attribute(x[3], Attributes.VariableEncodingBits()) === nothing
+
+                @test JuMP.get_attribute(x[1], Attributes.VariableEncodingPenaltyHint()) == -1.0
+                @test JuMP.get_attribute(x[2], Attributes.VariableEncodingPenaltyHint()) === nothing
+                @test JuMP.get_attribute(x[3], Attributes.VariableEncodingPenaltyHint()) === nothing
+
+                @test JuMP.get_attribute(c[1], Attributes.ConstraintEncodingPenaltyHint()) == -10.0
+                @test JuMP.get_attribute(c[2], Attributes.ConstraintEncodingPenaltyHint()) === nothing
+
+                @test JuMP.get_attribute(c[1], Attributes.ConstraintEncodingPenalty()) == -10.0
+                @test JuMP.get_attribute(c[2], Attributes.ConstraintEncodingPenalty()) == -4.0
+            end
         end
     end
 
