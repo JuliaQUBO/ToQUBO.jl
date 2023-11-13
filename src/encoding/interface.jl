@@ -5,6 +5,8 @@ Abstract type for variable encoding methods.
 """
 abstract type VariableEncodingMethod end
 
+Base.broadcastable(e::E) where {E<:VariableEncodingMethod} = Ref(e)
+
 @doc raw"""
     encode(var, e::VariableEncodingMethod, x::Union{VI,Nothing}, S)
 """
