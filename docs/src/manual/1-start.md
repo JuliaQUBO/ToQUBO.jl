@@ -1,12 +1,13 @@
 # Manual
 
 ## Quick Start Guide
+
 ```@example quick-start
 using JuMP
 using ToQUBO
-using DWaveNeal # <- Your favourite Annealer/Sampler/Solver here
+using DWave
 
-model = Model(() -> ToQUBO.Optimizer(DWaveNeal.Optimizer))
+model = Model(() -> ToQUBO.Optimizer(DWave.Neal.Optimizer))
 
 @variable(model, x[1:3], Bin)
 
@@ -20,6 +21,7 @@ solution_summary(model)
 ```
 
 ## Table of Contents
+
 ```@contents
 Pages = ["2-model.md", "3-results.md", "4-settings.md"]
 Depth = 2

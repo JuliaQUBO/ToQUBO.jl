@@ -1,4 +1,4 @@
-function MOI.get(model::VirtualModel, raw_attr::MOI.RawOptimizerAttribute)
+function MOI.get(model::Virtual.Model, raw_attr::MOI.RawOptimizerAttribute)
     if !isnothing(model.optimizer) && MOI.supports(model.optimizer, raw_attr)
         return MOI.get(model.optimizer, raw_attr)
     else
@@ -7,7 +7,7 @@ function MOI.get(model::VirtualModel, raw_attr::MOI.RawOptimizerAttribute)
     end
 end
 
-function MOI.set(model::VirtualModel, raw_attr::MOI.RawOptimizerAttribute, args...)
+function MOI.set(model::Virtual.Model, raw_attr::MOI.RawOptimizerAttribute, args...)
     if !isnothing(model.optimizer) && MOI.supports(model.optimizer, raw_attr)
         MOI.set(model.optimizer, raw_attr, args...)
     else
@@ -18,7 +18,7 @@ function MOI.set(model::VirtualModel, raw_attr::MOI.RawOptimizerAttribute, args.
     return nothing
 end
 
-function MOI.supports(model::VirtualModel, raw_attr::MOI.RawOptimizerAttribute)
+function MOI.supports(model::Virtual.Model, raw_attr::MOI.RawOptimizerAttribute)
     if !isnothing(model.optimizer)
         return MOI.supports(model.optimizer, raw_attr)
     else
@@ -27,7 +27,7 @@ function MOI.supports(model::VirtualModel, raw_attr::MOI.RawOptimizerAttribute)
     end
 end
 
-function MOI.get(model::VirtualModel, attr::MOI.AbstractOptimizerAttribute)
+function MOI.get(model::Virtual.Model, attr::MOI.AbstractOptimizerAttribute)
     if !isnothing(model.optimizer) && MOI.supports(model.optimizer, attr)
         return MOI.get(model.optimizer, attr)
     else
@@ -35,7 +35,7 @@ function MOI.get(model::VirtualModel, attr::MOI.AbstractOptimizerAttribute)
     end
 end
 
-function MOI.set(model::VirtualModel, attr::MOI.AbstractOptimizerAttribute, args...)
+function MOI.set(model::Virtual.Model, attr::MOI.AbstractOptimizerAttribute, args...)
     if !isnothing(model.optimizer) && MOI.supports(model.optimizer, attr)
         MOI.set(model.optimizer, attr, args...)
     else
@@ -45,7 +45,7 @@ function MOI.set(model::VirtualModel, attr::MOI.AbstractOptimizerAttribute, args
     return nothing
 end
 
-function MOI.supports(model::VirtualModel, attr::MOI.AbstractOptimizerAttribute)
+function MOI.supports(model::Virtual.Model, attr::MOI.AbstractOptimizerAttribute)
     if !isnothing(model.optimizer)
         return MOI.supports(model.optimizer, attr)
     else
@@ -54,7 +54,7 @@ function MOI.supports(model::VirtualModel, attr::MOI.AbstractOptimizerAttribute)
 end
 
 function MOI.get(
-    model::VirtualModel,
+    model::Virtual.Model,
     attr::Union{
         MOI.SolveTimeSec,
         MOI.PrimalStatus,
@@ -71,7 +71,7 @@ function MOI.get(
 end
 
 function MOI.supports(
-    model::VirtualModel,
+    model::Virtual.Model,
     attr::Union{
         MOI.SolveTimeSec,
         MOI.PrimalStatus,
@@ -87,7 +87,7 @@ function MOI.supports(
     end
 end
 
-function MOI.get(model::VirtualModel, rc::MOI.ResultCount)
+function MOI.get(model::Virtual.Model, rc::MOI.ResultCount)
     if isnothing(model.optimizer)
         return 0
     else
@@ -95,9 +95,9 @@ function MOI.get(model::VirtualModel, rc::MOI.ResultCount)
     end
 end
 
-MOI.supports(::VirtualModel, ::MOI.ResultCount) = true
+MOI.supports(::Virtual.Model, ::MOI.ResultCount) = true
 
-function MOI.get(model::VirtualModel{T}, ov::MOI.ObjectiveValue) where {T}
+function MOI.get(model::Virtual.Model{T}, ov::MOI.ObjectiveValue) where {T}
     if isnothing(model.optimizer)
         return zero(T)
     else
@@ -105,20 +105,26 @@ function MOI.get(model::VirtualModel{T}, ov::MOI.ObjectiveValue) where {T}
     end
 end
 
-function MOI.get(model::VirtualModel{T}, vp::MOI.VariablePrimalStart, x::VI) where {T}
+function MOI.get(model::Virtual.Model{T}, vp::MOI.VariablePrimalStart, x::VI) where {T}
     return MOI.get(model.source_model, vp, x)
 end
 
-MOI.supports(::VirtualModel, ::MOI.VariablePrimalStart, ::MOI.VariableIndex) = true
+MOI.supports(::Virtual.Model, ::MOI.VariablePrimalStart, ::MOI.VariableIndex) = true
 
-function MOI.get(model::VirtualModel{T}, vp::MOI.VariablePrimal, x::VI) where {T}
+function MOI.get(model::Virtual.Model{T}, vp::MOI.VariablePrimal, x::VI) where {T}
+    if !haskey(model.source, x)
+        error("Variable '$x' not present in the model")
+
+        return nothing
+    end
+
     if isnothing(model.optimizer)
         return zero(T)
     else
-        s = zero(T)
         v = model.source[x]
+        s = zero(T)
 
-        for (ω, c) in expansion(v)
+        for (ω, c) in Virtual.expansion(v)
             for y in ω
                 c *= MOI.get(model.optimizer, vp, y)
             end
@@ -130,7 +136,7 @@ function MOI.get(model::VirtualModel{T}, vp::MOI.VariablePrimal, x::VI) where {T
     end
 end
 
-function MOI.get(model::VirtualModel, rs::MOI.RawSolver)
+function MOI.get(model::Virtual.Model, rs::MOI.RawSolver)
     if isnothing(model.optimizer)
         return nothing
     else

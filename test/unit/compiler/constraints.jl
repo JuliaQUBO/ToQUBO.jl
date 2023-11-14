@@ -7,23 +7,23 @@ function test_compiler_constraints_quadratic()
     ]
     b = 6.0
 
-    model = ToQUBO.VirtualModel{Float64}()
-    arch  = ToQUBO.GenericArchitecture()
+    model = ToQUBO.Virtual.Model{Float64}()
+    arch  = ToQUBO.Compiler.GenericArchitecture()
     x, _  = MOI.add_constrained_variables(model.source_model, repeat([MOI.ZeroOne()], n))
-    
-    ToQUBO.toqubo_variables!(model, arch)
+
+    ToQUBO.Compiler.variables!(model, arch)
 
     f = MOI.ScalarQuadraticFunction{Float64}(
         [MOI.ScalarQuadraticTerm(A[i, j], x[i], x[j]) for i = 1:n for j = 1:n if i != j],
         [MOI.ScalarAffineTerm(A[i, i] / 2.0, x[i]) for i = 1:n],
-        0.0
+        0.0,
     )
     s = MOI.EqualTo{Float64}(b)
-    g = ToQUBO.toqubo_constraint(model, f, s, arch)
+    g = ToQUBO.Compiler.constraint(model, f, s, arch)
 
     h = ToQUBO.PBO.PBF{VI,Float64}()
 
-    ToQUBO.toqubo_parse!(model, h, f, s, arch)
+    ToQUBO.Compiler.parse!(model, h, f, s, arch)
 
     @test h == PBO.PBF{VI,Float64}(
         -6.0,
@@ -50,7 +50,7 @@ function test_compiler_constraints_quadratic()
 end
 
 function test_compiler_constraints()
-    @testset "Constraints" verbose = true begin
+    @testset "→ Constraints" verbose = true begin
         test_compiler_constraints_quadratic()
     end
 

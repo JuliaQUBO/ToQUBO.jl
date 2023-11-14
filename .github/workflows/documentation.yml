@@ -13,7 +13,7 @@ jobs:
       - uses: actions/checkout@v2
       - uses: julia-actions/setup-julia@latest
         with:
-          version: '1.6'
+          version: '1.9'
       - name: Develop ToQUBO.jl
         run: julia --project=docs -e 'using Pkg; Pkg.develop(path=pwd())'
       - uses: julia-actions/julia-buildpkg@latest

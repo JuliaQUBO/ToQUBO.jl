@@ -1,4 +1,4 @@
-function toqubo_variables!(model::VirtualModel{T}, ::AbstractArchitecture) where {T}
+function variables!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
     # Set of all source variables
     Ω = Vector{VI}(MOI.get(model, MOI.ListOfVariableIndices()))
 
@@ -71,56 +71,74 @@ function toqubo_variables!(model::VirtualModel{T}, ::AbstractArchitecture) where
         end
     end
 
-    # Discretize Real Ones
-    for (x, (a, b)) in ℝ
-        if isnothing(a) || isnothing(b)
-            error("Unbounded variable $(x) ∈ ℝ")
-        else
-            # TODO: Solve this bit-guessing magic???
-            # IDEA: 
-            #     Let x̂ ~ U[a, b], K = 2ᴺ, γ = [a, b]
-            #       𝔼[|xᵢ - x̂|] = ∫ᵧ |xᵢ - x̂| f(x̂) dx̂
-            #                   = 1 / |b - a| ∫ᵧ |xᵢ - x̂| dx̂
-            #                   = |b - a| / 4 (K - 1)
-            #
-            #     For 𝔼[|xᵢ - x̂|] ≤ τ we have
-            #       N ≥ log₂(1 + |b - a| / 4τ)
-            #
-            # where τ is the (absolute) tolerance
-            # TODO: Add τ as parameter (DONE)
-            # TODO: Move this comment to the documentation
-            let
-                e = MOI.get(model, Attributes.VariableEncodingMethod(), x)
-                n = MOI.get(model, Attributes.VariableEncodingBits(), x)
-
-                if !isnothing(n)
-                    encode!(model, e, x, a, b, n)
-                else
-                    τ = MOI.get(model, Attributes.VariableEncodingATol(), x)
-                    encode!(model, e, x, a, b, τ)
-                end
-            end 
-        end
+    # Encode Variables
+    if Attributes.stable_compilation(model)
+        sort!(Ω; by = x -> x.value)
     end
 
-    # Discretize Integer Variables 
-    for (x, (a, b)) in ℤ
-        if isnothing(a) || isnothing(b)
-            error("Unbounded variable $(x) ∈ ℤ")
-        else
-            let
-                e = MOI.get(model, Attributes.VariableEncodingMethod(), x)
-                encode!(model, e, x, a, b)
-            end
+    for x in Ω
+        if haskey(ℤ, x)
+            variable_ℤ!(model, x, ℤ[x])
+        elseif haskey(ℝ, x)
+            variable_ℝ!(model, x, ℝ[x])
+        else # x ∈ 𝔹
+            variable_𝔹!(model, x)
         end
-    end
-
-    # Mirror Boolean Variables
-    for x in 𝔹
-        encode!(model, Mirror(), x)
     end
 
     return nothing
 end
 
-function toqubo_variable(model::VirtualModel, ::AbstractArchitecture) end
+function variable_𝔹!(model::Virtual.Model{T}, x::VI) where {T}
+    Encoding.encode!(model, x, Mirror{T}())
+
+    return nothing
+end
+
+function variable_ℤ!(model::Virtual.Model{T}, x::VI, (a, b)::Tuple{T,T}) where {T}
+    if isnothing(a) || isnothing(b)
+        error("Unbounded variable $(x) ∈ ℤ")
+    else
+        let e = Attributes.variable_encoding_method(model, x)
+            S = (a, b)
+
+            Encoding.encode!(model, x, e, S)
+        end
+    end
+
+    return nothing
+end
+
+function variable_ℝ!(model::Virtual.Model{T}, x::VI, (a, b)::Tuple{T,T}) where {T}
+    if isnothing(a) || isnothing(b)
+        error("Unbounded variable $(x) ∈ ℝ")
+    else
+        # TODO: Solve this bit-guessing magic??? (DONE)
+        # IDEA: 
+        #     Let x̂ ~ U[a, b], K = 2ᴺ, γ = [a, b]
+        #       𝔼[|xᵢ - x̂|] = ∫ᵧ |xᵢ - x̂| f(x̂) dx̂
+        #                   = 1 / |b - a| ∫ᵧ |xᵢ - x̂| dx̂
+        #                   = |b - a| / 4 (K - 1)
+        #
+        #     For 𝔼[|xᵢ - x̂|] ≤ τ we have
+        #       N ≥ log₂(1 + |b - a| / 4τ)
+        #
+        # where τ is the (absolute) tolerance
+        # TODO: Add τ as parameter (DONE)
+        # TODO: Move this comment to the documentation
+        let e = Attributes.variable_encoding_method(model, x)
+            n = Attributes.variable_encoding_bits(model, x)
+            S = (a, b)
+
+            if !isnothing(n)
+                Encoding.encode!(model, x, e, S, n)
+            else
+                tol = Attributes.variable_encoding_atol(model, x)
+
+                Encoding.encode!(model, x, e, S; tol)
+            end
+        end
+    end
+
+    return nothing
+end

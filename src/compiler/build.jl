@@ -1,21 +1,22 @@
-function toqubo_build!(model::VirtualModel{T}, arch::AbstractArchitecture) where {T}
+function build!(model::Virtual.Model{T}, arch::AbstractArchitecture) where {T}
     #  Assemble Objective Function 
-    toqubo_hamiltonian!(model, arch)
+    objective_function(model, arch)
 
     #  Quadratization Step 
-    toqubo_quadratize!(model, arch)
+    quadratize!(model, arch)
 
     #  Write to MathOptInterface 
-    toqubo_output!(model, arch)
+    output!(model, arch)
 
     return nothing
 end
 
-function toqubo_hamiltonian!(model::VirtualModel{T}, ::AbstractArchitecture) where {T}
+function objective_function(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
     empty!(model.H)
 
     # Calculate an upper bound on the number of terms
-    num_terms = length(model.f) + sum(length, model.g; init=0) + sum(length, model.h; init=0)
+    num_terms =
+        length(model.f) + sum(length, model.g; init = 0) + sum(length, model.h; init = 0)
 
     sizehint!(model.H, num_terms)
 
@@ -42,43 +43,56 @@ function toqubo_hamiltonian!(model::VirtualModel{T}, ::AbstractArchitecture) whe
     return nothing
 end
 
-function toqubo_aux(model::VirtualModel, ::Nothing, ::AbstractArchitecture)::VI
-    target_model = model.target_model
+function aux(model::Virtual.Model{T}, ::Nothing, ::AbstractArchitecture)::VI where {T}
+    w = Encoding.encode!(model, nothing, Encoding.Mirror{T}())::Virtual.Variable{T}
 
-    w = MOI.add_variable(target_model)
-
-    MOI.add_constraint(target_model, w, MOI.ZeroOne())
-
-    return w
+    return first(Virtual.target(w))
 end
 
-function toqubo_aux(model::VirtualModel, n::Integer, ::AbstractArchitecture)::Vector{VI}
-    target_model = model.target_model
-
-    w = MOI.add_variables(target_model, n)
-
-    MOI.add_constraint.(target_model, w, MOI.ZeroOne())
-
-    return w
+function aux(model::Virtual.Model, n::Integer, arch::AbstractArchitecture)::Vector{VI}
+    return VI[aux(model, nothing, arch) for _ = 1:n]
 end
 
-function toqubo_quadratize!(model::VirtualModel, arch::AbstractArchitecture)
+function quadratize!(model::Virtual.Model, arch::AbstractArchitecture)
     if MOI.get(model, Attributes.Quadratize())
-        method = MOI.get(model, Attributes.QuadratizationMethod())
-        stable = MOI.get(model, Attributes.StableQuadratization())
+        method = Attributes.quadratization_method(model)
+        stable = Attributes.stable_quadratization(model)
 
-        PBO.quadratize!(
-            model.H,
-            PBO.Quadratization{method}(stable),
-        ) do (n::Union{Integer,Nothing} = nothing)
-            return toqubo_aux(model, n, arch)
+        quad = PBO.Quadratization(method; stable)
+
+        if MOI.get(model, MOI.ObjectiveSense()) === MOI.MAX_SENSE
+            # NOTE: Here it is necessary to invert the sign of the
+            # Hamiltonian since PBO adopts the minimization sense
+            # convention.
+
+            # TODO: Add an in-place version of 'quadratize!' that 
+            # provides support for maximization problems.
+            
+            # IDEA: As an easy fix, just modify 'model.H' in-place.
+            # Support for this is expected to be provided by PBO soon.
+            for (ω, c) in model.H
+                model.H[ω] = -c
+            end
+
+            PBO.quadratize!(model.H, quad) do (n::Union{Integer,Nothing} = nothing)
+                return aux(model, n, arch)
+            end
+
+            # Take it back to the original state
+            for (ω, c) in model.H
+                model.H[ω] = -c
+            end
+        else # === MOI.MIN_SENSE || === MOI.FEASIBILITY
+            PBO.quadratize!(model.H, quad) do (n::Union{Integer,Nothing} = nothing)
+                return aux(model, n, arch)
+            end
         end
     end
 
     return nothing
 end
 
-function toqubo_output!(model::VirtualModel{T}, ::AbstractArchitecture) where {T}
+function output!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
     Q = SQT{T}[]
     a = SAT{T}[]
     b = zero(T)
@@ -102,7 +116,7 @@ function toqubo_output!(model::VirtualModel{T}, ::AbstractArchitecture) where {T
             # HINT: When debugging this, a good place to start is to check if the 'Quadratize'
             # flag is set or not. If missing, it should mean that some constraint might induce
             # PBFs of higher degree without calling 'MOI.set(model, Quadratize(), true)'.     
-            throw(QUBOError("Quadratization failed"))
+            compilation_error("Quadratization failed")
         end
     end
 

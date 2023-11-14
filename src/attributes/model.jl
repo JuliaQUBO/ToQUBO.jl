@@ -1,7 +1,8 @@
-MOI.get(::VirtualModel, ::MOI.SolverName)    = "Virtual Model"
-MOI.get(::VirtualModel, ::MOI.SolverVersion) = PROJECT_VERSION
+MOI.get(::Virtual.Model, ::MOI.SolverName)    = "Virtual QUBO Model"
+MOI.get(::Virtual.Model, ::MOI.SolverVersion) = __VERSION__
 
-const MOI_MODEL_ATTRIBUTE = Union{
+const SOURCE_MODEL_ATTRIBUES{T} = Union{
+    MOIB.ListOfNonstandardBridges{T},
     MOI.ListOfConstraintAttributesSet,
     MOI.ListOfConstraintIndices,
     MOI.ListOfConstraintTypesPresent,
@@ -11,60 +12,53 @@ const MOI_MODEL_ATTRIBUTE = Union{
     MOI.NumberOfConstraints,
     MOI.NumberOfVariables,
     MOI.Name,
+    MOI.VariableName,
+    MOI.ConstraintName,
     MOI.ObjectiveFunction,
     MOI.ObjectiveFunctionType,
     MOI.ObjectiveSense,
 }
 
-function MOI.get(model::VirtualModel, attr::MOI_MODEL_ATTRIBUTE)
-    return MOI.get(model.source_model, attr)
+function MOI.get(model::Virtual.Model{T}, attr::SOURCE_MODEL_ATTRIBUES{T}, args...) where {T}
+    return MOI.get(model.source_model, attr, args...)
 end
 
-function MOI.set(model::VirtualModel, attr::MOI_MODEL_ATTRIBUTE, value::Any)
-    MOI.set(model.source_model, attr, value)
+function MOI.set(model::Virtual.Model{T}, attr::SOURCE_MODEL_ATTRIBUES{T}, args::Any...) where {T}
+    MOI.set(model.source_model, attr, args...)
 
     return nothing
 end
 
+function MOI.supports(::Virtual.Model{T}, ::SOURCE_MODEL_ATTRIBUES{T}) where {T}
+    return true
+end
+
 function MOI.get(
-    model::VirtualModel,
+    model::Virtual.Model,
     attr::Union{MOI.ConstraintFunction,MOI.ConstraintSet},
     ci::MOI.ConstraintIndex,
 )
     return MOI.get(model.source_model, attr, ci)
 end
 
-function MOI.get(model::VirtualModel, attr::MOI.VariableName, x::VI)
+function MOI.get(model::Virtual.Model, attr::MOI.VariableName, x::VI)
     return MOI.get(model.source_model, attr, x)
 end
 
-function Base.show(io::IO, model::VirtualModel)
-    print(
-        io,
-        """
-        Virtual Model
-        with source:
-        $(model.source_model)
-        with target:
-        $(model.target_model)
-        """,
-    )
-end
-
-function MOI.add_variable(model::VirtualModel)
+function MOI.add_variable(model::Virtual.Model)
     return MOI.add_variable(model.source_model)
 end
 
 function MOI.add_constraint(
-    model::VirtualModel,
+    model::Virtual.Model,
     f::MOI.AbstractFunction,
     s::MOI.AbstractSet,
 )
     return MOI.add_constraint(model.source_model, f, s)
 end
-    
+
 function MOI.set(
-    model::VirtualModel,
+    model::Virtual.Model,
     ::MOI.ObjectiveFunction{F},
     f::F,
 ) where {F<:MOI.AbstractFunction}

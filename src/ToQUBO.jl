@@ -1,21 +1,20 @@
 module ToQUBO
 
-# Base Imports & Constants 
-import TOML
-const PROJECT_FILE_PATH = joinpath(@__DIR__, "..", "Project.toml")
-const PROJECT_VERSION   = VersionNumber(getindex(TOML.parsefile(PROJECT_FILE_PATH), "version"))
+using MathOptInterface
+const MOI = MathOptInterface
 
-# QUBOTools
+import PseudoBooleanOptimization as PBO
 import QUBOTools
 
-const QUBO_NORMAL_FORM{T} = Tuple{Int,Dict{Int,T},Dict{Tuple{Int,Int},T},T,T}
+# Versioning
+using TOML
+const __PROJECT__ = abspath(@__DIR__, "..")
+const __VERSION__ = VersionNumber(getindex(TOML.parsefile(joinpath(__PROJECT__, "Project.toml")), "version"))
 
-# External Imports
-import MathOptInterface as MOI
+# MOI Aliases
 const MOIU = MOI.Utilities
 const MOIB = MOI.Bridges
 
-# MOI Aliases
 const SAF{T} = MOI.ScalarAffineFunction{T}
 const SQF{T} = MOI.ScalarQuadraticFunction{T}
 const SAT{T} = MOI.ScalarAffineTerm{T}
@@ -25,26 +24,31 @@ const EQ{T} = MOI.EqualTo{T}
 const LT{T} = MOI.LessThan{T}
 const GT{T} = MOI.GreaterThan{T}
 
-const VI = MOI.VariableIndex
-const CI = MOI.ConstraintIndex
+const VI      = MOI.VariableIndex
+const CI{F,S} = MOI.ConstraintIndex{F,S}
 
 # Library
-include("lib/error.jl")
-include("lib/pbo/PBO.jl")
+include("error.jl")
 
-# Model
+# Encoding Module
+include("encoding/encoding.jl")
+
+# Models
 include("model/qubo.jl")
 include("model/prequbo.jl")
-include("model/virtual.jl")
-include("model/wrapper.jl")
 
-# Compiler & Analysis
-include("compiler/compiler.jl")
+# Virtual mapping module
+include("virtual/virtual.jl")
+
+# MOI wrapper
+include("wrapper.jl")
 
 # Attributes
 include("attributes/model.jl")
 include("attributes/solver.jl")
-include("attributes/virtual.jl")
 include("attributes/compiler.jl")
+
+# Compiler
+include("compiler/compiler.jl")
 
 end # module

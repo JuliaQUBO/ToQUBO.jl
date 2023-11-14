@@ -1,20 +1,30 @@
-function toqubo_penalties!(model::VirtualModel{T}, ::AbstractArchitecture) where {T}
-    # Invert Sign
+function penalties!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
+    # Adjust Sign
     s = MOI.get(model, MOI.ObjectiveSense()) === MOI.MAX_SENSE ? -1 : 1
 
     β = one(T) # TODO: This should be made a parameter too? Yes!
-    δ = PBO.gap(model.f)
+    δ = PBO.maxgap(model.f)
 
     for (ci, g) in model.g
-        ϵ = PBO.sharpness(g)
+        ρ = Attributes.constraint_encoding_penalty_hint(model, ci)
 
-        model.ρ[ci] = s * (δ / ϵ + β)
+        if isnothing(ρ)
+            ϵ = PBO.mingap(g)
+            ρ = s * (δ / ϵ + β)
+        end
+
+        model.ρ[ci] = ρ
     end
 
     for (vi, h) in model.h
-        ϵ = PBO.sharpness(h)
+        θ = Attributes.variable_encoding_penalty_hint(model, vi)
 
-        model.θ[vi] = s * (δ / ϵ + β)
+        if isnothing(θ)
+            ϵ = PBO.mingap(h)
+            θ = s * (δ / ϵ + β)
+        end
+
+        model.θ[vi] = θ
     end
 
     return nothing

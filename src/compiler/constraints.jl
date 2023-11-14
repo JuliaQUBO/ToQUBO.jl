@@ -1,22 +1,28 @@
-function toqubo_constraints!(model::VirtualModel, arch::AbstractArchitecture)
-    for (F, S) in MOI.get(model, MOI.ListOfConstraintTypesPresent())
-        for ci in MOI.get(model, MOI.ListOfConstraintIndices{F,S}())
-            f = MOI.get(model, MOI.ConstraintFunction(), ci)
-            s = MOI.get(model, MOI.ConstraintSet(), ci)
-            g = toqubo_constraint(model, f, s, arch)
+function constraints!(model::Virtual.Model, ::Type{F}, ::Type{S}, arch::AbstractArchitecture) where {F,S}
+    for ci in MOI.get(model, MOI.ListOfConstraintIndices{F,S}())
+        f = MOI.get(model, MOI.ConstraintFunction(), ci)
+        s = MOI.get(model, MOI.ConstraintSet(), ci)
+        g = constraint(model, f, s, arch)
 
-            if !isnothing(g)
-                model.g[ci] = g
-            end
+        if !isnothing(g)
+            model.g[ci] = g
         end
     end
 
     return nothing
 end
 
+function constraints!(model::Virtual.Model, arch::AbstractArchitecture)
+    for (F, S) in MOI.get(model, MOI.ListOfConstraintTypesPresent())
+        constraints!(model, F, S, arch)
+    end
+
+    return nothing
+end
+
 @doc raw"""
-    toqubo_constraint(
-        ::VirtualModel{T},
+    constraint(
+        ::Virtual.Model{T},
         ::VI,
         ::Union{
             MOI.ZeroOne,
@@ -30,8 +36,8 @@ end
 
 This method skips bound constraints over variables.
 """
-function toqubo_constraint(
-    ::VirtualModel{T},
+function constraint(
+    ::Virtual.Model{T},
     ::VI,
     ::Union{MOI.ZeroOne,MOI.Integer,MOI.Interval{T},LT{T},GT{T}},
     ::AbstractArchitecture,
@@ -40,8 +46,8 @@ function toqubo_constraint(
 end
 
 @doc raw"""
-    toqubo_constraint(
-        model::VirtualModel{T}, 
+    constraint(
+        model::Virtual.Model{T}, 
         f::SAF{T}, 
         s::EQ{T}, 
         ::AbstractArchitecture
@@ -65,14 +71,14 @@ into
 
 ```
 """
-function toqubo_constraint(
-    model::VirtualModel{T},
+function constraint(
+    model::Virtual.Model{T},
     f::SAF{T},
     s::EQ{T},
     arch::AbstractArchitecture,
 ) where {T}
     # Scalar Affine Equality Constraint: g(x) = a'x - b = 0
-    g = toqubo_parse(model, f, s, arch)
+    g = _parse(model, f, s, arch)
 
     PBO.discretize!(g)
 
@@ -80,7 +86,10 @@ function toqubo_constraint(
     l, u = PBO.bounds(g)
 
     if u < zero(T) # Always feasible
-        @warn "Always-feasible constraint detected"
+        @warn """
+        Always-feasible constraint detected:
+        $(f) ≤ $(s.value)
+        """
         return nothing
     elseif l > zero(T) # Infeasible
         @warn "Infeasible constraint detected"
@@ -90,8 +99,8 @@ function toqubo_constraint(
 end
 
 @doc raw"""
-    toqubo_constraint(
-        model::VirtualModel{T}, 
+    constraint(
+        model::Virtual.Model{T}, 
         f::SAF{T}, 
         s::LT{T}, 
         ::AbstractArchitecture
@@ -114,14 +123,14 @@ into
 
 by adding a slack variable ``z``.
 """
-function toqubo_constraint(
-    model::VirtualModel{T},
+function constraint(
+    model::Virtual.Model{T},
     f::SAF{T},
     s::LT{T},
     arch::AbstractArchitecture,
 ) where {T}
     # Scalar Affine Inequality Constraint: g(x) = a'x - b ≤ 0 
-    g = toqubo_parse(model, f, s, arch)
+    g = _parse(model, f, s, arch)
 
     PBO.discretize!(g)
 
@@ -129,17 +138,22 @@ function toqubo_constraint(
     l, u = PBO.bounds(g)
 
     if u < zero(T) # Always feasible
-        @warn "Always-feasible constraint detected"
+        @warn """
+        Always-feasible constraint detected:
+        $(f) ≤ $(s.upper)
+        """
         return nothing
     elseif l > zero(T) # Infeasible
         @warn "Infeasible constraint detected"
     end
 
     # Slack Variable
+    x = nothing
     e = MOI.get(model, Attributes.DefaultVariableEncodingMethod())
-    z = encode!(model, e, nothing, zero(T), abs(l))
+    S = (zero(T), abs(l))
+    z = Encoding.encode!(model, x, e, S)
 
-    for (ω, c) in expansion(z)
+    for (ω, c) in Virtual.expansion(z)
         g[ω] += c
     end
 
@@ -147,8 +161,8 @@ function toqubo_constraint(
 end
 
 @doc raw"""
-    toqubo_constraint(
-        model::VirtualModel{T},
+    constraint(
+        model::Virtual.Model{T},
         f::SQF{T},
         s::EQ{T},
         arch::AbstractArchitecture,
@@ -170,14 +184,14 @@ into
 ```
 
 """
-function toqubo_constraint(
-    model::VirtualModel{T},
+function constraint(
+    model::Virtual.Model{T},
     f::SQF{T},
     s::EQ{T},
     arch::AbstractArchitecture,
 ) where {T}
     # Scalar Quadratic Equality Constraint: g(x) = x' Q x + a' x - b = 0
-    g = toqubo_parse(model, f, s, arch)
+    g = _parse(model, f, s, arch)
 
     PBO.discretize!(g)
 
@@ -185,7 +199,10 @@ function toqubo_constraint(
     l, u = PBO.bounds(g)
 
     if u < zero(T) # Always feasible
-        @warn "Always-feasible constraint detected"
+        @warn """
+        Always-feasible constraint detected:
+        $(f) ≤ $(s.value)
+        """
         return nothing
     elseif l > zero(T) # Infeasible
         @warn "Infeasible constraint detected"
@@ -199,8 +216,8 @@ end
 
 
 @doc raw"""
-    toqubo_constraint(
-        model::VirtualModel{T},
+    constraint(
+        model::Virtual.Model{T},
         f::SQF{T},
         s::LT{T},
         arch::AbstractArchitecture,
@@ -223,32 +240,37 @@ into
 
 by adding a slack variable ``z``.
 """
-function toqubo_constraint(
-    model::VirtualModel{T},
+function constraint(
+    model::Virtual.Model{T},
     f::SQF{T},
     s::LT{T},
     arch::AbstractArchitecture,
 ) where {T}
     # Scalar Quadratic Inequality Constraint: g(x) = x' Q x + a' x - b ≤ 0
-    g = toqubo_parse(model, f, s, arch)
-    
+    g = _parse(model, f, s, arch)
+
     PBO.discretize!(g)
 
     # Bounds & Slack Variable 
     l, u = PBO.bounds(g)
 
     if u < zero(T) # Always feasible
-        @warn "Always-feasible constraint detected"
+        @warn """
+        Always-feasible constraint detected:
+        $(f) ≤ $(s.upper)
+        """
         return nothing
     elseif l > zero(T) # Infeasible
         @warn "Infeasible constraint detected"
     end
 
     # Slack Variable
+    x = nothing
     e = MOI.get(model, Attributes.DefaultVariableEncodingMethod())
-    z = encode!(model, e, nothing, zero(T), abs(l))
+    S = (zero(T), abs(l))
+    z = Encoding.encode!(model, x, e, S)
 
-    for (ω, c) in expansion(z)
+    for (ω, c) in Virtual.expansion(z)
         g[ω] += c
     end
 
@@ -259,15 +281,15 @@ function toqubo_constraint(
 end
 
 @doc raw"""
-    toqubo_constraint(
-        model::VirtualModel{T},
+    constraint(
+        model::Virtual.Model{T},
         x::MOI.VectorOfVariables,
         ::MOI.SOS1{T},
         ::AbstractArchitecture,
     ) where {T}
 """
-function toqubo_constraint(
-    model::VirtualModel{T},
+function constraint(
+    model::Virtual.Model{T},
     x::MOI.VectorOfVariables,
     ::MOI.SOS1{T},
     ::AbstractArchitecture,
@@ -277,19 +299,22 @@ function toqubo_constraint(
 
     for xi in x.variables
         vi = model.source[xi]
-        
-        @assert encoding(vi) isa Mirror "Currently, SOS1 only supports binary variables"
 
-        for (ωi, _) in expansion(vi)
+        if !(encoding(vi) isa Mirror)
+            error("Currently, ToQUBO only supports SOS1 on binary variables")
+        end
+
+        for (ωi, _) in Virtual.expansion(vi)
             g[ωi] = one(T)
         end
     end
 
     # Slack variable
-    e = Mirror()
-    z = encode!(model, e, nothing)
+    x = nothing
+    e = Encoding.Mirror{T}()
+    z = Encoding.encode!(model, x, e)
 
-    for (ω, c) in expansion(z)
+    for (ω, c) in Virtual.expansion(z)
         g[ω] += c
     end
 
@@ -298,19 +323,18 @@ function toqubo_constraint(
     return g^2
 end
 
-function toqubo_encoding_constraints!(
-    model::VirtualModel{T},
-    ::AbstractArchitecture,
-) where {T}
+function encoding_constraints!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
     for v in model.variables
-        if is_aux(v)
+        x = Virtual.source(v)
+
+        if isnothing(x)
             continue
         end
-        
-        h = penaltyfn(v)
 
-        if !isnothing(h)
-            model.h[source(v)] = h
+        χ = Virtual.penaltyfn(v)
+
+        if !isnothing(χ)
+            model.h[x] = χ
         end
     end
 

@@ -1,4 +1,5 @@
-MOIU.@model(PreQUBOModel,       # Name of model
+MOIU.@model(
+    PreQUBOModel,       # Name of model
     (MOI.Integer, MOI.ZeroOne), # untyped scalar sets
     (EQ, LT, GT),               #   typed scalar sets
     (),                         # untyped vector sets

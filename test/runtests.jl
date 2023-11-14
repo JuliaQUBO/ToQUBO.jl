@@ -4,24 +4,36 @@ using JuMP
 const MOIU = MOI.Utilities
 const VI = MOI.VariableIndex
 const CI = MOI.ConstraintIndex
-
-using ToQUBO: ToQUBO, PBO
 using QUBODrivers
 using LinearAlgebra
 using TOML
 
-const TQA = ToQUBO.Attributes
+using ToQUBO
+using ToQUBO: Attributes, Encoding
 
-include("assets/assets.jl")
+import QUBOTools
+import PseudoBooleanOptimization as PBO
+
+# Move this to QUBOTools / PBO
+function MOIU.map_indices(::Function, arch::QUBOTools.AbstractArchitecture)
+    return arch
+end
+
+function MOIU.map_indices(::Function, quad::PBO.QuadratizationMethod)
+    return quad
+end
+
+function QUBOTools.backend(model::JuMP.Model)
+    return QUBOTools.backend(JuMP.unsafe_backend(model))
+end
+
 include("unit/unit.jl")
 include("integration/integration.jl")
-include("examples/examples.jl")
 
 function main()
-    @testset "::  ::  :: ToQUBO.jl ::  ::  ::" verbose = true begin
+    @testset "♡ ToQUBO.jl $(ToQUBO.__VERSION__) Test Suite ♡" verbose = true begin
         test_unit()
         test_integration()
-        test_examples()
     end
 
     return nothing

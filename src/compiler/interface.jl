@@ -8,88 +8,89 @@ For it to be true, a few conditions must be met:
  2. No other constraints are allowed
  3. The objective function must be of type `MOI.ScalarQuadraticFunction`, `MOI.ScalarAffineFunction` or `MOI.VariableIndex`
  4. The objective sense must be either `MOI.MIN_SENSE` or `MOI.MAX_SENSE`
-""" function isqubo end
+"""
+function isqubo end
 
 @doc raw"""
-    toqubo(
-        [T=Float64,]
-        source::MOI.ModelLike,
-        ::AbstractArchitecture;
-        optimizer::Union{Nothing, Type{<:MOI.AbstractOptimizer}} = nothing
-    )
-
-Low-level interface to create a `::VirtualModel{T}` from `::MOI.ModelLike` instance.
-If provided, an `::MOI.AbstractOptimizer` is attached to the model.
-""" function toqubo end
+    setup!(model::Virtual.Model, ::AbstractArchitecture)
+"""
+function setup! end
 
 @doc raw"""
-    toqubo!(model::VirtualModel{T}, ::AbstractArchitecture) where {T}
-""" function toqubo! end
-
-@doc raw"""
-    toqubo_sense!(model::VirtualModel, ::AbstractArchitecture) where {T}
+    sense!(model::Virtual.Model, ::AbstractArchitecture)
 
 Copies `MOI.ObjectiveSense` from `model.source_model` to `model.target_model`.
-""" function toqubo_sense! end
+"""
+function sense! end
 
 @doc raw"""
-    toqubo_variables!(model::VirtualModel{T}) where {T}
-""" function toqubo_variables! end
+    variables!(model::Virtual.Model{T}) where {T}
+"""
+function variables! end
 
 @doc raw"""
-    toqubo_variables(model::VirtualModel{T}) where {T}
-""" function toqubo_variable end
+    variable!(model::Virtual.Model{T}) where {T}
+"""
+function variable! end
 
 @doc raw"""
-    toqubo_objective!(model::VirtualModel, ::AbstractArchitecture)
-""" function toqubo_objective! end
+    objective!(model::Virtual.Model, ::AbstractArchitecture)
+"""
+function objective! end
 
 @doc raw"""
-    toqubo_objective(model::VirtualModel, F::VI, ::AbstractArchitecture)
-    toqubo_objective(model::VirtualModel{T}, F::SAF{T}, ::AbstractArchitecture) where {T}
-    toqubo_objective(model::VirtualModel{T}, F::SQF{T}, ::AbstractArchitecture) where {T}
-""" function toqubo_objective end
+    constraints!(model::Virtual.Model, ::AbstractArchitecture)
+"""
+function constraints! end
 
 @doc raw"""
-    toqubo_constraints!(model::VirtualModel, ::AbstractArchitecture)
-""" function toqubo_constraints! end
+    constraint
 
-# """
-#     toqubo_constraint
-
-# Returns the pseudo-boolean function associated to a given constraint from the source model.
-# """ 
-function toqubo_constraint end
+Returns the pseudo-boolean function associated to a given constraint from the source model.
+"""
+function constraint end
 
 @doc raw"""
-    toqubo_parse!(
-        model::VirtualModel{T},
+"""
+function _parse end
+
+@doc raw"""
+    parse!(
+        model::Virtual.Model{T},
         g::PBO.PBF{VI,T},
         f::MOI.AbstractFunction,
-        arch::AbstractArchitectur
+        arch::AbstractArchitecture
     ) where {T}
 
 Parses the given MOI function `f` into PBF `g`.
-""" function toqubo_parse! end
+"""
+function parse! end
 
 @doc raw"""
-    toqubo_penalties!(model::VirtualModel, ::AbstractArchitecture)
-""" function toqubo_penalties! end
+    penalties!(model::Virtual.Model, arch::AbstractArchitecture)
+"""
+function penalties! end
 
 @doc raw"""
-""" function toqubo_penalty end
+    build!(model::Virtual.Model, arch::AbstractArchitecture)
+"""
+function build! end
 
 @doc raw"""
-    toqubo_build!(model::VirtualModel, ::AbstractArchitecture)
-""" function toqubo_build! end
+    quadratize!(model::Virtual.Model, arch::AbstractArchitecture)
+
+Quadratizes the objective function from a model.
+"""
+function quadratize! end
 
 @doc raw"""
-    toqubo_quadratize!(model::VirtualModel, arch::AbstractArchitecture)
+    reset!(model::Virtual.Model, arch::AbstractArchitecture)
 
-Quadratizes the objective function from a model
-
-""" function toqubo_quadratize! end
+"""
+function reset! end
 
 @doc raw"""
-    toqubo_empty!(model::VirtualModel, ::AbstractArchitecture)
-""" function toqubo_empty! end
+    copy!(model::Virtual.Model, arch::AbstractArchitecture)
+
+"""
+function copy! end

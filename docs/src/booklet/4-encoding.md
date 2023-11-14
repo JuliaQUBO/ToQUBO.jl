@@ -1,9 +1,15 @@
 # Encoding Methods
 
+```@docs
+ToQUBO.Encoding.encode
+ToQUBO.Encoding.encode!
+ToQUBO.Encoding.encodes
+```
+
 ## Variables
 
 As you may already know, QUBO models are comprised only of binary variables.
-So when we are reformulating general optimization problems, one important step is to encode variables into binary ones. 
+So when we are reformulating general optimization problems, one important step is to encode variables into binary ones.
 
 `ToQUBO` currently implements 6 encoding techniques.
 Each method introduces a different number of variables, quadratic terms and linear terms.
@@ -18,29 +24,43 @@ Also, they differ in the magnitude of their coefficients ``\Delta``.
 | Bounded-Coefficient   |    ``O(n)``        |    ``O(n)``      |       -             | ``O(1)``         |
 | Arithmetic Prog       |  ``O(\sqrt{n})``   |  ``O(\sqrt{n})`` |       -             | ``O(\sqrt{n})``  |
 
-### Linear Encoding
-```@docs
-ToQUBO.Unary
-ToQUBO.Binary
-ToQUBO.Arithmetic
-ToQUBO.OneHot
-```
+### Mirror Encoding
 
 ```@docs
-ToQUBO.Mirror
+ToQUBO.Encoding.VariableEncodingMethod
+ToQUBO.Encoding.Mirror
 ```
 
-### Sequential Encoding
+### Interval Encoding
+
 ```@docs
-ToQUBO.DomainWall
+ToQUBO.Encoding.IntervalVariableEncodingMethod
+ToQUBO.Encoding.Unary
+ToQUBO.Encoding.Binary
+ToQUBO.Encoding.Arithmetic
 ```
 
-### Bounded Coefficients
+#### Bounded Coefficients
+
 ```@docs
-ToQUBO.Bounded
+ToQUBO.Encoding.Bounded
 ```
 
-### Encoding Error
+### Arbitrary Set Encoding
+
+```@docs
+ToQUBO.Encoding.SetVariableEncodingMethod
+ToQUBO.Encoding.OneHot
+ToQUBO.Encoding.DomainWall
+```
+
+### Representation Error
+
+```@docs
+ToQUBO.Encoding.encoding_bits
+ToQUBO.Encoding.encoding_points
+```
+
 Let ``\set{x_{i}}_{i \in [k]}`` be the collection of ``k`` evenly spaced samples from the discretization of an interval ``[a, b] \subseteq \mathbb{R}``.
 
 The representation error for a given point ``x`` with respect to ``\set{x_{i}}_{i \in [k]}`` is
@@ -73,11 +93,4 @@ A QUBO model is unconstrained. So when `ToQUBO` is reformulating a problem, it n
 As constraints are introduced into the objective function, we need to make sure that they won't be violated.
 In order to do that, `ToQUBO` multiplies the encoded constraint by a large penalty ``\rho``, so that any violation would result in a sub-optimal solution to the problem.
 
-Sometimes, the encoding process might introduce higher-order terms, demanding `ToQUBO` to reduce the offending polynomials back to a quadratic form. 
-
-As of today, `ToQUBO` provides encoding for the following constraints:
-
-```@docs
-ToQUBO.toqubo_constraint
-```
-
+Sometimes, the encoding process might introduce higher-order terms, demanding `ToQUBO` to reduce the offending polynomials back to a quadratic form.

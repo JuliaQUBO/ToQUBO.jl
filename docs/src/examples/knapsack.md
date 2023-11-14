@@ -1,5 +1,7 @@
-## Knapsack
+# Knapsack
+
 We start with some instances of the discrete [Knapsack Problem](https://en.wikipedia.org/wiki/Knapsack_problem) whose standard formulation is
+
 ```math
 \begin{array}{r l}
     \max        & \mathbf{c}\, \mathbf{x} \\
@@ -8,61 +10,60 @@ We start with some instances of the discrete [Knapsack Problem](https://en.wikip
 \end{array}
 ```
 
-### MathOptInterface
-Using [MOI](https://github.com/jump-dev/MathOptInterface.jl) directly to build a simple model is pretty straightforward. All that one has to do is to use `MOI.instantiate` and define the model as usual.
+First, consider the following items
 
-```@example moi-knapsack
-import MathOptInterface as MOI
-const MOIU = MOI.Utilities
+| Item (``i``) | Value (``c_{i}``) | Weight (``w_{i}``) |
+|:------------:|:-----------------:|:------------------:|
+|       1      |         1         |       0.3          |
+|       2      |         2         |       0.5          |
+|       3      |         3         |       1.0          |
 
-using ToQUBO
-using DWaveNeal # <- Your favourite Annealer / Sampler / Solver here
+to be carried in a knapsack with capacity ``C = 1.6``.
 
-# Example from https://jump.dev/MathOptInterface.jl/stable/tutorials/example/
+Writing down the data above as a linear program, we have
 
-# Virtual QUBO Model
-model = MOI.instantiate(
-   () -> ToQUBO.Optimizer(DWaveNeal.Optimizer),
-   with_bridge_type = Float64,
-)
-
-n = 3;
-c = [1.0, 2.0, 3.0]
-w = [0.3, 0.5, 1.0]
-C = 3.2;
-
-x = MOI.add_variables(model, n);
-
-for xᵢ in x
-   MOI.add_constraint(model, xᵢ, MOI.ZeroOne())
-end
-
-MOI.set(model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
-
-MOI.set(
-   model,
-   MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
-   MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.(c, x), 0.0),
-);
-
-MOI.add_constraint(
-   model,
-   MOI.ScalarAffineFunction(MOI.ScalarAffineTerm.(w, x), 0.0),
-   MOI.LessThan(C),
-);
-
-MOI.optimize!(model)
-
-# Collect Solution
-MOI.get.(model, MOI.VariablePrimal(), x)
+```math
+\begin{array}{r l}
+    \max        & x_{1} + 2 x_{2} + 3 x_{3} \\
+    \text{s.t.} & 0.3 x_{1} + 0.5 x_{2} + x_{3} \le 1.6 \\
+    ~           & \mathbf{x} \in \mathbb{B}^{3}
+\end{array}
 ```
 
-### JuMP + D-Wave Examples
-We may now fill a few more knapsacks using [JuMP](https://github.com/jump-dev/JuMP.jl). We will generate uniform random costs ``\mathbf{c}`` and weights ``\mathbf{w}`` then set the knapsack's capacity ``C`` to be a fraction of the total available weight i.e. ``80\%``.
+## Simple JuMP Model
+
+Writing this in [JuMP](https://github.com/jump-dev/JuMP.jl) we end up with
+
+```@example dwave-knapsack
+using JuMP
+using ToQUBO
+using DWave
+
+model = Model(() -> ToQUBO.Optimizer(DWave.Neal.Optimizer))
+
+@variable(model, x[1:3], Bin)
+@objective(model, Max, x[1] + 2 * x[2] + 3 * x[3])
+@constraint(model, 0.3 * x[1] + 0.5 * x[2] + x[3] ≤ 1.6)
+
+optimize!(model)
+
+solution_summary(model)
+```
+
+The final decision is to take items ``2`` and ``3``, i.e., ``x_{1} = 0, x_{2} = 1, x_{3} = 1``.
+
+```@example dwave-knapsack
+value.(x)
+```
+
+## Using DataFrames
+
+Now, lets fill a few more knapsacks.
+First, we generate uniform random costs ``\mathbf{c}`` and weights ``\mathbf{w}`` then set the knapsack's capacity ``C`` to be a fraction of the total available weight i.e. ``80\%``.
 
 This example was inspired by [D-Wave's knapsack example repository](https://github.com/dwave-examples/knapsack).
 
-```@setup
+```@setup dwave-knapsack
 using CSV
 using DataFrames
 using Random
@@ -71,8 +72,8 @@ using Random
 rng = MersenneTwister(1)
 
 df = DataFrame(
-   :cost   => rand(rng, 1:100, 16),
-   :weight => rand(rng, 1:100, 16),
+   :cost   => rand(rng, 1:100, 8),
+   :weight => rand(rng, 1:100, 8),
 )
 
 CSV.write("knapsack.csv", df)
@@ -88,9 +89,9 @@ df = CSV.read("knapsack.csv", DataFrame)
 ```@example dwave-knapsack
 using JuMP
 using ToQUBO
-using DWaveNeal # <- Your favourite Annealer/Sampler/Solver here
+using DWave
 
-model = Model(() -> ToQUBO.Optimizer(DWaveNeal.Optimizer))
+model = Model(() -> ToQUBO.Optimizer(DWave.Neal.Optimizer))
 
 n = size(df, 1)
 c = collect(Float64, df[!, :cost])
@@ -104,5 +105,7 @@ C = round(0.8 * sum(w))
 optimize!(model)
 
 # Add Results as a new column
-insertcols!(df, 3, :select => map((ξ) -> (ξ > 0.0) ? "Yes" : "No", value.(x)))
+df[:,:select] = map(xi -> ifelse(xi > 0, "✅", "❌"), value.(x))
+
+df
 ```

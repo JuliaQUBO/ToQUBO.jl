@@ -1,115 +1,82 @@
+module Compiler
+
+# Imports
+using MathOptInterface
+const MOI = MathOptInterface
+
+import QUBOTools: PBO
+import QUBOTools: AbstractArchitecture, GenericArchitecture
+
+import ..Encoding:
+    Encoding, VariableEncodingMethod, Mirror, Unary, Binary, Arithmetic, OneHot, DomainWall
+
+import ..Virtual: Virtual, encoding, expansion, penaltyfn
+
+import ..Attributes
+
+# Constants
+const VI     = MOI.VariableIndex
+const SAT{T} = MOI.ScalarAffineTerm{T}
+const SAF{T} = MOI.ScalarAffineFunction{T}
+const SQT{T} = MOI.ScalarQuadraticTerm{T}
+const SQF{T} = MOI.ScalarQuadraticFunction{T}
+const EQ{T}  = MOI.EqualTo{T}
+const LT{T}  = MOI.LessThan{T}
+const GT{T}  = MOI.GreaterThan{T}
+
 include("analysis.jl")
-include("architectures.jl")
 include("interface.jl")
 include("parse.jl")
+include("setup.jl")
 include("variables.jl")
 include("objective.jl")
 include("constraints.jl")
 include("penalties.jl")
 include("build.jl")
 
-# toqubo: MOI.ModelLike -> QUBO.Model 
-toqubo(
-    source::MOI.ModelLike,
-    arch::Union{AbstractArchitecture,Nothing} = nothing,
-    optimizer = nothing,
-) = toqubo(Float64, source, arch; optimizer)
+function compile!(model::Virtual.Model)
+    arch = MOI.get(model, Attributes.Architecture())
 
-function toqubo(
-    ::Type{T},
-    source::MOI.ModelLike,
-    arch::Union{AbstractArchitecture,Nothing} = nothing;
-    optimizer = nothing,
-) where {T}
-    model = VirtualModel{T}(optimizer)
+    compile!(model, arch)
 
-    MOI.copy_to(model, source)
-
-    if isnothing(arch)
-        arch = infer_architecture(optimizer)
-    end
-
-    toqubo!(model, arch)
-
-    return model
+    return nothing
 end
 
-function toqubo!(
-    model::VirtualModel{T},
-    arch::AbstractArchitecture = GenericArchitecture(),
-) where {T}
-    # Cleanup
-    toqubo_empty!(model, arch)
-
+function compile!(model::Virtual.Model{T}, arch::AbstractArchitecture) where {T}
     if is_qubo(model.source_model)
-        toqubo_copy!(model, arch)
+        Compiler.copy!(model, arch)
 
         return nothing
     end
 
-    toqubo_compile!(model, arch)
+    # Compiler Settings
+    setup!(model, arch)
 
-    return nothing
-end
-
-function toqubo_copy!(
-    model::VirtualModel{T},
-    ::AbstractArchitecture,
-) where {T}
-    source_model = model.source_model
-    target_model = model.target_model
-
-    # Map Variables
-    for vi in MOI.get(source_model, MOI.ListOfVariableIndices())
-        encode!(model, Mirror(), vi)
-    end
-
-    # Copy Objective Sense
-    s = MOI.get(source_model, MOI.ObjectiveSense())
-
-    MOI.set(target_model, MOI.ObjectiveSense(), s)
-
-    # Copy Objective Function
-    F = MOI.get(source_model, MOI.ObjectiveFunctionType())
-    f = MOI.get(source_model, MOI.ObjectiveFunction{F}())
-
-    MOI.set(target_model, MOI.ObjectiveFunction{F}(), f)
-
-    return nothing
-end
-
-function toqubo_compile!(
-    model::VirtualModel{T},
-    arch::AbstractArchitecture = GenericArchitecture(),
-) where {T}
     # Objective Sense
-    toqubo_sense!(model, arch)
+    sense!(model, arch)
 
     # Problem Variables
-    toqubo_variables!(model, arch)
+    variables!(model, arch)
 
     # Objective Analysis
-    toqubo_objective!(model, arch)
+    objective!(model, arch)
 
     # Add Regular Constraints
-    toqubo_constraints!(model, arch)
+    constraints!(model, arch)
 
     # Add Encoding Constraints
-    toqubo_encoding_constraints!(model, arch)
+    encoding_constraints!(model, arch)
 
     # Compute penalties
-    toqubo_penalties!(model, arch)
+    penalties!(model, arch)
 
     # Build Final Model
-    toqubo_build!(model, arch)
+    build!(model, arch)
 
     return nothing
 end
 
-function toqubo_empty!(
-    model::VirtualModel,
-    ::AbstractArchitecture = GenericArchitecture(),
-)
+function reset!(model::Virtual.Model, ::AbstractArchitecture = GenericArchitecture())
     # Model
     MOI.empty!(model.target_model)
 
@@ -127,3 +94,26 @@ function toqubo_empty!(
 
     return nothing
 end
+
+function Compiler.copy!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
+    # Map Variables
+    for vi in MOI.get(model.source_model, MOI.ListOfVariableIndices())
+        Encoding.encode!(model, vi, Encoding.Mirror{T}())
+    end
+
+    # Copy Objective Sense
+    let s = MOI.get(model.source_model, MOI.ObjectiveSense())
+        MOI.set(model.target_model, MOI.ObjectiveSense(), s)
+    end
+
+    # Copy Objective Function
+    let F = MOI.get(model.source_model, MOI.ObjectiveFunctionType())
+        f = MOI.get(model.source_model, MOI.ObjectiveFunction{F}())
+
+        MOI.set(model.target_model, MOI.ObjectiveFunction{F}(), f)
+    end
+
+    return nothing
+end
+
+end # module Compiler

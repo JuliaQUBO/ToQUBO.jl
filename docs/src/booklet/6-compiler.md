@@ -6,13 +6,42 @@
 
 ## Compilation Steps
 
+### Setup
+
 ```@docs
-ToQUBO.toqubo_sense!
-ToQUBO.toqubo_variables!
-ToQUBO.toqubo_constraint
-ToQUBO.toqubo_constraints!
-ToQUBO.toqubo_objective!
-ToQUBO.toqubo_penalties!
-ToQUBO.toqubo_parse!
-ToQUBO.toqubo_build!
+ToQUBO.Compiler.reset!
+ToQUBO.Compiler.setup!
+```
+
+### Parsing
+
+```@docs
+ToQUBO.Compiler.parse!
+ToQUBO.Compiler._parse
+```
+
+### Reformulation
+
+```@docs
+ToQUBO.Compiler.sense!
+ToQUBO.Compiler.variable!
+ToQUBO.Compiler.variables!
+ToQUBO.Compiler.constraint
+ToQUBO.Compiler.constraints!
+ToQUBO.Compiler.objective!
+ToQUBO.Compiler.penalties!
+```
+
+#### Copying
+
+```@docs
+ToQUBO.Compiler.isqubo
+ToQUBO.Compiler.copy!
+```
+
+### Hamiltonian Assembly
+
+```@docs
+ToQUBO.Compiler.build!
+ToQUBO.Compiler.quadratize!
 ```

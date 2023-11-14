@@ -5,6 +5,7 @@
 ## Quick Start
 
 ### Installation
+
 ```julia
 julia> import Pkg
 
@@ -12,12 +13,13 @@ julia> Pkg.add("ToQUBO")
 ```
 
 ### Example
+
 ```@example
 using JuMP
 using ToQUBO
-using DWaveNeal
+using DWave
 
-model = Model(() -> ToQUBO.Optimizer(DWaveNeal.Optimizer))
+model = Model(() -> ToQUBO.Optimizer(DWave.Neal.Optimizer))
 
 @variable(model, x[1:3], Bin)
 @objective(model, Max, 1.0*x[1] + 2.0*x[2] + 3.0*x[3])
@@ -29,7 +31,9 @@ solution_summary(model)
 ```
 
 ## Citing ToQUBO.jl
+
 If you use `ToQUBO.jl` in your work, we kindly ask you to include the following citation:
+
 ```tex
 @software{toqubo:2023,
   author       = {Pedro Maciel Xavier and Pedro Ripper and Tiago Andrade and Joaquim Dias Garcia and David E. Bernal Neira},
