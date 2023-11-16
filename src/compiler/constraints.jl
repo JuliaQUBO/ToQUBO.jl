@@ -162,6 +162,69 @@ end
 
 @doc raw"""
     constraint(
+        model::Virtual.Model{T}, 
+        f::SAF{T}, 
+        s::GT{T}, 
+        ::AbstractArchitecture
+    ) where {T}
+
+Turns constraints of the form
+
+```math
+\begin{array}{rl}
+\text{s.t} & \mathbf{a}'\mathbf{x} - b \ge 0
+\end{array}
+```
+
+into 
+
+```math
+\left\Vert(\mathbf{x})\right\Vert_{\left\lbrace{0}\right\rbrace} = (\mathbf{a}'\mathbf{x} - b - z)^{2}
+
+```
+
+by adding a slack variable ``z``.
+"""
+function constraint(
+    model::Virtual.Model{T},
+    f::SAF{T},
+    s::GT{T},
+    arch::AbstractArchitecture,
+) where {T}
+    # Scalar Affine Inequality Constraint: g(x) = a'x - b ≥ 0 
+    g = _parse(model, f, s, arch)
+
+    PBO.discretize!(g)
+
+    # Bounds & Slack Variable 
+    l, u = PBO.bounds(g)
+
+    if l > zero(T) # Always feasible
+        @warn """
+        Always-feasible constraint detected:
+        $(f) ≥ $(s.lower)
+        """
+        return nothing
+    elseif u < zero(T) # Infeasible
+        @warn "Infeasible constraint detected"
+    end
+
+    # Slack Variable
+    # TODO: Add slack variable encoding method constraint attribute
+    e = MOI.get(model, Attributes.DefaultVariableEncodingMethod())
+    S = (zero(T), abs(u))
+    z = Encoding.encode!(model, nothing, e, S)
+
+    for (ω, c) in Virtual.expansion(z)
+        g[ω] -= c
+    end
+
+    return g^2
+end
+
+
+@doc raw"""
+    constraint(
         model::Virtual.Model{T},
         f::SQF{T},
         s::EQ{T},
@@ -272,6 +335,70 @@ function constraint(
 
     for (ω, c) in Virtual.expansion(z)
         g[ω] += c
+    end
+
+    # Tell the compiler that quadratization is necessary
+    MOI.set(model, Attributes.Quadratize(), true)
+
+    return g^2
+end
+
+@doc raw"""
+    constraint(
+        model::Virtual.Model{T},
+        f::SQF{T},
+        s::GT{T},
+        arch::AbstractArchitecture,
+    ) where {T}
+
+Turns constraints of the form
+
+```math
+\begin{array}{rl}
+\text{s.t} & \mathbf{x}'\mathbf{Q}\mathbf{x} + \mathbf{a}'\mathbf{x} - b \geq 0
+\end{array}
+```
+
+into
+
+```math
+\left\Vert(\mathbf{x})\right\Vert_{\left\lbrace{0}\right\rbrace} = (\mathbf{x}'\mathbf{Q}\mathbf{x} + \mathbf{a}'\mathbf{x} - b - z)^{2}
+
+```
+
+by adding a slack variable ``z``.
+"""
+function constraint(
+    model::Virtual.Model{T},
+    f::SQF{T},
+    s::GT{T},
+    arch::AbstractArchitecture,
+) where {T}
+    # Scalar Quadratic Inequality Constraint: g(x) = x' Q x + a' x - b ≥ 0
+    g = _parse(model, f, s, arch)
+
+    PBO.discretize!(g)
+
+    # Bounds & Slack Variable 
+    l, u = PBO.bounds(g)
+
+    if l > zero(T) # Always feasible
+        @warn """
+        Always-feasible constraint detected:
+        $(f) ≥ $(s.upper)
+        """
+        return nothing
+    elseif u < zero(T) # Infeasible
+        @warn "Infeasible constraint detected"
+    end
+
+    # Slack Variable
+    e = MOI.get(model, Attributes.DefaultVariableEncodingMethod())
+    S = (zero(T), abs(u))
+    z = Encoding.encode!(model, nothing, e, S)
+
+    for (ω, c) in Virtual.expansion(z)
+        g[ω] -= c
     end
 
     # Tell the compiler that quadratization is necessary

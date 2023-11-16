@@ -138,7 +138,7 @@ MOI.supports_constraint(
 MOI.supports_constraint(
     ::Optimizer{T},
     ::Type{<:Union{SAF{T},SQF{T}}},
-    ::Type{<:Union{MOI.EqualTo{T},MOI.LessThan{T}}},
+    ::Type{<:Union{MOI.EqualTo{T},MOI.LessThan{T},MOI.GreaterThan{T}}},
 ) where {T} = true
 
 MOI.supports_constraint(

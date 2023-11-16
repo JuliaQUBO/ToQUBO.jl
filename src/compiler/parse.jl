@@ -82,6 +82,21 @@ end
 function parse!(
     model::Virtual.Model{T},
     g::PBO.PBF{VI,T},
+    f::SAF{T},
+    s::GT{T},
+    arch::AbstractArchitecture,
+) where {T}
+    parse!(model, g, f, arch)
+
+    g[nothing] -= s.lower
+
+    return nothing
+end
+
+
+function parse!(
+    model::Virtual.Model{T},
+    g::PBO.PBF{VI,T},
     f::SQF{T},
     ::AbstractArchitecture,
 ) where {T}
@@ -152,3 +167,18 @@ function parse!(
 
     return nothing
 end
+
+function parse!(
+    model::Virtual.Model{T},
+    g::PBO.PBF{VI,T},
+    f::SQF{T},
+    s::GT{T},
+    arch::AbstractArchitecture,
+) where {T}
+    parse!(model, g, f, arch)
+
+    g[nothing] -= s.lower
+
+    return nothing
+end
+
