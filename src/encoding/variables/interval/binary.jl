@@ -37,7 +37,7 @@ function encode(var::Function, e::Binary{T}, S::Tuple{T,T}; tol::Union{T,Nothing
 
     a, b = integer_interval(S)
 
-    @assert b > a
+    @assert b > a "($b ≤ $a)"
 
     M = trunc(Int, b - a)
     N = ceil(Int, log2(M + 1))

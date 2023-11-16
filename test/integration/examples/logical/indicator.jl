@@ -4,28 +4,27 @@ function test_indicator()
 end
 
 """
+
 """
 function test_indicator_linear()
     @testset "→ Indicator Constraint" begin
         model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
 
-        @variable(model, 0 <= x[1:2] <= 2, Int)
+        @variable(model, -2 ≤ x[1:2] ≤ 2)
         @variable(model, Y[1:2], Bin)
 
-        @objective(model, Min, sum(x) - 2 * sum(Y))
+        @objective(model, Min, sum(x))
 
-        @constraint(model, ci[i = 1:2], Y[i] => {x[i] ≥ 1})
+        @constraint(model, sum(Y) == 1)
+        
+        @constraint(model, sq1[i = 1:2], Y[1] => {-2 ≤ x[i] ≤ -1})
+        @constraint(model, sq2[i = 1:2], Y[2] => {1 ≤ x[i] ≤ 2})
 
         optimize!(model)
 
         n, L, Q, α, β = QUBOTools.qubo(model, :dense)
 
         @show n
-        println()
-        display(L)
-        println()
-        display(Q)
-        println()
     end
 
     return nothing
@@ -35,30 +34,26 @@ end
 """
 function test_indicator_quadratic()
     @testset "→ Indicator Constraint" begin
-        model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
+        model = Model(() -> ToQUBO.Optimizer(RandomSampler.Optimizer))
 
-        @variable(model, 0 <= x[1:2] <= 5, Int)
+        @variable(model, 0 <= x[1:2] <= 5)
         @variable(model, Y[1:2], Bin)
 
-        @objective(model, Min, sum(x) - 2 * sum(Y))
+        @objective(model, Min, sum(x))
 
         @constraint(model, c1, Y[1] => {x[1]^2 + x[2]^2 ≤ 1})
         @constraint(model, c2, Y[2] => {(x[1] - 2)^2 + (x[2] - 2)^2 ≤ 1})
 
         @constraint(model, c3, Y[1] + Y[2] == 1)
 
+        set_attribute.(x, ToQUBO.Attributes.VariableEncodingBits(), 5)
+        set_attribute(model, RandomSampler.NumberOfReads(), 2_000)
+
         optimize!(model)
 
         n, L, Q, α, β = QUBOTools.qubo(model, :dense)
 
         @show n
-        println()
-        display(L)
-        println()
-        display(Q)
-        println()
-
-        @show result_count(model)
     end
 
     return nothing

@@ -161,6 +161,18 @@ function constraint(
 end
 
 @doc raw"""
+
+"""
+function constraint(
+    model::Virtual.Model{T},
+    f::SAF{T},
+    s::MOI.Interval{T},
+    arch::AbstractArchitecture,
+) where {T}
+    return constraint(model, f, LT{T}(s.upper), arch) + constraint(model, f, GT{T}(s.lower), arch)
+end
+
+@doc raw"""
     constraint(
         model::Virtual.Model{T},
         f::SQF{T},

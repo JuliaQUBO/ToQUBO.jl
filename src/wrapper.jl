@@ -31,7 +31,6 @@ function MOI.optimize!(model::Optimizer)
     ToQUBO.Compiler.compile!(model)
 
     if !isnothing(model.optimizer)
-        @info "Optimizing with $(MOI.get(model.optimizer, MOI.SolverName()))"
         MOI.optimize!(model.optimizer, model.target_model)
     end
 
