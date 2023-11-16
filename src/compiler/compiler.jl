@@ -24,6 +24,7 @@ const EQ{T}  = MOI.EqualTo{T}
 const LT{T}  = MOI.LessThan{T}
 const GT{T}  = MOI.GreaterThan{T}
 
+include("error.jl")
 include("analysis.jl")
 include("interface.jl")
 include("parse.jl")

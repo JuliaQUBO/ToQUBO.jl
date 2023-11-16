@@ -323,6 +323,76 @@ function constraint(
     return g^2
 end
 
+function constraint(
+    model::Virtual.Model{T},
+    f::MOI.VectorAffineFunction{T},
+    s::MOI.Indicator{A,S},
+    arch::AbstractArchitecture,
+) where {T,A,S}
+    # Indicator Constraint: y = 0|1 => {g(x)}
+
+    xi = first(f.terms).scalar_term.variable # Indicator Variable
+    vi = model.source[xi]
+
+    @assert Virtual.encoding(vi) isa Mirror
+
+    yi = only(Virtual.target(vi))
+
+    g = MOI.ScalarAffineFunction{T}(
+        SAT{T}[f.terms[i].scalar_term for i = 2:length(f.terms)],
+        sum(f.constants[i] for i = 2:length(f.constants)),
+    )
+
+    # Tell the compiler that quadratization is necessary
+    MOI.set(model, Attributes.Quadratize(), true)
+
+    if A === MOI.ACTIVATE_ON_ONE
+        return PBO.PBF{VI,T}(yi) * constraint(model, g, s.set, arch)
+    elseif A === MOI.ACTIVATE_ON_ZERO
+        return (one(T) - PBO.PBF{VI,T}(yi)) * constraint(model, g, s.set, arch)
+    else
+        error("Indicator constraint activation type $(A) not supported")
+    end
+
+    return nothing
+end
+
+function constraint(
+    model::Virtual.Model{T},
+    f::MOI.VectorQuadraticFunction{T},
+    s::MOI.Indicator{A,S},
+    arch::AbstractArchitecture,
+) where {T,A,S}
+    # Indicator Constraint: y = 0|1 => {g(x)}
+
+    xi = first(f.affine_terms).scalar_term.variable # Indicator Variable
+    vi = model.source[xi]
+
+    @assert Virtual.encoding(vi) isa Mirror
+
+    yi = only(Virtual.target(vi))
+
+    g = MOI.ScalarQuadraticFunction{T}(
+        SQT{T}[f.quadratic_terms[i].scalar_term for i = 2:length(f.quadratic_terms)],
+        SAT{T}[f.affine_terms[i].scalar_term for i = 2:length(f.affine_terms)],
+        sum(f.constants[i] for i = 2:length(f.constants)),
+    )
+
+    # Tell the compiler that quadratization is necessary
+    MOI.set(model, Attributes.Quadratize(), true)
+
+    if A === MOI.ACTIVATE_ON_ONE
+        return PBO.PBF{VI,T}(yi) * constraint(model, g, s.set, arch)
+    elseif A === MOI.ACTIVATE_ON_ZERO
+        return (one(T) - PBO.PBF{VI,T}(yi)) * constraint(model, g, s.set, arch)
+    else
+        error("Indicator constraint activation type $(A) not supported")
+    end
+
+    return nothing
+end
+
+
 function encoding_constraints!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
     for v in model.variables
         x = Virtual.source(v)

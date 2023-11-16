@@ -9,7 +9,7 @@ function test_compiler_constraints_quadratic()
 
     model = ToQUBO.Virtual.Model{Float64}()
     arch  = ToQUBO.Compiler.GenericArchitecture()
-    x, _  = MOI.add_constrained_variables(model.source_model, repeat([MOI.ZeroOne()], n))
+    x, _  = MOI.add_constrained_variables(model.source_model, fill(MOI.ZeroOne(), n))
 
     ToQUBO.Compiler.variables!(model, arch)
 

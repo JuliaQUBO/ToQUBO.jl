@@ -95,24 +95,26 @@ function variable_𝔹!(model::Virtual.Model{T}, x::VI) where {T}
     return nothing
 end
 
-function variable_ℤ!(model::Virtual.Model{T}, x::VI, (a, b)::Tuple{T,T}) where {T}
-    if isnothing(a) || isnothing(b)
-        error("Unbounded variable $(x) ∈ ℤ")
-    else
+function variable_ℤ!(model::Virtual.Model{T}, x::VI, (a, b)::Tuple{A,B}) where {T,A<:Union{T,Nothing},B<:Union{T,Nothing}}
+    if !isnothing(a) && !isnothing(b)
         let e = Attributes.variable_encoding_method(model, x)
             S = (a, b)
 
             Encoding.encode!(model, x, e, S)
         end
+    elseif !isnothing(b)
+        error("Unbounded variable $(x) ∈ (-∞, $(b)] ⊂ ℤ ")
+    elseif !isnothing(a)
+        error("Unbounded variable $(x) ∈ [$(a), +∞) ⊂ ℤ")
+    else
+        error("Unbounded variable $(x) ∈ ℤ")
     end
 
     return nothing
 end
 
-function variable_ℝ!(model::Virtual.Model{T}, x::VI, (a, b)::Tuple{T,T}) where {T}
-    if isnothing(a) || isnothing(b)
-        error("Unbounded variable $(x) ∈ ℝ")
-    else
+function variable_ℝ!(model::Virtual.Model{T}, x::VI, (a, b)::Tuple{A,B}) where {T,A<:Union{T,Nothing},B<:Union{T,Nothing}}
+    if !isnothing(a) && !isnothing(b)
         # TODO: Solve this bit-guessing magic??? (DONE)
         # IDEA: 
         #     Let x̂ ~ U[a, b], K = 2ᴺ, γ = [a, b]
@@ -138,6 +140,15 @@ function variable_ℝ!(model::Virtual.Model{T}, x::VI, (a, b)::Tuple{T,T}) where
                 Encoding.encode!(model, x, e, S; tol)
             end
         end
+    elseif !isnothing(b)
+        error("Unbounded variable $(x) ∈ (-∞, $(b)]")
+    elseif !isnothing(a)
+        error("Unbounded variable $(x) ∈ [$(a), +∞)")
+    else
+        @info "Source Model:"
+        println(model.source_model)
+        
+        error("Unbounded variable $(x) ∈ ℝ")
     end
 
     return nothing
