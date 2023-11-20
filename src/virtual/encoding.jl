@@ -30,6 +30,14 @@ function Encoding.encode!(model::Model{T}, x::Union{VI,Nothing}, e::VariableEnco
     return Encoding.encode!(model, v)
 end
 
+function Encoding.encode!(model::Model{T}, c::CI, e::VariableEncodingMethod) where {T}
+    v = Encoding.encode!(model, nothing, e)
+
+    model.slack[c] = v
+
+    return v
+end
+
 function Encoding.encode!(
     model::Model{T},
     x::Union{VI,Nothing},
@@ -47,6 +55,19 @@ function Encoding.encode!(
     v = Variable{T}(e, x, y, ξ, χ)
 
     return Encoding.encode!(model, v)
+end
+
+function Encoding.encode!(
+    model::Model{T},
+    c::CI,
+    e::VariableEncodingMethod,
+    γ::AbstractVector{T},
+) where {T}
+    v = Encoding.encode!(model, nothing, e, γ)
+
+    model.slack[c] = v
+
+    return v
 end
 
 function encode!(
@@ -69,6 +90,21 @@ function encode!(
     return Encoding.encode!(model, v)
 end
 
+function encode!(
+    model::Model{T},
+    c::CI,
+    e::VariableEncodingMethod,
+    S::Tuple{T,T};
+    tol::Union{T,Nothing} = nothing,
+) where {T}
+    v = Encoding.encode!(model, nothing, e, S; tol)
+
+    model.slack[c] = v
+
+    return v
+end
+
+
 function Encoding.encode!(
     model::Model{T},
     x::Union{VI,Nothing},
@@ -87,4 +123,18 @@ function Encoding.encode!(
     v = Variable{T}(e, x, y, ξ, χ)
 
     return Encoding.encode!(model, v)
+end
+
+function Encoding.encode!(
+    model::Model{T},
+    c::CI,
+    e::VariableEncodingMethod,
+    S::Tuple{T,T},
+    n::Integer,
+) where {T}
+    v = Encoding.encode!(model, nothing, e, S, n)
+
+    model.slack[c] = v
+
+    return v
 end

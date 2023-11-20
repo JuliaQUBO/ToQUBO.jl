@@ -57,9 +57,6 @@ function MOI.get(
     model::Virtual.Model,
     attr::Union{
         MOI.SolveTimeSec,
-        MOI.PrimalStatus,
-        MOI.DualStatus,
-        MOI.TerminationStatus,
         MOI.RawStatusString,
     },
 )
@@ -74,9 +71,6 @@ function MOI.supports(
     model::Virtual.Model,
     attr::Union{
         MOI.SolveTimeSec,
-        MOI.PrimalStatus,
-        MOI.DualStatus,
-        MOI.TerminationStatus,
         MOI.RawStatusString,
     },
 )
@@ -84,6 +78,38 @@ function MOI.supports(
         return MOI.supports(model.optimizer, attr)
     else
         return false
+    end
+end
+
+function MOI.get(model::Virtual.Model, attr::MOI.TerminationStatus)
+    if !isnothing(model.optimizer)
+        return MOI.get(model.optimizer, attr)
+    else
+        return get(model.compiler_settings, :compilation_status, MOI.OTHER_LIMIT)
+    end
+end
+
+function MOI.supports(model::Virtual.Model, attr::MOI.TerminationStatus)
+    if !isnothing(model.optimizer)
+        return MOI.supports(model.optimizer, attr)
+    else
+        return true
+    end
+end
+
+function MOI.get(model::Virtual.Model, attr::Union{MOI.PrimalStatus, MOI.DualStatus})
+    if !isnothing(model.optimizer)
+        return MOI.get(model.optimizer, attr)
+    else
+        return MOI.NO_SOLUTION
+    end
+end
+
+function MOI.supports(model::Virtual.Model, attr::Union{MOI.PrimalStatus, MOI.DualStatus})
+    if !isnothing(model.optimizer)
+        return MOI.supports(model.optimizer, attr)
+    else
+        return true
     end
 end
 

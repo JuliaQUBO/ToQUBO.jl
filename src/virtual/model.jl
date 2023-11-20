@@ -3,26 +3,27 @@
 
 This Virtual Model links the final QUBO formulation to the original one, allowing variable value retrieving and other features.
 """
-mutable struct Model{T} <: MOI.AbstractOptimizer
-    # Underlying Optimizer  #
-    optimizer::Union{MOI.AbstractOptimizer,Nothing}
+mutable struct Model{T,O} <: MOI.AbstractOptimizer
+    # Underlying Optimizer
+    optimizer::O
 
-    # MathOptInterface Bridges  #
+    # MathOptInterface Bridges
     bridge_model::MOIB.LazyBridgeOptimizer{PreQUBOModel{T}}
 
-    # Virtual Model Interface  #
+    # Virtual Model Interface
     source_model::PreQUBOModel{T}
     target_model::QUBOModel{T}
     variables::Vector{Variable{T}}
     source::Dict{VI,Variable{T}}
     target::Dict{VI,Variable{T}}
+    slack::Dict{CI,Variable{T}}
 
-    # PBO/PBF IR  #
+    # PBO/PBF IR
     f::PBO.PBF{VI,T}          # Objective Function
-    g::Dict{CI,PBO.PBF{VI,T}} # Constraint Functions
-    h::Dict{VI,PBO.PBF{VI,T}} # Variable Functions
-    ρ::Dict{CI,T}             # Constraint Penalties
-    θ::Dict{VI,T}             # Variable Penalties
+    g::Dict{CI,PBO.PBF{VI,T}} # Constraint Penalty Functions
+    ρ::Dict{CI,T}             # Constraint Penalty Factors
+    h::Dict{VI,PBO.PBF{VI,T}} # Variable Penalty Functions
+    θ::Dict{VI,T}             # Variable Penalty Factors
     H::PBO.PBF{VI,T}          # Final Objective Function
 
     # Settings 
@@ -30,43 +31,45 @@ mutable struct Model{T} <: MOI.AbstractOptimizer
     variable_settings::Dict{Symbol,Dict{VI,Any}}
     constraint_settings::Dict{Symbol,Dict{CI,Any}}
 
-    function Model{T}(
-        constructor::Union{Type{O},Function};
-        kws...,
-    ) where {T,O<:MOI.AbstractOptimizer}
-        optimizer = constructor()
+    function Model{T}(constructor::Any; kws...) where {T}
+        optimizer = constructor()::MOI.AbstractOptimizer
 
-        return Model{T}(optimizer; kws...)
+        return Model{T,typeof(optimizer)}(optimizer; kws...)
     end
 
-    function Model{T}(
-        optimizer::Union{O,Nothing} = nothing;
+    function Model{T}(::Nothing = nothing; kws...) where {T}
+        return Model{T,Nothing}(nothing; kws...)
+    end
+
+    function Model{T,O}(
+        optimizer::O = nothing;
         kws...,
-    ) where {T,O<:MOI.AbstractOptimizer}
+    ) where {T,O<:Union{MOI.AbstractOptimizer,Nothing}}
         source_model = PreQUBOModel{T}()
         target_model = QUBOModel{T}()
         bridge_model = MOIB.full_bridge_optimizer(source_model, T)
 
-        new{T}(
-            # Underlying Optimizer  #
+        new{T,O}(
+            # Underlying Optimizer
             optimizer,
 
-            # MathOptInterface Bridges  #
+            # MathOptInterface Bridges
             bridge_model,
 
             # Virtual Model Interface 
             source_model,
             target_model,
-            Vector{Variable{T}}(),
-            Dict{VI,Variable{T}}(),
-            Dict{VI,Variable{T}}(),
+            Vector{Variable{T}}(),  # variables
+            Dict{VI,Variable{T}}(), # source
+            Dict{VI,Variable{T}}(), # target
+            Dict{CI,Variable{T}}(), # slack
 
             # PBO/PBF IR 
             PBO.PBF{VI,T}(),          # Objective Function
-            Dict{CI,PBO.PBF{VI,T}}(), # Constraint Functions
-            Dict{VI,PBO.PBF{VI,T}}(), # Variable Functions
-            Dict{CI,T}(),             # Constraint Penalties
-            Dict{VI,T}(),             # Variable Penalties
+            Dict{CI,PBO.PBF{VI,T}}(), # Constraint Penalty Functions
+            Dict{CI,T}(),             # Constraint Penalty Factors
+            Dict{VI,PBO.PBF{VI,T}}(), # Variable Penalty Functions
+            Dict{VI,T}(),             # Variable Penalty Factors
             PBO.PBF{VI,T}(),          # Final Objective Function
 
             # Settings 

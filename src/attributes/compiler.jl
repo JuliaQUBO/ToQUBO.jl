@@ -907,16 +907,16 @@ function MOI.get(
     ::SlackVariableEncodingPenalty,
     ci::CI,
 )::Union{T,Nothing} where {T}
-    return get(model.ρ, ci, nothing)
+    return get(model.η, ci, nothing)
 end
 
 function MOI.set(
     model::Optimizer{T},
     ::SlackVariableEncodingPenalty,
     ci::CI,
-    ρ::T,
+    η::T,
 )::Nothing where {T}
-    model.ρ[ci] = ρ
+    model.η[ci] = η
 
     return nothing
 end
@@ -927,7 +927,7 @@ function MOI.set(
     ci::CI,
     ::Nothing,
 )
-    delete!(model.ρ, ci)
+    delete!(model.η, ci)
 
     return nothing
 end
