@@ -8,7 +8,7 @@ const VI = MOI.VariableIndex
 include("interface.jl")
 include("extras.jl")
 
-include("variables/interval/mirror.jl")
+include("variables/mirror.jl")
 include("variables/interval/bounded.jl")
 include("variables/interval/unary.jl")
 include("variables/interval/binary.jl")
