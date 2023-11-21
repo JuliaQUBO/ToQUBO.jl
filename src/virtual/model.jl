@@ -24,6 +24,8 @@ mutable struct Model{T,O} <: MOI.AbstractOptimizer
     ρ::Dict{CI,T}             # Constraint Penalty Factors
     h::Dict{VI,PBO.PBF{VI,T}} # Variable Penalty Functions
     θ::Dict{VI,T}             # Variable Penalty Factors
+    s::Dict{CI,PBO.PBF{VI,T}} # Slack Penalty Functions
+    η::Dict{CI,T}             # Slack Penalty Factors
     H::PBO.PBF{VI,T}          # Final Objective Function
 
     # Settings 
@@ -70,6 +72,8 @@ mutable struct Model{T,O} <: MOI.AbstractOptimizer
             Dict{CI,T}(),             # Constraint Penalty Factors
             Dict{VI,PBO.PBF{VI,T}}(), # Variable Penalty Functions
             Dict{VI,T}(),             # Variable Penalty Factors
+            Dict{CI,PBO.PBF{VI,T}}(), # Slack Penalty Functions
+            Dict{CI,T}(),             # Slack Penalty Factors
             PBO.PBF{VI,T}(),          # Final Objective Function
 
             # Settings 

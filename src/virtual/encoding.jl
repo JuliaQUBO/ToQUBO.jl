@@ -1,8 +1,10 @@
 function Encoding.encode!(model::Model{T}, v::Variable{T}) where {T}
     x = source(v)
 
-    if !isnothing(x)
+    if x isa VI
         model.source[x] = v
+    elseif x isa CI
+        model.slack[x] = v
     end
 
     for y in target(v)
@@ -16,7 +18,11 @@ function Encoding.encode!(model::Model{T}, v::Variable{T}) where {T}
     return v
 end
 
-function Encoding.encode!(model::Model{T}, x::Union{VI,Nothing}, e::VariableEncodingMethod) where {T}
+function Encoding.encode!(
+    model::Model{T},
+    x::Union{VI,CI,Nothing},
+    e::VariableEncodingMethod,
+) where {T}
     y, ξ, χ = Encoding.encode(e) do (nv::Union{Integer,Nothing} = nothing)
         if isnothing(nv)
             return MOI.add_variable(model.target_model)
@@ -30,17 +36,9 @@ function Encoding.encode!(model::Model{T}, x::Union{VI,Nothing}, e::VariableEnco
     return Encoding.encode!(model, v)
 end
 
-function Encoding.encode!(model::Model{T}, c::CI, e::VariableEncodingMethod) where {T}
-    v = Encoding.encode!(model, nothing, e)
-
-    model.slack[c] = v
-
-    return v
-end
-
 function Encoding.encode!(
     model::Model{T},
-    x::Union{VI,Nothing},
+    x::Union{VI,CI,Nothing},
     e::VariableEncodingMethod,
     γ::AbstractVector{T},
 ) where {T}
@@ -57,22 +55,9 @@ function Encoding.encode!(
     return Encoding.encode!(model, v)
 end
 
-function Encoding.encode!(
-    model::Model{T},
-    c::CI,
-    e::VariableEncodingMethod,
-    γ::AbstractVector{T},
-) where {T}
-    v = Encoding.encode!(model, nothing, e, γ)
-
-    model.slack[c] = v
-
-    return v
-end
-
 function encode!(
     model::Model{T},
-    x::Union{VI,Nothing},
+    x::Union{VI,CI,Nothing},
     e::VariableEncodingMethod,
     S::Tuple{T,T};
     tol::Union{T,Nothing} = nothing,
@@ -90,24 +75,9 @@ function encode!(
     return Encoding.encode!(model, v)
 end
 
-function encode!(
-    model::Model{T},
-    c::CI,
-    e::VariableEncodingMethod,
-    S::Tuple{T,T};
-    tol::Union{T,Nothing} = nothing,
-) where {T}
-    v = Encoding.encode!(model, nothing, e, S; tol)
-
-    model.slack[c] = v
-
-    return v
-end
-
-
 function Encoding.encode!(
     model::Model{T},
-    x::Union{VI,Nothing},
+    x::Union{VI,CI,Nothing},
     e::VariableEncodingMethod,
     S::Tuple{T,T},
     n::Integer,
@@ -123,18 +93,4 @@ function Encoding.encode!(
     v = Variable{T}(e, x, y, ξ, χ)
 
     return Encoding.encode!(model, v)
-end
-
-function Encoding.encode!(
-    model::Model{T},
-    c::CI,
-    e::VariableEncodingMethod,
-    S::Tuple{T,T},
-    n::Integer,
-) where {T}
-    v = Encoding.encode!(model, nothing, e, S, n)
-
-    model.slack[c] = v
-
-    return v
 end

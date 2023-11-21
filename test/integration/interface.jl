@@ -265,9 +265,9 @@ function test_interface_moi()
                 @test MOI.get(model, Attributes.SlackVariableEncodingMethod(), c[1]) === nothing
                 @test MOI.get(model, Attributes.SlackVariableEncodingMethod(), c[2]) === nothing
 
-                MOI.set(model, Attributes.SlackVariableEncodingMethod(), c[1], Encoding.Arithmetic())
+                MOI.set(model, Attributes.SlackVariableEncodingMethod(), c[1], Encoding.DomainWall())
 
-                @test MOI.get(model, Attributes.SlackVariableEncodingMethod(), c[1]) isa Encoding.Arithmetic
+                @test MOI.get(model, Attributes.SlackVariableEncodingMethod(), c[1]) isa Encoding.DomainWall
 
                 @test MOI.get(model, Attributes.SlackVariableEncodingATol(), c[1]) === nothing
                 @test MOI.get(model, Attributes.SlackVariableEncodingATol(), c[2]) === nothing
