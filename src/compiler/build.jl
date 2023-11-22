@@ -15,8 +15,12 @@ function objective_function(model::Virtual.Model{T}, ::AbstractArchitecture) whe
     Base.empty!(model.H)
 
     # Calculate an upper bound on the number of terms
-    num_terms =
-        length(model.f) + sum(length, model.g; init = 0) + sum(length, model.h; init = 0)
+    num_terms = +(
+        length(model.f),
+        sum(length, model.g; init = 0),
+        sum(length, model.h; init = 0),
+        sum(length, model.s; init = 0),
+    )
 
     sizehint!(model.H, num_terms)
 
@@ -37,6 +41,14 @@ function objective_function(model::Virtual.Model{T}, ::AbstractArchitecture) whe
 
         for (ω, c) in h
             model.H[ω] += θ * c
+        end
+    end
+
+    for (ci, s) in model.s
+        η = model.η[ci]
+
+        for (ω, c) in s
+            model.H[ω] += η * c
         end
     end
 
