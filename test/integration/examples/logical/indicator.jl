@@ -36,7 +36,7 @@ function test_indicator_quadratic()
     @testset "→ Indicator Constraint" begin
         model = Model(() -> ToQUBO.Optimizer(RandomSampler.Optimizer))
 
-        @variable(model, 0 <= x[1:2] <= 5)
+        @variable(model, 0 <= x[1:2] <= 1)
         @variable(model, Y[1:2], Bin)
 
         @objective(model, Min, sum(x))
@@ -46,7 +46,8 @@ function test_indicator_quadratic()
 
         @constraint(model, c3, Y[1] + Y[2] == 1)
 
-        set_attribute.(x, ToQUBO.Attributes.VariableEncodingBits(), 5)
+        set_attribute.(x, ToQUBO.Attributes.VariableEncodingMethod(), ToQUBO.Encoding.Binary())
+        set_attribute.(x, ToQUBO.Attributes.VariableEncodingBits(), 3)
         set_attribute(model, RandomSampler.NumberOfReads(), 2_000)
 
         optimize!(model)
