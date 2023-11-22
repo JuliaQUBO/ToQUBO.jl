@@ -12,7 +12,7 @@ function build!(model::Virtual.Model{T}, arch::AbstractArchitecture) where {T}
 end
 
 function objective_function(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
-    empty!(model.H)
+    Base.empty!(model.H)
 
     # Calculate an upper bound on the number of terms
     num_terms =
@@ -115,8 +115,13 @@ function output!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
             # have this condition here.
             # HINT: When debugging this, a good place to start is to check if the 'Quadratize'
             # flag is set or not. If missing, it should mean that some constraint might induce
-            # PBFs of higher degree without calling 'MOI.set(model, Quadratize(), true)'.     
-            compilation_error("Quadratization failed")
+            # PBFs of higher degree without calling
+            #     MOI.set(model, AttributesQuadratize(), true)
+            compilation_error!(
+                model,
+                "Fatal: Quadratization failed";
+                status="Failure in quadratization",
+            )
         end
     end
 

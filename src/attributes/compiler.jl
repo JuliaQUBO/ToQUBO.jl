@@ -21,6 +21,60 @@ abstract type CompilerAttribute <: MOI.AbstractOptimizerAttribute end
 MOI.supports(::Optimizer, ::A) where {A<:CompilerAttribute} = true
 
 @doc raw"""
+    CompilationTime()
+"""
+struct CompilationTime <: CompilerAttribute end
+
+MOI.is_set_by_optimize(::CompilationTime) = true
+
+function MOI.get(model::Optimizer, ::CompilationTime)::Union{Float64,Nothing}
+    return get(model.compiler_settings, :compilation_time, nothing)
+end
+
+function MOI.set(model::Optimizer, ::CompilationTime, t::Any)
+    model.compiler_settings[:compilation_time] = convert(Float64, t)
+
+    return nothing
+end
+
+function MOI.set(model::Optimizer, ::CompilationTime, ::Nothing)
+    delete!(model.compiler_settings, :compilation_time)
+
+    return nothing
+end
+
+function compilation_time(model::Optimizer)::Union{Float64,Nothing}
+    return MOI.get(model, CompilationTime())
+end
+
+@doc raw"""
+    CompilationStatus()
+"""
+struct CompilationStatus <: CompilerAttribute end
+
+MOI.is_set_by_optimize(::CompilationStatus) = true
+
+function MOI.get(model::Optimizer, ::CompilationStatus)
+    return get(model.compiler_settings, :compilation_status, MOI.OPTIMIZE_NOT_CALLED)
+end
+
+function MOI.set(model::Optimizer, ::CompilationStatus, status::MOI.TerminationStatusCode)
+    model.compiler_settings[:compilation_status] = status
+
+    return nothing
+end
+
+function MOI.set(model::Optimizer, ::CompilationStatus, ::Nothing)
+    delete!(model.compiler_settings, :compilation_status)
+
+    return nothing
+end
+
+function compilation_status(model::Optimizer)::MOI.TerminationStatusCode
+    return MOI.get(model, CompilationStatus())
+end
+
+@doc raw"""
     Warnings()
 """
 struct Warnings <: CompilerAttribute end

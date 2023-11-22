@@ -28,10 +28,16 @@ function MOI.optimize!(model::Optimizer)
     index_map = MOIU.identity_index_map(model.source_model)
 
     # De facto JuMP to QUBO Compilation
-    ToQUBO.Compiler.compile!(model)
+    let t = @elapsed ToQUBO.Compiler.compile!(model)
+        MOI.set(model, Attributes.CompilationTime(), t)
+    end
 
     if !isnothing(model.optimizer)
         MOI.optimize!(model.optimizer, model.target_model)
+        MOI.set(model, MOI.RawStatusString(), MOI.get(model.optimizer, MOI.RawStatusString()))
+    else
+        MOI.set(model, Attributes.CompilationStatus(), MOI.LOCALLY_SOLVED)
+        MOI.set(model, MOI.RawStatusString(), "Compilation complete without an internal solver")
     end
 
     return (index_map, false)

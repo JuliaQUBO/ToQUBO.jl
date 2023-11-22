@@ -17,7 +17,7 @@ function parse!(
     vi::VI,
     ::AbstractArchitecture,
 ) where {T}
-    empty!(g)
+    Base.empty!(g)
 
     for (ω, c) in expansion(model.source[vi])
         g[ω] += c
@@ -32,7 +32,7 @@ function parse!(
     f::SAF{T},
     ::AbstractArchitecture,
 ) where {T}
-    empty!(g)
+    Base.empty!(g)
 
     sizehint!(g, length(f.terms) + 1)
 
@@ -41,7 +41,7 @@ function parse!(
         x = a.variable
         v = model.source[x]
 
-        for (ω, d) in expansion(v)
+        for (ω, d) in Virtual.expansion(v)
             g[ω] += c * d
         end
     end
@@ -100,7 +100,7 @@ function parse!(
     f::SQF{T},
     ::AbstractArchitecture,
 ) where {T}
-    empty!(g)
+    Base.empty!(g)
 
     sizehint!(g, length(f.quadratic_terms) + length(f.affine_terms) + 1)
 
@@ -118,8 +118,8 @@ function parse!(
             c /= 2
         end
 
-        for (ωi, di) in expansion(vi)
-            for (ωj, dj) in expansion(vj)
+        for (ωi, di) in Virtual.expansion(vi)
+            for (ωj, dj) in Virtual.expansion(vj)
                 g[union(ωi, ωj)] += c * di * dj
             end
         end
@@ -130,7 +130,7 @@ function parse!(
         x = a.variable
         v = model.source[x]
 
-        for (ω, d) in expansion(v)
+        for (ω, d) in Virtual.expansion(v)
             g[ω] += c * d
         end
     end

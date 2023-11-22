@@ -32,6 +32,7 @@ mutable struct Model{T,O} <: MOI.AbstractOptimizer
     compiler_settings::Dict{Symbol,Any}
     variable_settings::Dict{Symbol,Dict{VI,Any}}
     constraint_settings::Dict{Symbol,Dict{CI,Any}}
+    moi_settings::Dict{Symbol,Any}
 
     function Model{T}(constructor::Any; kws...) where {T}
         optimizer = constructor()::MOI.AbstractOptimizer
@@ -80,6 +81,7 @@ mutable struct Model{T,O} <: MOI.AbstractOptimizer
             Dict{Symbol,Any}(),
             Dict{Symbol,Dict{VI,Any}}(),
             Dict{Symbol,Dict{CI,Any}}(),
+            Dict{Symbol,Any}(),
         )
     end
 end
