@@ -19,7 +19,8 @@ function test_compiler_constraints_quadratic()
         0.0,
     )
     s = MOI.EqualTo{Float64}(b)
-    g = ToQUBO.Compiler.constraint(model, f, s, arch)
+    c = MOI.add_constraint(model.source_model, f, s)
+    g = ToQUBO.Compiler.constraint(model, c, f, s, arch)
 
     h = ToQUBO.PBO.PBF{VI,Float64}()
 

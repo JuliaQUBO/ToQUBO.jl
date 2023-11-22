@@ -90,7 +90,7 @@ function variables!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
 end
 
 function variable_𝔹!(model::Virtual.Model{T}, x::VI) where {T}
-    Encoding.encode!(model, x, Mirror{T}())
+    Encoding.encode!(model, x, Encoding.Mirror{T}())
 
     return nothing
 end

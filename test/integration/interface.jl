@@ -261,6 +261,38 @@ function test_interface_moi()
                 @test_throws Exception MOI.get(model, Attributes.ConstraintEncodingPenalty(), c[1])
                 @test_throws Exception MOI.get(model, Attributes.ConstraintEncodingPenalty(), c[2])
 
+                # Slack Variable Attributes
+                @test MOI.get(model, Attributes.SlackVariableEncodingMethod(), c[1]) === nothing
+                @test MOI.get(model, Attributes.SlackVariableEncodingMethod(), c[2]) === nothing
+
+                MOI.set(model, Attributes.SlackVariableEncodingMethod(), c[1], Encoding.DomainWall())
+
+                @test MOI.get(model, Attributes.SlackVariableEncodingMethod(), c[1]) isa Encoding.DomainWall
+
+                @test MOI.get(model, Attributes.SlackVariableEncodingATol(), c[1]) === nothing
+                @test MOI.get(model, Attributes.SlackVariableEncodingATol(), c[2]) === nothing
+
+                MOI.set(model, Attributes.SlackVariableEncodingATol(), c[1], 1 / 2)
+
+                @test MOI.get(model, Attributes.SlackVariableEncodingATol(), c[1]) ≈ 1 / 2
+
+                @test MOI.get(model, Attributes.SlackVariableEncodingBits(), c[1]) === nothing
+                @test MOI.get(model, Attributes.SlackVariableEncodingBits(), c[2]) === nothing
+
+                MOI.set(model, Attributes.SlackVariableEncodingBits(), c[2], 1)
+
+                @test MOI.get(model, Attributes.SlackVariableEncodingBits(), c[2]) == 1
+
+                @test MOI.get(model, Attributes.SlackVariableEncodingPenaltyHint(), c[1]) === nothing
+                @test MOI.get(model, Attributes.SlackVariableEncodingPenaltyHint(), c[2]) === nothing
+
+                MOI.set(model, Attributes.SlackVariableEncodingPenaltyHint(), c[1], -100.0)
+
+                @test MOI.get(model, Attributes.SlackVariableEncodingPenaltyHint(), c[1]) == -100.0
+
+                @test_throws Exception MOI.get(model, Attributes.SlackVariableEncodingPenalty(), c[1])
+                @test_throws Exception MOI.get(model, Attributes.SlackVariableEncodingPenalty(), c[2])
+
                 # Call to MOI.optimize!
                 MOI.optimize!(model)
 
@@ -268,69 +300,41 @@ function test_interface_moi()
                     @test MOI.get(virtual_model, Attributes.Architecture()) isa SuperArchitecture
                     @test MOI.get(virtual_model, Attributes.Architecture()).super === true
 
-
-
                     @test MOI.get(virtual_model, Attributes.Optimization()) === 3
 
-
                     @test MOI.get(virtual_model, Attributes.Discretize()) === true
-
-
                     @test MOI.get(virtual_model, Attributes.Quadratize()) === true
-
-
                     @test MOI.get(virtual_model, Attributes.Warnings()) === false
-
-
+                    
                     @test MOI.get(virtual_model, Attributes.QuadratizationMethod()) isa PBO.PTR_BG
-
-
                     @test MOI.get(virtual_model, Attributes.StableQuadratization()) === true
 
-
                     @test MOI.get(virtual_model, Attributes.DefaultVariableEncodingMethod()) isa Encoding.Unary
-
                     @test MOI.get(virtual_model, Attributes.VariableEncodingMethod(), x[1]) isa Encoding.Arithmetic
-
                     @test MOI.get(virtual_model, Attributes.VariableEncodingMethod(), x[2]) isa Encoding.Arithmetic
-
                     @test MOI.get(virtual_model, Attributes.VariableEncodingMethod(), x[3]) === nothing
 
-
                     @test MOI.get(virtual_model, Attributes.DefaultVariableEncodingATol()) ≈ 1E-6
-
                     @test MOI.get(virtual_model, Attributes.VariableEncodingATol(), x[1]) ≈ 1 / 2
-
                     @test MOI.get(virtual_model, Attributes.VariableEncodingATol(), x[2]) ≈ 1 / 3
-
                     @test MOI.get(virtual_model, Attributes.VariableEncodingATol(), x[3]) === nothing
 
-
                     @test MOI.get(virtual_model, Attributes.DefaultVariableEncodingBits()) == 3
-
                     @test MOI.get(virtual_model, Attributes.VariableEncodingBits(), x[1]) == 1
-
                     @test MOI.get(virtual_model, Attributes.VariableEncodingBits(), x[2]) == 2
-
                     @test MOI.get(virtual_model, Attributes.VariableEncodingBits(), x[3]) === nothing
 
-
                     @test MOI.get(virtual_model, Attributes.VariableEncodingPenaltyHint(), x[1]) == -1.0
-
                     @test MOI.get(virtual_model, Attributes.VariableEncodingPenaltyHint(), x[2]) === nothing
-
                     @test MOI.get(virtual_model, Attributes.VariableEncodingPenaltyHint(), x[3]) === nothing
 
-
                     @test MOI.get(virtual_model, Attributes.ConstraintEncodingPenaltyHint(), c[1]) == -10.0
-
                     @test MOI.get(virtual_model, Attributes.ConstraintEncodingPenaltyHint(), c[2]) === nothing
 
-
                     @test MOI.get(virtual_model, Attributes.ConstraintEncodingPenalty(), c[1]) == -10.0
-
                     @test MOI.get(virtual_model, Attributes.ConstraintEncodingPenalty(), c[2]) == -4.0
 
+                    @test MOI.get(model, Attributes.SlackVariableEncodingPenalty(), c[1]) == -100.0
                 end
             end
         end
@@ -381,7 +385,7 @@ function test_interface_jump()
                 end
             end
         end
-
+        
         @testset "Attributes" begin
             let # Create Model
                 # max x1 + x2 + x3
@@ -400,16 +404,16 @@ function test_interface_jump()
 
                 # MOI Attributes
                 @test JuMP.num_variables(model) == 3
-
+                
                 # @test JuMP.time_limit_sec(model) === nothing
                 # JuMP.set_time_limit_sec(model, 1.0)
                 # @test JuMP.time_limit_sec(model) == 1.0
-
+                
                 # Solver Attributes
                 @test JuMP.get_attribute(model, RandomSampler.RandomSeed()) === nothing
                 JuMP.set_attribute(model, RandomSampler.RandomSeed(), 13)
                 @test JuMP.get_attribute(model, RandomSampler.RandomSeed()) == 13
-
+                
                 @test JuMP.get_attribute(model, RandomSampler.NumberOfReads()) == 1_000
                 JuMP.set_attribute(model, RandomSampler.NumberOfReads(), 13)
                 @test JuMP.get_attribute(model, RandomSampler.NumberOfReads()) == 13
@@ -503,9 +507,6 @@ function test_interface_jump()
 
                 @test JuMP.get_attribute(x[1], Attributes.VariableEncodingPenaltyHint()) == -1.0
 
-                @test_throws Exception JuMP.get_attribute(x[1], Attributes.VariableEncodingPenalty())
-                @test_throws Exception JuMP.get_attribute(x[2], Attributes.VariableEncodingPenalty())
-
                 # ToQUBO Constraint Attributes
                 @test JuMP.get_attribute(c[1], Attributes.ConstraintEncodingPenaltyHint()) === nothing
                 @test JuMP.get_attribute(c[2], Attributes.ConstraintEncodingPenaltyHint()) === nothing
@@ -513,9 +514,6 @@ function test_interface_jump()
                 JuMP.set_attribute(c[1], Attributes.ConstraintEncodingPenaltyHint(), -10.0)
 
                 @test JuMP.get_attribute(c[1], Attributes.ConstraintEncodingPenaltyHint()) == -10.0
-
-                @test_throws Exception JuMP.get_attribute(c[1], Attributes.ConstraintEncodingPenalty())
-                @test_throws Exception JuMP.get_attribute(c[2], Attributes.ConstraintEncodingPenalty())
 
                 JuMP.optimize!(model)
 

@@ -14,6 +14,8 @@ where ``\mathbf{y} \in \mathbb{B}^{n + 1}``.
 """
 struct DomainWall{T} <: SetVariableEncodingMethod end
 
+DomainWall() = DomainWall{Float64}()
+
 # Arbitrary set
 function encode(var::Function, e::DomainWall{T}, γ::AbstractVector{T}) where {T}
     p = length(γ)
