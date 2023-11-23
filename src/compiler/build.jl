@@ -29,7 +29,7 @@ function objective_function(model::Virtual.Model{T}, ::AbstractArchitecture) whe
     end
 
     for (ci, g) in model.g
-        ρ = model.ρ[ci]
+        ρ = MOI.get(model, Attributes.ConstraintEncodingPenalty(), ci)
 
         for (ω, c) in g
             model.H[ω] += ρ * c
@@ -37,7 +37,7 @@ function objective_function(model::Virtual.Model{T}, ::AbstractArchitecture) whe
     end
 
     for (vi, h) in model.h
-        θ = model.θ[vi]
+        θ = MOI.get(model, Attributes.VariableEncodingPenalty(), vi)
 
         for (ω, c) in h
             model.H[ω] += θ * c
@@ -45,7 +45,7 @@ function objective_function(model::Virtual.Model{T}, ::AbstractArchitecture) whe
     end
 
     for (ci, s) in model.s
-        η = model.η[ci]
+        η = MOI.get(model, Attributes.SlackVariableEncodingPenalty(), ci)
 
         for (ω, c) in s
             model.H[ω] += η * c

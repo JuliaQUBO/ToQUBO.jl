@@ -468,6 +468,9 @@ function constraint(
             end
 
             g[w] = one(T)
+
+            # Tell the compiler that quadratization is necessary
+            MOI.set(model, Attributes.Quadratize(), true)
         end
     end
 
@@ -482,21 +485,4 @@ function constraint(
     g[nothing] += -one(T)
 
     return g^2 + h
-end
-
-function encoding_constraints!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
-    for v in model.variables
-        i = Virtual.source(v)
-        χ = Virtual.penaltyfn(v)
-
-        if !isnothing(χ)
-            if i isa VI
-                model.h[i] = χ
-            elseif i isa CI
-                model.s[i] = χ
-            end
-        end
-    end
-
-    return nothing
 end

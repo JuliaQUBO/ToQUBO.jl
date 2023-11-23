@@ -63,9 +63,6 @@ function compile!(model::Virtual.Model{T}, arch::AbstractArchitecture) where {T}
     # Add Regular Constraints
     constraints!(model, arch)
 
-    # Add Encoding Constraints
-    encoding_constraints!(model, arch)
-
     # Compute penalties
     penalties!(model, arch)
 

@@ -13,7 +13,7 @@ function penalties!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
             ρ = σ * (δ / ϵ + β)
         end
 
-        model.ρ[ci] = ρ
+        MOI.set(model, Attributes.ConstraintEncodingPenalty(), ci, ρ)
     end
 
     for (vi, h) in model.h
@@ -24,7 +24,7 @@ function penalties!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
             θ = σ * (δ / ϵ + β)
         end
 
-        model.θ[vi] = θ
+        MOI.set(model, Attributes.VariableEncodingPenalty(), vi, θ)
     end
 
     for (ci, s) in model.s
@@ -35,7 +35,7 @@ function penalties!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
             η = σ * (δ / ϵ + β)
         end
 
-        model.η[ci] = η
+        MOI.set(model, Attributes.SlackVariableEncodingPenalty(), ci, η)
     end
 
     return nothing
