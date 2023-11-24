@@ -299,8 +299,16 @@ function test_interface_moi()
                 let virtual_model = model.model.optimizer
                     # MOI Attributes
                     @test MOI.get(model, MOI.ResultCount()) > 0
-                    @test MOI.get(model, MOI.SolveTime()) > 0.0
+                    @test MOI.get(model, MOI.SolveTimeSec()) > 0.0
                     @test MOI.get(model, MOI.TerminationStatus()) isa MOI.TerminationStatusCode
+                    @test MOI.get(model, MOI.RawStatusString()) isa String
+
+                    # MOI Variable Attributes
+                    @test MOI.get(model, MOI.PrimalStatus()) isa MOI.ResultStatusCode
+                    @test MOI.get(model, MOI.DualStatus()) isa MOI.ResultStatusCode
+                    @test 0.0 <= MOI.get(model, MOI.VariablePrimal(), x[1]) <= 1.0
+                    @test 0.0 <= MOI.get(model, MOI.VariablePrimal(), x[2]) <= 1.0
+                    @test 0.0 <= MOI.get(model, MOI.VariablePrimal(), x[3]) <= 1.0
 
                     # ToQUBO Attribtues
                     @test MOI.get(model, Attributes.Optimization()) == 3
