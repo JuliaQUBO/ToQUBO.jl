@@ -83,7 +83,9 @@ function constraint(
     # Scalar Affine Equality Constraint: g(x) = a'x - b = 0
     g = _parse(model, f, s, arch)
 
-    PBO.discretize!(g)
+    if Attributes.discretize(model)
+        PBO.discretize!(g)
+    end
 
     # Bounds & Slack Variable 
     l, u = PBO.bounds(g)
@@ -136,7 +138,9 @@ function constraint(
     # Scalar Affine Inequality Constraint: g(x) = a'x - b ≤ 0 
     g = _parse(model, f, s, arch)
 
-    PBO.discretize!(g)
+    if Attributes.discretize(model)
+        PBO.discretize!(g)
+    end
 
     # Bounds & Slack Variable 
     l, u = PBO.bounds(g)
@@ -152,9 +156,12 @@ function constraint(
     end
 
     # Slack Variable
-    e = Attributes.slack_variable_encoding_method(model, ci)
     S = (zero(T), abs(l))
-    z = Encoding.encode!(model, ci, e, S)
+    z = if Attributes.discretize(model)
+        variable_ℤ!(model, ci, S)
+    else
+        variable_ℝ!(model, ci, S)
+    end
 
     for (ω, c) in Virtual.expansion(z)
         g[ω] += c
@@ -198,7 +205,9 @@ function constraint(
     # Scalar Affine Inequality Constraint: g(x) = a'x - b ≥ 0 
     g = _parse(model, f, s, arch)
 
-    PBO.discretize!(g)
+    if Attributes.discretize(model)
+        PBO.discretize!(g)
+    end
 
     # Bounds & Slack Variable 
     l, u = PBO.bounds(g)
@@ -214,9 +223,12 @@ function constraint(
     end
 
     # Slack Variable
-    e = Attributes.slack_variable_encoding_method(model, ci)
     S = (zero(T), abs(u))
-    z = Encoding.encode!(model, ci, e, S)
+    z = if Attributes.discretize(model)
+        variable_ℤ!(model, ci, S)
+    else
+        variable_ℝ!(model, ci, S)
+    end
 
     for (ω, c) in Virtual.expansion(z)
         g[ω] -= c
@@ -260,7 +272,9 @@ function constraint(
     # Scalar Quadratic Equality Constraint: g(x) = x' Q x + a' x - b = 0
     g = _parse(model, f, s, arch)
 
-    PBO.discretize!(g)
+    if Attributes.discretize(model)
+        PBO.discretize!(g)
+    end
 
     # Bounds & Slack Variable 
     l, u = PBO.bounds(g)
@@ -320,7 +334,9 @@ function constraint(
     # Scalar Quadratic Inequality Constraint: g(x) = x' Q x + a' x - b ≤ 0
     g = _parse(model, f, s, arch)
 
-    PBO.discretize!(g)
+    if Attributes.discretize(model)
+        PBO.discretize!(g)
+    end
 
     # Bounds & Slack Variable 
     l, u = PBO.bounds(g)
@@ -339,9 +355,12 @@ function constraint(
     end
 
     # Slack Variable
-    e = Attributes.slack_variable_encoding_method(model, ci)
     S = (zero(T), abs(l))
-    z = Encoding.encode!(model, ci, e, S)
+    z = if Attributes.discretize(model)
+        variable_ℤ!(model, ci, S)
+    else
+        variable_ℝ!(model, ci, S)
+    end
 
     for (ω, c) in Virtual.expansion(z)
         g[ω] += c
@@ -388,7 +407,9 @@ function constraint(
     # Scalar Quadratic Inequality Constraint: g(x) = x' Q x + a' x - b ≥ 0
     g = _parse(model, f, s, arch)
 
-    PBO.discretize!(g)
+    if Attributes.discretize(model)
+        PBO.discretize!(g)
+    end
 
     # Bounds & Slack Variable 
     l, u = PBO.bounds(g)
@@ -404,9 +425,12 @@ function constraint(
     end
 
     # Slack Variable
-    e = Attributes.slack_variable_encoding_method(model, ci)
     S = (zero(T), abs(u))
-    z = Encoding.encode!(model, ci, e, S)
+    z = if Attributes.discretize(model)
+        variable_ℤ!(model, ci, S)
+    else
+        variable_ℝ!(model, ci, S)
+    end
 
     for (ω, c) in Virtual.expansion(z)
         g[ω] -= c
@@ -475,8 +499,7 @@ function constraint(
     end
 
     # Slack variable
-    e = Encoding.Mirror{T}()
-    z = Encoding.encode!(model, ci, e)
+    z = variable_𝔹!(model, ci)
 
     for (ω, c) in Virtual.expansion(z)
         g[ω] += c

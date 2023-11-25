@@ -177,9 +177,9 @@ function test_interface_moi()
                 MOI.set(model, Attributes.Optimization(), 3)
                 @test MOI.get(model, Attributes.Optimization()) === 3
 
-                @test MOI.get(model, Attributes.Discretize()) === false
-                MOI.set(model, Attributes.Discretize(), true)
                 @test MOI.get(model, Attributes.Discretize()) === true
+                MOI.set(model, Attributes.Discretize(), false)
+                @test MOI.get(model, Attributes.Discretize()) === false
 
                 @test MOI.get(model, Attributes.Quadratize()) === false
                 MOI.set(model, Attributes.Quadratize(), true)
@@ -306,16 +306,17 @@ function test_interface_moi()
                     # MOI Variable Attributes
                     @test MOI.get(model, MOI.PrimalStatus()) isa MOI.ResultStatusCode
                     @test MOI.get(model, MOI.DualStatus()) isa MOI.ResultStatusCode
-                    @test 0.0 <= MOI.get(model, MOI.VariablePrimal(), x[1]) <= 1.0
-                    @test 0.0 <= MOI.get(model, MOI.VariablePrimal(), x[2]) <= 1.0
-                    @test 0.0 <= MOI.get(model, MOI.VariablePrimal(), x[3]) <= 1.0
+
+                    @test MOI.get(model, MOI.VariablePrimal(), x[1]) >= 0.0
+                    @test MOI.get(model, MOI.VariablePrimal(), x[2]) >= 0.0
+                    @test MOI.get(model, MOI.VariablePrimal(), x[3]) >= 0.0
 
                     # ToQUBO Attribtues
                     @test MOI.get(model, Attributes.Optimization()) == 3
                     @test Attributes.optimization(virtual_model) == 3
 
-                    @test MOI.get(model, Attributes.Discretize()) === true
-                    @test Attributes.discretize(virtual_model) === true
+                    @test MOI.get(model, Attributes.Discretize()) === false
+                    @test Attributes.discretize(virtual_model) === false
 
                     @test MOI.get(model, Attributes.Quadratize()) === true
                     @test Attributes.quadratize(virtual_model) === true
@@ -475,9 +476,9 @@ function test_interface_jump()
                 JuMP.set_attribute(model, Attributes.Optimization(), 3)
                 @test JuMP.get_attribute(model, Attributes.Optimization()) == 3
 
-                @test JuMP.get_attribute(model, Attributes.Discretize()) === false
-                JuMP.set_attribute(model, Attributes.Discretize(), true)
                 @test JuMP.get_attribute(model, Attributes.Discretize()) === true
+                JuMP.set_attribute(model, Attributes.Discretize(), false)
+                @test JuMP.get_attribute(model, Attributes.Discretize()) === false
 
                 @test JuMP.get_attribute(model, Attributes.Quadratize()) === false
                 JuMP.set_attribute(model, Attributes.Quadratize(), true)
@@ -559,7 +560,7 @@ function test_interface_jump()
                 @test JuMP.get_attribute(model, Attributes.Architecture()).super === true
 
                 @test JuMP.get_attribute(model, Attributes.Optimization()) === 3
-                @test JuMP.get_attribute(model, Attributes.Discretize()) === true
+                @test JuMP.get_attribute(model, Attributes.Discretize()) === false
                 @test JuMP.get_attribute(model, Attributes.Quadratize()) === true
                 @test JuMP.get_attribute(model, Attributes.Warnings()) === false
 

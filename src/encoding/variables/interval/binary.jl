@@ -37,7 +37,12 @@ function encode(var::Function, e::Binary{T}, S::Tuple{T,T}; tol::Union{T,Nothing
 
     a, b = integer_interval(S)
 
-    @assert b > a
+    if a == b
+        y = VI[]
+        ξ = PBO.PBF{VI,T}(a)
+
+        return (y, ξ, nothing)
+    end
 
     M = trunc(Int, b - a)
     N = ceil(Int, log2(M + 1))
@@ -56,7 +61,7 @@ function encode(var::Function, e::Binary{T}, S::Tuple{T,T}; tol::Union{T,Nothing
         )
     end
 
-    return (y, ξ, nothing) # No penalty function
+    return (y, ξ, nothing)
 end
 
 function encoding_bits(::Binary{T}, S::Tuple{T,T}, tol::T) where {T}
