@@ -1,8 +1,19 @@
 function Encoding.encode!(model::Model{T}, v::Variable{T}) where {T}
     x = source(v)
+    χ = penaltyfn(v)
 
-    if !isnothing(x)
+    if x isa VI
         model.source[x] = v
+
+        if !isnothing(χ)
+            model.h[x] = χ
+        end
+    elseif x isa CI
+        model.slack[x] = v
+        
+        if !isnothing(χ)
+            model.s[x] = χ
+        end
     end
 
     for y in target(v)
@@ -16,7 +27,11 @@ function Encoding.encode!(model::Model{T}, v::Variable{T}) where {T}
     return v
 end
 
-function Encoding.encode!(model::Model{T}, x::Union{VI,Nothing}, e::VariableEncodingMethod) where {T}
+function Encoding.encode!(
+    model::Model{T},
+    x::Union{VI,CI,Nothing},
+    e::VariableEncodingMethod,
+) where {T}
     y, ξ, χ = Encoding.encode(e) do (nv::Union{Integer,Nothing} = nothing)
         if isnothing(nv)
             return MOI.add_variable(model.target_model)
@@ -32,7 +47,7 @@ end
 
 function Encoding.encode!(
     model::Model{T},
-    x::Union{VI,Nothing},
+    x::Union{VI,CI,Nothing},
     e::VariableEncodingMethod,
     γ::AbstractVector{T},
 ) where {T}
@@ -51,7 +66,7 @@ end
 
 function encode!(
     model::Model{T},
-    x::Union{VI,Nothing},
+    x::Union{VI,CI,Nothing},
     e::VariableEncodingMethod,
     S::Tuple{T,T};
     tol::Union{T,Nothing} = nothing,
@@ -71,7 +86,7 @@ end
 
 function Encoding.encode!(
     model::Model{T},
-    x::Union{VI,Nothing},
+    x::Union{VI,CI,Nothing},
     e::VariableEncodingMethod,
     S::Tuple{T,T},
     n::Integer,

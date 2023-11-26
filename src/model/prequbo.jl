@@ -11,6 +11,3 @@ MOIU.@model(
     false,                      # is optimizer?
 )
 
-# Drop Generic Constraint Support
-MOI.supports_constraint(::PreQUBOModel{T}, ::Type{SAF{T}}, ::Type{GT{T}}) where {T} = false
-MOI.supports_constraint(::PreQUBOModel{T}, ::Type{SQF{T}}, ::Type{GT{T}}) where {T} = false

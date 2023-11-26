@@ -27,9 +27,6 @@ const GT{T} = MOI.GreaterThan{T}
 const VI      = MOI.VariableIndex
 const CI{F,S} = MOI.ConstraintIndex{F,S}
 
-# Library
-include("error.jl")
-
 # Encoding Module
 include("encoding/encoding.jl")
 

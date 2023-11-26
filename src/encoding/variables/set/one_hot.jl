@@ -21,6 +21,8 @@ is added to the objective function.
 """
 struct OneHot{T} <: SetVariableEncodingMethod end
 
+OneHot() = OneHot{Float64}()
+
 # Arbitrary set
 function encode(var::Function, e::OneHot{T}, γ::AbstractVector{T}) where {T}
     p = length(γ)
@@ -97,7 +99,11 @@ function encode(
 
     a, b = S
 
-    Γ = collect(range(a, b; length = p))
+    Γ = if p == 1
+        T[(a + b) / 2]
+    else
+        collect(T, range(a, b; length = p))
+    end
 
     return encode(var, e, Γ)
 end

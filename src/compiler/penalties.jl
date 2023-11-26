@@ -1,6 +1,6 @@
 function penalties!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
     # Adjust Sign
-    s = MOI.get(model, MOI.ObjectiveSense()) === MOI.MAX_SENSE ? -1 : 1
+    σ = MOI.get(model, MOI.ObjectiveSense()) === MOI.MAX_SENSE ? -1 : 1
 
     β = one(T) # TODO: This should be made a parameter too? Yes!
     δ = PBO.maxgap(model.f)
@@ -10,10 +10,10 @@ function penalties!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
 
         if isnothing(ρ)
             ϵ = PBO.mingap(g)
-            ρ = s * (δ / ϵ + β)
+            ρ = σ * (δ / ϵ + β)
         end
 
-        model.ρ[ci] = ρ
+        MOI.set(model, Attributes.ConstraintEncodingPenalty(), ci, ρ)
     end
 
     for (vi, h) in model.h
@@ -21,10 +21,21 @@ function penalties!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
 
         if isnothing(θ)
             ϵ = PBO.mingap(h)
-            θ = s * (δ / ϵ + β)
+            θ = σ * (δ / ϵ + β)
         end
 
-        model.θ[vi] = θ
+        MOI.set(model, Attributes.VariableEncodingPenalty(), vi, θ)
+    end
+
+    for (ci, s) in model.s
+        η = Attributes.slack_variable_encoding_penalty_hint(model, ci)
+
+        if isnothing(η)
+            ϵ = PBO.mingap(s)
+            η = σ * (δ / ϵ + β)
+        end
+
+        MOI.set(model, Attributes.SlackVariableEncodingPenalty(), ci, η)
     end
 
     return nothing

@@ -12,11 +12,15 @@ function build!(model::Virtual.Model{T}, arch::AbstractArchitecture) where {T}
 end
 
 function objective_function(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
-    empty!(model.H)
+    Base.empty!(model.H)
 
     # Calculate an upper bound on the number of terms
-    num_terms =
-        length(model.f) + sum(length, model.g; init = 0) + sum(length, model.h; init = 0)
+    num_terms = +(
+        length(model.f),
+        sum(length, model.g; init = 0),
+        sum(length, model.h; init = 0),
+        sum(length, model.s; init = 0),
+    )
 
     sizehint!(model.H, num_terms)
 
@@ -25,7 +29,7 @@ function objective_function(model::Virtual.Model{T}, ::AbstractArchitecture) whe
     end
 
     for (ci, g) in model.g
-        ρ = model.ρ[ci]
+        ρ = MOI.get(model, Attributes.ConstraintEncodingPenalty(), ci)
 
         for (ω, c) in g
             model.H[ω] += ρ * c
@@ -33,10 +37,18 @@ function objective_function(model::Virtual.Model{T}, ::AbstractArchitecture) whe
     end
 
     for (vi, h) in model.h
-        θ = model.θ[vi]
+        θ = MOI.get(model, Attributes.VariableEncodingPenalty(), vi)
 
         for (ω, c) in h
             model.H[ω] += θ * c
+        end
+    end
+
+    for (ci, s) in model.s
+        η = MOI.get(model, Attributes.SlackVariableEncodingPenalty(), ci)
+
+        for (ω, c) in s
+            model.H[ω] += η * c
         end
     end
 
@@ -115,8 +127,13 @@ function output!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
             # have this condition here.
             # HINT: When debugging this, a good place to start is to check if the 'Quadratize'
             # flag is set or not. If missing, it should mean that some constraint might induce
-            # PBFs of higher degree without calling 'MOI.set(model, Quadratize(), true)'.     
-            compilation_error("Quadratization failed")
+            # PBFs of higher degree without calling
+            #     MOI.set(model, AttributesQuadratize(), true)
+            compilation_error!(
+                model,
+                "Fatal: Quadratization failed";
+                status="Failure in quadratization",
+            )
         end
     end
 
