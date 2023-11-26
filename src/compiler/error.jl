@@ -21,8 +21,6 @@ end
 
 function compilation_error(msg::Union{Nothing,String} = nothing)
     throw(CompilationError(msg))
-<<<<<<< HEAD
-=======
 
     return nothing
 end
@@ -36,5 +34,4 @@ function compilation_error!(model::Virtual.Model, msg::Union{Nothing,String} = n
     compilation_error(msg)
 
     return nothing
->>>>>>> origin/master
 end

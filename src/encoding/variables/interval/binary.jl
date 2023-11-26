@@ -38,14 +38,10 @@ function encode(var::Function, e::Binary{T}, S::Tuple{T,T}; tol::Union{T,Nothing
     a, b = integer_interval(S)
 
     if a == b
-<<<<<<< HEAD
-        return (VI[], PBO.PBF{VI,T}(a), nothing)
-=======
         y = VI[]
         ξ = PBO.PBF{VI,T}(a)
 
         return (y, ξ, nothing)
->>>>>>> origin/master
     end
 
     M = trunc(Int, b - a)

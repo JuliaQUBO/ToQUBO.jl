@@ -529,7 +529,6 @@ function constraint(
 
     return g^2 + h
 end
-<<<<<<< HEAD
 
 function constraint(
     model::Virtual.Model{T},
@@ -619,5 +618,3 @@ function encoding_constraints!(model::Virtual.Model{T}, ::AbstractArchitecture) 
 
     return nothing
 end
-=======
->>>>>>> origin/master

@@ -98,17 +98,9 @@ function variable_𝔹!(model::Virtual.Model{T}, i::Union{VI,CI}) where {T}
     return Encoding.encode!(model, i, Encoding.Mirror{T}())
 end
 
-<<<<<<< HEAD
 function variable_ℤ!(model::Virtual.Model{T}, x::VI, (a, b)::Tuple{A,B}) where {T,A<:Union{T,Nothing},B<:Union{T,Nothing}}
     if !isnothing(a) && !isnothing(b)
         let e = Attributes.variable_encoding_method(model, x)
-=======
-function variable_ℤ!(model::Virtual.Model{T}, vi::VI, (a, b)::Tuple{T,T}) where {T}
-    if isnothing(a) || isnothing(b)
-        error("Unbounded variable $(vi) ∈ ℤ")
-    else
-        let e = Attributes.variable_encoding_method(model, vi)
->>>>>>> origin/master
             S = (a, b)
 
             return Encoding.encode!(model, vi, e, S)
@@ -134,15 +126,8 @@ function variable_ℤ!(model::Virtual.Model{T}, ci::CI, (a, b)::Tuple{T,T}) wher
     end
 end
 
-<<<<<<< HEAD
 function variable_ℝ!(model::Virtual.Model{T}, x::VI, (a, b)::Tuple{A,B}) where {T,A<:Union{T,Nothing},B<:Union{T,Nothing}}
     if !isnothing(a) && !isnothing(b)
-=======
-function variable_ℝ!(model::Virtual.Model{T}, vi::VI, (a, b)::Tuple{T,T}) where {T}
-    if isnothing(a) || isnothing(b)
-        error("Unbounded variable $(vi) ∈ ℝ")
-    else
->>>>>>> origin/master
         # TODO: Solve this bit-guessing magic??? (DONE)
         # IDEA: 
         #     Let x̂ ~ U[a, b], K = 2ᴺ, γ = [a, b]
