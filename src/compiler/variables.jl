@@ -98,19 +98,19 @@ function variable_𝔹!(model::Virtual.Model{T}, i::Union{VI,CI}) where {T}
     return Encoding.encode!(model, i, Encoding.Mirror{T}())
 end
 
-function variable_ℤ!(model::Virtual.Model{T}, x::VI, (a, b)::Tuple{A,B}) where {T,A<:Union{T,Nothing},B<:Union{T,Nothing}}
+function variable_ℤ!(model::Virtual.Model{T}, vi::VI, (a, b)::Tuple{A,B}) where {T,A<:Union{T,Nothing},B<:Union{T,Nothing}}
     if !isnothing(a) && !isnothing(b)
-        let e = Attributes.variable_encoding_method(model, x)
+        let e = Attributes.variable_encoding_method(model, vi)
             S = (a, b)
 
             return Encoding.encode!(model, vi, e, S)
         end
     elseif !isnothing(b)
-        error("Unbounded variable $(x) ∈ (-∞, $(b)] ⊂ ℤ ")
+        error("Unbounded variable $(vi) ∈ (-∞, $(b)] ⊂ ℤ ")
     elseif !isnothing(a)
-        error("Unbounded variable $(x) ∈ [$(a), +∞) ⊂ ℤ")
+        error("Unbounded variable $(vi) ∈ [$(a), +∞) ⊂ ℤ")
     else
-        error("Unbounded variable $(x) ∈ ℤ")
+        error("Unbounded variable $(vi) ∈ ℤ")
     end
 end
 
@@ -126,7 +126,7 @@ function variable_ℤ!(model::Virtual.Model{T}, ci::CI, (a, b)::Tuple{T,T}) wher
     end
 end
 
-function variable_ℝ!(model::Virtual.Model{T}, x::VI, (a, b)::Tuple{A,B}) where {T,A<:Union{T,Nothing},B<:Union{T,Nothing}}
+function variable_ℝ!(model::Virtual.Model{T}, vi::VI, (a, b)::Tuple{A,B}) where {T,A<:Union{T,Nothing},B<:Union{T,Nothing}}
     if !isnothing(a) && !isnothing(b)
         # TODO: Solve this bit-guessing magic??? (DONE)
         # IDEA: 
@@ -154,14 +154,14 @@ function variable_ℝ!(model::Virtual.Model{T}, x::VI, (a, b)::Tuple{A,B}) where
             end
         end
     elseif !isnothing(b)
-        error("Unbounded variable $(x) ∈ (-∞, $(b)]")
+        error("Unbounded variable $(vi) ∈ (-∞, $(b)]")
     elseif !isnothing(a)
-        error("Unbounded variable $(x) ∈ [$(a), +∞)")
+        error("Unbounded variable $(vi) ∈ [$(a), +∞)")
     else
         @info "Source Model:"
         println(model.source_model)
         
-        error("Unbounded variable $(x) ∈ ℝ")
+        error("Unbounded variable $(vi) ∈ ℝ")
     end
 end
 
