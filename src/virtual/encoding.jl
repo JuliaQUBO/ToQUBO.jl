@@ -1,10 +1,19 @@
 function Encoding.encode!(model::Model{T}, v::Variable{T}) where {T}
     x = source(v)
+    χ = penaltyfn(v)
 
     if x isa VI
         model.source[x] = v
+
+        if !isnothing(χ)
+            model.h[x] = χ
+        end
     elseif x isa CI
         model.slack[x] = v
+        
+        if !isnothing(χ)
+            model.s[x] = χ
+        end
     end
 
     for y in target(v)

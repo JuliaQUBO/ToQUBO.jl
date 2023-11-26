@@ -71,12 +71,17 @@ function variables!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
         end
     end
 
-    # Encode Variables
     if Attributes.stable_compilation(model)
         sort!(Ω; by = x -> x.value)
     end
-
+    
+    # Encode Variables
     for x in Ω
+        # If variable was already encoded, skip
+        if haskey(model.source, x)
+            continue
+        end
+
         if haskey(ℤ, x)
             variable_ℤ!(model, x, ℤ[x])
         elseif haskey(ℝ, x)
@@ -89,18 +94,24 @@ function variables!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
     return nothing
 end
 
-function variable_𝔹!(model::Virtual.Model{T}, x::VI) where {T}
-    Encoding.encode!(model, x, Encoding.Mirror{T}())
-
-    return nothing
+function variable_𝔹!(model::Virtual.Model{T}, i::Union{VI,CI}) where {T}
+    return Encoding.encode!(model, i, Encoding.Mirror{T}())
 end
 
+<<<<<<< HEAD
 function variable_ℤ!(model::Virtual.Model{T}, x::VI, (a, b)::Tuple{A,B}) where {T,A<:Union{T,Nothing},B<:Union{T,Nothing}}
     if !isnothing(a) && !isnothing(b)
         let e = Attributes.variable_encoding_method(model, x)
+=======
+function variable_ℤ!(model::Virtual.Model{T}, vi::VI, (a, b)::Tuple{T,T}) where {T}
+    if isnothing(a) || isnothing(b)
+        error("Unbounded variable $(vi) ∈ ℤ")
+    else
+        let e = Attributes.variable_encoding_method(model, vi)
+>>>>>>> origin/master
             S = (a, b)
 
-            Encoding.encode!(model, x, e, S)
+            return Encoding.encode!(model, vi, e, S)
         end
     elseif !isnothing(b)
         error("Unbounded variable $(x) ∈ (-∞, $(b)] ⊂ ℤ ")
@@ -109,12 +120,29 @@ function variable_ℤ!(model::Virtual.Model{T}, x::VI, (a, b)::Tuple{A,B}) where
     else
         error("Unbounded variable $(x) ∈ ℤ")
     end
-
-    return nothing
 end
 
+function variable_ℤ!(model::Virtual.Model{T}, ci::CI, (a, b)::Tuple{T,T}) where {T}
+    if isnothing(a) || isnothing(b)
+        error("Unbounded variable $(ci) ∈ ℤ")
+    else
+        let e = Attributes.slack_variable_encoding_method(model, ci)
+            S = (a, b)
+
+            return Encoding.encode!(model, ci, e, S)
+        end
+    end
+end
+
+<<<<<<< HEAD
 function variable_ℝ!(model::Virtual.Model{T}, x::VI, (a, b)::Tuple{A,B}) where {T,A<:Union{T,Nothing},B<:Union{T,Nothing}}
     if !isnothing(a) && !isnothing(b)
+=======
+function variable_ℝ!(model::Virtual.Model{T}, vi::VI, (a, b)::Tuple{T,T}) where {T}
+    if isnothing(a) || isnothing(b)
+        error("Unbounded variable $(vi) ∈ ℝ")
+    else
+>>>>>>> origin/master
         # TODO: Solve this bit-guessing magic??? (DONE)
         # IDEA: 
         #     Let x̂ ~ U[a, b], K = 2ᴺ, γ = [a, b]
@@ -124,20 +152,20 @@ function variable_ℝ!(model::Virtual.Model{T}, x::VI, (a, b)::Tuple{A,B}) where
         #
         #     For 𝔼[|xᵢ - x̂|] ≤ τ we have
         #       N ≥ log₂(1 + |b - a| / 4τ)
-        #
+        # 
         # where τ is the (absolute) tolerance
         # TODO: Add τ as parameter (DONE)
         # TODO: Move this comment to the documentation
-        let e = Attributes.variable_encoding_method(model, x)
-            n = Attributes.variable_encoding_bits(model, x)
+        let e = Attributes.variable_encoding_method(model, vi)
+            n = Attributes.variable_encoding_bits(model, vi)
             S = (a, b)
 
             if !isnothing(n)
-                Encoding.encode!(model, x, e, S, n)
+                return Encoding.encode!(model, vi, e, S, n)
             else
-                tol = Attributes.variable_encoding_atol(model, x)
+                tol = Attributes.variable_encoding_atol(model, vi)
 
-                Encoding.encode!(model, x, e, S; tol)
+                return Encoding.encode!(model, vi, e, S; tol)
             end
         end
     elseif !isnothing(b)
@@ -150,6 +178,23 @@ function variable_ℝ!(model::Virtual.Model{T}, x::VI, (a, b)::Tuple{A,B}) where
         
         error("Unbounded variable $(x) ∈ ℝ")
     end
+end
 
-    return nothing
+function variable_ℝ!(model::Virtual.Model{T}, ci::CI, (a, b)::Tuple{T,T}) where {T}
+    if isnothing(a) || isnothing(b)
+        error("Unbounded slack variable $(ci) ∈ ℝ")
+    else
+        let e = Attributes.slack_variable_encoding_method(model, ci)
+            n = Attributes.slack_variable_encoding_bits(model, ci)
+            S = (a, b)
+
+            if !isnothing(n)
+                return Encoding.encode!(model, ci, e, S, n)
+            else
+                tol = Attributes.slack_variable_encoding_atol(model, ci)
+
+                return Encoding.encode!(model, ci, e, S; tol)
+            end
+        end
+    end
 end

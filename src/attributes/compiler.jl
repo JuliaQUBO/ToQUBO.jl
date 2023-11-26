@@ -162,7 +162,7 @@ When set, this boolean flag guarantees that every coefficient in the final formu
 struct Discretize <: CompilerAttribute end
 
 function MOI.get(model::Optimizer, ::Discretize)::Bool
-    return get(model.compiler_settings, :discretize, false)
+    return get(model.compiler_settings, :discretize, true)
 end
 
 function MOI.set(model::Optimizer, ::Discretize, flag::Bool)

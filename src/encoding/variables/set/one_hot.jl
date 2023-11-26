@@ -99,7 +99,11 @@ function encode(
 
     a, b = S
 
-    Γ = collect(range(a, b; length = p))
+    Γ = if p == 1
+        T[(a + b) / 2]
+    else
+        collect(T, range(a, b; length = p))
+    end
 
     return encode(var, e, Γ)
 end
