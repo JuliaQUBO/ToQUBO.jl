@@ -150,6 +150,8 @@ function test_interface_moi()
                 end
 
                 # Solver Attributes
+                @test MOI.get(model, MOI.RawSolver()) isa RandomSampler.Optimizer
+
                 @test MOI.get(model, RandomSampler.RandomSeed()) === nothing
                 MOI.set(model, RandomSampler.RandomSeed(), 13)
                 @test MOI.get(model, RandomSampler.RandomSeed()) == 13

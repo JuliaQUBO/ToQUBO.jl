@@ -13,6 +13,10 @@ function test_compiler_error()
 
         @test MOI.get(model, Attributes.CompilationStatus()) == MOI.OTHER_ERROR
         @test MOI.get(model, MOI.RawStatusString()) == "Testing Compilation Error"
+
+        let e = ToQUBO.Compiler.CompilationError("Test Message")
+            @show sprint(Base.showerror, e)
+        end
     end
 
     return nothing
