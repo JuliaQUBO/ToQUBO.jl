@@ -23,8 +23,6 @@ function test_indicator_linear()
         optimize!(model)
 
         n, L, Q, α, β = QUBOTools.qubo(model, :dense)
-
-        @show n
     end
 
     return nothing
@@ -53,8 +51,6 @@ function test_indicator_quadratic()
         optimize!(model)
 
         n, L, Q, α, β = QUBOTools.qubo(model, :dense)
-
-        @show n
     end
 
     return nothing
