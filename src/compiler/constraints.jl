@@ -600,21 +600,3 @@ function constraint(
 
     return nothing
 end
-
-
-function encoding_constraints!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
-    for v in model.variables
-        i = Virtual.source(v)
-        χ = Virtual.penaltyfn(v)
-
-        if !isnothing(χ)
-            if i isa VI
-                model.h[i] = χ
-            elseif i isa CI
-                model.s[i] = χ
-            end
-        end
-    end
-
-    return nothing
-end

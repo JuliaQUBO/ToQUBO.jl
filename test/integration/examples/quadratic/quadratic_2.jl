@@ -12,14 +12,14 @@ min x₁ + x₂ + ρ (x₁ * x₂ - 1)²
 
 """
 function test_quadratic_2()
-    ρ̄ = 3
+    ρ̄ = 4
     Q̄ = [
         1 -ρ̄
         0  2
     ]
     ᾱ = 1
-    β̄ = 0
-    x̄ = [0, 1]
+    β̄ = ρ̄
+    x̄ = [1, 1]
 
     model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
 
