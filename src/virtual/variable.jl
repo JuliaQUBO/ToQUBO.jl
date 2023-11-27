@@ -3,14 +3,14 @@
 
 """
 struct Variable{T}
-    e::VariableEncodingMethod
+    e::Union{VariableEncodingMethod,Nothing}
     x::Union{VI,CI,Nothing}          # Source variable or constraint (if any)
     y::Vector{VI}                    # Target variables
     ξ::PBO.PBF{VI,T}                 # Expansion function
     χ::Union{PBO.PBF{VI,T},Nothing}  # Penalty function (i.e. ‖gᵢ(x)‖ₛ for g(i) ∈ S)
 
     function Variable{T}(
-        e::VariableEncodingMethod,
+        e::Union{VariableEncodingMethod,Nothing},
         x::Union{VI,CI,Nothing},
         y::Vector{VI},
         ξ::PBO.PBF{VI,T},
