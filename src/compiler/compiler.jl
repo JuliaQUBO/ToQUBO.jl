@@ -42,14 +42,14 @@ function compile!(model::Virtual.Model)
 end
 
 function compile!(model::Virtual.Model{T}, arch::AbstractArchitecture) where {T}
+    # Compiler Settings
+    setup!(model, arch)
+
     if is_qubo(model.source_model)
         Compiler.copy!(model, arch)
 
         return nothing
     end
-
-    # Compiler Settings
-    setup!(model, arch)
 
     # Objective Sense
     sense!(model, arch)
