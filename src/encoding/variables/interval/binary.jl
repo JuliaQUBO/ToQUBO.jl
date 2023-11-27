@@ -33,7 +33,7 @@ Binary() = Binary{Float64}()
 
 # Integer
 function encode(var::Function, e::Binary{T}, S::Tuple{T,T}; tol::Union{T,Nothing} = nothing) where {T}
-    isnothing(tol) || return encode(var, e, S, nothing; tol)
+    !isnothing(tol) && return encode(var, e, S, nothing; tol)
 
     a, b = integer_interval(S)
 
@@ -47,19 +47,14 @@ function encode(var::Function, e::Binary{T}, S::Tuple{T,T}; tol::Union{T,Nothing
     M = trunc(Int, b - a)
     N = ceil(Int, log2(M + 1))
 
-    if N == 0
-        y = VI[]
-        ξ = PBO.PBF{VI,T}((a + b) / 2)
-    else
-        y = var(N)::Vector{VI}
-        ξ = PBO.PBF{VI,T}(
-            [
-                a
-                [y[i] => 2^(i - 1) for i = 1:N-1]
-                y[N] => M - 2^(N - 1) + 1
-            ],
-        )
-    end
+    y = var(N)::Vector{VI}
+    ξ = PBO.PBF{VI,T}(
+        [
+            a
+            [y[i] => 2^(i - 1) for i = 1:N-1]
+            y[N] => M - 2^(N - 1) + 1
+        ],
+    )
 
     return (y, ξ, nothing)
 end

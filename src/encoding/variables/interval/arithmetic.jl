@@ -31,28 +31,25 @@ Arithmetic() = Arithmetic{Float64}()
     encode(var::Function, ::Arithmetic{T}, S::Tuple{T,T}) where {T}
 """
 function encode(var::Function, e::Arithmetic{T}, S::Tuple{T,T}; tol::Union{T,Nothing} = nothing) where {T}
-    isnothing(tol) || return encode(var, e, S, nothing; tol)
+    !isnothing(tol) && return encode(var, e, S, nothing; tol)
 
     a, b = integer_interval(S)
 
-    @assert b > a
+    if a == b
+        return (VI[], PBO.PBF{VI,T}(a), nothing)
+    end
 
     M = trunc(Int, b - a)
     N = ceil(Int, (sqrt(1 + 8M) - 1) / 2)
 
-    if N == 0
-        y = VI[]
-        ξ = PBO.PBF{VI,T}((a + b) / 2)
-    else
-        y = var(N)::Vector{VI}
-        ξ = PBO.PBF{VI,T}(
-            [
-                a
-                [y[i] => i for i = 1:N-1]
-                y[N] => M - N * (N - 1) / 2
-            ],
-        )
-    end
+    y = var(N)::Vector{VI}
+    ξ = PBO.PBF{VI,T}(
+        [
+            a
+            [y[i] => i for i = 1:N-1]
+            y[N] => M - N * (N - 1) / 2
+        ],
+    )
 
     return (y, ξ, nothing) # No penalty function
 end

@@ -37,9 +37,13 @@ function encode(
     S::Tuple{T,T};
     tol::Union{T,Nothing} = nothing,
 ) where {E<:IntervalVariableEncodingMethod,T}
-    isnothing(tol) || return encode(var, e, S, nothing; tol)
+    !isnothing(tol) && return encode(var, e, S, nothing; tol)
 
     a, b = integer_interval(S)
+
+    if a == b
+        return (VI[], PBO.PBF{VI,T}(a), nothing)
+    end
 
     m = floor(Int, e.μ)
     n = trunc(Int, b - a)

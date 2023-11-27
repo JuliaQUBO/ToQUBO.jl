@@ -39,20 +39,18 @@ Given ``S = [a, b] \subset \mathbb{Z}``, ``a < b``, let ``n = b - a`` and ``\mat
 ```
 """
 function encode(var::Function, e::Unary{T}, S::Tuple{T,T}; tol::Union{T,Nothing} = nothing) where {T}
-    isnothing(tol) || return encode(var, e, S, nothing; tol)
+    !isnothing(tol) && return encode(var, e, S, nothing; tol)
 
     a, b = integer_interval(S)
 
-    @assert b > a
+    if a == b
+        return (VI[], PBO.PBF{VI,T}(a), nothing)
+    end
 
     N = trunc(Int, b - a)
 
     y = var(N)::Vector{VI}
-    ξ = if N == 0
-        PBO.PBF{VI,T}((a + b) / 2)
-    else
-        PBO.PBF{VI,T}([a; [y[i] => one(T) for i = 1:N]])
-    end
+    ξ = PBO.PBF{VI,T}([a; [y[i] => one(T) for i = 1:N]])
 
     return (y, ξ, nothing) # No penalty function
 end

@@ -6,7 +6,12 @@ function constraints!(model::Virtual.Model, arch::AbstractArchitecture)
     return nothing
 end
 
-function constraints!(model::Virtual.Model, ::Type{F}, ::Type{S}, arch::AbstractArchitecture) where {F,S}
+function constraints!(
+    model::Virtual.Model,
+    ::Type{F},
+    ::Type{S},
+    arch::AbstractArchitecture,
+) where {F,S}
     for ci in MOI.get(model, MOI.ListOfConstraintIndices{F,S}())
         f = MOI.get(model, MOI.ConstraintFunction(), ci)
         s = MOI.get(model, MOI.ConstraintSet(), ci)
@@ -168,6 +173,20 @@ function constraint(
     end
 
     return g^2
+end
+
+@doc raw"""
+
+"""
+function constraint(
+    model::Virtual.Model{T},
+    ci::CI,
+    f::SAF{T},
+    s::MOI.Interval{T},
+    arch::AbstractArchitecture,
+) where {T}
+    return constraint(model, ci, f, LT{T}(s.upper), arch) +
+           constraint(model, ci, f, GT{T}(s.lower), arch)
 end
 
 @doc raw"""
@@ -468,7 +487,8 @@ function constraint(
             for (ω, _) in Virtual.expansion(vi)
                 g[ω] = one(T)
             end
-        elseif Virtual.encoding(vi) isa Encoding.OneHot || Virtual.encoding(vi) isa Encoding.DomainWall
+        elseif Virtual.encoding(vi) isa Encoding.OneHot ||
+               Virtual.encoding(vi) isa Encoding.DomainWall
             ξ = Virtual.expansion(vi)
             a = ξ[nothing]
 
@@ -508,4 +528,75 @@ function constraint(
     g[nothing] += -one(T)
 
     return g^2 + h
+end
+
+function constraint(
+    model::Virtual.Model{T},
+    ci::CI,
+    f::MOI.VectorAffineFunction{T},
+    s::MOI.Indicator{A,S},
+    arch::AbstractArchitecture,
+) where {T,A,S}
+    # Indicator Constraint: y = 0|1 => {g(x)}
+
+    xi = first(f.terms).scalar_term.variable # Indicator Variable
+    vi = model.source[xi]
+
+    @assert Virtual.encoding(vi) isa Encoding.Mirror
+
+    yi = only(Virtual.target(vi))
+
+    g = MOI.ScalarAffineFunction{T}(
+        SAT{T}[f.terms[i].scalar_term for i = 2:length(f.terms)],
+        sum(f.constants[i] for i = 2:length(f.constants)),
+    )
+
+    # Tell the compiler that quadratization is necessary
+    MOI.set(model, Attributes.Quadratize(), true)
+
+    if A === MOI.ACTIVATE_ON_ONE
+        return PBO.PBF{VI,T}(yi) * constraint(model, ci, g, s.set, arch)
+    elseif A === MOI.ACTIVATE_ON_ZERO
+        return (one(T) - PBO.PBF{VI,T}(yi)) * constraint(model, ci, g, s.set, arch)
+    else
+        error("Indicator constraint activation type $(A) not supported")
+    end
+
+    return nothing
+end
+
+function constraint(
+    model::Virtual.Model{T},
+    ci::CI,
+    f::MOI.VectorQuadraticFunction{T},
+    s::MOI.Indicator{A,S},
+    arch::AbstractArchitecture,
+) where {T,A,S}
+    # Indicator Constraint: y = 0|1 => {g(x)}
+
+    xi = first(f.affine_terms).scalar_term.variable # Indicator Variable
+    vi = model.source[xi]
+
+    @assert Virtual.encoding(vi) isa Encoding.Mirror
+
+    yi = only(Virtual.target(vi))
+
+    g = MOI.ScalarQuadraticFunction{T}(
+        SQT{T}[f.quadratic_terms[i].scalar_term for i = 2:length(f.quadratic_terms)],
+        SAT{T}[f.affine_terms[i].scalar_term for i = 2:length(f.affine_terms)],
+        sum(f.constants[i] for i = 2:length(f.constants)),
+    )
+
+    # Tell the compiler that quadratization is necessary
+    MOI.set(model, Attributes.Quadratize(), true)
+
+    if A === MOI.ACTIVATE_ON_ONE
+        return PBO.PBF{VI,T}(yi) * constraint(model, ci, g, s.set, arch)
+    elseif A === MOI.ACTIVATE_ON_ZERO
+        return (one(T) - PBO.PBF{VI,T}(yi)) * constraint(model, ci, g, s.set, arch)
+    else
+        error("Indicator constraint activation type $(A) not supported")
+    end
+
+    return nothing
 end

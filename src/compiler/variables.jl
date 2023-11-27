@@ -98,15 +98,19 @@ function variable_𝔹!(model::Virtual.Model{T}, i::Union{VI,CI}) where {T}
     return Encoding.encode!(model, i, Encoding.Mirror{T}())
 end
 
-function variable_ℤ!(model::Virtual.Model{T}, vi::VI, (a, b)::Tuple{T,T}) where {T}
-    if isnothing(a) || isnothing(b)
-        error("Unbounded variable $(vi) ∈ ℤ")
-    else
+function variable_ℤ!(model::Virtual.Model{T}, vi::VI, (a, b)::Tuple{A,B}) where {T,A<:Union{T,Nothing},B<:Union{T,Nothing}}
+    if !isnothing(a) && !isnothing(b)
         let e = Attributes.variable_encoding_method(model, vi)
             S = (a, b)
 
             return Encoding.encode!(model, vi, e, S)
         end
+    elseif !isnothing(b)
+        error("Unbounded variable $(vi) ∈ (-∞, $(b)] ⊂ ℤ ")
+    elseif !isnothing(a)
+        error("Unbounded variable $(vi) ∈ [$(a), +∞) ⊂ ℤ")
+    else
+        error("Unbounded variable $(vi) ∈ ℤ")
     end
 end
 
@@ -122,10 +126,8 @@ function variable_ℤ!(model::Virtual.Model{T}, ci::CI, (a, b)::Tuple{T,T}) wher
     end
 end
 
-function variable_ℝ!(model::Virtual.Model{T}, vi::VI, (a, b)::Tuple{T,T}) where {T}
-    if isnothing(a) || isnothing(b)
-        error("Unbounded variable $(vi) ∈ ℝ")
-    else
+function variable_ℝ!(model::Virtual.Model{T}, vi::VI, (a, b)::Tuple{A,B}) where {T,A<:Union{T,Nothing},B<:Union{T,Nothing}}
+    if !isnothing(a) && !isnothing(b)
         # TODO: Solve this bit-guessing magic??? (DONE)
         # IDEA: 
         #     Let x̂ ~ U[a, b], K = 2ᴺ, γ = [a, b]
@@ -151,6 +153,12 @@ function variable_ℝ!(model::Virtual.Model{T}, vi::VI, (a, b)::Tuple{T,T}) wher
                 return Encoding.encode!(model, vi, e, S; tol)
             end
         end
+    elseif !isnothing(b)
+        error("Unbounded variable $(vi) ∈ (-∞, $(b)]")
+    elseif !isnothing(a)
+        error("Unbounded variable $(vi) ∈ [$(a), +∞)")
+    else
+        error("Unbounded variable $(vi) ∈ ℝ")
     end
 end
 
