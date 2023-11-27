@@ -158,9 +158,6 @@ function variable_ℝ!(model::Virtual.Model{T}, vi::VI, (a, b)::Tuple{A,B}) wher
     elseif !isnothing(a)
         error("Unbounded variable $(vi) ∈ [$(a), +∞)")
     else
-        @info "Source Model:"
-        println(model.source_model)
-        
         error("Unbounded variable $(vi) ∈ ℝ")
     end
 end
