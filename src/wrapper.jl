@@ -79,31 +79,31 @@ function MOI.copy_to(model::Optimizer{T}, source::MOI.ModelLike) where {T}
     constraint_types = MOI.get(source, MOI.ListOfConstraintTypesPresent())
 
     # Build Index Map
-    index_map = MOIU.IndexMap()
+    model.index_map = MOIU.IndexMap()
 
     # Copy to PreQUBOModel + Add Bridges
-    bridge_model = MOIB.full_bridge_optimizer(model.source_model, T)
+    model.bridge_model = MOIB.full_bridge_optimizer(model.source_model, T)
 
     # Copy Objective Function
     let F = MOI.get(source, MOI.ObjectiveFunctionType())
         MOI.set(
-            bridge_model,
+            model.bridge_model,
             MOI.ObjectiveFunction{F}(),
             MOI.get(source, MOI.ObjectiveFunction{F}()),
         )
     end
 
     # Copy Objective Sense
-    MOI.set(bridge_model, MOI.ObjectiveSense(), MOI.get(source, MOI.ObjectiveSense()))
+    MOI.set(model.bridge_model, MOI.ObjectiveSense(), MOI.get(source, MOI.ObjectiveSense()))
 
     # Copy Variables
     for vi in variable_indices
-        index_map[vi] = MOI.add_variable(bridge_model)
+        model.index_map[vi] = MOI.add_variable(model.bridge_model)
     end
 
     # Copy Constraints
     for (F, S) in constraint_types
-        _copy_constraints!(F, S, source, bridge_model, index_map)
+        _copy_constraints!(F, S, source, model.bridge_model, model.index_map)
     end
 
     # Copy Attributes
@@ -113,17 +113,15 @@ function MOI.copy_to(model::Optimizer{T}, source::MOI.ModelLike) where {T}
 
     for attr in MOI.get(source, MOI.ListOfVariableAttributesSet())
         for vi in variable_indices
-            MOI.set(model, attr, index_map[vi], MOI.get(source, attr, vi))
+            MOI.set(model, attr, model.index_map[vi], MOI.get(source, attr, vi))
         end
     end
 
     for (F, S) in constraint_types
-        _copy_constraint_attributes(F, S, source, model, index_map)
+        _copy_constraint_attributes(F, S, source, model, model.index_map)
     end
 
-    model.bridge_model = bridge_model
-
-    return index_map
+    return model.index_map
 end
 
 # Objective Function Support

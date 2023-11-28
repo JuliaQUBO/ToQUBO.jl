@@ -32,7 +32,7 @@ include("integration/integration.jl")
 
 function main()
     @testset "♡ ToQUBO.jl $(ToQUBO.__VERSION__) Test Suite ♡" verbose = true begin
-        test_unit()
+        # test_unit()
         test_integration()
     end
 

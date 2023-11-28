@@ -9,6 +9,7 @@ mutable struct Model{T,O} <: MOI.AbstractOptimizer
 
     # MathOptInterface Bridges
     bridge_model::MOIB.LazyBridgeOptimizer{PreQUBOModel{T}}
+    index_map::MOIU.IndexMap
 
     # Virtual Model Interface
     source_model::PreQUBOModel{T}
@@ -58,6 +59,7 @@ mutable struct Model{T,O} <: MOI.AbstractOptimizer
 
             # MathOptInterface Bridges
             bridge_model,
+            MOIU.IndexMap(),
 
             # Virtual Model Interface 
             source_model,

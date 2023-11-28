@@ -18,6 +18,7 @@ function Encoding.encode!(model::Model{T}, v::Variable{T}) where {T}
 
     for y in target(v)
         MOI.add_constraint(model.target_model, y, MOI.ZeroOne())
+        
         model.target[y] = v
     end
 
