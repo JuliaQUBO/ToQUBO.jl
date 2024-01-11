@@ -18,6 +18,16 @@ function test_corner_1()
 
                 let virtual_model = unsafe_backend(model)
                     virtual_model.compiler_settings[:setup_callback] = m -> begin
+                        for (F, S) in MOI.get(m, MOI.ListOfConstraintTypesPresent())
+                            for ci in MOI.get(m, MOI.ListOfConstraintIndices{F,S}())
+                                let f = MOI.get(m, MOI.ConstraintFunction(), ci)
+                                    s = MOI.get(m, MOI.ConstraintSet(), ci)
+
+                                    @info "$f ∈ $s"
+                                end
+                            end
+                        end
+
                         yf = MOI.get(m, MOI.ConstraintFunction(), cy.index)
                         xf = MOI.get(m, MOI.ConstraintFunction(), cx.index)
 
@@ -63,6 +73,18 @@ function test_corner_1()
 
                 let virtual_model = unsafe_backend(model)
                     virtual_model.compiler_settings[:setup_callback] = m -> begin
+                        for (F, S) in MOI.get(m, MOI.ListOfConstraintTypesPresent())
+                            for ci in MOI.get(m, MOI.ListOfConstraintIndices{F,S}())
+                                let f = MOI.get(m, MOI.ConstraintFunction(), ci)
+                                    s = MOI.get(m, MOI.ConstraintSet(), ci)
+
+                                    @info "$f ∈ $s"
+                                end
+                            end
+                        end
+
+                        @info "Index Map: $(m.index_map)"
+                        
                         yf = MOI.get(m, MOI.ConstraintFunction(), cy.index)
                         xf = MOI.get(m, MOI.ConstraintFunction(), cx.index)
 

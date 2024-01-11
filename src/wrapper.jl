@@ -25,8 +25,6 @@ function MOI.empty!(model::Optimizer)
 end
 
 function MOI.optimize!(model::Optimizer)
-    index_map = MOIU.identity_index_map(model.source_model)
-
     # De facto JuMP to QUBO Compilation
     let t = @elapsed ToQUBO.Compiler.compile!(model)
         MOI.set(model, Attributes.CompilationStatus(), MOI.LOCALLY_SOLVED)
@@ -40,7 +38,7 @@ function MOI.optimize!(model::Optimizer)
         MOI.set(model, MOI.RawStatusString(), "Compilation complete without an internal solver")
     end
 
-    return (index_map, false)
+    return (model.index_map, false)
 end
 
 function _copy_constraints!(::Type{F}, ::Type{S}, source, target, index_map) where {F,S}
@@ -54,7 +52,7 @@ function _copy_constraints!(::Type{F}, ::Type{S}, source, target, index_map) whe
     return nothing
 end
 
-function _copy_constraint_attributes(
+function _copy_constraint_attributes!(
     ::Type{F},
     ::Type{S},
     source,
@@ -71,57 +69,7 @@ function _copy_constraint_attributes(
 end
 
 function MOI.copy_to(model::Optimizer{T}, source::MOI.ModelLike) where {T}
-    if !MOI.is_empty(model)
-        error("QUBO Model is not empty")
-    end
-
-    variable_indices = MOI.get(source, MOI.ListOfVariableIndices())
-    constraint_types = MOI.get(source, MOI.ListOfConstraintTypesPresent())
-
-    # Build Index Map
-    model.index_map = MOIU.IndexMap()
-
-    # Copy to PreQUBOModel + Add Bridges
-    model.bridge_model = MOIB.full_bridge_optimizer(model.source_model, T)
-
-    # Copy Objective Function
-    let F = MOI.get(source, MOI.ObjectiveFunctionType())
-        MOI.set(
-            model.bridge_model,
-            MOI.ObjectiveFunction{F}(),
-            MOI.get(source, MOI.ObjectiveFunction{F}()),
-        )
-    end
-
-    # Copy Objective Sense
-    MOI.set(model.bridge_model, MOI.ObjectiveSense(), MOI.get(source, MOI.ObjectiveSense()))
-
-    # Copy Variables
-    for vi in variable_indices
-        model.index_map[vi] = MOI.add_variable(model.bridge_model)
-    end
-
-    # Copy Constraints
-    for (F, S) in constraint_types
-        _copy_constraints!(F, S, source, model.bridge_model, model.index_map)
-    end
-
-    # Copy Attributes
-    for attr in MOI.get(source, MOI.ListOfModelAttributesSet())
-        MOI.set(model, attr, MOI.get(source, attr))
-    end
-
-    for attr in MOI.get(source, MOI.ListOfVariableAttributesSet())
-        for vi in variable_indices
-            MOI.set(model, attr, model.index_map[vi], MOI.get(source, attr, vi))
-        end
-    end
-
-    for (F, S) in constraint_types
-        _copy_constraint_attributes(F, S, source, model, model.index_map)
-    end
-
-    return model.index_map
+    return MOIU.default_copy_to(model, source)
 end
 
 # Objective Function Support
@@ -143,6 +91,18 @@ function MOI.supports_add_constrained_variable(
     ::Type{S},
 ) where {S<:MOI.AbstractScalarSet}
     return MOI.supports_add_constrained_variable(model.source_model, S)
+end
+
+function MOI.add_constraint(
+    model::Optimizer,
+    f::F,
+    s::S,
+) where {F<:MOI.AbstractFunction,S<:MOI.AbstractSet}
+    return MOI.add_constraint(model.source_model, f, s)
+end
+
+function MOI.add_variable(model::Optimizer)
+    return MOI.add_variable(model.source_model)
 end
 
 function Base.show(io::IO, model::Optimizer)

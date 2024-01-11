@@ -45,18 +45,6 @@ function MOI.get(model::Virtual.Model, attr::MOI.VariableName, x::VI)
     return MOI.get(model.source_model, attr, x)
 end
 
-function MOI.add_variable(model::Virtual.Model)
-    return MOI.add_variable(model.source_model)
-end
-
-function MOI.add_constraint(
-    model::Virtual.Model,
-    f::MOI.AbstractFunction,
-    s::MOI.AbstractSet,
-)
-    return MOI.add_constraint(model.source_model, f, s)
-end
-
 function MOI.set(
     model::Virtual.Model,
     ::MOI.ObjectiveFunction{F},
