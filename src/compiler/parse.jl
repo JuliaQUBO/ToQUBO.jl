@@ -120,7 +120,9 @@ function parse!(
 
         for (ωi, di) in Virtual.expansion(vi)
             for (ωj, dj) in Virtual.expansion(vj)
-                g[union(ωi, ωj)] += c * di * dj
+                ωij = union!(VI[], ωi, ωj)
+
+                g[ωij] += c * di * dj
             end
         end
     end
