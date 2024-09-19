@@ -151,15 +151,12 @@ If you use `ToQUBO.jl` in your work, we kindly ask you to include the following 
 }
 ```
 
+---
+
 <div align="center">
-    <h2>PSR Quantum Optimization Toolchain</h2>
-    <a href="https://github.com/psrenergy/ToQUBO.jl">
-        <img width="200px" src="https://raw.githubusercontent.com/psrenergy/ToQUBO.jl/master/docs/src/assets/logo.svg" alt="ToQUBO.jl" />
-    </a>
-    <a href="https://github.com/psrenergy/QUBODrivers.jl">
-        <img width="200px" src="https://raw.githubusercontent.com/psrenergy/QUBODrivers.jl/master/docs/src/assets/logo.svg" alt="QUBODrivers.jl" />
-    </a>
-    <a href="https://github.com/psrenergy/QUBOTools.jl">
-        <img width="200px" src="https://raw.githubusercontent.com/psrenergy/QUBOTools.jl/main/docs/src/assets/logo.svg" alt="QUBOTools.jl" />
-    </a>
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/JuliaQUBO/QUBO.jl/refs/heads/master/docs/src/assets/logo-collaboration-dark.png">
+      <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/JuliaQUBO/QUBO.jl/refs/heads/master/docs/src/assets/logo-collaboration-light.png">
+      <img alt="QUBO.jl Collaboration" src="">
+    </picture> 
 </div>
