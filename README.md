@@ -154,9 +154,11 @@ If you use `ToQUBO.jl` in your work, we kindly ask you to include the following 
 ---
 
 <div align="center">
+    <a href="https://github.com/JuliaQUBO/QUBO.jl">
     <picture>
       <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/JuliaQUBO/QUBO.jl/refs/heads/master/docs/src/assets/logo-collaboration-dark.png">
       <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/JuliaQUBO/QUBO.jl/refs/heads/master/docs/src/assets/logo-collaboration-light.png">
       <img alt="QUBO.jl Collaboration" src="">
     </picture> 
+    </a>
 </div>
