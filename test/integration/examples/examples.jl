@@ -3,6 +3,7 @@ include("linear/linear.jl")
 include("quadratic/quadratic.jl")
 include("logical/logical.jl")
 include("continuous/continuous.jl")
+include("misc/opf.jl")
 
 function test_examples()
     @testset "□ Examples" verbose = true begin
@@ -11,6 +12,7 @@ function test_examples()
         test_quadratic()
         test_logical()
         test_continuous()
+        # test_opf()
     end
 
     return nothing
