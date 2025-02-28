@@ -8,7 +8,7 @@ const CI   = MOI.ConstraintIndex
 import PseudoBooleanOptimization as PBO
 import QUBOTools
 
-import ..ToQUBO: Optimizer
+import ..ToQUBO: Optimizer, PreQUBOModel, QUBOModel
 import ..Encoding
 import ..Virtual
 
@@ -19,6 +19,28 @@ end
 abstract type CompilerAttribute <: MOI.AbstractOptimizerAttribute end
 
 MOI.supports(::Optimizer, ::A) where {A<:CompilerAttribute} = true
+
+@doc raw"""
+    SourceModel()
+"""
+struct SourceModel <: CompilerAttribute end
+
+MOI.is_set_by_optimize(::SourceModel) = true
+
+function MOI.get(model::Optimizer{T}, ::SourceModel)::PreQUBOModel{T} where {T}
+    return model.source_model
+end
+
+@doc raw"""
+    TargetModel()
+"""
+struct TargetModel <: CompilerAttribute end
+
+MOI.is_set_by_optimize(::TargetModel) = true
+
+function MOI.get(model::Optimizer{T}, ::TargetModel)::QUBOModel{T} where {T}
+    return model.target_model
+end
 
 @doc raw"""
     CompilationTime()

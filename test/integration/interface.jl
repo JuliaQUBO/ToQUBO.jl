@@ -170,6 +170,9 @@ function test_interface_moi()
                 @test MOI.get(model, MOI.RawOptimizerAttribute("num_reads")) == 1_001
 
                 # ToQUBO Attributes
+                @test MOI.get(model, Attributes.SourceModel()) isa ToQUBO.PreQUBOModel{Float64}
+                @test MOI.get(model, Attributes.TargetModel()) isa ToQUBO.QUBOModel{Float64}
+
                 @test MOI.get(model, Attributes.Architecture()) isa QUBOTools.GenericArchitecture
                 MOI.set(model, Attributes.Architecture(), SuperArchitecture(true))
                 @test MOI.get(model, Attributes.Architecture()) isa SuperArchitecture

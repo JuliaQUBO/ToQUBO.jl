@@ -1,6 +1,3 @@
-QUBOTools.PBO.varshow(v::VI) = QUBOTools.PBO.varshow(v.value)
-
-
 """
 min x₁ + x₂
  st x₁ * x₂ >= 1
