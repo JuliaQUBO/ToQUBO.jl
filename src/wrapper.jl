@@ -162,6 +162,8 @@ end
 # end
 
 # Attribute Access
+
+## Model Attributes
 function MOI.supports(model::Optimizer{T}, attr::MOI.AbstractModelAttribute) where {T}
     return MOI.supports(model.source_model, attr)
 end
@@ -170,11 +172,28 @@ function MOI.get(model::Optimizer{T}, attr::MOI.AbstractModelAttribute) where {T
     return MOI.get(model.source_model, attr)
 end
 
-function MOI.set(model::Optimizer{T}, attr::MOI.AbstractModelAttribute, value) where {T}
-    return MOI.set(model.source_model, attr, value)
+function MOI.set(model::Optimizer{T}, attr::MOI.AbstractModelAttribute, values::Any...) where {T}
+    return MOI.set(model.source_model, attr, values...)
 end
 
+## Optimizer Attributes
+function MOI.supports(model::Optimizer{T}, attr::MOI.AbstractOptimizerAttribute) where {T}
+    return !isnothing(model.optimizer) && MOI.supports(model.optimizer, attr)
+end
 
+function MOI.get(model::Optimizer{T}, attr::MOI.AbstractOptimizerAttribute) where {T}
+    @assert MOI.supports(model, attr)
+
+    return MOI.get(model.optimizer, attr)
+end
+
+function MOI.set(model::Optimizer{T}, attr::MOI.AbstractOptimizerAttribute, values::Any...) where {T}
+    @assert MOI.supports(model, attr)
+
+    return MOI.set(model.optimizer, attr, values...)
+end
+
+## Variable Attributes
 function MOI.supports(model::Optimizer{T}, attr::MOI.AbstractVariableAttribute, ::Type{VI}) where {T}
     return MOI.supports(model.source_model, attr, VI)
 end
@@ -183,11 +202,11 @@ function MOI.get(model::Optimizer{T}, attr::MOI.AbstractVariableAttribute, vi::V
     return MOI.get(model.source_model, attr, vi)
 end
 
-function MOI.set(model::Optimizer{T}, attr::MOI.AbstractVariableAttribute, vi::VI, value) where {T}
-    return MOI.set(model.source_model, attr, vi, value)
+function MOI.set(model::Optimizer{T}, attr::MOI.AbstractVariableAttribute, vi::VI, values::Any...) where {T}
+    return MOI.set(model.source_model, attr, vi, values...)
 end
 
-
+## Constraint Attributes
 function MOI.supports(model::Optimizer{T}, attr::MOI.AbstractConstraintAttribute, ::Type{CI{F,S}}) where {T,F,S}
     return MOI.supports(model.source_model, attr, CI{F,S})
 end
@@ -196,8 +215,8 @@ function MOI.get(model::Optimizer{T}, attr::MOI.AbstractConstraintAttribute, ci:
     return MOI.get(model.source_model, attr, ci)
 end
 
-function MOI.set(model::Optimizer{T}, attr::MOI.AbstractConstraintAttribute, ci::CI{F,S}, value) where {T,F,S}
-    return MOI.set(model.source_model, attr, ci, value)
+function MOI.set(model::Optimizer{T}, attr::MOI.AbstractConstraintAttribute, ci::CI{F,S}, values::Any...) where {T,F,S}
+    return MOI.set(model.source_model, attr, ci, values...)
 end
 
 # Constraint Support
