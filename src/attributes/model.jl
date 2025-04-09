@@ -66,3 +66,21 @@ function MOI.set(
 
     return nothing
 end
+
+function MOI.get(model::Virtual.Model, ::MOI.ListOfVariableAttributesSet)
+    list = MOI.get(model.source_model, MOI.ListOfVariableAttributesSet())
+
+    if !isnothing(model.optimizer)
+        append!(list, MOI.get(model.optimizer, MOI.ListOfVariableAttributesSet()))
+    end
+
+    for (key, val) in keys(model.variable_settings)
+        isempty(val) && continue
+
+        attr = Attributes._attribute_from_key(key)::MOI.AbstractVariableAttribute
+
+        push!(list, attr)
+    end
+
+    return list
+end

@@ -100,6 +100,8 @@ function test_interface_moi()
 
                 x, _ = MOI.add_constrained_variables(model, fill(MOI.Interval{Float64}(0.0, 1.0), 3))
 
+                MOI.set.(model, MOI.VariableName(), x, ["x[$i]" for i = 1:3])
+
                 MOI.set(model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
 
                 MOI.set(
@@ -298,6 +300,15 @@ function test_interface_moi()
                 @test_throws Exception MOI.get(model, Attributes.SlackVariableEncodingPenalty(), c[1])
                 @test_throws Exception MOI.get(model, Attributes.SlackVariableEncodingPenalty(), c[2])
 
+                # MOI Attributes Set
+                @test Set(MOI.get(model, MOI.ListOfVariableAttributesSet())) == Set([
+                    MOI.VariableName(),
+                    ToQUBO.Attributes.VariableEncodingPenaltyHint(),
+                    ToQUBO.Attributes.VariableEncodingMethod(),
+                    ToQUBO.Attributes.VariableEncodingBits(),
+                    ToQUBO.Attributes.VariableEncodingATol(),
+                ])
+
                 # Call to MOI.optimize!
                 MOI.optimize!(model)
 
@@ -316,7 +327,7 @@ function test_interface_moi()
                     @test MOI.get(model, MOI.VariablePrimal(), x[2]) >= 0.0
                     @test MOI.get(model, MOI.VariablePrimal(), x[3]) >= 0.0
 
-                    # ToQUBO Attribtues
+                    # ToQUBO Attributes
                     @test MOI.get(model, Attributes.Optimization()) == 3
                     @test Attributes.optimization(virtual_model) == 3
 
