@@ -303,11 +303,30 @@ function test_interface_moi()
                 # MOI Attributes Set
                 @test Set(MOI.get(model, MOI.ListOfVariableAttributesSet())) == Set([
                     MOI.VariableName(),
-                    ToQUBO.Attributes.VariableEncodingPenaltyHint(),
-                    ToQUBO.Attributes.VariableEncodingMethod(),
-                    ToQUBO.Attributes.VariableEncodingBits(),
-                    ToQUBO.Attributes.VariableEncodingATol(),
+                    Attributes.VariableEncodingPenaltyHint(),
+                    Attributes.VariableEncodingMethod(),
+                    Attributes.VariableEncodingBits(),
+                    Attributes.VariableEncodingATol(),
                 ])
+
+                @test Set(MOI.get(model, MOI.ListOfModelAttributesSet())) == Set([
+                    MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
+                    MOI.ObjectiveSense()
+                ])
+
+                @test Dict(
+                    (F,S) => Set(MOI.get(model, MOI.ListOfConstraintAttributesSet{F,S}()))
+                    for (F, S) in MOI.get(model, MOI.ListOfConstraintTypesPresent())
+                ) == Dict(
+                    (MOI.ScalarAffineFunction{Float64}, MOI.LessThan{Float64}) => Set([
+                        Attributes.SlackVariableEncodingATol(),
+                        Attributes.SlackVariableEncodingBits(),
+                        Attributes.SlackVariableEncodingMethod(),
+                        Attributes.SlackVariableEncodingPenaltyHint(),
+                        Attributes.ConstraintEncodingPenaltyHint(),
+                    ]),
+                    (VI, MOI.Interval{Float64}) => Set([]),
+                )
 
                 # Call to MOI.optimize!
                 MOI.optimize!(model)
