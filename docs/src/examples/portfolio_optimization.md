@@ -47,13 +47,13 @@ df = DataFrames.DataFrame(
 ```@example portfolio-optimization
 using JuMP
 using ToQUBO
-using DWave
+using PySA
 
 function solve(
     config!::Function,
     df::DataFrame,
     λ::Float64 = 10.;
-    optimizer = DWave.Neal.Optimizer
+    optimizer = PySA.Optimizer
 )
     # Number of assets
     n = size(df, 2)
@@ -81,7 +81,7 @@ function solve(
     return value.(x)
 end
 
-function solve(df::DataFrame, λ::Float64 = 10.; optimizer = DWave.Neal.Optimizer)
+function solve(df::DataFrame, λ::Float64 = 10.; optimizer = PySA.Optimizer)
     return solve(identity, df, λ; optimizer)
 end
 ```
@@ -89,7 +89,7 @@ end
 ```@example portfolio-optimization
 solve(df) do model
     JuMP.set_silent(model)
-    JuMP.set_optimizer_attribute(model, "num_reads", 2_000)
+    JuMP.set_optimizer_attribute(model, "n_reads", 200)
 end
 ```
 

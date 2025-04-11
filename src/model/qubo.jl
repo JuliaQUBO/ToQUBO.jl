@@ -134,3 +134,20 @@ MOI.supports(::QUBOModel, ::MOI.VariablePrimalStart, ::MOI.VariableIndex) = true
 function MOI.get(model::QUBOModel, ::MOI.NumberOfVariables)
     return length(model.variables)
 end
+
+MOI.supports(::QUBOModel, ::MOI.ListOfVariableAttributesSet) = true
+
+MOI.get(::QUBOModel, ::MOI.ListOfVariableAttributesSet) = MOI.AbstractVariableAttribute[]
+
+MOI.supports(::QUBOModel{T}, ::MOI.ListOfModelAttributesSet) where {T} = true
+
+function MOI.get(::QUBOModel{T}, ::MOI.ListOfModelAttributesSet) where {T}
+    return MOI.AbstractModelAttribute[
+        MOI.ObjectiveFunction{SQF{T}}(),
+        MOI.ObjectiveSense(),
+    ]
+end
+
+MOI.supports(::QUBOModel, ::MOI.ListOfConstraintAttributesSet{F,S}) where {F,S} = true
+
+MOI.get(::QUBOModel, ::MOI.ListOfConstraintAttributesSet{F,S}) where {F,S} = MOI.AbstractConstraintAttribute[]

@@ -1,29 +1,28 @@
 module Compiler
 
 # Imports
-using MathOptInterface
-const MOI = MathOptInterface
+import MathOptInterface as MOI
+import MathOptInterface: empty!
+import PseudoBooleanOptimization as PBO
 
-import QUBOTools: PBO
 import QUBOTools: AbstractArchitecture, GenericArchitecture
 
-import ..Encoding:
-    Encoding, VariableEncodingMethod, Mirror, Unary, Binary, Arithmetic, OneHot, DomainWall
-
-import ..Virtual: Virtual, encoding, expansion, penaltyfn
-
 import ..Attributes
+import ..Encoding
+import ..Virtual
 
 # Constants
-const VI     = MOI.VariableIndex
-const SAT{T} = MOI.ScalarAffineTerm{T}
-const SAF{T} = MOI.ScalarAffineFunction{T}
-const SQT{T} = MOI.ScalarQuadraticTerm{T}
-const SQF{T} = MOI.ScalarQuadraticFunction{T}
-const EQ{T}  = MOI.EqualTo{T}
-const LT{T}  = MOI.LessThan{T}
-const GT{T}  = MOI.GreaterThan{T}
+const VI      = MOI.VariableIndex
+const CI{F,S} = MOI.ConstraintIndex{F,S}
+const SAT{T}  = MOI.ScalarAffineTerm{T}
+const SAF{T}  = MOI.ScalarAffineFunction{T}
+const SQT{T}  = MOI.ScalarQuadraticTerm{T}
+const SQF{T}  = MOI.ScalarQuadraticFunction{T}
+const EQ{T}   = MOI.EqualTo{T}
+const LT{T}   = MOI.LessThan{T}
+const GT{T}   = MOI.GreaterThan{T}
 
+include("error.jl")
 include("analysis.jl")
 include("interface.jl")
 include("parse.jl")
@@ -64,9 +63,6 @@ function compile!(model::Virtual.Model{T}, arch::AbstractArchitecture) where {T}
     # Add Regular Constraints
     constraints!(model, arch)
 
-    # Add Encoding Constraints
-    encoding_constraints!(model, arch)
-
     # Compute penalties
     penalties!(model, arch)
 
@@ -81,16 +77,16 @@ function reset!(model::Virtual.Model, ::AbstractArchitecture = GenericArchitectu
     MOI.empty!(model.target_model)
 
     # Virtual Variables
-    empty!(model.variables)
-    empty!(model.source)
-    empty!(model.target)
+    Base.empty!(model.variables)
+    Base.empty!(model.source)
+    Base.empty!(model.target)
 
     # PBF/IR
-    empty!(model.f)
-    empty!(model.g)
-    empty!(model.h)
-    empty!(model.ρ)
-    empty!(model.θ)
+    Base.empty!(model.f)
+    Base.empty!(model.g)
+    Base.empty!(model.h)
+    Base.empty!(model.ρ)
+    Base.empty!(model.θ)
 
     return nothing
 end

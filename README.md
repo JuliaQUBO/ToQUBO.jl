@@ -5,11 +5,17 @@
         <img src="/docs/src/assets/logo.svg" width=400px alt="ToQUBO.jl" />
     </a>
     <br>
+    <a href="https://arxiv.org/abs/2307.02577">
+        <img src="https://img.shields.io/badge/arXiv-2307.02577-b31b1b.svg" alt="arXiv"/>
+    </a>
     <a href="https://codecov.io/gh/psrenergy/ToQUBO.jl">
         <img src="https://codecov.io/gh/psrenergy/ToQUBO.jl/branch/master/graph/badge.svg?token=ECM5OQ9T67"/>
     </a>
     <a href="https://github.com/psrenergy/ToQUBO.jl/actions/workflows/ci.yml">
         <img src="https://github.com/psrenergy/ToQUBO.jl/actions/workflows/ci.yml/badge.svg?branch=master" alt="CI" />
+    </a>
+    <a href="https://www.youtube.com/watch?v=OTmzlTbqdNo">
+        <img src="https://img.shields.io/badge/JuliaCon-2022-9558b2" alt="JuliaCon 2022">
     </a>
     <a href="https://psrenergy.github.io/ToQUBO.jl/dev">
         <img src="https://img.shields.io/badge/docs-dev-blue.svg" alt="Docs">
@@ -145,15 +151,14 @@ If you use `ToQUBO.jl` in your work, we kindly ask you to include the following 
 }
 ```
 
+---
+
 <div align="center">
-    <h2>PSR Quantum Optimization Toolchain</h2>
-    <a href="https://github.com/psrenergy/ToQUBO.jl">
-        <img width="200px" src="https://raw.githubusercontent.com/psrenergy/ToQUBO.jl/master/docs/src/assets/logo.svg" alt="ToQUBO.jl" />
-    </a>
-    <a href="https://github.com/psrenergy/QUBODrivers.jl">
-        <img width="200px" src="https://raw.githubusercontent.com/psrenergy/QUBODrivers.jl/master/docs/src/assets/logo.svg" alt="QUBODrivers.jl" />
-    </a>
-    <a href="https://github.com/psrenergy/QUBOTools.jl">
-        <img width="200px" src="https://raw.githubusercontent.com/psrenergy/QUBOTools.jl/main/docs/src/assets/logo.svg" alt="QUBOTools.jl" />
+    <a href="https://github.com/JuliaQUBO/QUBO.jl">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/JuliaQUBO/QUBO.jl/refs/heads/master/docs/src/assets/logo-collaboration-dark.png">
+      <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/JuliaQUBO/QUBO.jl/refs/heads/master/docs/src/assets/logo-collaboration-light.png">
+      <img alt="QUBO.jl Collaboration" src="">
+    </picture> 
     </a>
 </div>

@@ -1,6 +1,6 @@
 function build!(model::Virtual.Model{T}, arch::AbstractArchitecture) where {T}
     #  Assemble Objective Function 
-    hamiltonian!(model, arch)
+    objective_function(model, arch)
 
     #  Quadratization Step 
     quadratize!(model, arch)
@@ -11,12 +11,16 @@ function build!(model::Virtual.Model{T}, arch::AbstractArchitecture) where {T}
     return nothing
 end
 
-function hamiltonian!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
-    empty!(model.H)
+function objective_function(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
+    Base.empty!(model.H)
 
     # Calculate an upper bound on the number of terms
-    num_terms =
-        length(model.f) + sum(length, model.g; init = 0) + sum(length, model.h; init = 0)
+    num_terms = +(
+        length(model.f),
+        sum(length, model.g; init = 0),
+        sum(length, model.h; init = 0),
+        sum(length, model.s; init = 0),
+    )
 
     sizehint!(model.H, num_terms)
 
@@ -25,7 +29,7 @@ function hamiltonian!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
     end
 
     for (ci, g) in model.g
-        ρ = model.ρ[ci]
+        ρ = MOI.get(model, Attributes.ConstraintEncodingPenalty(), ci)
 
         for (ω, c) in g
             model.H[ω] += ρ * c
@@ -33,10 +37,18 @@ function hamiltonian!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
     end
 
     for (vi, h) in model.h
-        θ = model.θ[vi]
+        θ = MOI.get(model, Attributes.VariableEncodingPenalty(), vi)
 
         for (ω, c) in h
             model.H[ω] += θ * c
+        end
+    end
+
+    for (ci, s) in model.s
+        η = MOI.get(model, Attributes.SlackVariableEncodingPenalty(), ci)
+
+        for (ω, c) in s
+            model.H[ω] += η * c
         end
     end
 
@@ -64,14 +76,23 @@ function quadratize!(model::Virtual.Model, arch::AbstractArchitecture)
             # NOTE: Here it is necessary to invert the sign of the
             # Hamiltonian since PBO adopts the minimization sense
             # convention.
+
             # TODO: Add an in-place version of 'quadratize!' that 
             # provides support for maximization problems.
-            let H = PBO.quadratize!(-model.H, quad) do (n::Union{Integer,Nothing} = nothing)
-                    return aux(model, n, arch)
-                end
+            
+            # IDEA: As an easy fix, just modify 'model.H' in-place.
+            # Support for this is expected to be provided by PBO soon.
+            for (ω, c) in model.H
+                model.H[ω] = -c
+            end
 
-                # NOTE: This setup leads to avoidable allocations.
-                Base.copy!(model.H, -H)
+            PBO.quadratize!(model.H, quad) do (n::Union{Integer,Nothing} = nothing)
+                return aux(model, n, arch)
+            end
+
+            # Take it back to the original state
+            for (ω, c) in model.H
+                model.H[ω] = -c
             end
         else # === MOI.MIN_SENSE || === MOI.FEASIBILITY
             PBO.quadratize!(model.H, quad) do (n::Union{Integer,Nothing} = nothing)
@@ -106,8 +127,13 @@ function output!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
             # have this condition here.
             # HINT: When debugging this, a good place to start is to check if the 'Quadratize'
             # flag is set or not. If missing, it should mean that some constraint might induce
-            # PBFs of higher degree without calling 'MOI.set(model, Quadratize(), true)'.     
-            compilation_error("Quadratization failed")
+            # PBFs of higher degree without calling
+            #     MOI.set(model, AttributesQuadratize(), true)
+            compilation_error!(
+                model,
+                "Fatal: Quadratization failed";
+                status="Failure in quadratization",
+            )
         end
     end
 

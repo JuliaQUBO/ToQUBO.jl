@@ -8,7 +8,7 @@ const CI   = MOI.ConstraintIndex
 import PseudoBooleanOptimization as PBO
 import QUBOTools
 
-import ..ToQUBO: Optimizer
+import ..ToQUBO: Optimizer, PreQUBOModel, QUBOModel
 import ..Encoding
 import ..Virtual
 
@@ -16,14 +16,100 @@ function MOIU.map_indices(::Function, e::Encoding.VariableEncodingMethod)
     return e
 end
 
+function _attribute_from_key end
+
+_attribute_from_key(key::Symbol) = _attribute_from_key(Val(key))
+
 abstract type CompilerAttribute <: MOI.AbstractOptimizerAttribute end
 
 MOI.supports(::Optimizer, ::A) where {A<:CompilerAttribute} = true
 
 @doc raw"""
+    SourceModel()
+"""
+struct SourceModel <: CompilerAttribute end
+
+MOI.is_set_by_optimize(::SourceModel) = true
+
+function MOI.get(model::Optimizer{T}, ::SourceModel)::PreQUBOModel{T} where {T}
+    return model.source_model
+end
+
+@doc raw"""
+    TargetModel()
+"""
+struct TargetModel <: CompilerAttribute end
+
+MOI.is_set_by_optimize(::TargetModel) = true
+
+function MOI.get(model::Optimizer{T}, ::TargetModel)::QUBOModel{T} where {T}
+    return model.target_model
+end
+
+@doc raw"""
+    CompilationTime()
+"""
+struct CompilationTime <: CompilerAttribute end
+
+_attribute_from_key(::Val{:compilation_time}) = CompilationTime
+
+MOI.is_set_by_optimize(::CompilationTime) = true
+
+function MOI.get(model::Optimizer, ::CompilationTime)::Union{Float64,Nothing}
+    return get(model.compiler_settings, :compilation_time, nothing)
+end
+
+function MOI.set(model::Optimizer, ::CompilationTime, t::Any)
+    model.compiler_settings[:compilation_time] = convert(Float64, t)
+
+    return nothing
+end
+
+function MOI.set(model::Optimizer, ::CompilationTime, ::Nothing)
+    delete!(model.compiler_settings, :compilation_time)
+
+    return nothing
+end
+
+function compilation_time(model::Optimizer)::Union{Float64,Nothing}
+    return MOI.get(model, CompilationTime())
+end
+
+@doc raw"""
+    CompilationStatus()
+"""
+struct CompilationStatus <: CompilerAttribute end
+
+_attribute_from_key(::Val{:compilation_status}) = CompilationStatus
+
+MOI.is_set_by_optimize(::CompilationStatus) = true
+
+function MOI.get(model::Optimizer, ::CompilationStatus)
+    return get(model.compiler_settings, :compilation_status, MOI.OPTIMIZE_NOT_CALLED)
+end
+
+function MOI.set(model::Optimizer, ::CompilationStatus, status::MOI.TerminationStatusCode)
+    model.compiler_settings[:compilation_status] = status
+
+    return nothing
+end
+
+function MOI.set(model::Optimizer, ::CompilationStatus, ::Nothing)
+    delete!(model.compiler_settings, :compilation_status)
+
+    return nothing
+end
+
+function compilation_status(model::Optimizer)::MOI.TerminationStatusCode
+    return MOI.get(model, CompilationStatus())
+end
+
+@doc raw"""
     Warnings()
 """
 struct Warnings <: CompilerAttribute end
+
+_attribute_from_key(::Val{:warnings}) = Warnings
 
 function MOI.get(model::Optimizer, ::Warnings)::Bool
     return get(model.compiler_settings, :warnings, true)
@@ -49,6 +135,8 @@ end
     Optimization()
 """
 struct Optimization <: CompilerAttribute end
+
+_attribute_from_key(::Val{:optimization}) = Optimization
 
 function MOI.get(model::Optimizer, ::Optimization)::Integer
     return get(model.compiler_settings, :optimization, 0)
@@ -80,6 +168,8 @@ Defaults to `QUBOTools.GenericArchitecture`.
 """
 struct Architecture <: CompilerAttribute end
 
+_attribute_from_key(::Val{:architecture}) = Architecture
+
 function MOI.get(model::Optimizer, ::Architecture)::QUBOTools.AbstractArchitecture
     return get(model.compiler_settings, :architecture, QUBOTools.GenericArchitecture())
 end
@@ -107,8 +197,10 @@ When set, this boolean flag guarantees that every coefficient in the final formu
 """
 struct Discretize <: CompilerAttribute end
 
+_attribute_from_key(::Val{:discretize}) = Discretize
+
 function MOI.get(model::Optimizer, ::Discretize)::Bool
-    return get(model.compiler_settings, :discretize, false)
+    return get(model.compiler_settings, :discretize, true)
 end
 
 function MOI.set(model::Optimizer, ::Discretize, flag::Bool)
@@ -135,6 +227,8 @@ Is automatically set by the compiler when high-order functions are generated.
 """
 struct Quadratize <: CompilerAttribute end
 
+_attribute_from_key(::Val{:quadratize}) = Quadratize
+
 function MOI.get(model::Optimizer, ::Quadratize)::Bool
     return get(model.compiler_settings, :quadratize, false)
 end
@@ -157,15 +251,13 @@ Available options are defined in the `PBO` submodule.
 """
 struct QuadratizationMethod <: CompilerAttribute end
 
+_attribute_from_key(::Val{:quadratization_method}) = QuadratizationMethod
+
 function MOI.get(model::Optimizer, ::QuadratizationMethod)
     return get(model.compiler_settings, :quadratization_method, PBO.DEFAULT())
 end
 
-function MOI.set(
-    model::Optimizer,
-    ::QuadratizationMethod,
-    method::PBO.QuadratizationMethod,
-)
+function MOI.set(model::Optimizer, ::QuadratizationMethod, method::PBO.QuadratizationMethod)
     model.compiler_settings[:quadratization_method] = method
 
     return nothing
@@ -189,6 +281,8 @@ This is intended to be used during tests or other situations where deterministic
 On the other hand, usage in production is not recommended since it requires increased memory and processing resources.
 """
 struct StableQuadratization <: CompilerAttribute end
+
+_attribute_from_key(::Val{:stable_quadratization}) = StableQuadratization
 
 function MOI.get(model::Optimizer, ::StableQuadratization)::Bool
     return get(model.compiler_settings, :stable_quadratization, false)
@@ -217,6 +311,8 @@ When set, this boolean flag enables stable reformulation methods, thus yielding 
 """
 struct StableCompilation <: CompilerAttribute end
 
+_attribute_from_key(::Val{:stable_compilation}) = StableCompilation
+
 function MOI.get(model::Optimizer, ::StableCompilation)::Bool
     return get(model.compiler_settings, :stable_compilation, false)
 end
@@ -244,11 +340,17 @@ Fallback value for [`VariableEncodingMethod`](@ref).
 """
 struct DefaultVariableEncodingMethod <: CompilerAttribute end
 
+_attribute_from_key(::Val{:default_variable_encoding_method}) = DefaultVariableEncodingMethod
+
 function MOI.get(
     model::Optimizer,
     ::DefaultVariableEncodingMethod,
 )::Encoding.VariableEncodingMethod
-    return get(model.compiler_settings, :default_variable_encoding_method, Encoding.Binary())
+    return get(
+        model.compiler_settings,
+        :default_variable_encoding_method,
+        Encoding.Binary(),
+    )
 end
 
 function MOI.set(
@@ -274,6 +376,8 @@ Fallback value for [`VariableEncodingATol`](@ref).
 """
 struct DefaultVariableEncodingATol <: CompilerAttribute end
 
+_attribute_from_key(::Val{:default_variable_encoding_atol}) = DefaultVariableEncodingATol
+
 function MOI.get(model::Optimizer{T}, ::DefaultVariableEncodingATol)::T where {T}
     return get(model.compiler_settings, :default_variable_encoding_atol, T(1 / 4))
 end
@@ -294,6 +398,8 @@ end
     DefaultVariableEncodingBits()
 """
 struct DefaultVariableEncodingBits <: CompilerAttribute end
+
+_attribute_from_key(::Val{:default_variable_encoding_bits}) = DefaultVariableEncodingBits
 
 function MOI.get(model::Optimizer, ::DefaultVariableEncodingBits)::Union{Integer,Nothing}
     return get(model.compiler_settings, :default_variable_encoding_bits, nothing)
@@ -320,6 +426,8 @@ MOI.supports(::Optimizer, ::A, ::Type{VI}) where {A<:CompilerVariableAttribute} 
     VariableEncodingATol()
 """
 struct VariableEncodingATol <: CompilerVariableAttribute end
+
+_attribute_from_key(::Val{:variable_encoding_atol}) = VariableEncodingATol
 
 function MOI.get(
     model::Optimizer{T},
@@ -372,6 +480,8 @@ end
 """
 struct VariableEncodingBits <: CompilerVariableAttribute end
 
+_attribute_from_key(::Val{:variable_encoding_bits}) = VariableEncodingBits
+
 function MOI.get(model::Optimizer, ::VariableEncodingBits, vi::VI)::Union{Integer,Nothing}
     attr = :variable_encoding_bits
 
@@ -386,10 +496,10 @@ function MOI.set(model::Optimizer, ::VariableEncodingBits, vi::VI, n::Integer)
     attr = :variable_encoding_bits
 
     if !haskey(model.variable_settings, attr)
-        model.variable_settings[attr] = Dict{VI,Any}(vi => n)
-    else
-        model.variable_settings[attr][vi] = n
+        model.variable_settings[attr] = Dict{VI,Any}()
     end
+
+    model.variable_settings[attr][vi] = n
 
     return nothing
 end
@@ -399,10 +509,6 @@ function MOI.set(model::Optimizer, ::VariableEncodingBits, vi::VI, ::Nothing)
 
     if haskey(model.variable_settings, attr)
         delete!(model.variable_settings[attr], vi)
-
-        if isempty(model.variable_settings[attr])
-            delete!(model.variable_settings, attr)
-        end
     end
 
     return nothing
@@ -434,6 +540,8 @@ encodings can have their expansion coefficients bounded by wrapping them with th
 [`Encoding.Bounded`](@ref) method.
 """
 struct VariableEncodingMethod <: CompilerVariableAttribute end
+
+_attribute_from_key(::Val{:variable_encoding_method}) = VariableEncodingMethod
 
 function variable_encoding_method(model::Optimizer, vi::VI)::Encoding.VariableEncodingMethod
     e = MOI.get(model, VariableEncodingMethod(), vi)
@@ -468,10 +576,10 @@ function MOI.set(
     attr = :variable_encoding_method
 
     if !haskey(model.variable_settings, attr)
-        model.variable_settings[attr] = Dict{VI,Any}(vi => e)
-    else
-        model.variable_settings[attr][vi] = e
+        model.variable_settings[attr] = Dict{VI,Any}()
     end
+
+    model.variable_settings[attr][vi] = e
 
     return nothing
 end
@@ -481,10 +589,56 @@ function MOI.set(model::Optimizer, ::Attributes.VariableEncodingMethod, vi::VI, 
 
     if haskey(model.variable_settings, attr)
         delete!(model.variable_settings[attr], vi)
+    end
 
-        if isempty(model.variable_settings[attr])
-            delete!(model.variable_settings, attr)
-        end
+    return nothing
+end
+
+@doc raw"""
+    VariableEncodingPenaltyHint()
+
+Allows the user to set the coefficients used for encoding constraints.
+"""
+struct VariableEncodingPenaltyHint <: CompilerVariableAttribute end
+
+_attribute_from_key(::Val{:variable_encoding_penalty_hint}) = VariableEncodingPenaltyHint
+
+function variable_encoding_penalty_hint(model::Optimizer, vi::VI)
+    return MOI.get(model, VariableEncodingPenaltyHint(), vi)
+end
+
+function MOI.get(model::Optimizer{T}, ::VariableEncodingPenaltyHint, vi::VI) where {T}
+    attr = :variable_encoding_penalty_hint
+
+    if !haskey(model.variable_settings, attr) || !haskey(model.variable_settings[attr], vi)
+        return nothing
+    else
+        return model.variable_settings[attr][vi]::T
+    end
+end
+
+function MOI.set(model::Optimizer{T}, ::VariableEncodingPenaltyHint, vi::VI, ρ) where {T}
+    attr = :variable_encoding_penalty_hint
+
+    if !haskey(model.variable_settings, attr)
+        model.variable_settings[attr] = Dict{VI,Any}()
+    end
+
+    model.variable_settings[attr][vi] = convert(T, ρ)
+
+    return nothing
+end
+
+function MOI.set(
+    model::Optimizer{T},
+    ::VariableEncodingPenaltyHint,
+    vi::VI,
+    ::Nothing,
+) where {T}
+    attr = :variable_encoding_penalty_hint
+
+    if haskey(model.variable_settings, attr)
+        delete!(model.variable_settings[attr], vi)
     end
 
     return nothing
@@ -498,6 +652,8 @@ constraints are involved.
 """
 struct VariableEncodingPenalty <: CompilerVariableAttribute end
 
+MOI.is_set_by_optimize(::VariableEncodingPenalty) = true
+
 function variable_encoding_penalty(model::Optimizer, vi::VI)
     return MOI.get(model, VariableEncodingPenalty(), vi)
 end
@@ -506,8 +662,8 @@ function MOI.get(model::Optimizer{T}, ::VariableEncodingPenalty, vi::VI) where {
     return get(model.θ, vi, nothing)
 end
 
-function MOI.set(model::Optimizer{T}, ::VariableEncodingPenalty, vi::VI, θ::T) where {T}
-    model.θ[vi] = θ
+function MOI.set(model::Optimizer{T}, ::VariableEncodingPenalty, vi::VI, θ) where {T}
+    model.θ[vi] = convert(T, θ)
 
     return nothing
 end
@@ -528,9 +684,65 @@ abstract type CompilerConstraintAttribute <: MOI.AbstractConstraintAttribute end
 MOI.supports(::Optimizer, ::A, ::Type{<:CI}) where {A<:CompilerConstraintAttribute} = true
 
 @doc raw"""
+    ConstraintEncodingPenaltyHint()
+
+Allows the user to set the coefficients used for encoding constraints.
+"""
+struct ConstraintEncodingPenaltyHint <: CompilerConstraintAttribute end
+
+_attribute_from_key(::Val{:constraint_encoding_penalty_hint}) = ConstraintEncodingPenaltyHint
+
+function constraint_encoding_penalty_hint(model::Optimizer, ci::CI)
+    return MOI.get(model, ConstraintEncodingPenaltyHint(), ci)
+end
+
+function MOI.get(model::Optimizer{T}, ::ConstraintEncodingPenaltyHint, ci::CI) where {T}
+    attr = :constraint_encoding_penalty_hint
+
+    if !haskey(model.constraint_settings, attr) ||
+       !haskey(model.constraint_settings[attr], ci)
+        return nothing
+    else
+        return model.constraint_settings[attr][ci]::T
+    end
+end
+
+function MOI.set(
+    model::Optimizer{T},
+    ::ConstraintEncodingPenaltyHint,
+    ci::CI,
+    ρ::Any,
+) where {T}
+    attr = :constraint_encoding_penalty_hint
+
+    if !haskey(model.constraint_settings, attr)
+        model.constraint_settings[attr] = Dict{CI,Any}()
+    end
+
+    model.constraint_settings[attr][ci] = convert(T, ρ)
+
+    return nothing
+end
+
+function MOI.set(
+    model::Optimizer{T},
+    ::ConstraintEncodingPenaltyHint,
+    ci::CI,
+    ::Nothing,
+) where {T}
+    attr = :constraint_encoding_penalty_hint
+
+    if haskey(model.constraint_settings, attr)
+        delete!(model.constraint_settings[attr], ci)
+    end
+
+    return nothing
+end
+
+@doc raw"""
     ConstraintEncodingPenalty()
 
-Allows the user to set and retrieve the coefficients used for encoding constraints.
+Allows the user to retrieve the coefficients used for encoding constraints.
 """
 struct ConstraintEncodingPenalty <: CompilerConstraintAttribute end
 
@@ -561,6 +773,305 @@ function MOI.set(
     ::Nothing,
 ) where {T}
     delete!(model.ρ, ci)
+
+    return nothing
+end
+
+@doc raw"""
+    SlackVariableEncodingMethod()
+
+Sets the encoding method for slack variables generated by constraints.
+"""
+struct SlackVariableEncodingMethod <: CompilerConstraintAttribute end
+
+_attribute_from_key(::Val{:slack_variable_encoding_method}) = SlackVariableEncodingMethod
+
+function slack_variable_encoding_method(model::Optimizer, ci::CI)::Encoding.VariableEncodingMethod
+    e = MOI.get(model, SlackVariableEncodingMethod(), ci)
+
+    if isnothing(e)
+        return MOI.get(model, DefaultVariableEncodingMethod())
+    else
+        return e
+    end
+end
+
+function MOI.get(
+    model::Optimizer,
+    ::SlackVariableEncodingMethod,
+    ci::CI,
+)::Union{Encoding.VariableEncodingMethod,Nothing}
+    attr = :slack_variable_encoding_method
+
+    if !haskey(model.constraint_settings, attr) ||
+       !haskey(model.constraint_settings[attr], ci)
+        return nothing
+    else
+        return model.constraint_settings[attr][ci]
+    end
+end
+
+function MOI.set(
+    model::Optimizer,
+    ::SlackVariableEncodingMethod,
+    ci::CI,
+    e::Encoding.VariableEncodingMethod,
+)
+    attr = :slack_variable_encoding_method
+
+    if !haskey(model.constraint_settings, attr)
+        model.constraint_settings[attr] = Dict{CI,Any}()
+    end
+
+    model.constraint_settings[attr][ci] = e
+
+    return nothing
+end
+
+function MOI.set(
+    model::Optimizer,
+    ::SlackVariableEncodingMethod,
+    ci::CI,
+    ::Nothing,
+)
+    attr = :slack_variable_encoding_method
+
+    if haskey(model.constraint_settings, attr)
+        delete!(model.constraint_settings[attr], ci)
+    end
+
+    return nothing
+end
+
+@doc raw"""
+    SlackVariableEncodingATol()
+
+Sets the tolerance for slack variables generated by constraints.
+"""
+struct SlackVariableEncodingATol <: CompilerConstraintAttribute end
+
+_attribute_from_key(::Val{:slack_variable_encoding_atol}) = SlackVariableEncodingATol
+
+function slack_variable_encoding_atol(model::Optimizer, ci::CI)
+    return MOI.get(model, SlackVariableEncodingATol(), ci)
+end
+
+function MOI.get(
+    model::Optimizer{T},
+    ::SlackVariableEncodingATol,
+    ci::CI,
+)::Union{T,Nothing} where {T}
+    attr = :slack_variable_encoding_atol
+
+    if !haskey(model.constraint_settings, attr) ||
+       !haskey(model.constraint_settings[attr], ci)
+        return nothing
+    else
+        return model.constraint_settings[attr][ci]::T
+    end
+end
+
+function MOI.set(
+    model::Optimizer{T},
+    ::SlackVariableEncodingATol,
+    ci::CI,
+    τ::T,
+)::Nothing where {T}
+    attr = :slack_variable_encoding_atol
+
+    if !haskey(model.constraint_settings, attr)
+        model.constraint_settings[attr] = Dict{CI,Any}()
+    end
+
+    model.constraint_settings[attr][ci] = τ
+
+    return nothing
+end
+
+function MOI.set(
+    model::Optimizer,
+    ::SlackVariableEncodingATol,
+    ci::CI,
+    ::Nothing,
+)
+    attr = :slack_variable_encoding_atol
+
+    if haskey(model.constraint_settings, attr)
+        delete!(model.constraint_settings[attr], ci)
+    end
+
+    return nothing
+end
+
+@doc raw"""
+    SlackVariableEncodingBits()
+
+Sets the number of bits for slack variables generated by constraints.
+"""
+struct SlackVariableEncodingBits <: CompilerConstraintAttribute end
+
+_attribute_from_key(::Val{:slack_variable_encoding_bits}) = SlackVariableEncodingBits
+
+function slack_variable_encoding_bits(model::Optimizer, ci::CI)
+    return MOI.get(model, SlackVariableEncodingBits(), ci)
+end
+
+function MOI.get(
+    model::Optimizer,
+    ::SlackVariableEncodingBits,
+    ci::CI,
+)::Union{Integer,Nothing}
+    attr = :slack_variable_encoding_bits
+
+    if !haskey(model.constraint_settings, attr) ||
+       !haskey(model.constraint_settings[attr], ci)
+        return nothing
+    else
+        return model.constraint_settings[attr][ci]
+    end
+end
+
+function MOI.set(
+    model::Optimizer,
+    ::SlackVariableEncodingBits,
+    ci::CI,
+    n::Integer,
+)::Nothing
+    attr = :slack_variable_encoding_bits
+
+    if !haskey(model.constraint_settings, attr)
+        model.constraint_settings[attr] = Dict{CI,Any}()
+    end
+
+    model.constraint_settings[attr][ci] = n
+
+    return nothing
+end
+
+function MOI.set(
+    model::Optimizer,
+    ::SlackVariableEncodingBits,
+    ci::CI,
+    ::Nothing,
+)
+    attr = :slack_variable_encoding_bits
+
+    if haskey(model.constraint_settings, attr)
+        delete!(model.constraint_settings[attr], ci)
+    end
+
+    return nothing
+end
+
+@doc raw"""
+    SlackVariableEncodingPenaltyHint()
+
+Allows the user to hint the penalty factor used for encoding slack variables.
+"""
+struct SlackVariableEncodingPenaltyHint <: CompilerConstraintAttribute end
+
+_attribute_from_key(::Val{:slack_variable_encoding_penalty_hint}) = SlackVariableEncodingPenaltyHint
+
+function slack_variable_encoding_penalty_hint(model::Optimizer, ci::CI)
+    return MOI.get(model, SlackVariableEncodingPenaltyHint(), ci)
+end
+
+function MOI.get(
+    model::Optimizer{T},
+    ::SlackVariableEncodingPenaltyHint,
+    ci::CI,
+)::Union{T,Nothing} where {T}
+    attr = :slack_variable_encoding_penalty_hint
+
+    if !haskey(model.constraint_settings, attr) ||
+       !haskey(model.constraint_settings[attr], ci)
+        return nothing
+    else
+        return model.constraint_settings[attr][ci]::T
+    end
+end
+
+function MOI.set(
+    model::Optimizer{T},
+    ::SlackVariableEncodingPenaltyHint,
+    ci::CI,
+    ρ::T,
+)::Nothing where {T}
+    attr = :slack_variable_encoding_penalty_hint
+
+    if !haskey(model.constraint_settings, attr)
+        model.constraint_settings[attr] = Dict{CI,Any}()
+    end
+
+    model.constraint_settings[attr][ci] = ρ
+
+    return nothing
+end
+
+function MOI.set(
+    model::Optimizer,
+    ::SlackVariableEncodingPenaltyHint,
+    ci::CI,
+    ::Nothing,
+)
+    attr = :slack_variable_encoding_penalty_hint
+
+    if haskey(model.constraint_settings, attr)
+        delete!(model.constraint_settings[attr], ci)
+    end
+
+    return nothing
+end
+
+@doc raw"""
+    SlackVariableEncodingPenalty()
+
+Allows the user to retrieve the penalty factor used for encoding slack variables.
+"""
+struct SlackVariableEncodingPenalty <: CompilerConstraintAttribute end
+
+MOI.is_set_by_optimize(::SlackVariableEncodingPenalty) = true
+
+function slack_variable_encoding_penalty(model::Optimizer, ci::CI)
+    # TODO
+    # return MOI.get(model, SlackVariableEncodingPenalty(), ci)
+    return MOI.get(model, SlackVariableEncodingPenalty(), ci)
+end
+
+function MOI.get(
+    model::Optimizer{T},
+    ::SlackVariableEncodingPenalty,
+    ci::CI,
+)::Union{T,Nothing} where {T}
+    # TODO
+    # vi = Virtual.source(model.slack[ci])
+
+    # return MOI.get(model, VariableEncodingPenalty(), vi)
+    return get(model.η, ci, nothing)
+end
+
+function MOI.set(
+    model::Optimizer{T},
+    ::SlackVariableEncodingPenalty,
+    ci::CI,
+    η::Any,
+)::Nothing where {T}
+    # TODO: This doesn't work since slack variables have no source!
+    # vi = Virtual.source(model.slack[ci])
+
+    # MOI.set(model, VariableEncodingPenalty(), vi, η)
+    model.η[ci] = convert(T, η)
+
+    return nothing
+end
+
+function MOI.set(
+    model::Optimizer{T},
+    ::SlackVariableEncodingPenalty,
+    ci::CI,
+    ::Nothing,
+)::Nothing where {T}
+    delete!(model.η, ci)
 
     return nothing
 end

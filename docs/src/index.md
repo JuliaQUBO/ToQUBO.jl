@@ -17,9 +17,9 @@ julia> Pkg.add("ToQUBO")
 ```@example
 using JuMP
 using ToQUBO
-using DWave
+using PySA
 
-model = Model(() -> ToQUBO.Optimizer(DWave.Neal.Optimizer))
+model = Model(() -> ToQUBO.Optimizer(PySA.Optimizer))
 
 @variable(model, x[1:3], Bin)
 @objective(model, Max, 1.0*x[1] + 2.0*x[2] + 3.0*x[3])
@@ -41,7 +41,7 @@ If you use `ToQUBO.jl` in your work, we kindly ask you to include the following 
   month        = {feb},
   year         = {2023},
   publisher    = {Zenodo},
-  version      = {v0.1.5},
+  version      = {v0.1.9},
   doi          = {10.5281/zenodo.7644291},
   url          = {https://doi.org/10.5281/zenodo.7644291}
 }

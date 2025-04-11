@@ -28,10 +28,16 @@ function MOI.optimize!(model::Optimizer)
     index_map = MOIU.identity_index_map(model.source_model)
 
     # De facto JuMP to QUBO Compilation
-    ToQUBO.Compiler.compile!(model)
+    let t = @elapsed ToQUBO.Compiler.compile!(model)
+        MOI.set(model, Attributes.CompilationStatus(), MOI.LOCALLY_SOLVED)
+        MOI.set(model, Attributes.CompilationTime(), t)
+    end
 
     if !isnothing(model.optimizer)
         MOI.optimize!(model.optimizer, model.target_model)
+        MOI.set(model, MOI.RawStatusString(), MOI.get(model.optimizer, MOI.RawStatusString()))
+    else
+        MOI.set(model, MOI.RawStatusString(), "Compilation complete without an internal solver")
     end
 
     return (index_map, false)
@@ -122,38 +128,25 @@ function MOI.copy_to(model::Optimizer{T}, source::MOI.ModelLike) where {T}
 end
 
 # Objective Function Support
-MOI.supports(
-    ::Optimizer{T},
-    ::MOI.ObjectiveFunction{<:Union{VI,SAF{T},SQF{T}}},
-) where {T} = true
+function MOI.supports(model::Optimizer, f::MOI.ObjectiveFunction{F}) where {F}
+    return MOI.supports(model.source_model, f)
+end
 
 # Constraint Support
-MOI.supports_constraint(
-    ::Optimizer{T},
-    ::Type{VI},
-    ::Type{
-        <:Union{MOI.ZeroOne,MOI.Integer,MOI.Interval{T},MOI.LessThan{T},MOI.GreaterThan{T}},
-    },
-) where {T} = true
+function MOI.supports_constraint(
+    model::Optimizer,
+    ::Type{F},
+    ::Type{S},
+) where {F<:MOI.AbstractFunction,S<:MOI.AbstractSet}
+    return MOI.supports_constraint(model.source_model, F, S)
+end
 
-MOI.supports_constraint(
-    ::Optimizer{T},
-    ::Type{<:Union{SAF{T},SQF{T}}},
-    ::Type{<:Union{MOI.EqualTo{T},MOI.LessThan{T}}},
-) where {T} = true
-
-MOI.supports_constraint(
-    ::Optimizer{T},
-    ::Type{<:MOI.VectorOfVariables},
-    ::Type{<:MOI.SOS1},
-) where {T} = true
-
-MOI.supports_add_constrained_variable(
-    ::Optimizer{T},
-    ::Type{
-        <:Union{MOI.ZeroOne,MOI.Integer,MOI.Interval{T},MOI.LessThan{T},MOI.GreaterThan{T}},
-    },
-) where {T} = true
+function MOI.supports_add_constrained_variable(
+    model::Optimizer,
+    ::Type{S},
+) where {S<:MOI.AbstractScalarSet}
+    return MOI.supports_add_constrained_variable(model.source_model, S)
+end
 
 function Base.show(io::IO, model::Optimizer)
     print(

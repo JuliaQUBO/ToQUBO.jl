@@ -55,13 +55,7 @@ end
 
 function MOI.get(
     model::Virtual.Model,
-    attr::Union{
-        MOI.SolveTimeSec,
-        MOI.PrimalStatus,
-        MOI.DualStatus,
-        MOI.TerminationStatus,
-        MOI.RawStatusString,
-    },
+    attr::MOI.SolveTimeSec,
 )
     if !isnothing(model.optimizer)
         return MOI.get(model.optimizer, attr)
@@ -72,18 +66,65 @@ end
 
 function MOI.supports(
     model::Virtual.Model,
-    attr::Union{
-        MOI.SolveTimeSec,
-        MOI.PrimalStatus,
-        MOI.DualStatus,
-        MOI.TerminationStatus,
-        MOI.RawStatusString,
-    },
+    attr::MOI.SolveTimeSec,
 )
     if !isnothing(model.optimizer)
         return MOI.supports(model.optimizer, attr)
     else
         return false
+    end
+end
+
+function MOI.get(
+    model::Virtual.Model,
+    attr::MOI.RawStatusString,
+)
+    if !isnothing(model.optimizer) && MOI.supports(model.optimizer, attr)
+        return MOI.get(model.optimizer, attr)
+    else
+        return get(model.moi_settings, :raw_status_string, "")
+    end
+end
+
+function MOI.set(
+    model::Virtual.Model,
+    ::MOI.RawStatusString,
+    value::AbstractString,
+)
+    model.moi_settings[:raw_status_string] = String(value)
+    
+    return nothing
+end
+
+function MOI.supports(::Virtual.Model, ::MOI.RawStatusString)
+    return true
+end
+
+function MOI.get(model::Virtual.Model, attr::MOI.TerminationStatus)
+    if !isnothing(model.optimizer)
+        return MOI.get(model.optimizer, attr)
+    else
+        return MOI.get(model, Attributes.CompilationStatus())
+    end
+end
+
+function MOI.supports(::Virtual.Model, ::MOI.TerminationStatus)
+    return true
+end
+
+function MOI.get(model::Virtual.Model, attr::Union{MOI.PrimalStatus, MOI.DualStatus})
+    if !isnothing(model.optimizer)
+        return MOI.get(model.optimizer, attr)
+    else
+        return MOI.NO_SOLUTION
+    end
+end
+
+function MOI.supports(model::Virtual.Model, attr::Union{MOI.PrimalStatus, MOI.DualStatus})
+    if !isnothing(model.optimizer)
+        return MOI.supports(model.optimizer, attr)
+    else
+        return true
     end
 end
 
