@@ -16,6 +16,10 @@ function MOIU.map_indices(::Function, e::Encoding.VariableEncodingMethod)
     return e
 end
 
+function _attribute_from_key end
+
+_attribute_from_key(key::Symbol) = _attribute_from_key(Val(key))
+
 abstract type CompilerAttribute <: MOI.AbstractOptimizerAttribute end
 
 MOI.supports(::Optimizer, ::A) where {A<:CompilerAttribute} = true
@@ -47,6 +51,8 @@ end
 """
 struct CompilationTime <: CompilerAttribute end
 
+_attribute_from_key(::Val{:compilation_time}) = CompilationTime
+
 MOI.is_set_by_optimize(::CompilationTime) = true
 
 function MOI.get(model::Optimizer, ::CompilationTime)::Union{Float64,Nothing}
@@ -73,6 +79,8 @@ end
     CompilationStatus()
 """
 struct CompilationStatus <: CompilerAttribute end
+
+_attribute_from_key(::Val{:compilation_status}) = CompilationStatus
 
 MOI.is_set_by_optimize(::CompilationStatus) = true
 
@@ -101,6 +109,8 @@ end
 """
 struct Warnings <: CompilerAttribute end
 
+_attribute_from_key(::Val{:warnings}) = Warnings
+
 function MOI.get(model::Optimizer, ::Warnings)::Bool
     return get(model.compiler_settings, :warnings, true)
 end
@@ -125,6 +135,8 @@ end
     Optimization()
 """
 struct Optimization <: CompilerAttribute end
+
+_attribute_from_key(::Val{:optimization}) = Optimization
 
 function MOI.get(model::Optimizer, ::Optimization)::Integer
     return get(model.compiler_settings, :optimization, 0)
@@ -156,6 +168,8 @@ Defaults to `QUBOTools.GenericArchitecture`.
 """
 struct Architecture <: CompilerAttribute end
 
+_attribute_from_key(::Val{:architecture}) = Architecture
+
 function MOI.get(model::Optimizer, ::Architecture)::QUBOTools.AbstractArchitecture
     return get(model.compiler_settings, :architecture, QUBOTools.GenericArchitecture())
 end
@@ -182,6 +196,8 @@ end
 When set, this boolean flag guarantees that every coefficient in the final formulation is an integer.
 """
 struct Discretize <: CompilerAttribute end
+
+_attribute_from_key(::Val{:discretize}) = Discretize
 
 function MOI.get(model::Optimizer, ::Discretize)::Bool
     return get(model.compiler_settings, :discretize, true)
@@ -211,6 +227,8 @@ Is automatically set by the compiler when high-order functions are generated.
 """
 struct Quadratize <: CompilerAttribute end
 
+_attribute_from_key(::Val{:quadratize}) = Quadratize
+
 function MOI.get(model::Optimizer, ::Quadratize)::Bool
     return get(model.compiler_settings, :quadratize, false)
 end
@@ -232,6 +250,8 @@ Defines which quadratization method to use.
 Available options are defined in the `PBO` submodule.
 """
 struct QuadratizationMethod <: CompilerAttribute end
+
+_attribute_from_key(::Val{:quadratization_method}) = QuadratizationMethod
 
 function MOI.get(model::Optimizer, ::QuadratizationMethod)
     return get(model.compiler_settings, :quadratization_method, PBO.DEFAULT())
@@ -262,6 +282,8 @@ On the other hand, usage in production is not recommended since it requires incr
 """
 struct StableQuadratization <: CompilerAttribute end
 
+_attribute_from_key(::Val{:stable_quadratization}) = StableQuadratization
+
 function MOI.get(model::Optimizer, ::StableQuadratization)::Bool
     return get(model.compiler_settings, :stable_quadratization, false)
 end
@@ -289,6 +311,8 @@ When set, this boolean flag enables stable reformulation methods, thus yielding 
 """
 struct StableCompilation <: CompilerAttribute end
 
+_attribute_from_key(::Val{:stable_compilation}) = StableCompilation
+
 function MOI.get(model::Optimizer, ::StableCompilation)::Bool
     return get(model.compiler_settings, :stable_compilation, false)
 end
@@ -315,6 +339,8 @@ end
 Fallback value for [`VariableEncodingMethod`](@ref).
 """
 struct DefaultVariableEncodingMethod <: CompilerAttribute end
+
+_attribute_from_key(::Val{:default_variable_encoding_method}) = DefaultVariableEncodingMethod
 
 function MOI.get(
     model::Optimizer,
@@ -350,6 +376,8 @@ Fallback value for [`VariableEncodingATol`](@ref).
 """
 struct DefaultVariableEncodingATol <: CompilerAttribute end
 
+_attribute_from_key(::Val{:default_variable_encoding_atol}) = DefaultVariableEncodingATol
+
 function MOI.get(model::Optimizer{T}, ::DefaultVariableEncodingATol)::T where {T}
     return get(model.compiler_settings, :default_variable_encoding_atol, T(1 / 4))
 end
@@ -370,6 +398,8 @@ end
     DefaultVariableEncodingBits()
 """
 struct DefaultVariableEncodingBits <: CompilerAttribute end
+
+_attribute_from_key(::Val{:default_variable_encoding_bits}) = DefaultVariableEncodingBits
 
 function MOI.get(model::Optimizer, ::DefaultVariableEncodingBits)::Union{Integer,Nothing}
     return get(model.compiler_settings, :default_variable_encoding_bits, nothing)
@@ -396,6 +426,8 @@ MOI.supports(::Optimizer, ::A, ::Type{VI}) where {A<:CompilerVariableAttribute} 
     VariableEncodingATol()
 """
 struct VariableEncodingATol <: CompilerVariableAttribute end
+
+_attribute_from_key(::Val{:variable_encoding_atol}) = VariableEncodingATol
 
 function MOI.get(
     model::Optimizer{T},
@@ -447,6 +479,8 @@ end
     VariableEncodingBits()
 """
 struct VariableEncodingBits <: CompilerVariableAttribute end
+
+_attribute_from_key(::Val{:variable_encoding_bits}) = VariableEncodingBits
 
 function MOI.get(model::Optimizer, ::VariableEncodingBits, vi::VI)::Union{Integer,Nothing}
     attr = :variable_encoding_bits
@@ -507,6 +541,8 @@ encodings can have their expansion coefficients bounded by wrapping them with th
 """
 struct VariableEncodingMethod <: CompilerVariableAttribute end
 
+_attribute_from_key(::Val{:variable_encoding_method}) = VariableEncodingMethod
+
 function variable_encoding_method(model::Optimizer, vi::VI)::Encoding.VariableEncodingMethod
     e = MOI.get(model, VariableEncodingMethod(), vi)
 
@@ -564,6 +600,8 @@ end
 Allows the user to set the coefficients used for encoding constraints.
 """
 struct VariableEncodingPenaltyHint <: CompilerVariableAttribute end
+
+_attribute_from_key(::Val{:variable_encoding_penalty_hint}) = VariableEncodingPenaltyHint
 
 function variable_encoding_penalty_hint(model::Optimizer, vi::VI)
     return MOI.get(model, VariableEncodingPenaltyHint(), vi)
@@ -651,6 +689,8 @@ MOI.supports(::Optimizer, ::A, ::Type{<:CI}) where {A<:CompilerConstraintAttribu
 Allows the user to set the coefficients used for encoding constraints.
 """
 struct ConstraintEncodingPenaltyHint <: CompilerConstraintAttribute end
+
+_attribute_from_key(::Val{:constraint_encoding_penalty_hint}) = ConstraintEncodingPenaltyHint
 
 function constraint_encoding_penalty_hint(model::Optimizer, ci::CI)
     return MOI.get(model, ConstraintEncodingPenaltyHint(), ci)
@@ -740,6 +780,8 @@ Sets the encoding method for slack variables generated by constraints.
 """
 struct SlackVariableEncodingMethod <: CompilerConstraintAttribute end
 
+_attribute_from_key(::Val{:slack_variable_encoding_method}) = SlackVariableEncodingMethod
+
 function slack_variable_encoding_method(model::Optimizer, ci::CI)::Encoding.VariableEncodingMethod
     e = MOI.get(model, SlackVariableEncodingMethod(), ci)
 
@@ -804,6 +846,8 @@ Sets the tolerance for slack variables generated by constraints.
 """
 struct SlackVariableEncodingATol <: CompilerConstraintAttribute end
 
+_attribute_from_key(::Val{:slack_variable_encoding_atol}) = SlackVariableEncodingATol
+
 function slack_variable_encoding_atol(model::Optimizer, ci::CI)
     return MOI.get(model, SlackVariableEncodingATol(), ci)
 end
@@ -862,6 +906,8 @@ Sets the number of bits for slack variables generated by constraints.
 """
 struct SlackVariableEncodingBits <: CompilerConstraintAttribute end
 
+_attribute_from_key(::Val{:slack_variable_encoding_bits}) = SlackVariableEncodingBits
+
 function slack_variable_encoding_bits(model::Optimizer, ci::CI)
     return MOI.get(model, SlackVariableEncodingBits(), ci)
 end
@@ -919,6 +965,8 @@ end
 Allows the user to hint the penalty factor used for encoding slack variables.
 """
 struct SlackVariableEncodingPenaltyHint <: CompilerConstraintAttribute end
+
+_attribute_from_key(::Val{:slack_variable_encoding_penalty_hint}) = SlackVariableEncodingPenaltyHint
 
 function slack_variable_encoding_penalty_hint(model::Optimizer, ci::CI)
     return MOI.get(model, SlackVariableEncodingPenaltyHint(), ci)

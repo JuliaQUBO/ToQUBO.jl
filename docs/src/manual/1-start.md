@@ -5,9 +5,9 @@
 ```@example quick-start
 using JuMP
 using ToQUBO
-using DWave
+using PySA
 
-model = Model(() -> ToQUBO.Optimizer(DWave.Neal.Optimizer))
+model = Model(() -> ToQUBO.Optimizer(PySA.Optimizer))
 
 @variable(model, x[1:3], Bin)
 
