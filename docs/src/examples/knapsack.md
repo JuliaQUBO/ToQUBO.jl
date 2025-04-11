@@ -34,12 +34,12 @@ Writing down the data above as a linear program, we have
 
 Writing this in [JuMP](https://github.com/jump-dev/JuMP.jl) we end up with
 
-```@example dwave-knapsack
+```@example knapsack
 using JuMP
 using ToQUBO
-using DWave
+using PySA
 
-model = Model(() -> ToQUBO.Optimizer(DWave.Neal.Optimizer))
+model = Model(() -> ToQUBO.Optimizer(PySA.Optimizer))
 
 @variable(model, x[1:3], Bin)
 @objective(model, Max, x[1] + 2 * x[2] + 3 * x[3])
@@ -52,7 +52,7 @@ solution_summary(model)
 
 The final decision is to take items ``2`` and ``3``, i.e., ``x_{1} = 0, x_{2} = 1, x_{3} = 1``.
 
-```@example dwave-knapsack
+```@example knapsack
 value.(x)
 ```
 
@@ -63,7 +63,13 @@ First, we generate uniform random costs ``\mathbf{c}`` and weights ``\mathbf{w}`
 
 This example was inspired by [D-Wave's knapsack example repository](https://github.com/dwave-examples/knapsack).
 
-```@setup dwave-knapsack
+```@setup knapsack
+using PySA
+
+PySA.np.random.seed(0)
+```
+
+```@setup knapsack
 using CSV
 using DataFrames
 using Random
@@ -79,19 +85,19 @@ df = DataFrame(
 CSV.write("knapsack.csv", df)
 ```
 
-```@example dwave-knapsack
+```@example knapsack
 using CSV
 using DataFrames
 
 df = CSV.read("knapsack.csv", DataFrame)
 ```
 
-```@example dwave-knapsack
+```@example knapsack
 using JuMP
 using ToQUBO
-using DWave
+using PySA
 
-model = Model(() -> ToQUBO.Optimizer(DWave.Neal.Optimizer))
+model = Model(() -> ToQUBO.Optimizer(PySA.Optimizer))
 
 n = size(df, 1)
 c = collect(Float64, df[!, :cost])
@@ -108,4 +114,10 @@ optimize!(model)
 df[:,:select] = map(xi -> ifelse(xi > 0, "✅", "❌"), value.(x))
 
 df
+```
+
+## Checking Capacity
+
+```@example knapsack
+println("Total weight : $(w' * value.(x)) / $(C)")
 ```
