@@ -24,13 +24,13 @@ From the definition and the basics of number theory, we are able to retrieve a f
 ```@example prime-factorization
 using JuMP
 using ToQUBO
-using DWave
+using PySA
 
-function factor(R::Integer; optimizer = DWave.Neal.Optimizer)
+function factor(R::Integer; optimizer = PySA.Optimizer)
     return factor(identity, R; optimizer)
 end
 
-function factor(config!::Function, R::Integer; optimizer = DWave.Neal.Optimizer)
+function factor(config!::Function, R::Integer; optimizer = PySA.Optimizer)
     model = Model(() -> ToQUBO.Optimizer(optimizer))
 
     @variable(model,  1 <= p <= √R, Int)
@@ -51,8 +51,8 @@ end
 
 ```@example prime-factorization
 p, q = factor(15) do model
-    set_optimizer_attribute(model, "num_reads", 1_000)
-    set_optimizer_attribute(model, "num_sweeps", 2_000)
+    set_optimizer_attribute(model, "n_reads", 100)
+    set_optimizer_attribute(model, "n_sweeps", 200)
 end
 
 print("$p, $q")

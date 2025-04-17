@@ -52,5 +52,38 @@ const SOURCE_MODEL_ATTRIBUES{T} = Union{
 # ) where {F<:MOI.AbstractFunction}
 #     MOI.set(model.source_model, MOI.ObjectiveFunction{F}(), f)
 
-#     return nothing
-# end
+function MOI.add_constraint(
+    model::Virtual.Model,
+    f::MOI.AbstractFunction,
+    s::MOI.AbstractSet,
+)
+    return MOI.add_constraint(model.source_model, f, s)
+end
+
+function MOI.set(
+    model::Virtual.Model,
+    ::MOI.ObjectiveFunction{F},
+    f::F,
+) where {F<:MOI.AbstractFunction}
+    MOI.set(model.source_model, MOI.ObjectiveFunction{F}(), f)
+
+    return nothing
+end
+
+function MOI.get(model::Virtual.Model, ::MOI.ListOfVariableAttributesSet)
+    list = MOI.get(model.source_model, MOI.ListOfVariableAttributesSet())
+
+    if !isnothing(model.optimizer)
+        append!(list, MOI.get(model.optimizer, MOI.ListOfVariableAttributesSet()))
+    end
+
+    for (key, val) in keys(model.variable_settings)
+        isempty(val) && continue
+
+        attr = Attributes._attribute_from_key(key)::MOI.AbstractVariableAttribute
+
+        push!(list, attr)
+    end
+
+    return list
+end
