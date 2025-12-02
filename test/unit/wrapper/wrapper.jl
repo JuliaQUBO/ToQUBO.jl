@@ -53,9 +53,9 @@ function test_wrapper_optimizer()
         @testset "Solver Name and Version" begin
             let model = ToQUBO.Optimizer{Float64}()
                 @test MOI.get(model, MOI.SolverName()) == "Virtual QUBO Model"
-                # SolverVersion returns the module version Ref
-                version_ref = MOI.get(model, MOI.SolverVersion())
-                @test version_ref isa Ref || version_ref isa VersionNumber || version_ref === nothing || version_ref[] isa VersionNumber || true
+                # SolverVersion returns the module version as a Ref 
+                # We just verify it doesn't throw an error
+                @test_nowarn MOI.get(model, MOI.SolverVersion())
             end
         end
     end
