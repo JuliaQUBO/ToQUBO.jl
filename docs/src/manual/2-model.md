@@ -9,10 +9,19 @@ To use ToQUBO.jl, you need to create a JuMP model with the `ToQUBO.Optimizer` as
 ```julia
 using JuMP
 using ToQUBO
+using QUBODrivers  # Provides QUBO solver interfaces
 
-# Create a model with a QUBO solver
-model = Model(() -> ToQUBO.Optimizer(YourQUBOSolver.Optimizer))
+# Create a model with a QUBO solver (e.g., ExactSampler for small problems)
+model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
 ```
+
+!!! note "Choosing a QUBO Solver"
+    The inner optimizer must be a QUBO-compatible solver. Common choices include:
+    - `ExactSampler.Optimizer` from [QUBODrivers.jl](https://github.com/JuliaQUBO/QUBODrivers.jl) for exact solutions on small problems
+    - Quantum annealing backends like D-Wave
+    - Simulated annealing solvers
+    
+    Replace the solver with your preferred QUBO backend.
 
 The `ToQUBO.Optimizer` acts as a bridge between your JuMP model and QUBO solvers. It automatically translates your problem into QUBO form and passes it to the underlying solver.
 
@@ -134,9 +143,10 @@ Here's a complete example demonstrating the typical workflow:
 ```julia
 using JuMP
 using ToQUBO
+using QUBODrivers  # Provides ExactSampler and other solvers
 
 # 1. Create model with a QUBO solver
-model = Model(() -> ToQUBO.Optimizer(YourQUBOSolver.Optimizer))
+model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
 
 # 2. Define binary variables
 @variable(model, x[1:3], Bin)

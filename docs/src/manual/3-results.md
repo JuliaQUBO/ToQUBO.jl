@@ -147,9 +147,10 @@ theta = MOI.get(model, Attributes.VariableEncodingPenalty(), variable_ref)
 ```julia
 using JuMP
 using ToQUBO
+using QUBODrivers  # Provides ExactSampler and other solvers
 
 # Create and solve a model
-model = Model(() -> ToQUBO.Optimizer(YourQUBOSolver.Optimizer))
+model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
 
 @variable(model, x[1:3], Bin)
 @constraint(model, c1, x[1] + x[2] <= 1)
@@ -193,4 +194,4 @@ This allows you to:
 ## Next Steps
 
 - Learn about [Compiler Settings](@ref) to customize the reformulation
-- Explore the [Examples](@ref) for practical applications
+- Explore the [Knapsack](@ref), [Prime Factorization](@ref), or [Portfolio Optimization](@ref) examples for practical applications
