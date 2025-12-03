@@ -8,16 +8,16 @@
     <a href="https://arxiv.org/abs/2307.02577">
         <img src="https://img.shields.io/badge/arXiv-2307.02577-b31b1b.svg" alt="arXiv"/>
     </a>
-    <a href="https://codecov.io/gh/psrenergy/ToQUBO.jl">
-        <img src="https://codecov.io/gh/psrenergy/ToQUBO.jl/branch/master/graph/badge.svg?token=ECM5OQ9T67"/>
+    <a href="https://codecov.io/gh/JuliaQUBO/ToQUBO.jl">
+        <img src="https://codecov.io/gh/JuliaQUBO/ToQUBO.jl/branch/master/graph/badge.svg" alt="Coverage"/>
     </a>
-    <a href="https://github.com/psrenergy/ToQUBO.jl/actions/workflows/ci.yml">
-        <img src="https://github.com/psrenergy/ToQUBO.jl/actions/workflows/ci.yml/badge.svg?branch=master" alt="CI" />
+    <a href="https://github.com/JuliaQUBO/ToQUBO.jl/actions/workflows/ci.yml">
+        <img src="https://github.com/JuliaQUBO/ToQUBO.jl/actions/workflows/ci.yml/badge.svg?branch=master" alt="CI" />
     </a>
     <a href="https://www.youtube.com/watch?v=OTmzlTbqdNo">
         <img src="https://img.shields.io/badge/JuliaCon-2022-9558b2" alt="JuliaCon 2022">
     </a>
-    <a href="https://psrenergy.github.io/ToQUBO.jl/dev">
+    <a href="https://JuliaQUBO.github.io/ToQUBO.jl/dev">
         <img src="https://img.shields.io/badge/docs-dev-blue.svg" alt="Docs">
     </a>
     <a href="https://zenodo.org/badge/latestdoi/430697061">
@@ -26,7 +26,7 @@
 </div>
 
 ## Introduction
-ToQUBO.jl is a Julia package to reformulate general optimization problems into [QUBO](https://en.wikipedia.org/wiki/Quadratic_unconstrained_binary_optimization) (Quadratic Unconstrained Binary Optimization) instances. This tool aims to convert a broad range of [JuMP](https://github.com/jump-dev/JuMP.jl) problems for straightforward application in many physics and physics-inspired solution methods whose normal optimization form is equivalent to the QUBO. These methods include quantum annealing, quantum gate-circuit optimization algorithms (Quantum Optimization Alternating Ansatz, Variational Quantum Eigensolver), other hardware-accelerated platforms, such as Coherent Ising Machines and Simulated Bifurcation Machines, and more traditional methods such as simulated annealing. During execution, ToQUBO.jl encodes both discrete and continuous variables, maps constraints, and computes their penalties, performing a few model optimization steps along the process. A simple interface to connect various annealers and samplers as QUBO solvers is defined in [QUBODrivers.jl](https://github.com/psrenergy/QUBODrivers.jl).
+ToQUBO.jl is a Julia package to reformulate general optimization problems into [QUBO](https://en.wikipedia.org/wiki/Quadratic_unconstrained_binary_optimization) (Quadratic Unconstrained Binary Optimization) instances. This tool aims to convert a broad range of [JuMP](https://github.com/jump-dev/JuMP.jl) problems for straightforward application in many physics and physics-inspired solution methods whose normal optimization form is equivalent to the QUBO. These methods include quantum annealing, quantum gate-circuit optimization algorithms (Quantum Optimization Alternating Ansatz, Variational Quantum Eigensolver), other hardware-accelerated platforms, such as Coherent Ising Machines and Simulated Bifurcation Machines, and more traditional methods such as simulated annealing. During execution, ToQUBO.jl encodes both discrete and continuous variables, maps constraints, and computes their penalties, performing a few model optimization steps along the process. A simple interface to connect various annealers and samplers as QUBO solvers is defined in [QUBODrivers.jl](https://github.com/JuliaQUBO/QUBODrivers.jl).
 
 ToQUBO.jl was written as a [MathOptInterface](https://github.com/jump-dev/MathOptInterface.jl) (MOI) layer that automatically maps between input and output models, thus providing a smooth JuMP modeling experience.
 
@@ -134,7 +134,7 @@ At most two components of **x** can be nonzero, and if so they must be adjacent 
 [MOI Bridges](https://jump.dev/MathOptInterface.jl/stable/submodules/Bridges/reference/) provide equivalent constraint mapping.
 
 <a id="4">⁴</a>
-If you think this list is incomplete, consider creating an [Issue](https://github.com/psrenergy/ToQUBO.jl/issues) or opening a [Pull Request](https://github.com/psrenergy/ToQUBO.jl/pulls).
+If you think this list is incomplete, consider creating an [Issue](https://github.com/JuliaQUBO/ToQUBO.jl/issues) or opening a [Pull Request](https://github.com/JuliaQUBO/ToQUBO.jl/pulls).
 
 ## Citing ToQUBO.jl
 If you use `ToQUBO.jl` in your work, we kindly ask you to include the following citation:
