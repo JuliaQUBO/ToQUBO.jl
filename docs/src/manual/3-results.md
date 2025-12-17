@@ -144,7 +144,7 @@ theta = MOI.get(model, Attributes.VariableEncodingPenalty(), variable_ref)
 
 ## Example: Complete Results Retrieval
 
-```julia
+```@example results-retrieval
 using JuMP
 using ToQUBO
 using QUBODrivers  # Provides ExactSampler and other solvers

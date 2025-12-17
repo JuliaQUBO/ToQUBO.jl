@@ -140,7 +140,7 @@ end
 
 Here's a complete example demonstrating the typical workflow:
 
-```julia
+```@example model-workflow
 using JuMP
 using ToQUBO
 using QUBODrivers  # Provides ExactSampler and other solvers
