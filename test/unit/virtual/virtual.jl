@@ -21,7 +21,7 @@ function test_virtual_model()
             let model = ToQUBO.Virtual.Model{Float64}()
                 # Add a variable through source model
                 x = MOI.add_variable(model.source_model)
-                
+
                 @test x == VI(1)
                 @test MOI.get(model.source_model, MOI.NumberOfVariables()) == 1
             end

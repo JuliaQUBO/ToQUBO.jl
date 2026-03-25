@@ -44,7 +44,7 @@ function test_wrapper_optimizer()
         @testset "QUBOTools backend" begin
             let model = ToQUBO.Optimizer{Float64}()
                 vi, _ = MOI.add_constrained_variable(model, MOI.ZeroOne())
-                
+
                 backend = QUBOTools.backend(model)
                 @test backend isa QUBOTools.Model
             end
@@ -53,9 +53,7 @@ function test_wrapper_optimizer()
         @testset "Solver Name and Version" begin
             let model = ToQUBO.Optimizer{Float64}()
                 @test MOI.get(model, MOI.SolverName()) == "Virtual QUBO Model"
-                # SolverVersion returns the module version as a Ref 
-                # We just verify it doesn't throw an error
-                @test_nowarn MOI.get(model, MOI.SolverVersion())
+                @test MOI.get(model, MOI.SolverVersion()) == "v$(ToQUBO.__version__())"
             end
         end
     end

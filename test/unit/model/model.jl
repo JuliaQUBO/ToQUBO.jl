@@ -12,7 +12,7 @@ function test_qubo_model()
             let model = ToQUBO.QUBOModel{Float64}()
                 # Add variable with constraint
                 vi, ci = MOI.add_constrained_variable(model, MOI.ZeroOne())
-                
+
                 @test vi == VI(1)
                 @test ci == MOI.ConstraintIndex{VI, MOI.ZeroOne}(1)
                 @test MOI.get(model, MOI.NumberOfVariables()) == 1
@@ -58,7 +58,7 @@ function test_qubo_model()
         @testset "Objective sense" begin
             let model = ToQUBO.QUBOModel{Float64}()
                 @test MOI.get(model, MOI.ObjectiveSense()) == MOI.MIN_SENSE
-                
+
                 MOI.set(model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
                 @test MOI.get(model, MOI.ObjectiveSense()) == MOI.MAX_SENSE
             end
@@ -67,7 +67,7 @@ function test_qubo_model()
         @testset "Variable constraints" begin
             let model = ToQUBO.QUBOModel{Float64}()
                 vi, _ = MOI.add_constrained_variable(model, MOI.ZeroOne())
-                
+
                 ci = MOI.add_constraint(model, vi, MOI.ZeroOne())
                 @test ci == MOI.ConstraintIndex{VI, MOI.ZeroOne}(1)
 
@@ -100,7 +100,7 @@ function test_qubo_model()
         @testset "Variable names" begin
             let model = ToQUBO.QUBOModel{Float64}()
                 vi, _ = MOI.add_constrained_variable(model, MOI.ZeroOne())
-                
+
                 name = MOI.get(model, MOI.VariableName(), vi)
                 @test name == "x[1]"
             end
@@ -135,7 +135,10 @@ function test_qubo_model()
 
                 @test MOI.supports(model, MOI.ListOfModelAttributesSet())
                 model_attrs = MOI.get(model, MOI.ListOfModelAttributesSet())
-                @test length(model_attrs) == 2
+                @test model_attrs == MOI.AbstractModelAttribute[
+                    MOI.ObjectiveFunction{MOI.ScalarQuadraticFunction{Float64}}(),
+                    MOI.ObjectiveSense(),
+                ]
 
                 @test MOI.supports(model, MOI.ListOfConstraintAttributesSet{VI, MOI.ZeroOne}())
                 constraint_attrs = MOI.get(model, MOI.ListOfConstraintAttributesSet{VI, MOI.ZeroOne}())
@@ -162,7 +165,7 @@ function test_qubo_model()
                 vi, _ = MOI.add_constrained_variable(model, MOI.ZeroOne())
 
                 MOI.set(model, MOI.ObjectiveFunction{VI}(), vi)
-                
+
                 f = MOI.get(model, MOI.ObjectiveFunction{MOI.ScalarQuadraticFunction{Float64}}())
                 @test f.constant == 0.0
                 @test length(f.affine_terms) == 1

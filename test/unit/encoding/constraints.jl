@@ -1,9 +1,30 @@
+function _target_var(model::ToQUBO.Virtual.Model{Float64}, x::VI)
+    return only(ToQUBO.Virtual.target(model.source[x]))
+end
+
+function _minimum_penalty(g::PBO.PBF{VI,Float64}, fixed::Dict{VI,Int})
+    vars = [x for x in PBO.variables(g) if !haskey(fixed, x)]
+    best = Inf
+
+    for mask in 0:(2^length(vars) - 1)
+        assignment = copy(fixed)
+
+        for (i, x) in enumerate(vars)
+            assignment[x] = (mask >> (i - 1)) & 1
+        end
+
+        best = min(best, convert(Float64, g(assignment)))
+    end
+
+    return best
+end
+
 function test_constraint_encoding_methods()
     @testset "→ Constraints" begin
         @testset "Scalar Affine Equality" begin
             let model = ToQUBO.Virtual.Model{Float64}()
                 arch = ToQUBO.Compiler.GenericArchitecture()
-                
+
                 # Add binary variables
                 vi1, _ = MOI.add_constrained_variable(model.source_model, MOI.ZeroOne())
                 vi2, _ = MOI.add_constrained_variable(model.source_model, MOI.ZeroOne())
@@ -26,14 +47,29 @@ function test_constraint_encoding_methods()
                 g = ToQUBO.Compiler.constraint(model, ci, f, s, arch)
 
                 @test g isa PBO.PBF{VI,Float64}
-                @test !isempty(g)
+                @test _minimum_penalty(
+                    g,
+                    Dict(
+                        _target_var(model, vi1) => 1,
+                        _target_var(model, vi2) => 1,
+                        _target_var(model, vi3) => 0,
+                    ),
+                ) == 0.0
+                @test _minimum_penalty(
+                    g,
+                    Dict(
+                        _target_var(model, vi1) => 1,
+                        _target_var(model, vi2) => 0,
+                        _target_var(model, vi3) => 0,
+                    ),
+                ) > 0.0
             end
         end
 
         @testset "Scalar Affine Less Than" begin
             let model = ToQUBO.Virtual.Model{Float64}()
                 arch = ToQUBO.Compiler.GenericArchitecture()
-                
+
                 vi1, _ = MOI.add_constrained_variable(model.source_model, MOI.ZeroOne())
                 vi2, _ = MOI.add_constrained_variable(model.source_model, MOI.ZeroOne())
 
@@ -53,14 +89,27 @@ function test_constraint_encoding_methods()
                 g = ToQUBO.Compiler.constraint(model, ci, f, s, arch)
 
                 @test g isa PBO.PBF{VI,Float64}
-                @test !isempty(g)
+                @test _minimum_penalty(
+                    g,
+                    Dict(
+                        _target_var(model, vi1) => 1,
+                        _target_var(model, vi2) => 0,
+                    ),
+                ) == 0.0
+                @test _minimum_penalty(
+                    g,
+                    Dict(
+                        _target_var(model, vi1) => 1,
+                        _target_var(model, vi2) => 1,
+                    ),
+                ) > 0.0
             end
         end
 
         @testset "Scalar Affine Greater Than" begin
             let model = ToQUBO.Virtual.Model{Float64}()
                 arch = ToQUBO.Compiler.GenericArchitecture()
-                
+
                 vi1, _ = MOI.add_constrained_variable(model.source_model, MOI.ZeroOne())
                 vi2, _ = MOI.add_constrained_variable(model.source_model, MOI.ZeroOne())
 
@@ -80,14 +129,27 @@ function test_constraint_encoding_methods()
                 g = ToQUBO.Compiler.constraint(model, ci, f, s, arch)
 
                 @test g isa PBO.PBF{VI,Float64}
-                @test !isempty(g)
+                @test _minimum_penalty(
+                    g,
+                    Dict(
+                        _target_var(model, vi1) => 1,
+                        _target_var(model, vi2) => 0,
+                    ),
+                ) == 0.0
+                @test _minimum_penalty(
+                    g,
+                    Dict(
+                        _target_var(model, vi1) => 0,
+                        _target_var(model, vi2) => 0,
+                    ),
+                ) > 0.0
             end
         end
 
         @testset "Variable bound constraints (skipped)" begin
             let model = ToQUBO.Virtual.Model{Float64}()
                 arch = ToQUBO.Compiler.GenericArchitecture()
-                
+
                 vi, _ = MOI.add_constrained_variable(model.source_model, MOI.ZeroOne())
 
                 ToQUBO.Compiler.variables!(model, arch)

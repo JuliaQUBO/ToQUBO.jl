@@ -1,5 +1,5 @@
 MOI.get(::Virtual.Model, ::MOI.SolverName)    = "Virtual QUBO Model"
-MOI.get(::Virtual.Model, ::MOI.SolverVersion) = __VERSION__
+MOI.get(::Virtual.Model, ::MOI.SolverVersion) = "v$(__version__())"
 
 const SOURCE_MODEL_ATTRIBUES{T} = Union{
     MOIB.ListOfNonstandardBridges{T},
