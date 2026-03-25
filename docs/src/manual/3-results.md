@@ -92,13 +92,16 @@ obj_i = objective_value(model, result = i)
 
 ToQUBO.jl provides attributes to inspect the compilation process:
 
+```julia
+using MathOptInterface as MOI
+using ToQUBO: Attributes
+```
+
 ### Compilation Time
 
 Get the time spent converting your model to QUBO form:
 
 ```julia
-using ToQUBO: Attributes
-
 comp_time = MOI.get(model, Attributes.CompilationTime())
 ```
 

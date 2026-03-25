@@ -3,7 +3,7 @@
 Integer factorization is one of the most important problems in computational number theory and forms the foundation of many modern cryptographic systems, including RSA encryption.
 
 !!! info "Quantum Computing and Factorization"
-    The difficulty of factoring large numbers is what makes RSA and similar cryptosystems secure. While [Shor's Algorithm](https://en.wikipedia.org/wiki/Shor%27s_algorithm) on a sufficiently large fault-tolerant quantum computer could factor numbers in polynomial time, current quantum hardware is limited. However, QUBO-based approaches using quantum annealers offer an alternative path to tackle factorization problems today, making this an exciting area where quantum-inspired and quantum computing methods are actively being explored.
+    The difficulty of factoring large numbers is what makes RSA and similar cryptosystems secure. While [Shor's Algorithm](https://en.wikipedia.org/wiki/Shor%27s_algorithm) on a sufficiently large fault-tolerant quantum computer could factor numbers in polynomial time, current quantum hardware is still limited. QUBO-based formulations are therefore best viewed here as a way to study how factorization can be encoded for annealing-style and other binary optimization workflows.
 
 A central problem in Number Theory and cryptography is to factor ``R \in \mathbb{N}``, which is known to be the product of two distinct prime numbers ``p, q \in \mathbb{N}``.
 

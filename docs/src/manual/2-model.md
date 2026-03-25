@@ -65,19 +65,19 @@ ToQUBO.jl supports linear and quadratic constraints, which are reformulated as p
 
 ```julia
 # Less than or equal
-@constraint(model, 2*x[1] + 3*x[2] <= 5)
+@constraint(model, 2*y[1] + 3*y[2] <= 5)
 
 # Equal to
-@constraint(model, x[1] + x[2] == 1)
+@constraint(model, y[1] + y[2] == 1)
 
 # Greater than or equal (automatically converted)
-@constraint(model, x[1] + x[2] >= 1)
+@constraint(model, y[1] + y[2] >= 1)
 ```
 
 ### Quadratic Constraints
 
 ```julia
-@constraint(model, x[1] * x[2] + x[3] <= 1)
+@constraint(model, y[1] * y[2] + y[3] <= 1)
 ```
 
 ## Defining the Objective Function
@@ -86,10 +86,10 @@ The objective function can be linear or quadratic. ToQUBO.jl supports both minim
 
 ```julia
 # Linear objective
-@objective(model, Max, 2*x[1] + 3*x[2] + 4*x[3])
+@objective(model, Max, 2*y[1] + 3*y[2] + 4*y[3])
 
 # Quadratic objective
-@objective(model, Min, x[1]*x[2] + x[2]*x[3] + x[1])
+@objective(model, Min, y[1]*y[2] + y[2]*y[3] + y[1])
 ```
 
 ## Running the Optimization
