@@ -91,7 +91,7 @@ end
 MOI.get(::QUBOModel{T}, ::MOI.ObjectiveFunctionType) where {T} = SQF{T}
 
 function MOI.get(model::QUBOModel, ::MOI.ListOfConstraintTypesPresent)
-    if MOI.is_empty(model)
+    if isempty(model.variables)
         return []
     else
         return [(VI, MOI.ZeroOne)]
@@ -133,6 +133,14 @@ MOI.supports(::QUBOModel, ::MOI.VariablePrimalStart, ::MOI.VariableIndex) = true
 
 function MOI.get(model::QUBOModel, ::MOI.NumberOfVariables)
     return length(model.variables)
+end
+
+function MOI.get(model::QUBOModel, ::MOI.NumberOfConstraints{VI,MOI.ZeroOne})
+    return length(model.variables)
+end
+
+function MOI.get(::QUBOModel, ::MOI.NumberOfConstraints{F,S}) where {F,S}
+    return 0
 end
 
 MOI.supports(::QUBOModel, ::MOI.ListOfVariableAttributesSet) = true
