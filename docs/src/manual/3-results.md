@@ -183,10 +183,10 @@ end
 ToQUBO.jl integrates with [QUBOTools.jl](https://github.com/JuliaQUBO/QUBOTools.jl) for advanced QUBO manipulation. You can extract the underlying QUBO model:
 
 ```julia
-using QUBOTools
+using ToQUBO: QUBOTools
 
-# Get the QUBO backend
-qubo_model = QUBOTools.backend(model)
+# Get the QUBO backend from the attached MOI optimizer
+qubo_model = QUBOTools.backend(unsafe_backend(model))
 ```
 
 This allows you to:
