@@ -1,6 +1,11 @@
 # Knapsack
 
-We start with some instances of the discrete [Knapsack Problem](https://en.wikipedia.org/wiki/Knapsack_problem) whose standard formulation is
+The [Knapsack Problem](https://en.wikipedia.org/wiki/Knapsack_problem) is a classic combinatorial optimization problem that has been extensively studied in computer science and operations research.
+
+!!! tip "Solving with Quantum Annealers"
+    The knapsack problem is a common benchmark for QUBO-based solvers, including quantum annealers and physics-inspired heuristics. As an NP-hard problem, it is useful for comparing how different solvers behave as instances grow, although runtime and solution quality remain strongly instance-dependent.
+
+We start with some instances of the discrete Knapsack Problem whose standard formulation is
 
 ```math
 \begin{array}{r l}

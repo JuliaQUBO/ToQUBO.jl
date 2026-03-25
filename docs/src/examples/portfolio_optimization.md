@@ -1,7 +1,14 @@
 # Portfolio Optimization
 
+Portfolio optimization is a fundamental problem in quantitative finance, first formalized by Harry Markowitz in his Nobel Prize-winning work on Modern Portfolio Theory.
+
+!!! tip "Finance and QUBO Models"
+    Portfolio optimization is a common QUBO example because the quadratic risk term maps naturally to the formulation. Quantum and quantum-inspired methods are active areas of research here, but practical performance is still highly dependent on the specific solver and instance.
+
 In this example, we will be exploring an optimization model for asset distribution where the expected return is maximized while mitigating the financial risk.
 The following approach was inspired by a [JuMP tutorial](https://jump.dev/JuMP.jl/stable/tutorials/nonlinear/portfolio/), where monthly stock prices for three assets are provided, namely `IBM`, `WMT` and `SEHI`.
+
+## Mathematical Formulation
 
 The modelling presented below aggregates the risk measurement ``\mathbf{x}' \Sigma \mathbf{x}`` as a penalty term to the objective function, thus yielding
 
@@ -14,6 +21,11 @@ The modelling presented below aggregates the risk measurement ``\mathbf{x}' \Sig
 ```
 
 where ``\mu_{i} = \mathbb{E}[r_{i}]`` is the expected return value for each investment ``i``; ``\Sigma`` is the covariance matrix and ``\lambda`` is the risk-aversion penalty factor.
+
+This is a quadratic programming problem where:
+- The linear term ``\mathbf{\mu}'\mathbf{x}`` represents expected returns
+- The quadratic term ``\mathbf{x}' \Sigma \mathbf{x}`` represents portfolio risk (variance)
+- The parameter ``\lambda`` controls the trade-off between return and risk
 
 ## Stock prices
 ```@example portfolio-optimization
