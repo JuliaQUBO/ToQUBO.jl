@@ -92,7 +92,7 @@ MOI.get(::QUBOModel{T}, ::MOI.ObjectiveFunctionType) where {T} = SQF{T}
 
 function MOI.get(model::QUBOModel, ::MOI.ListOfConstraintTypesPresent)
     if isempty(model.variables)
-        return []
+        return Tuple{DataType,DataType}[]
     else
         return [(VI, MOI.ZeroOne)]
     end
@@ -139,9 +139,10 @@ function MOI.get(model::QUBOModel, ::MOI.NumberOfConstraints{VI,MOI.ZeroOne})
     return length(model.variables)
 end
 
-# Fallback for unsupported constraint types; QUBOModel only stores ZeroOne variable constraints.
-function MOI.get(::QUBOModel, ::MOI.NumberOfConstraints{F,S}) where {F,S}
-    return 0
+# Delegate to MOI's fallback so unsupported pairs return 0 today and future
+# supported pairs still raise until QUBOModel implements them explicitly.
+function MOI.get(model::QUBOModel, attr::MOI.NumberOfConstraints{F,S}) where {F,S}
+    return MOI.get_fallback(model, attr)
 end
 
 MOI.supports(::QUBOModel, ::MOI.ListOfVariableAttributesSet) = true

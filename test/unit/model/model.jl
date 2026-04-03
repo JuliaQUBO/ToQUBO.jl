@@ -89,7 +89,7 @@ function test_qubo_model()
                 @test vi2 ∈ vis
 
                 # List of constraint types
-                ctp = MOI.get(model, MOI.ListOfConstraintTypesPresent())
+                ctp = @inferred MOI.get(model, MOI.ListOfConstraintTypesPresent())
                 @test ctp == [(VI, MOI.ZeroOne)]
 
                 @test MOI.get(model, MOI.NumberOfConstraints{VI, MOI.ZeroOne}()) == 2
@@ -119,7 +119,8 @@ function test_qubo_model()
                     ),
                 )
 
-                @test MOI.get(model, MOI.ListOfConstraintTypesPresent()) == []
+                ctp = @inferred MOI.get(model, MOI.ListOfConstraintTypesPresent())
+                @test ctp == Tuple{DataType,DataType}[]
 
                 MOI.add_constrained_variable(model, MOI.ZeroOne())
                 MOI.add_constrained_variable(model, MOI.ZeroOne())
