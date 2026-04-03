@@ -4,6 +4,7 @@ function test_qubo_model()
             let model = ToQUBO.QUBOModel{Float64}()
                 @test MOI.is_empty(model)
                 @test MOI.get(model, MOI.NumberOfVariables()) == 0
+                @test MOI.get(model, MOI.NumberOfConstraints{VI, MOI.ZeroOne}()) == 0
                 @test MOI.get(model, MOI.ObjectiveSense()) == MOI.MIN_SENSE
             end
         end
@@ -88,12 +89,45 @@ function test_qubo_model()
                 @test vi2 ∈ vis
 
                 # List of constraint types
-                ctp = MOI.get(model, MOI.ListOfConstraintTypesPresent())
+                ctp = @inferred MOI.get(model, MOI.ListOfConstraintTypesPresent())
                 @test ctp == [(VI, MOI.ZeroOne)]
+
+                @test MOI.get(model, MOI.NumberOfConstraints{VI, MOI.ZeroOne}()) == 2
+                @test MOI.get(
+                    model,
+                    MOI.NumberOfConstraints{
+                        MOI.ScalarAffineFunction{Float64},
+                        MOI.LessThan{Float64},
+                    }(),
+                ) == 0
 
                 # List of constraint indices
                 cis = MOI.get(model, MOI.ListOfConstraintIndices{VI, MOI.ZeroOne}())
                 @test length(cis) == 2
+            end
+        end
+
+        @testset "Constraint summary regression" begin
+            let model = ToQUBO.QUBOModel{Float64}()
+                MOI.set(
+                    model,
+                    MOI.ObjectiveFunction{MOI.ScalarQuadraticFunction{Float64}}(),
+                    MOI.ScalarQuadraticFunction{Float64}(
+                        MOI.ScalarQuadraticTerm{Float64}[],
+                        MOI.ScalarAffineTerm{Float64}[],
+                        1.0,
+                    ),
+                )
+
+                ctp = @inferred MOI.get(model, MOI.ListOfConstraintTypesPresent())
+                @test ctp == Tuple{DataType,DataType}[]
+
+                MOI.add_constrained_variable(model, MOI.ZeroOne())
+                MOI.add_constrained_variable(model, MOI.ZeroOne())
+
+                summary = sprint(show, MIME"text/plain"(), model)
+                @test occursin("NumberOfConstraints: 2", summary)
+                @test occursin("MOI.VariableIndex in MOI.ZeroOne: 2", summary)
             end
         end
 
