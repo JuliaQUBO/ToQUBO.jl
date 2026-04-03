@@ -139,6 +139,7 @@ function MOI.get(model::QUBOModel, ::MOI.NumberOfConstraints{VI,MOI.ZeroOne})
     return length(model.variables)
 end
 
+# Fallback for unsupported constraint types; QUBOModel only stores ZeroOne variable constraints.
 function MOI.get(::QUBOModel, ::MOI.NumberOfConstraints{F,S}) where {F,S}
     return 0
 end

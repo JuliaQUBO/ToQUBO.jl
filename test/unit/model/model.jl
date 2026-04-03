@@ -93,7 +93,13 @@ function test_qubo_model()
                 @test ctp == [(VI, MOI.ZeroOne)]
 
                 @test MOI.get(model, MOI.NumberOfConstraints{VI, MOI.ZeroOne}()) == 2
-                @test MOI.get(model, MOI.NumberOfConstraints{MOI.ScalarAffineFunction{Float64}, MOI.LessThan{Float64}}()) == 0
+                @test MOI.get(
+                    model,
+                    MOI.NumberOfConstraints{
+                        MOI.ScalarAffineFunction{Float64},
+                        MOI.LessThan{Float64},
+                    }(),
+                ) == 0
 
                 # List of constraint indices
                 cis = MOI.get(model, MOI.ListOfConstraintIndices{VI, MOI.ZeroOne}())
@@ -106,7 +112,11 @@ function test_qubo_model()
                 MOI.set(
                     model,
                     MOI.ObjectiveFunction{MOI.ScalarQuadraticFunction{Float64}}(),
-                    MOI.ScalarQuadraticFunction{Float64}(MOI.ScalarQuadraticTerm{Float64}[], MOI.ScalarAffineTerm{Float64}[], 1.0),
+                    MOI.ScalarQuadraticFunction{Float64}(
+                        MOI.ScalarQuadraticTerm{Float64}[],
+                        MOI.ScalarAffineTerm{Float64}[],
+                        1.0,
+                    ),
                 )
 
                 @test MOI.get(model, MOI.ListOfConstraintTypesPresent()) == []
