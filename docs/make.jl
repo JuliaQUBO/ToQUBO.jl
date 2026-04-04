@@ -33,11 +33,7 @@ makedocs(;
             "Gathering Results" => "manual/3-results.md",
             "Compiler Settings" => "manual/4-settings.md"
         ],
-        "Examples" => [ #
-            "Knapsack"               => "examples/knapsack.md",
-            "Integer Factorization"  => "examples/integer_factorization.md",
-            "Portfolio Optimization" => "examples/portfolio_optimization.md",
-        ],
+        "Examples" => "examples.md",
         "Booklet" => [ #
             "Introduction"    => "booklet/1-intro.md",
             "QUBO"            => "booklet/2-qubo.md",

@@ -30,6 +30,9 @@ optimize!(model)
 solution_summary(model)
 ```
 
+Application-oriented examples now live in the ecosystem documentation in
+[Examples in QUBO.jl](@ref).
+
 ## Citing ToQUBO.jl
 
 If you use `ToQUBO.jl` in your work, we kindly ask you to include the following citation:
