@@ -1,13 +1,15 @@
 # Examples in QUBO.jl
 
 Application-oriented examples for the JuliaQUBO ecosystem now live in the
-[`QUBO.jl` documentation](https://juliaqubo.github.io/QUBO.jl/QUBO.jl/dev/),
-which serves as the canonical entry point for workflows that combine the
-compiler, drivers, and tooling packages.
+[`QUBO.jl` documentation](https://juliaqubo.github.io/QUBO.jl/QUBO.jl/dev/), which serves as the canonical
+entry point for workflows that combine the compiler, drivers, and tooling
+packages.
 
 `ToQUBO.jl` keeps the package-specific workflow and reference material in this
 manual. For a local walkthrough of building and solving a model with
 `ToQUBO.Optimizer`, see [Running a Model](@ref).
+
+These links follow the `QUBO.jl` development docs until the next coordinated release. Release builds of this manual point to `stable`.
 
 The current example pages in `QUBO.jl` are:
 
