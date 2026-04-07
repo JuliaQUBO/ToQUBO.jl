@@ -197,4 +197,4 @@ This allows you to:
 ## Next Steps
 
 - Learn about [Compiler Settings](@ref) to customize the reformulation
-- Explore the [Knapsack](@ref), [Prime Factorization](@ref), or [Portfolio Optimization](@ref) examples for practical applications
+- Explore [Examples in QUBO.jl](@ref) for end-to-end application guides
