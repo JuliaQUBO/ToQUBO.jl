@@ -30,8 +30,8 @@ optimize!(model)
 solution_summary(model)
 ```
 
-Application-oriented examples now live in the ecosystem documentation in
-[Examples in QUBO.jl](@ref).
+Application-oriented examples now live in the [Examples in QUBO.jl](@ref)
+section.
 
 ## Citing ToQUBO.jl
 
