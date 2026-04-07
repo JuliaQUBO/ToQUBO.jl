@@ -9,7 +9,7 @@ function test_docs()
         ]
 
         for page in generated_pages
-            contents = read(page, String)
+            contents = replace(read(page, String), "\r\n" => "\n")
 
             @test startswith(
                 contents,
