@@ -5,9 +5,9 @@
 ```@example quick-start
 using JuMP
 using ToQUBO
-using PySA
+using QUBODrivers
 
-model = Model(() -> ToQUBO.Optimizer(PySA.Optimizer))
+model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
 
 @variable(model, x[1:3], Bin)
 

@@ -17,9 +17,9 @@ julia> Pkg.add("ToQUBO")
 ```@example
 using JuMP
 using ToQUBO
-using PySA
+using QUBODrivers
 
-model = Model(() -> ToQUBO.Optimizer(PySA.Optimizer))
+model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
 
 @variable(model, x[1:3], Bin)
 @objective(model, Max, 1.0*x[1] + 2.0*x[2] + 3.0*x[3])
