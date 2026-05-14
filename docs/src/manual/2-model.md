@@ -80,6 +80,46 @@ ToQUBO.jl supports linear and quadratic constraints, which are reformulated as p
 @constraint(model, y[1] * y[2] + y[3] <= 1)
 ```
 
+### Generalized Disjunctive Programming
+
+Generalized disjunctive programming models can be written with
+[DisjunctiveProgramming.jl](https://github.com/infiniteopt/DisjunctiveProgramming.jl)
+and solved through ToQUBO when they are reformulated with `Indicator()`. In
+that workflow, `DisjunctiveProgramming.jl` turns logical disjuncts into JuMP/MOI
+indicator constraints, and ToQUBO compiles those indicator constraints into the
+QUBO objective. Add `DisjunctiveProgramming.jl` to your project environment
+when using this workflow.
+
+The compact example below is a two-square disjunction: `x` must lie either in
+the lower-left square or the upper-right square.
+
+```julia
+using JuMP
+using ToQUBO
+using QUBODrivers
+using DisjunctiveProgramming
+
+model = GDPModel(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
+
+@variable(model, -2 <= x[1:2] <= 2)
+@variable(model, Y[1:2], Logical)
+
+@constraint(model, [i = 1:2], -2 <= x[i] <= -1, Disjunct(Y[1]))
+@constraint(model, [i = 1:2], 1 <= x[i] <= 2, Disjunct(Y[2]))
+@disjunction(model, Y)
+
+@objective(model, Min, x[1] - x[2])
+
+set_attribute.(x, ToQUBO.Attributes.VariableEncodingMethod(), ToQUBO.Encoding.Unary())
+set_attribute.(x, ToQUBO.Attributes.VariableEncodingBits(), 3)
+
+optimize!(model; gdp_method = Indicator())
+```
+
+This integration does not require a separate `DisjunctiveToQUBO.jl` package.
+Use `DisjunctiveProgramming.jl` for GDP modeling and reformulation, then use
+`ToQUBO.Optimizer` as the optimizer backend.
+
 ## Defining the Objective Function
 
 The objective function can be linear or quadratic. ToQUBO.jl supports both minimization and maximization.
