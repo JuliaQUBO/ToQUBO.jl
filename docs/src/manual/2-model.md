@@ -90,6 +90,14 @@ indicator constraints, and ToQUBO compiles those indicator constraints into the
 QUBO objective. Add `DisjunctiveProgramming.jl` to your project environment
 when using this workflow.
 
+ToQUBO's maintained GDP support boundary is this indicator-constraint
+compilation path. `DisjunctiveProgramming.jl` remains the modeling and
+reformulation package, ToQUBO remains the optimizer backend, and ToQUBO does
+not expose a separate GDP-specific runtime API. The historical
+`DisjunctiveToQUBO.jl` artifact did not introduce production package code that
+needs to be migrated into ToQUBO; ongoing support is maintained here through
+indicator-constraint compilation, tests, and examples.
+
 The compact example below is a reduced two-corner disjunction: `x` must lie
 either at the lower-left point or the upper-right point. It keeps the compiled
 QUBO small enough for `ExactSampler`.
