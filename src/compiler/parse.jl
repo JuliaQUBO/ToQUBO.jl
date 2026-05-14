@@ -19,7 +19,7 @@ function parse!(
 ) where {T}
     Base.empty!(g)
 
-    for (ω, c) in expansion(model.source[vi])
+    for (ω, c) in Virtual.expansion(model.source[vi])
         g[ω] += c
     end
 
@@ -183,4 +183,3 @@ function parse!(
 
     return nothing
 end
-
