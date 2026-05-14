@@ -33,6 +33,7 @@ Encode equality constraints with a signed linear residual penalty.
 This method is heuristic: unlike [`QuadraticPenalty`](@ref), it is not
 guaranteed to make every infeasible assignment more expensive. Use
 [`ConstraintEncodingPenaltyHint`](@ref) to tune the signed penalty strength.
+Automatic penalty inference is not available for this method.
 """
 struct LinearPenalty <: ConstraintPenaltyMethod end
 
@@ -849,6 +850,8 @@ Sets the method used to reformulate an equality constraint.
 
 When unset, this falls back to [`DefaultConstraintEncodingMethod`](@ref).
 Inequality constraints keep the existing quadratic slack formulation.
+When set to [`LinearPenalty`](@ref), the constraint must also have an explicit
+[`ConstraintEncodingPenaltyHint`](@ref).
 """
 struct ConstraintEncodingMethod <: CompilerConstraintAttribute end
 

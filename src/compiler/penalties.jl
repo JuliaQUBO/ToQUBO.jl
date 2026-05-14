@@ -1,3 +1,8 @@
+function _uses_linear_equality_penalty(model::Virtual.Model, ci::CI)::Bool
+    return MOI.get(model, MOI.ConstraintSet(), ci) isa MOI.EqualTo &&
+           Attributes.constraint_encoding_method(model, ci) isa Attributes.LinearPenalty
+end
+
 function penalties!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
     # Adjust Sign
     σ = MOI.get(model, MOI.ObjectiveSense()) === MOI.MAX_SENSE ? -1 : 1
@@ -9,6 +14,14 @@ function penalties!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
         ρ = Attributes.constraint_encoding_penalty_hint(model, ci)
 
         if isnothing(ρ)
+            if _uses_linear_equality_penalty(model, ci)
+                compilation_error!(
+                    model,
+                    "LinearPenalty requires an explicit ConstraintEncodingPenaltyHint";
+                    status = "Missing linear constraint penalty hint",
+                )
+            end
+
             ϵ = PBO.mingap(g)
             ρ = σ * (δ / ϵ + β)
         end
