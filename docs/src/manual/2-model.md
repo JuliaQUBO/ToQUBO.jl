@@ -96,7 +96,12 @@ reformulation package, ToQUBO remains the optimizer backend, and ToQUBO does
 not expose a separate GDP-specific runtime API. The historical
 `DisjunctiveToQUBO.jl` artifact did not introduce production package code that
 needs to be migrated into ToQUBO; ongoing support is maintained here through
-indicator-constraint compilation, tests, and examples.
+indicator-constraint compilation, tests, and examples. The underlying paper is
+Xavier, Pedro Maciel, Pedro Ripper, Joshua Pulsipher, Joaquim Dias Garcia,
+Nelson Maculan, and David E. Bernal Neira. "Disjunctive programming meets
+QUBO." In *Computer Aided Chemical Engineering*, vol. 53, pp. 3433-3438.
+Elsevier, 2024.
+[`ScienceDirect`](https://www.sciencedirect.com/science/chapter/bookseries/pii/B9780443288241505731).
 
 The compact example below is a reduced two-corner disjunction: `x` must lie
 either at the lower-left point or the upper-right point. It keeps the compiled
@@ -138,7 +143,9 @@ The historical
 repository is a paper/reproducibility artifact, not a maintained ToQUBO
 runtime package. Its notebooks, generated result files, PDFs, plots, and pinned
 notebook environments should stay outside ToQUBO's normal package tests and
-documentation CI.
+documentation CI. Cite the associated paper as Xavier et al. (2024),
+"Disjunctive programming meets QUBO," *Computer Aided Chemical Engineering*,
+vol. 53, pp. 3433-3438.
 
 Maintained GDP usage examples belong in this manual. The artifact repository
 should either be archived as-is or keep its current ownership with a README

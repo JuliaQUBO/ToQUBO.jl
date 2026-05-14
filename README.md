@@ -133,7 +133,11 @@ compilation path, not a separate GDP-specific API or runtime dependency on
 `DisjunctiveProgramming.jl`. The historical
 [`pedromxavier/DisjunctiveToQUBO.jl`](https://github.com/pedromxavier/DisjunctiveToQUBO.jl)
 repository should be treated as a paper artifact, not as part of ToQUBO's
-runtime surface or CI.
+runtime surface or CI. The associated paper is Xavier, Pedro Maciel, Pedro
+Ripper, Joshua Pulsipher, Joaquim Dias Garcia, Nelson Maculan, and David E.
+Bernal Neira. "Disjunctive programming meets QUBO." In *Computer Aided Chemical
+Engineering*, vol. 53, pp. 3433-3438. Elsevier, 2024.
+[`ScienceDirect`](https://www.sciencedirect.com/science/chapter/bookseries/pii/B9780443288241505731).
 
 | Symbol | Meaning                            |
 | :----: | ---------------------------------- |
