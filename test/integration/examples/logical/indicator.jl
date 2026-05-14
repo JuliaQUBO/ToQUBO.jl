@@ -63,6 +63,7 @@ function test_indicator_disjunctive_programming()
     @testset "→ DisjunctiveProgramming Indicator Reformulation" begin
         test_indicator_disjunctive_programming_linear()
         test_indicator_disjunctive_programming_quadratic()
+        test_indicator_disjunctive_programming_manual_example()
     end
 
     return nothing
@@ -132,6 +133,40 @@ function test_indicator_disjunctive_programming_quadratic()
         @test x̂ ≈ -1.0
         @test isapprox((x̂ + 1)^2, 0.0; atol = 1e-6) ||
             isapprox((x̂ - 1)^2, 0.0; atol = 1e-6)
+    end
+
+    return nothing
+end
+
+function test_indicator_disjunctive_programming_manual_example()
+    @testset "Manual GDP example" begin
+        model = GDPModel(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
+
+        @variable(model, -1 <= x[1:2] <= 1)
+        @variable(model, Y[1:2], Logical)
+
+        @constraint(model, [i = 1:2], x[i] == -1, Disjunct(Y[1]))
+        @constraint(model, [i = 1:2], x[i] == 1, Disjunct(Y[2]))
+        @disjunction(model, Y)
+
+        @objective(model, Min, x[1] + x[2])
+
+        set_attribute.(x, ToQUBO.Attributes.VariableEncodingMethod(), ToQUBO.Encoding.Unary())
+        set_attribute.(x, ToQUBO.Attributes.VariableEncodingBits(), 1)
+
+        optimize!(model; gdp_method = Indicator())
+
+        n, L, Q, α, β = QUBOTools.qubo(model, :dense)
+
+        @test n > 0
+        @test n <= 8
+        @test size(Q) == (n, n)
+        @test length(L) == n
+        @test result_count(model) > 0
+        @test termination_status(model) === MOI.LOCALLY_SOLVED
+        @test primal_status(model) === MOI.FEASIBLE_POINT
+        @test get_attribute(model, Attributes.CompilationStatus()) === MOI.LOCALLY_SOLVED
+        @test value.(x) ≈ [-1.0, -1.0]
     end
 
     return nothing
