@@ -40,6 +40,11 @@ ToQUBO.Attributes.DefaultVariableEncodingATol
 ToQUBO.Attributes.VariableEncodingMethod
 ToQUBO.Attributes.DefaultVariableEncodingMethod
 ToQUBO.Attributes.VariableEncodingPenalty
+ToQUBO.Attributes.QuadraticPenalty
+ToQUBO.Attributes.LinearPenalty
+ToQUBO.Attributes.DefaultConstraintEncodingMethod
+ToQUBO.Attributes.ConstraintEncodingMethod
+ToQUBO.Attributes.ConstraintEncodingPenaltyHint
 ToQUBO.Attributes.ConstraintEncodingPenalty
 ```
 

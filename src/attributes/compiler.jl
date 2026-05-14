@@ -16,6 +16,30 @@ function MOIU.map_indices(::Function, e::Encoding.VariableEncodingMethod)
     return e
 end
 
+abstract type ConstraintPenaltyMethod end
+
+@doc raw"""
+    QuadraticPenalty()
+
+Encode equality constraints with the standard squared residual penalty.
+"""
+struct QuadraticPenalty <: ConstraintPenaltyMethod end
+
+@doc raw"""
+    LinearPenalty()
+
+Encode equality constraints with a signed linear residual penalty.
+
+This method is heuristic: unlike [`QuadraticPenalty`](@ref), it is not
+guaranteed to make every infeasible assignment more expensive. Use
+[`ConstraintEncodingPenaltyHint`](@ref) to tune the signed penalty strength.
+"""
+struct LinearPenalty <: ConstraintPenaltyMethod end
+
+function MOIU.map_indices(::Function, method::ConstraintPenaltyMethod)
+    return method
+end
+
 function _attribute_from_key end
 
 _attribute_from_key(key::Symbol) = _attribute_from_key(Val(key))
@@ -217,6 +241,51 @@ end
 
 function discretize(model::Optimizer)::Bool
     return MOI.get(model, Discretize())
+end
+
+@doc raw"""
+    DefaultConstraintEncodingMethod()
+
+Fallback method used to reformulate equality constraints.
+
+Available options are:
+- [`QuadraticPenalty`](@ref) (default)
+- [`LinearPenalty`](@ref)
+"""
+struct DefaultConstraintEncodingMethod <: CompilerAttribute end
+
+_attribute_from_key(::Val{:default_constraint_encoding_method}) =
+    DefaultConstraintEncodingMethod
+
+function MOI.get(
+    model::Optimizer,
+    ::DefaultConstraintEncodingMethod,
+)::ConstraintPenaltyMethod
+    return get(
+        model.compiler_settings,
+        :default_constraint_encoding_method,
+        QuadraticPenalty(),
+    )
+end
+
+function MOI.set(
+    model::Optimizer,
+    ::DefaultConstraintEncodingMethod,
+    method::ConstraintPenaltyMethod,
+)
+    model.compiler_settings[:default_constraint_encoding_method] = method
+
+    return nothing
+end
+
+function MOI.set(model::Optimizer, ::DefaultConstraintEncodingMethod, ::Nothing)
+    delete!(model.compiler_settings, :default_constraint_encoding_method)
+
+    return nothing
+end
+
+function default_constraint_encoding_method(model::Optimizer)::ConstraintPenaltyMethod
+    return MOI.get(model, DefaultConstraintEncodingMethod())
 end
 
 @doc raw"""
@@ -769,6 +838,75 @@ function MOI.set(
     ::Nothing,
 ) where {T}
     delete!(model.ρ, ci)
+
+    return nothing
+end
+
+@doc raw"""
+    ConstraintEncodingMethod()
+
+Sets the method used to reformulate an equality constraint.
+
+When unset, this falls back to [`DefaultConstraintEncodingMethod`](@ref).
+Inequality constraints keep the existing quadratic slack formulation.
+"""
+struct ConstraintEncodingMethod <: CompilerConstraintAttribute end
+
+_attribute_from_key(::Val{:constraint_encoding_method}) = ConstraintEncodingMethod
+
+function constraint_encoding_method(model::Optimizer, ci::CI)::ConstraintPenaltyMethod
+    method = MOI.get(model, ConstraintEncodingMethod(), ci)
+
+    if isnothing(method)
+        return MOI.get(model, DefaultConstraintEncodingMethod())
+    else
+        return method
+    end
+end
+
+function MOI.get(
+    model::Optimizer,
+    ::ConstraintEncodingMethod,
+    ci::CI,
+)::Union{ConstraintPenaltyMethod,Nothing}
+    attr = :constraint_encoding_method
+
+    if !haskey(model.constraint_settings, attr) ||
+       !haskey(model.constraint_settings[attr], ci)
+        return nothing
+    else
+        return model.constraint_settings[attr][ci]
+    end
+end
+
+function MOI.set(
+    model::Optimizer,
+    ::ConstraintEncodingMethod,
+    ci::CI,
+    method::ConstraintPenaltyMethod,
+)
+    attr = :constraint_encoding_method
+
+    if !haskey(model.constraint_settings, attr)
+        model.constraint_settings[attr] = Dict{CI,Any}()
+    end
+
+    model.constraint_settings[attr][ci] = method
+
+    return nothing
+end
+
+function MOI.set(
+    model::Optimizer,
+    ::ConstraintEncodingMethod,
+    ci::CI,
+    ::Nothing,
+)
+    attr = :constraint_encoding_method
+
+    if haskey(model.constraint_settings, attr)
+        delete!(model.constraint_settings[attr], ci)
+    end
 
     return nothing
 end

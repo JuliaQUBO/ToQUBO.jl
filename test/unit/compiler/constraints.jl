@@ -50,9 +50,65 @@ function test_compiler_constraints_quadratic()
     return nothing
 end
 
+function test_compiler_constraints_linear_penalty()
+    model = ToQUBO.Virtual.Model{Float64}()
+    arch = ToQUBO.Compiler.GenericArchitecture()
+    x, _ = MOI.add_constrained_variables(model.source_model, fill(MOI.ZeroOne(), 2))
+
+    ToQUBO.Compiler.variables!(model, arch)
+
+    f = MOI.ScalarAffineFunction{Float64}(
+        [
+            MOI.ScalarAffineTerm(1.0, x[1]),
+            MOI.ScalarAffineTerm(1.0, x[2]),
+        ],
+        0.0,
+    )
+    s = MOI.EqualTo{Float64}(1.0)
+    c = MOI.add_constraint(model.source_model, f, s)
+
+    g_quadratic = ToQUBO.Compiler.constraint(model, c, f, s, arch)
+
+    @test g_quadratic == PBO.PBF{VI,Float64}(
+        1.0,
+        x[1] => -1.0,
+        x[2] => -1.0,
+        [x[1], x[2]] => 2.0,
+    )
+
+    MOI.set(
+        model,
+        Attributes.DefaultConstraintEncodingMethod(),
+        Attributes.LinearPenalty(),
+    )
+
+    g_linear = ToQUBO.Compiler.constraint(model, c, f, s, arch)
+
+    @test g_linear == PBO.PBF{VI,Float64}(
+        -1.0,
+        x[1] => 1.0,
+        x[2] => 1.0,
+    )
+    @test MOI.get(model, Attributes.Quadratize()) === false
+
+    MOI.set(
+        model,
+        Attributes.ConstraintEncodingMethod(),
+        c,
+        Attributes.QuadraticPenalty(),
+    )
+
+    g_override = ToQUBO.Compiler.constraint(model, c, f, s, arch)
+
+    @test g_override == g_quadratic
+
+    return nothing
+end
+
 function test_compiler_constraints()
     @testset "→ Constraints" verbose = true begin
         test_compiler_constraints_quadratic()
+        test_compiler_constraints_linear_penalty()
     end
 
     return nothing
