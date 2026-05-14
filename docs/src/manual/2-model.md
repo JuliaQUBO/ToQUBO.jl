@@ -90,10 +90,11 @@ indicator constraints, and ToQUBO compiles those indicator constraints into the
 QUBO objective. Add `DisjunctiveProgramming.jl` to your project environment
 when using this workflow.
 
-The compact example below is a two-square disjunction: `x` must lie either in
-the lower-left square or the upper-right square.
+The compact example below is a reduced two-corner disjunction: `x` must lie
+either at the lower-left point or the upper-right point. It keeps the compiled
+QUBO small enough for `ExactSampler`.
 
-```julia
+```@example gdp_indicator
 using JuMP
 using ToQUBO
 using QUBODrivers
@@ -101,19 +102,21 @@ using DisjunctiveProgramming
 
 model = GDPModel(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
 
-@variable(model, -2 <= x[1:2] <= 2)
+@variable(model, -1 <= x[1:2] <= 1)
 @variable(model, Y[1:2], Logical)
 
-@constraint(model, [i = 1:2], -2 <= x[i] <= -1, Disjunct(Y[1]))
-@constraint(model, [i = 1:2], 1 <= x[i] <= 2, Disjunct(Y[2]))
+@constraint(model, [i = 1:2], x[i] == -1, Disjunct(Y[1]))
+@constraint(model, [i = 1:2], x[i] == 1, Disjunct(Y[2]))
 @disjunction(model, Y)
 
-@objective(model, Min, x[1] - x[2])
+@objective(model, Min, x[1] + x[2])
 
 set_attribute.(x, ToQUBO.Attributes.VariableEncodingMethod(), ToQUBO.Encoding.Unary())
-set_attribute.(x, ToQUBO.Attributes.VariableEncodingBits(), 3)
+set_attribute.(x, ToQUBO.Attributes.VariableEncodingBits(), 1)
 
 optimize!(model; gdp_method = Indicator())
+
+termination_status(model), primal_status(model), value.(x)
 ```
 
 This integration does not require a separate `DisjunctiveToQUBO.jl` package.
