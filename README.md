@@ -128,7 +128,10 @@ that ToQUBO can otherwise compile. Generalized disjunctive programming (GDP)
 models should use [DisjunctiveProgramming.jl](https://github.com/infiniteopt/DisjunctiveProgramming.jl)'s
 `Indicator()` reformulation, which emits JuMP/MOI indicator constraints that
 ToQUBO compiles directly; no separate `DisjunctiveToQUBO.jl` runtime package is
-required.
+required. The historical
+[`pedromxavier/DisjunctiveToQUBO.jl`](https://github.com/pedromxavier/DisjunctiveToQUBO.jl)
+repository should be treated as a paper artifact, not as part of ToQUBO's
+runtime surface or CI.
 
 | Symbol | Meaning                            |
 | :----: | ---------------------------------- |
