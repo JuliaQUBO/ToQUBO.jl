@@ -123,6 +123,22 @@ This integration does not require a separate `DisjunctiveToQUBO.jl` package.
 Use `DisjunctiveProgramming.jl` for GDP modeling and reformulation, then use
 `ToQUBO.Optimizer` as the optimizer backend.
 
+#### Paper Artifact Repository
+
+The historical
+[`pedromxavier/DisjunctiveToQUBO.jl`](https://github.com/pedromxavier/DisjunctiveToQUBO.jl)
+repository is a paper/reproducibility artifact, not a maintained ToQUBO
+runtime package. Its notebooks, generated result files, PDFs, plots, and pinned
+notebook environments should stay outside ToQUBO's normal package tests and
+documentation CI.
+
+Maintained GDP usage examples belong in this manual. The artifact repository
+should either be archived as-is or keep its current ownership with a README
+notice that points readers to the maintained ToQUBO documentation for supported
+GDP workflows. Transferring it under `JuliaQUBO` should only be considered if
+the organization chooses to steward paper artifacts separately from production
+packages.
+
 ## Defining the Objective Function
 
 The objective function can be linear or quadratic. ToQUBO.jl supports both minimization and maximization.
