@@ -30,8 +30,20 @@ function _is_quadratic_penalty(model::Virtual.Model, ci::CI)::Bool
     return Attributes.constraint_encoding_method(model, ci) isa Attributes.QuadraticPenalty
 end
 
+function _is_nonnegative(g::PBO.PBF{VI,T})::Bool where {T}
+    l, _ = PBO.bounds(g)
+
+    return l >= zero(T)
+end
+
+function _is_nonpositive(g::PBO.PBF{VI,T})::Bool where {T}
+    _, u = PBO.bounds(g)
+
+    return u <= zero(T)
+end
+
 function _equality_penalty(model::Virtual.Model, ci::CI, g::PBO.PBF)
-    if _is_quadratic_penalty(model, ci)
+    if _is_quadratic_penalty(model, ci) && !_is_nonnegative(g)
         return g^2
     else
         return g
@@ -97,6 +109,9 @@ into
 \left\Vert(\mathbf{x})\right\Vert_{\left\lbrace{0}\right\rbrace} = \left(\mathbf{a}'\mathbf{x} - b\right)^{2}
 
 ```
+
+If the residual is nonnegative over the encoded domain, the compiler uses the
+residual directly instead of squaring it.
 """
 function constraint(
     model::Virtual.Model{T},
@@ -151,7 +166,9 @@ into
 
 ```
 
-by adding a slack variable ``z``.
+when the residual is not already nonnegative. If it is nonnegative over the
+encoded domain, the compiler uses the residual directly instead of adding a
+slack variable.
 """
 function constraint(
     model::Virtual.Model{T},
@@ -178,6 +195,10 @@ function constraint(
         return nothing
     elseif l > zero(T) # Infeasible
         @warn "Infeasible constraint detected"
+    end
+
+    if _is_nonnegative(g)
+        return g
     end
 
     # Slack Variable
@@ -232,7 +253,9 @@ into
 
 ```
 
-by adding a slack variable ``z``.
+when the residual is not already nonpositive. If it is nonpositive over the
+encoded domain, the compiler uses the negated residual directly instead of
+adding a slack variable.
 """
 function constraint(
     model::Virtual.Model{T},
@@ -259,6 +282,10 @@ function constraint(
         return nothing
     elseif u < zero(T) # Infeasible
         @warn "Infeasible constraint detected"
+    end
+
+    if _is_nonpositive(g)
+        return -g
     end
 
     # Slack Variable
@@ -300,6 +327,8 @@ into
 
 ```
 
+If the residual is nonnegative over the encoded domain, the compiler uses the
+residual directly instead of squaring it.
 """
 function constraint(
     model::Virtual.Model{T},
@@ -331,7 +360,7 @@ function constraint(
         """
     end
 
-    if _is_quadratic_penalty(model, ci)
+    if _is_quadratic_penalty(model, ci) && !_is_nonnegative(g)
         # Tell the compiler that quadratization is necessary
         MOI.set(model, Attributes.Quadratize(), true)
     end
@@ -363,7 +392,9 @@ into
 
 ```
 
-by adding a slack variable ``z``.
+when the residual is not already nonnegative. If it is nonnegative over the
+encoded domain, the compiler uses the residual directly instead of adding a
+slack variable.
 """
 function constraint(
     model::Virtual.Model{T},
@@ -393,6 +424,10 @@ function constraint(
         Infeasible constraint detected:
         $(f) ≤ $(s.upper)
         """
+    end
+
+    if _is_nonnegative(g)
+        return g
     end
 
     # Slack Variable
@@ -436,7 +471,9 @@ into
 
 ```
 
-by adding a slack variable ``z``.
+when the residual is not already nonpositive. If it is nonpositive over the
+encoded domain, the compiler uses the negated residual directly instead of
+adding a slack variable.
 """
 function constraint(
     model::Virtual.Model{T},
@@ -463,6 +500,10 @@ function constraint(
         return nothing
     elseif u < zero(T) # Infeasible
         @warn "Infeasible constraint detected"
+    end
+
+    if _is_nonpositive(g)
+        return -g
     end
 
     # Slack Variable
