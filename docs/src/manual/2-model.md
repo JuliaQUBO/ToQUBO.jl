@@ -66,6 +66,12 @@ requires an explicit `Attributes.ConstraintEncodingPenaltyHint()` because the
 compiler cannot infer a safe coefficient for that form automatically. See
 [Constraint Penalty Methods](@ref) for the settings and an example.
 
+The optimizer accepts scalar affine and scalar quadratic constraints with
+`<=`, `>=`, and `==` bounds. It also accepts `SOS1` constraints and MOI
+indicator constraints whose inner scalar constraint is affine or quadratic and
+uses one of those same bound sets. Indicator constraints may activate on either
+zero or one.
+
 ### Linear Constraints
 
 ```julia
@@ -82,7 +88,32 @@ compiler cannot infer a safe coefficient for that form automatically. See
 ### Quadratic Constraints
 
 ```julia
+# Less than or equal
 @constraint(model, y[1] * y[2] + y[3] <= 1)
+
+# Equal to
+@constraint(model, y[1] * y[2] + y[3] == 1)
+
+# Greater than or equal
+@constraint(model, y[1] * y[2] + y[3] >= 1)
+```
+
+### SOS1 Constraints
+
+```julia
+@constraint(model, y in SOS1())
+```
+
+### Indicator Constraints
+
+```julia
+@variable(model, z, Bin)
+
+# Affine inner constraint
+@constraint(model, z => {2*y[1] + y[2] <= 1})
+
+# Quadratic inner constraint
+@constraint(model, z => {y[1] * y[2] + y[3] <= 1})
 ```
 
 ### Generalized Disjunctive Programming
@@ -91,9 +122,9 @@ Generalized disjunctive programming models can be written with
 [DisjunctiveProgramming.jl](https://github.com/infiniteopt/DisjunctiveProgramming.jl)
 and solved through ToQUBO when they are reformulated with `Indicator()`. In
 that workflow, `DisjunctiveProgramming.jl` turns logical disjuncts into JuMP/MOI
-indicator constraints, and ToQUBO compiles those indicator constraints into the
-QUBO objective. Add `DisjunctiveProgramming.jl` to your project environment
-when using this workflow.
+indicator constraints. ToQUBO then compiles those affine or quadratic indicator
+constraints into the QUBO objective. Add `DisjunctiveProgramming.jl` to your
+project environment when using this workflow.
 
 ToQUBO's maintained GDP support boundary is this indicator-constraint
 compilation path. `DisjunctiveProgramming.jl` remains the modeling and
