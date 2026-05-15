@@ -109,6 +109,9 @@ into
 \left\Vert(\mathbf{x})\right\Vert_{\left\lbrace{0}\right\rbrace} = \left(\mathbf{a}'\mathbf{x} - b\right)^{2}
 
 ```
+
+If the residual is nonnegative over the encoded domain, the compiler uses the
+residual directly instead of squaring it.
 """
 function constraint(
     model::Virtual.Model{T},
@@ -163,7 +166,9 @@ into
 
 ```
 
-by adding a slack variable ``z``.
+when the residual is not already nonnegative. If it is nonnegative over the
+encoded domain, the compiler uses the residual directly instead of adding a
+slack variable.
 """
 function constraint(
     model::Virtual.Model{T},
@@ -248,7 +253,9 @@ into
 
 ```
 
-by adding a slack variable ``z``.
+when the residual is not already nonpositive. If it is nonpositive over the
+encoded domain, the compiler uses the negated residual directly instead of
+adding a slack variable.
 """
 function constraint(
     model::Virtual.Model{T},
@@ -320,6 +327,8 @@ into
 
 ```
 
+If the residual is nonnegative over the encoded domain, the compiler uses the
+residual directly instead of squaring it.
 """
 function constraint(
     model::Virtual.Model{T},
@@ -383,7 +392,9 @@ into
 
 ```
 
-by adding a slack variable ``z``.
+when the residual is not already nonnegative. If it is nonnegative over the
+encoded domain, the compiler uses the residual directly instead of adding a
+slack variable.
 """
 function constraint(
     model::Virtual.Model{T},
@@ -460,7 +471,9 @@ into
 
 ```
 
-by adding a slack variable ``z``.
+when the residual is not already nonpositive. If it is nonpositive over the
+encoded domain, the compiler uses the negated residual directly instead of
+adding a slack variable.
 """
 function constraint(
     model::Virtual.Model{T},

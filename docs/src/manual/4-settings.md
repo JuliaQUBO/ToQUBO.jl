@@ -35,9 +35,13 @@ ToQUBO.Attributes.StableQuadratization
 ### Constraint Penalty Methods
 
 Equality constraints are encoded with
-[`ToQUBO.Attributes.QuadraticPenalty`](@ref) by default. This squares the
-residual and lets the compiler infer a penalty coefficient when
-[`ToQUBO.Attributes.ConstraintEncodingPenaltyHint`](@ref) is not set.
+[`ToQUBO.Attributes.QuadraticPenalty`](@ref) by default. This normally squares
+the residual and lets the compiler infer a penalty coefficient when
+[`ToQUBO.Attributes.ConstraintEncodingPenaltyHint`](@ref) is not set. When the
+parsed residual is provably nonnegative, the compiler can instead add the
+residual directly to avoid unnecessary higher-order terms while preserving the
+same minimizer at zero. The same automatic penalty inference applies to this
+sign-definite shortcut.
 
 Use [`ToQUBO.Attributes.LinearPenalty`](@ref) only when you want an equality
 constraint encoded as its signed residual. Since this form can make infeasible

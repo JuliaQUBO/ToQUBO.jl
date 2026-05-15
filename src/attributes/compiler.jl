@@ -22,6 +22,11 @@ abstract type ConstraintPenaltyMethod end
     QuadraticPenalty()
 
 Encode equality constraints with the standard squared residual penalty.
+
+If the parsed residual is provably nonnegative, the compiler may use the
+residual directly instead of squaring it. This preserves the same minimizer at
+zero while avoiding unnecessary higher-order terms. Automatic penalty inference
+is still available for this sign-definite shortcut.
 """
 struct QuadraticPenalty <: ConstraintPenaltyMethod end
 
