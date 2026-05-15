@@ -69,3 +69,18 @@ If you use `ToQUBO.jl` in your work, we kindly ask you to include the following 
   url          = {https://doi.org/10.5281/zenodo.7644291}
 }
 ```
+
+For the broader `QUBO.jl` ecosystem paper, cite the current preprint:
+
+```tex
+@misc{xavier2023qubojl,
+  author       = {Pedro Maciel Xavier and Pedro Ripper and Tiago Andrade and Joaquim Dias Garcia and Nelson Maculan and David E. Bernal Neira},
+  title        = {{QUBO.jl: A Julia Ecosystem for Quadratic Unconstrained Binary Optimization}},
+  year         = {2023},
+  eprint       = {2307.02577},
+  archivePrefix = {arXiv},
+  primaryClass = {math.OC},
+  doi          = {10.48550/arXiv.2307.02577},
+  url          = {https://arxiv.org/abs/2307.02577}
+}
+```

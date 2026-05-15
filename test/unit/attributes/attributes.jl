@@ -91,6 +91,33 @@ function test_compiler_attributes()
             end
         end
 
+        @testset "DefaultConstraintEncodingMethod" begin
+            let model = ToQUBO.Optimizer{Float64}()
+                @test MOI.supports(model, Attributes.DefaultConstraintEncodingMethod())
+                @test MOI.get(
+                    model,
+                    Attributes.DefaultConstraintEncodingMethod(),
+                ) isa Attributes.QuadraticPenalty
+                @test Attributes.default_constraint_encoding_method(model) isa Attributes.QuadraticPenalty
+
+                MOI.set(
+                    model,
+                    Attributes.DefaultConstraintEncodingMethod(),
+                    Attributes.LinearPenalty(),
+                )
+                @test MOI.get(
+                    model,
+                    Attributes.DefaultConstraintEncodingMethod(),
+                ) isa Attributes.LinearPenalty
+
+                MOI.set(model, Attributes.DefaultConstraintEncodingMethod(), nothing)
+                @test MOI.get(
+                    model,
+                    Attributes.DefaultConstraintEncodingMethod(),
+                ) isa Attributes.QuadraticPenalty
+            end
+        end
+
         @testset "Quadratize" begin
             let model = ToQUBO.Optimizer{Float64}()
                 @test MOI.supports(model, Attributes.Quadratize())
@@ -277,6 +304,45 @@ function test_constraint_attributes()
 
                 MOI.set(model, Attributes.ConstraintEncodingPenaltyHint(), ci, nothing)
                 @test MOI.get(model, Attributes.ConstraintEncodingPenaltyHint(), ci) === nothing
+            end
+        end
+
+        @testset "ConstraintEncodingMethod" begin
+            let model = ToQUBO.Optimizer{Float64}()
+                vi = MOI.add_variable(model)
+                f = MOI.ScalarAffineFunction{Float64}(
+                    [MOI.ScalarAffineTerm(1.0, vi)],
+                    0.0
+                )
+                ci = MOI.add_constraint(model, f, MOI.LessThan{Float64}(1.0))
+
+                @test MOI.supports(model, Attributes.ConstraintEncodingMethod(), typeof(ci))
+                @test MOI.get(model, Attributes.ConstraintEncodingMethod(), ci) === nothing
+                @test Attributes.constraint_encoding_method(model, ci) isa Attributes.QuadraticPenalty
+
+                MOI.set(
+                    model,
+                    Attributes.DefaultConstraintEncodingMethod(),
+                    Attributes.LinearPenalty(),
+                )
+                @test Attributes.constraint_encoding_method(model, ci) isa Attributes.LinearPenalty
+
+                MOI.set(
+                    model,
+                    Attributes.ConstraintEncodingMethod(),
+                    ci,
+                    Attributes.QuadraticPenalty(),
+                )
+                @test MOI.get(
+                    model,
+                    Attributes.ConstraintEncodingMethod(),
+                    ci,
+                ) isa Attributes.QuadraticPenalty
+                @test Attributes.constraint_encoding_method(model, ci) isa Attributes.QuadraticPenalty
+
+                MOI.set(model, Attributes.ConstraintEncodingMethod(), ci, nothing)
+                @test MOI.get(model, Attributes.ConstraintEncodingMethod(), ci) === nothing
+                @test Attributes.constraint_encoding_method(model, ci) isa Attributes.LinearPenalty
             end
         end
 

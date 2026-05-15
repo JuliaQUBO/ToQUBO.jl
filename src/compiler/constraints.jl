@@ -26,6 +26,18 @@ function constraints!(
     return nothing
 end
 
+function _is_quadratic_penalty(model::Virtual.Model, ci::CI)::Bool
+    return Attributes.constraint_encoding_method(model, ci) isa Attributes.QuadraticPenalty
+end
+
+function _equality_penalty(model::Virtual.Model, ci::CI, g::PBO.PBF)
+    if _is_quadratic_penalty(model, ci)
+        return g^2
+    else
+        return g
+    end
+end
+
 @doc raw"""
     constraint(
         ::Virtual.Model{T},
@@ -80,7 +92,7 @@ into
 """
 function constraint(
     model::Virtual.Model{T},
-    ::CI,
+    ci::CI,
     f::SAF{T},
     s::EQ{T},
     arch::AbstractArchitecture,
@@ -105,7 +117,7 @@ function constraint(
         @warn "Infeasible constraint detected"
     end
 
-    return g^2
+    return _equality_penalty(model, ci, g)
 end
 
 @doc raw"""
@@ -283,7 +295,7 @@ into
 """
 function constraint(
     model::Virtual.Model{T},
-    ::CI,
+    ci::CI,
     f::SQF{T},
     s::EQ{T},
     arch::AbstractArchitecture,
@@ -311,10 +323,12 @@ function constraint(
         """
     end
 
-    # Tell the compiler that quadratization is necessary
-    MOI.set(model, Attributes.Quadratize(), true)
+    if _is_quadratic_penalty(model, ci)
+        # Tell the compiler that quadratization is necessary
+        MOI.set(model, Attributes.Quadratize(), true)
+    end
 
-    return g^2
+    return _equality_penalty(model, ci, g)
 end
 
 

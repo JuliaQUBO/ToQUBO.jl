@@ -531,6 +531,20 @@ function test_interface_jump()
                 JuMP.set_attribute(model, Attributes.StableQuadratization(), true)
                 @test JuMP.get_attribute(model, Attributes.StableQuadratization()) === true
 
+                @test JuMP.get_attribute(
+                    model,
+                    Attributes.DefaultConstraintEncodingMethod(),
+                ) isa Attributes.QuadraticPenalty
+                JuMP.set_attribute(
+                    model,
+                    Attributes.DefaultConstraintEncodingMethod(),
+                    Attributes.LinearPenalty(),
+                )
+                @test JuMP.get_attribute(
+                    model,
+                    Attributes.DefaultConstraintEncodingMethod(),
+                ) isa Attributes.LinearPenalty
+
                 # Variable Encoding Method
                 @test JuMP.get_attribute(model, Attributes.DefaultVariableEncodingMethod()) isa Encoding.Binary
                 JuMP.set_attribute(model, Attributes.DefaultVariableEncodingMethod(), Encoding.Unary())
@@ -588,6 +602,16 @@ function test_interface_jump()
                 JuMP.set_attribute(c[1], Attributes.ConstraintEncodingPenaltyHint(), -10.0)
 
                 @test JuMP.get_attribute(c[1], Attributes.ConstraintEncodingPenaltyHint()) == -10.0
+                @test JuMP.get_attribute(c[1], Attributes.ConstraintEncodingMethod()) === nothing
+                JuMP.set_attribute(
+                    c[1],
+                    Attributes.ConstraintEncodingMethod(),
+                    Attributes.QuadraticPenalty(),
+                )
+                @test JuMP.get_attribute(
+                    c[1],
+                    Attributes.ConstraintEncodingMethod(),
+                ) isa Attributes.QuadraticPenalty
 
                 JuMP.optimize!(model)
 
@@ -601,6 +625,10 @@ function test_interface_jump()
 
                 @test JuMP.get_attribute(model, Attributes.QuadratizationMethod()) isa PBO.PTR_BG
                 @test JuMP.get_attribute(model, Attributes.StableQuadratization()) === true
+                @test JuMP.get_attribute(
+                    model,
+                    Attributes.DefaultConstraintEncodingMethod(),
+                ) isa Attributes.LinearPenalty
 
                 @test JuMP.get_attribute(model, Attributes.DefaultVariableEncodingMethod()) isa Encoding.Unary
 
@@ -626,6 +654,11 @@ function test_interface_jump()
 
                 @test JuMP.get_attribute(c[1], Attributes.ConstraintEncodingPenaltyHint()) == -10.0
                 @test JuMP.get_attribute(c[2], Attributes.ConstraintEncodingPenaltyHint()) === nothing
+                @test JuMP.get_attribute(
+                    c[1],
+                    Attributes.ConstraintEncodingMethod(),
+                ) isa Attributes.QuadraticPenalty
+                @test JuMP.get_attribute(c[2], Attributes.ConstraintEncodingMethod()) === nothing
 
                 @test JuMP.get_attribute(c[1], Attributes.ConstraintEncodingPenalty()) == -10.0
                 @test JuMP.get_attribute(c[2], Attributes.ConstraintEncodingPenalty()) == -4.0
