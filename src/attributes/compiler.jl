@@ -34,6 +34,12 @@ This method is heuristic: unlike [`QuadraticPenalty`](@ref), it is not
 guaranteed to make every infeasible assignment more expensive. Use
 [`ConstraintEncodingPenaltyHint`](@ref) to tune the signed penalty strength.
 Automatic penalty inference is not available for this method.
+
+This option follows the linear Ising penalty method studied by Mirkarimi et al.
+in "Quantum optimization with linear Ising penalty functions for customer data
+science" ([doi:10.1103/PhysRevResearch.6.043241](https://doi.org/10.1103/PhysRevResearch.6.043241))
+and "Experimental demonstration of improved quantum optimization with linear
+Ising penalties" ([doi:10.1088/1367-2630/ad7e4a](https://doi.org/10.1088/1367-2630/ad7e4a)).
 """
 struct LinearPenalty <: ConstraintPenaltyMethod end
 

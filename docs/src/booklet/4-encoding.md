@@ -95,10 +95,24 @@ In order to do that, `ToQUBO` multiplies the encoded constraint by a large penal
 
 Equality constraints use a squared residual penalty by default. The compiler can
 also encode an equality constraint with a signed linear residual through
-[`ToQUBO.Attributes.LinearPenalty`](@ref). This is a heuristic method: the sign
-and magnitude of ``\rho`` affect whether the residual discourages the intended
-violations, so `ToQUBO` requires an explicit
+[`ToQUBO.Attributes.LinearPenalty`](@ref). This option follows the linear Ising
+penalty method studied by Mirkarimi et al.[^Mirkarimi2024PRR] and demonstrated
+experimentally for quantum annealing.[^Mirkarimi2024NJP] It is a heuristic
+method: the sign and magnitude of ``\rho`` affect whether the residual
+discourages the intended violations, so `ToQUBO` requires an explicit
 [`ToQUBO.Attributes.ConstraintEncodingPenaltyHint`](@ref) instead of inferring
 ``\rho`` automatically.
 
 Sometimes, the encoding process might introduce higher-order terms, demanding `ToQUBO` to reduce the offending polynomials back to a quadratic form.
+
+[^Mirkarimi2024PRR]:
+    Puya Mirkarimi, Ishaan Shukla, David C. Hoyle, Ross Williams, and Nicholas
+    Chancellor. **Quantum optimization with linear Ising penalty functions for
+    customer data science**. _Physical Review Research_ 6, 043241 (2024).
+    [{doi}](https://doi.org/10.1103/PhysRevResearch.6.043241)
+
+[^Mirkarimi2024NJP]:
+    Puya Mirkarimi, David C. Hoyle, Ross Williams, and Nicholas Chancellor.
+    **Experimental demonstration of improved quantum optimization with linear
+    Ising penalties**. _New Journal of Physics_ 26, 103005 (2024).
+    [{doi}](https://doi.org/10.1088/1367-2630/ad7e4a)

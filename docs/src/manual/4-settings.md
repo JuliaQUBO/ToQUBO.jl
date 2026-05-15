@@ -46,6 +46,12 @@ inference is disabled. Every equality constraint that uses `LinearPenalty()`
 must also have an explicit
 [`ToQUBO.Attributes.ConstraintEncodingPenaltyHint`](@ref).
 
+The method is motivated by the linear Ising penalty approach of Mirkarimi et
+al.[^Mirkarimi2024PRR] and its quantum annealing demonstration.[^Mirkarimi2024NJP]
+Those papers highlight the main tradeoff reflected in this API: linear
+penalties can avoid the extra couplings introduced by quadratic penalties, but
+they are heuristic and are not guaranteed to exactly enforce every constraint.
+
 ```julia
 using JuMP
 using ToQUBO
@@ -64,6 +70,18 @@ For mixed models, keep the default method as
 [`ToQUBO.Attributes.QuadraticPenalty`](@ref) and set
 [`ToQUBO.Attributes.ConstraintEncodingMethod`](@ref) only on the constraints
 that should use the linear residual.
+
+[^Mirkarimi2024PRR]:
+    Puya Mirkarimi, Ishaan Shukla, David C. Hoyle, Ross Williams, and Nicholas
+    Chancellor. **Quantum optimization with linear Ising penalty functions for
+    customer data science**. _Physical Review Research_ 6, 043241 (2024).
+    [{doi}](https://doi.org/10.1103/PhysRevResearch.6.043241)
+
+[^Mirkarimi2024NJP]:
+    Puya Mirkarimi, David C. Hoyle, Ross Williams, and Nicholas Chancellor.
+    **Experimental demonstration of improved quantum optimization with linear
+    Ising penalties**. _New Journal of Physics_ 26, 103005 (2024).
+    [{doi}](https://doi.org/10.1088/1367-2630/ad7e4a)
 
 ```@docs
 ToQUBO.Attributes.VariableEncodingBits
