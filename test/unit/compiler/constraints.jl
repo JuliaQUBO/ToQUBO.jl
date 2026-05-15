@@ -194,35 +194,61 @@ function test_compiler_constraints_sos1_domain_wall()
 end
 
 function test_compiler_constraints_sos1_domain_wall_indicator_activation()
-    model = ToQUBO.Optimizer{Float64}()
-    x, _  = MOI.add_constrained_variables(model, fill(MOI.ZeroOne(), 2))
+    function indicator_function(::Val{:affine}, x)
+        return MOI.VectorAffineFunction{Float64}(
+            [
+                MOI.VectorAffineTerm(1, MOI.ScalarAffineTerm(1.0, x[1])),
+                MOI.VectorAffineTerm(2, MOI.ScalarAffineTerm(1.0, x[2])),
+            ],
+            [0.0, 0.0],
+        )
+    end
 
-    MOI.add_constraint(model, MOI.VectorOfVariables(x), MOI.SOS1{Float64}([1.0, 2.0]))
+    function indicator_function(::Val{:quadratic}, x)
+        return MOI.VectorQuadraticFunction{Float64}(
+            [MOI.VectorQuadraticTerm(2, MOI.ScalarQuadraticTerm(1.0, x[2], x[2]))],
+            [MOI.VectorAffineTerm(1, MOI.ScalarAffineTerm(1.0, x[1]))],
+            [0.0, 0.0],
+        )
+    end
 
-    f = MOI.VectorAffineFunction{Float64}(
-        [
-            MOI.VectorAffineTerm(1, MOI.ScalarAffineTerm(1.0, x[1])),
-            MOI.VectorAffineTerm(2, MOI.ScalarAffineTerm(1.0, x[2])),
-        ],
-        [0.0, 0.0],
-    )
+    for (label, function_type) in ("affine" => Val(:affine), "quadratic" => Val(:quadratic))
+        for activation in (MOI.ACTIVATE_ON_ONE, MOI.ACTIVATE_ON_ZERO)
+            @testset "$(label) $(activation)" begin
+                model = ToQUBO.Optimizer{Float64}()
+                x, _  = MOI.add_constrained_variables(model, fill(MOI.ZeroOne(), 2))
 
-    MOI.add_constraint(
-        model,
-        f,
-        MOI.Indicator{MOI.ACTIVATE_ON_ONE}(MOI.LessThan{Float64}(0.0)),
-    )
-    MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
-    MOI.set(
-        model,
-        MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
-        MOI.ScalarAffineFunction{Float64}(MOI.ScalarAffineTerm{Float64}[], 0.0),
-    )
+                c = MOI.add_constraint(
+                    model,
+                    MOI.VectorOfVariables(x),
+                    MOI.SOS1{Float64}([1.0, 2.0]),
+                )
 
-    MOI.optimize!(model)
+                MOI.add_constraint(
+                    model,
+                    indicator_function(function_type, x),
+                    MOI.Indicator{activation}(MOI.LessThan{Float64}(0.0)),
+                )
+                MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+                MOI.set(
+                    model,
+                    MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
+                    MOI.ScalarAffineFunction{Float64}(MOI.ScalarAffineTerm{Float64}[], 0.0),
+                )
 
-    @test MOI.get(model, Attributes.CompilationStatus()) == MOI.LOCALLY_SOLVED
-    @test ToQUBO.Virtual.encoding(model.source[x[1]]) isa Encoding.DomainWall
+                MOI.optimize!(model)
+
+                y = ToQUBO.Virtual.target(model.slack[c])
+
+                @test MOI.get(model, Attributes.CompilationStatus()) == MOI.LOCALLY_SOLVED
+                @test ToQUBO.Virtual.encoding(model.source[x[1]]) isa Encoding.DomainWall
+                @test ToQUBO.Compiler._indicator_activation(model, x[1]) ==
+                      PBO.PBF{VI,Float64}(y[1]) * (1.0 - PBO.PBF{VI,Float64}(y[2]))
+                @test ToQUBO.Compiler._indicator_activation(model, x[2]) ==
+                      PBO.PBF{VI,Float64}(y[2])
+            end
+        end
+    end
 
     return nothing
 end
