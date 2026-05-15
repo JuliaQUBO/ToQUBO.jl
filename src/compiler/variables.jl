@@ -92,7 +92,9 @@ function variables!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
     if Attributes.stable_compilation(model)
         sort!(Ω; by = x -> x.value)
     end
-    
+
+    _sos1_domain_wall_variables!(model, Set(𝔹))
+
     # Encode Variables
     for x in Ω
         # If variable was already encoded, skip
@@ -118,6 +120,90 @@ end
 
 function variable_𝔹!(model::Virtual.Model{T}, i::Union{VI,CI}) where {T}
     return Encoding.encode!(model, i, Encoding.Mirror{T}())
+end
+
+function _sos1_variable_counts(model::Virtual.Model{T}) where {T}
+    counts = Dict{VI,Int}()
+
+    for ci in MOI.get(
+        model,
+        MOI.ListOfConstraintIndices{MOI.VectorOfVariables,MOI.SOS1{T}}(),
+    )
+        x = MOI.get(model, MOI.ConstraintFunction(), ci)
+
+        for xi in x.variables
+            counts[xi] = get(counts, xi, 0) + 1
+        end
+    end
+
+    return counts
+end
+
+function _sos1_domain_wall_penalty(::Type{T}, y::Vector{VI}) where {T}
+    two = T(2)
+
+    return PBO.PBF{VI,T}(
+        [
+            [y[i] => two for i = 2:length(y)]
+            [(y[i], y[i+1]) => -two for i = 1:(length(y)-1)]
+        ],
+    )
+end
+
+function _sos1_domain_wall_expansion(::Type{T}, y::Vector{VI}, i::Integer) where {T}
+    if i == length(y)
+        return PBO.PBF{VI,T}(y[i] => one(T))
+    else
+        return PBO.PBF{VI,T}([y[i] => one(T), y[i+1] => -one(T)])
+    end
+end
+
+function _encode_sos1_domain_wall!(
+    model::Virtual.Model{T},
+    ci::CI{MOI.VectorOfVariables,MOI.SOS1{T}},
+    x::Vector{VI},
+) where {T}
+    y = MOI.add_variables(model.target_model, length(x))
+    e = Encoding.DomainWall{T}()
+    v = Virtual.Variable{T}(e, ci, y, PBO.PBF{VI,T}(), nothing)
+
+    Encoding.encode!(model, v)
+
+    for i in eachindex(x)
+        ξ = _sos1_domain_wall_expansion(T, y, i)
+        v = Virtual.Variable{T}(e, x[i], VI[], ξ, nothing)
+
+        Encoding.encode!(model, v)
+    end
+
+    return nothing
+end
+
+function _sos1_domain_wall_variables!(
+    model::Virtual.Model{T},
+    binary_variables::Set{VI},
+) where {T}
+    counts = _sos1_variable_counts(model)
+
+    for ci in MOI.get(
+        model,
+        MOI.ListOfConstraintIndices{MOI.VectorOfVariables,MOI.SOS1{T}}(),
+    )
+        x = MOI.get(model, MOI.ConstraintFunction(), ci)
+
+        if length(x.variables) <= 1
+            continue
+        end
+
+        if all(
+            xi -> xi in binary_variables && !haskey(model.source, xi) && counts[xi] == 1,
+            x.variables,
+        )
+            _encode_sos1_domain_wall!(model, ci, x.variables)
+        end
+    end
+
+    return nothing
 end
 
 function variable_semiinteger!(
