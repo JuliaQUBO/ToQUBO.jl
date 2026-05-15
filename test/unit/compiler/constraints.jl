@@ -193,12 +193,47 @@ function test_compiler_constraints_sos1_domain_wall()
     return nothing
 end
 
+function test_compiler_constraints_sos1_domain_wall_indicator_activation()
+    model = ToQUBO.Optimizer{Float64}()
+    x, _  = MOI.add_constrained_variables(model, fill(MOI.ZeroOne(), 2))
+
+    MOI.add_constraint(model, MOI.VectorOfVariables(x), MOI.SOS1{Float64}([1.0, 2.0]))
+
+    f = MOI.VectorAffineFunction{Float64}(
+        [
+            MOI.VectorAffineTerm(1, MOI.ScalarAffineTerm(1.0, x[1])),
+            MOI.VectorAffineTerm(2, MOI.ScalarAffineTerm(1.0, x[2])),
+        ],
+        [0.0, 0.0],
+    )
+
+    MOI.add_constraint(
+        model,
+        f,
+        MOI.Indicator{MOI.ACTIVATE_ON_ONE}(MOI.LessThan{Float64}(0.0)),
+    )
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+    MOI.set(
+        model,
+        MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
+        MOI.ScalarAffineFunction{Float64}(MOI.ScalarAffineTerm{Float64}[], 0.0),
+    )
+
+    MOI.optimize!(model)
+
+    @test MOI.get(model, Attributes.CompilationStatus()) == MOI.LOCALLY_SOLVED
+    @test ToQUBO.Virtual.encoding(model.source[x[1]]) isa Encoding.DomainWall
+
+    return nothing
+end
+
 function test_compiler_constraints()
     @testset "→ Constraints" verbose = true begin
         test_compiler_constraints_quadratic()
         test_compiler_constraints_linear_penalty()
         test_compiler_constraints_linear_penalty_requires_hint()
         test_compiler_constraints_sos1_domain_wall()
+        test_compiler_constraints_sos1_domain_wall_indicator_activation()
     end
 
     return nothing

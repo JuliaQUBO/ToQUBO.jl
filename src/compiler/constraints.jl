@@ -560,6 +560,51 @@ function constraint(
     return g^2 + h
 end
 
+function _domain_wall_indicator_activation(::Type{T}, ξ::PBO.PBF{VI,T}) where {T}
+    if !(ξ[nothing] ≈ zero(T))
+        return ξ
+    end
+
+    positive = VI[]
+    negative = VI[]
+
+    for (ω, c) in ξ
+        if isempty(ω)
+            continue
+        elseif length(ω) != 1
+            return ξ
+        elseif c ≈ one(T)
+            push!(positive, only(ω))
+        elseif c ≈ -one(T)
+            push!(negative, only(ω))
+        else
+            return ξ
+        end
+    end
+
+    if length(positive) == 1 && isempty(negative)
+        return PBO.PBF{VI,T}(only(positive))
+    elseif length(positive) == 1 && length(negative) == 1
+        yi = PBO.PBF{VI,T}(only(positive))
+        yj = PBO.PBF{VI,T}(only(negative))
+
+        return yi * (one(T) - yj)
+    else
+        return ξ
+    end
+end
+
+function _indicator_activation(model::Virtual.Model{T}, xi::VI) where {T}
+    vi = model.source[xi]
+    ξ = Virtual.expansion(vi)
+
+    if Virtual.encoding(vi) isa Encoding.DomainWall
+        return _domain_wall_indicator_activation(T, ξ)
+    else
+        return ξ
+    end
+end
+
 function constraint(
     model::Virtual.Model{T},
     ci::CI,
@@ -570,11 +615,7 @@ function constraint(
     # Indicator Constraint: y = 0|1 => {g(x)}
 
     xi = first(f.terms).scalar_term.variable # Indicator Variable
-    vi = model.source[xi]
-
-    @assert Virtual.encoding(vi) isa Encoding.Mirror
-
-    yi = only(Virtual.target(vi))
+    yi = _indicator_activation(model, xi)
 
     g = MOI.ScalarAffineFunction{T}(
         SAT{T}[f.terms[i].scalar_term for i = 2:length(f.terms)],
@@ -585,9 +626,9 @@ function constraint(
     MOI.set(model, Attributes.Quadratize(), true)
 
     if A === MOI.ACTIVATE_ON_ONE
-        return PBO.PBF{VI,T}(yi) * constraint(model, ci, g, s.set, arch)
+        return yi * constraint(model, ci, g, s.set, arch)
     elseif A === MOI.ACTIVATE_ON_ZERO
-        return (one(T) - PBO.PBF{VI,T}(yi)) * constraint(model, ci, g, s.set, arch)
+        return (one(T) - yi) * constraint(model, ci, g, s.set, arch)
     else
         error("Indicator constraint activation type $(A) not supported")
     end
@@ -605,11 +646,7 @@ function constraint(
     # Indicator Constraint: y = 0|1 => {g(x)}
 
     xi = first(f.affine_terms).scalar_term.variable # Indicator Variable
-    vi = model.source[xi]
-
-    @assert Virtual.encoding(vi) isa Encoding.Mirror
-
-    yi = only(Virtual.target(vi))
+    yi = _indicator_activation(model, xi)
 
     g = MOI.ScalarQuadraticFunction{T}(
         SQT{T}[f.quadratic_terms[i].scalar_term for i = 2:length(f.quadratic_terms)],
@@ -621,9 +658,9 @@ function constraint(
     MOI.set(model, Attributes.Quadratize(), true)
 
     if A === MOI.ACTIVATE_ON_ONE
-        return PBO.PBF{VI,T}(yi) * constraint(model, ci, g, s.set, arch)
+        return yi * constraint(model, ci, g, s.set, arch)
     elseif A === MOI.ACTIVATE_ON_ZERO
-        return (one(T) - PBO.PBF{VI,T}(yi)) * constraint(model, ci, g, s.set, arch)
+        return (one(T) - yi) * constraint(model, ci, g, s.set, arch)
     else
         error("Indicator constraint activation type $(A) not supported")
     end
