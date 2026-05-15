@@ -60,6 +60,11 @@ Continuous variables within a bounded interval are discretized and encoded.
 ## Defining Constraints
 
 ToQUBO.jl supports linear and quadratic constraints, which are reformulated as penalty terms in the QUBO objective function.
+Equality constraints use a quadratic residual penalty by default. A signed
+linear residual can be selected with `Attributes.LinearPenalty()`, but it
+requires an explicit `Attributes.ConstraintEncodingPenaltyHint()` because the
+compiler cannot infer a safe coefficient for that form automatically. See
+[Constraint Penalty Methods](@ref) for the settings and an example.
 
 ### Linear Constraints
 

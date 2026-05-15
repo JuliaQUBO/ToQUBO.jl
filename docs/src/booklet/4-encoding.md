@@ -93,4 +93,12 @@ A QUBO model is unconstrained. So when `ToQUBO` is reformulating a problem, it n
 As constraints are introduced into the objective function, we need to make sure that they won't be violated.
 In order to do that, `ToQUBO` multiplies the encoded constraint by a large penalty ``\rho``, so that any violation would result in a sub-optimal solution to the problem.
 
+Equality constraints use a squared residual penalty by default. The compiler can
+also encode an equality constraint with a signed linear residual through
+[`ToQUBO.Attributes.LinearPenalty`](@ref). This is a heuristic method: the sign
+and magnitude of ``\rho`` affect whether the residual discourages the intended
+violations, so `ToQUBO` requires an explicit
+[`ToQUBO.Attributes.ConstraintEncodingPenaltyHint`](@ref) instead of inferring
+``\rho`` automatically.
+
 Sometimes, the encoding process might introduce higher-order terms, demanding `ToQUBO` to reduce the offending polynomials back to a quadratic form.
