@@ -27,8 +27,29 @@ function test_wrapper_optimizer()
         @testset "MOI supports" begin
             let model = ToQUBO.Optimizer{Float64}()
                 @test MOI.supports(model, MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}())
+                @test MOI.supports(model, MOI.ObjectiveFunction{MOI.ScalarQuadraticFunction{Float64}}())
                 @test MOI.supports_constraint(model, VI, MOI.ZeroOne)
                 @test MOI.supports_add_constrained_variable(model, MOI.ZeroOne)
+
+                for S in (MOI.EqualTo{Float64}, MOI.LessThan{Float64}, MOI.GreaterThan{Float64})
+                    @test MOI.supports_constraint(model, MOI.ScalarQuadraticFunction{Float64}, S)
+                end
+
+                @test MOI.supports_constraint(model, MOI.VectorOfVariables, MOI.SOS1{Float64})
+
+                indicator_sets = (
+                    MOI.Indicator{MOI.ACTIVATE_ON_ONE,MOI.EqualTo{Float64}},
+                    MOI.Indicator{MOI.ACTIVATE_ON_ONE,MOI.LessThan{Float64}},
+                    MOI.Indicator{MOI.ACTIVATE_ON_ONE,MOI.GreaterThan{Float64}},
+                    MOI.Indicator{MOI.ACTIVATE_ON_ZERO,MOI.EqualTo{Float64}},
+                    MOI.Indicator{MOI.ACTIVATE_ON_ZERO,MOI.LessThan{Float64}},
+                    MOI.Indicator{MOI.ACTIVATE_ON_ZERO,MOI.GreaterThan{Float64}},
+                )
+
+                for S in indicator_sets
+                    @test MOI.supports_constraint(model, MOI.VectorAffineFunction{Float64}, S)
+                    @test MOI.supports_constraint(model, MOI.VectorQuadraticFunction{Float64}, S)
+                end
             end
         end
 

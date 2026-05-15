@@ -230,6 +230,28 @@ function test_compiler_constraints_sign_definite_penalty()
     return nothing
 end
 
+function test_compiler_constraints_quadratic_greater_than_always_feasible()
+    model = ToQUBO.Virtual.Model{Float64}()
+    arch  = ToQUBO.Compiler.GenericArchitecture()
+    x, _  = MOI.add_constrained_variables(model.source_model, fill(MOI.ZeroOne(), 2))
+
+    ToQUBO.Compiler.variables!(model, arch)
+
+    f = MOI.ScalarQuadraticFunction{Float64}(
+        [MOI.ScalarQuadraticTerm(1.0, x[1], x[2])],
+        [MOI.ScalarAffineTerm(1.0, x[1])],
+        1.0,
+    )
+    s = MOI.GreaterThan{Float64}(0.0)
+    c = MOI.add_constraint(model.source_model, f, s)
+
+    @test_logs (:warn, r"Always-feasible constraint detected") begin
+        @test ToQUBO.Compiler.constraint(model, c, f, s, arch) === nothing
+    end
+
+    return nothing
+end
+
 function test_compiler_constraints_sos1_domain_wall()
     model = ToQUBO.Virtual.Model{Float64}()
     arch  = ToQUBO.Compiler.GenericArchitecture()
@@ -341,6 +363,7 @@ function test_compiler_constraints()
         test_compiler_constraints_linear_penalty()
         test_compiler_constraints_linear_penalty_requires_hint()
         test_compiler_constraints_sign_definite_penalty()
+        test_compiler_constraints_quadratic_greater_than_always_feasible()
         test_compiler_constraints_sos1_domain_wall()
         test_compiler_constraints_sos1_domain_wall_indicator_activation()
     end

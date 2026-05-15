@@ -495,7 +495,7 @@ function constraint(
     if l > zero(T) # Always feasible
         @warn """
         Always-feasible constraint detected:
-        $(f) ≥ $(s.upper)
+        $(f) ≥ $(s.lower)
         """
         return nothing
     elseif u < zero(T) # Infeasible
