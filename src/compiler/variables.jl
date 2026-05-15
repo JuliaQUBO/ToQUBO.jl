@@ -6,6 +6,8 @@ function variables!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
     𝔹 = Vector{VI}()
     ℤ = Dict{VI,Tuple{Union{T,Nothing},Union{T,Nothing}}}()
     ℝ = Dict{VI,Tuple{Union{T,Nothing},Union{T,Nothing}}}()
+    semiinteger = Dict{VI,Tuple{T,T}}()
+    semicontinuous = Dict{VI,Tuple{T,T}}()
 
     for ci in MOI.get(model, MOI.ListOfConstraintIndices{VI,MOI.ZeroOne}())
         # Binary Variable
@@ -23,7 +25,23 @@ function variables!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
         ℤ[x] = (nothing, nothing)
     end
 
-    for x in setdiff(Ω, 𝔹, keys(ℤ))
+    for ci in MOI.get(model, MOI.ListOfConstraintIndices{VI,MOI.Semiinteger{T}}())
+        # Semi-integer Variable
+        x = MOI.get(model, MOI.ConstraintFunction(), ci)
+        s = MOI.get(model, MOI.ConstraintSet(), ci)
+
+        semiinteger[x] = (s.lower, s.upper)
+    end
+
+    for ci in MOI.get(model, MOI.ListOfConstraintIndices{VI,MOI.Semicontinuous{T}}())
+        # Semi-continuous Variable
+        x = MOI.get(model, MOI.ConstraintFunction(), ci)
+        s = MOI.get(model, MOI.ConstraintSet(), ci)
+
+        semicontinuous[x] = (s.lower, s.upper)
+    end
+
+    for x in setdiff(Ω, 𝔹, keys(ℤ), keys(semiinteger), keys(semicontinuous))
         # Real Variable
         ℝ[x] = (nothing, nothing)
     end
@@ -82,7 +100,11 @@ function variables!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
             continue
         end
 
-        if haskey(ℤ, x)
+        if haskey(semiinteger, x)
+            variable_semiinteger!(model, x, semiinteger[x])
+        elseif haskey(semicontinuous, x)
+            variable_semicontinuous!(model, x, semicontinuous[x])
+        elseif haskey(ℤ, x)
             variable_ℤ!(model, x, ℤ[x])
         elseif haskey(ℝ, x)
             variable_ℝ!(model, x, ℝ[x])
@@ -96,6 +118,37 @@ end
 
 function variable_𝔹!(model::Virtual.Model{T}, i::Union{VI,CI}) where {T}
     return Encoding.encode!(model, i, Encoding.Mirror{T}())
+end
+
+function variable_semiinteger!(
+    model::Virtual.Model{T},
+    vi::VI,
+    S::Tuple{T,T},
+) where {T}
+    e = Attributes.variable_encoding_method(model, vi)
+
+    MOI.set(model, Attributes.Quadratize(), true)
+
+    return Encoding.encode!(model, vi, Encoding.Semi(e), S)
+end
+
+function variable_semicontinuous!(
+    model::Virtual.Model{T},
+    vi::VI,
+    S::Tuple{T,T},
+) where {T}
+    e = Attributes.variable_encoding_method(model, vi)
+    n = Attributes.variable_encoding_bits(model, vi)
+
+    MOI.set(model, Attributes.Quadratize(), true)
+
+    if !isnothing(n)
+        return Encoding.encode!(model, vi, Encoding.Semi(e), S, n)
+    else
+        tol = Attributes.variable_encoding_atol(model, vi)
+
+        return Encoding.encode!(model, vi, Encoding.Semi(e), S; tol)
+    end
 end
 
 function variable_ℤ!(model::Virtual.Model{T}, vi::VI, (a, b)::Tuple{A,B}) where {T,A<:Union{T,Nothing},B<:Union{T,Nothing}}
