@@ -58,7 +58,15 @@ function constraint(
     ::Virtual.Model{T},
     ::CI,
     ::VI,
-    ::Union{MOI.ZeroOne,MOI.Integer,MOI.Interval{T},LT{T},GT{T}},
+    ::Union{
+        MOI.ZeroOne,
+        MOI.Integer,
+        MOI.Interval{T},
+        MOI.Semicontinuous{T},
+        MOI.Semiinteger{T},
+        LT{T},
+        GT{T},
+    },
     ::AbstractArchitecture,
 ) where {T}
     return nothing

@@ -110,8 +110,8 @@ Below, we present a list containing all[⁴](#4) MOI constraint types and their 
 | ------------------------------------------------------------------------------------ | -------------------- | -------------- | :----: |
 | $x_i  \in \mathbb{Z}$                                                                | VariableIndex        | Integer        |   ✔️    |
 | $x_i \in \left\lbrace{0, 1}\right\rbrace$                                            | VariableIndex        | ZeroOne        |   ✔️    |
-| $x_i \in \left\lbrace{0}\right\rbrace \cup \left[{l, u}\right]$                      | VariableIndex        | Semicontinuous |   ⌛    |
-| $x_i \in \left\lbrace{0}\right\rbrace \cup \left[{l, l + 1, \dots, u - 1, u}\right]$ | VariableIndex        | Semiinteger    |   ⌛    |
+| $x_i \in \left\lbrace{0}\right\rbrace \cup \left[{l, u}\right]$                      | VariableIndex        | Semicontinuous |   ✔️    |
+| $x_i \in \left\lbrace{0}\right\rbrace \cup \left[{l, l + 1, \dots, u - 1, u}\right]$ | VariableIndex        | Semiinteger    |   ✔️    |
 | [¹](#1)                                                                              | VectorOfVariables    | SOS1           |   ✔️    |
 | [²](#2)                                                                              | VectorOfVariables    | SOS2           |   📖    |
 | $y = 1 \implies \vec{a}' \vec{x} \in S$                                              | VectorAffineFunction | Indicator      |   ✔️    |

@@ -16,6 +16,7 @@ include("variables/interval/arithmetic.jl")
 
 include("variables/set/one_hot.jl")
 include("variables/set/domain_wall.jl")
+include("variables/semi.jl")
 
 # include("constraints/constraints.jl")
 

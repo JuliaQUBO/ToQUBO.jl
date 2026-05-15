@@ -688,6 +688,68 @@ function test_variable_encoding_methods()
                 end
             end
         end
+
+        @testset "⊛ Semi" begin
+            let e = ToQUBO.Encoding.Semi(ToQUBO.Encoding.Binary{Float64}())
+                @testset "ℤ" begin
+                    let φ = PBO.vargen(VI)
+                        S = (2.0, 4.0)
+
+                        y, ξ, χ = ToQUBO.Encoding.encode(φ, e, S)
+
+                        @test length(y) == 3
+                        @test y == VI.(1:3)
+                        @test ξ == PBO.PBF{VI,Float64}(
+                            y[3] => 2.0,
+                            [y[1], y[3]] => 1.0,
+                            [y[2], y[3]] => 1.0,
+                        )
+                        @test isnothing(χ)
+                    end
+                end
+
+                @testset "ℝ (fixed)" begin
+                    let φ = PBO.vargen(VI)
+                        S = (2.0, 4.0)
+                        n = 2
+
+                        y, ξ, χ = ToQUBO.Encoding.encode(φ, e, S, n)
+
+                        @test length(y) == n + 1
+                        @test y == VI.(1:(n+1))
+                        @test ξ == PBO.PBF{VI,Float64}(
+                            y[3] => 2.0,
+                            [y[1], y[3]] => 2 / 3,
+                            [y[2], y[3]] => 4 / 3,
+                        )
+                        @test isnothing(χ)
+                    end
+                end
+            end
+
+            let e = ToQUBO.Encoding.Semi(ToQUBO.Encoding.OneHot{Float64}())
+                @testset "Γ ⊂ ℝ" begin
+                    let φ = PBO.vargen(VI)
+                        Γ = [-1.0, 1.0]
+
+                        y, ξ, χ = ToQUBO.Encoding.encode(φ, e, Γ)
+
+                        @test length(y) == 3
+                        @test y == VI.(1:3)
+                        @test ξ == PBO.PBF{VI,Float64}(
+                            [y[1], y[3]] => -1.0,
+                            [y[2], y[3]] => 1.0,
+                        )
+                        @test χ == PBO.PBF{VI,Float64}(
+                            y[3] => 1.0,
+                            [y[1], y[3]] => -1.0,
+                            [y[2], y[3]] => -1.0,
+                            [y[1], y[2], y[3]] => 2.0,
+                        )
+                    end
+                end
+            end
+        end
     end
 
     return nothing
