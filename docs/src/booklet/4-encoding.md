@@ -102,7 +102,8 @@ In order to do that, `ToQUBO` multiplies the encoded constraint by a large penal
 Equality constraints use a squared residual penalty by default. If the parsed
 residual is provably nonnegative, the compiler can add the residual directly
 instead of squaring it, preserving the same minimizer at zero while avoiding
-unnecessary higher-order terms. The compiler can also encode an equality
+unnecessary higher-order terms. The usual automatic penalty inference still
+applies to this sign-definite shortcut. The compiler can also encode an equality
 constraint with a signed linear residual through
 [`ToQUBO.Attributes.LinearPenalty`](@ref). This option follows the linear Ising
 penalty method studied by Mirkarimi et al.[^Mirkarimi2024PRR] and demonstrated
