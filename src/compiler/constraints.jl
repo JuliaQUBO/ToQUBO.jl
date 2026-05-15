@@ -646,6 +646,36 @@ function _indicator_activation(model::Virtual.Model{T}, xi::VI) where {T}
     end
 end
 
+function _indicator_variable(f::MOI.VectorAffineFunction)
+    for term in f.terms
+        if term.output_index == 1
+            return term.scalar_term.variable
+        end
+    end
+
+    error("Indicator constraint missing activation variable")
+end
+
+function _indicator_variable(f::MOI.VectorQuadraticFunction)
+    for term in f.affine_terms
+        if term.output_index == 1
+            return term.scalar_term.variable
+        end
+    end
+
+    error("Indicator constraint missing activation variable")
+end
+
+function _indicator_scalar_constant(::Type{T}, constants::AbstractVector{T}) where {T}
+    c = zero(T)
+
+    for i in 2:length(constants)
+        c += constants[i]
+    end
+
+    return c
+end
+
 function constraint(
     model::Virtual.Model{T},
     ci::CI,
@@ -655,12 +685,12 @@ function constraint(
 ) where {T,A,S}
     # Indicator Constraint: y = 0|1 => {g(x)}
 
-    xi = first(f.terms).scalar_term.variable # Indicator Variable
+    xi = _indicator_variable(f)
     yi = _indicator_activation(model, xi)
 
     g = MOI.ScalarAffineFunction{T}(
-        SAT{T}[f.terms[i].scalar_term for i = 2:length(f.terms)],
-        sum(f.constants[i] for i = 2:length(f.constants)),
+        SAT{T}[term.scalar_term for term in f.terms if term.output_index != 1],
+        _indicator_scalar_constant(T, f.constants),
     )
 
     # Tell the compiler that quadratization is necessary
@@ -686,13 +716,15 @@ function constraint(
 ) where {T,A,S}
     # Indicator Constraint: y = 0|1 => {g(x)}
 
-    xi = first(f.affine_terms).scalar_term.variable # Indicator Variable
+    xi = _indicator_variable(f)
     yi = _indicator_activation(model, xi)
 
     g = MOI.ScalarQuadraticFunction{T}(
-        SQT{T}[f.quadratic_terms[i].scalar_term for i = 2:length(f.quadratic_terms)],
-        SAT{T}[f.affine_terms[i].scalar_term for i = 2:length(f.affine_terms)],
-        sum(f.constants[i] for i = 2:length(f.constants)),
+        SQT{T}[
+            term.scalar_term for term in f.quadratic_terms if term.output_index != 1
+        ],
+        SAT{T}[term.scalar_term for term in f.affine_terms if term.output_index != 1],
+        _indicator_scalar_constant(T, f.constants),
     )
 
     # Tell the compiler that quadratization is necessary

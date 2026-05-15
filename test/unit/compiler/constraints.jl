@@ -357,6 +357,27 @@ function test_compiler_constraints_sos1_domain_wall_indicator_activation()
     return nothing
 end
 
+function test_compiler_constraints_quadratic_indicator_keeps_inner_terms()
+    model = ToQUBO.Virtual.Model{Float64}()
+    arch  = ToQUBO.Compiler.GenericArchitecture()
+    x, _  = MOI.add_constrained_variables(model.source_model, fill(MOI.ZeroOne(), 3))
+
+    ToQUBO.Compiler.variables!(model, arch)
+
+    f = MOI.VectorQuadraticFunction{Float64}(
+        [MOI.VectorQuadraticTerm(2, MOI.ScalarQuadraticTerm(1.0, x[2], x[3]))],
+        [MOI.VectorAffineTerm(1, MOI.ScalarAffineTerm(1.0, x[1]))],
+        [0.0, 0.0],
+    )
+    s = MOI.Indicator{MOI.ACTIVATE_ON_ONE}(MOI.LessThan{Float64}(0.0))
+    c = MOI.add_constraint(model.source_model, f, s)
+
+    @test ToQUBO.Compiler.constraint(model, c, f, s, arch) ==
+          PBO.PBF{VI,Float64}([x[1], x[2], x[3]] => 1.0)
+
+    return nothing
+end
+
 function test_compiler_constraints()
     @testset "→ Constraints" verbose = true begin
         test_compiler_constraints_quadratic()
@@ -366,6 +387,7 @@ function test_compiler_constraints()
         test_compiler_constraints_quadratic_greater_than_always_feasible()
         test_compiler_constraints_sos1_domain_wall()
         test_compiler_constraints_sos1_domain_wall_indicator_activation()
+        test_compiler_constraints_quadratic_indicator_keeps_inner_terms()
     end
 
     return nothing
