@@ -30,8 +30,20 @@ function _is_quadratic_penalty(model::Virtual.Model, ci::CI)::Bool
     return Attributes.constraint_encoding_method(model, ci) isa Attributes.QuadraticPenalty
 end
 
+function _is_nonnegative(g::PBO.PBF{VI,T})::Bool where {T}
+    l, _ = PBO.bounds(g)
+
+    return l >= zero(T)
+end
+
+function _is_nonpositive(g::PBO.PBF{VI,T})::Bool where {T}
+    _, u = PBO.bounds(g)
+
+    return u <= zero(T)
+end
+
 function _equality_penalty(model::Virtual.Model, ci::CI, g::PBO.PBF)
-    if _is_quadratic_penalty(model, ci)
+    if _is_quadratic_penalty(model, ci) && !_is_nonnegative(g)
         return g^2
     else
         return g
@@ -180,6 +192,10 @@ function constraint(
         @warn "Infeasible constraint detected"
     end
 
+    if _is_nonnegative(g)
+        return g
+    end
+
     # Slack Variable
     S = (zero(T), abs(l))
     z = if Attributes.discretize(model)
@@ -261,6 +277,10 @@ function constraint(
         @warn "Infeasible constraint detected"
     end
 
+    if _is_nonpositive(g)
+        return -g
+    end
+
     # Slack Variable
     S = (zero(T), abs(u))
     z = if Attributes.discretize(model)
@@ -331,7 +351,7 @@ function constraint(
         """
     end
 
-    if _is_quadratic_penalty(model, ci)
+    if _is_quadratic_penalty(model, ci) && !_is_nonnegative(g)
         # Tell the compiler that quadratization is necessary
         MOI.set(model, Attributes.Quadratize(), true)
     end
@@ -393,6 +413,10 @@ function constraint(
         Infeasible constraint detected:
         $(f) ≤ $(s.upper)
         """
+    end
+
+    if _is_nonnegative(g)
+        return g
     end
 
     # Slack Variable
@@ -463,6 +487,10 @@ function constraint(
         return nothing
     elseif u < zero(T) # Infeasible
         @warn "Infeasible constraint detected"
+    end
+
+    if _is_nonpositive(g)
+        return -g
     end
 
     # Slack Variable
