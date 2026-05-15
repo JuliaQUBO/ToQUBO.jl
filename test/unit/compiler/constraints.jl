@@ -148,11 +148,57 @@ function test_compiler_constraints_linear_penalty_requires_hint()
     return nothing
 end
 
+function test_compiler_constraints_sos1_domain_wall()
+    model = ToQUBO.Virtual.Model{Float64}()
+    arch  = ToQUBO.Compiler.GenericArchitecture()
+    x, _  = MOI.add_constrained_variables(model.source_model, fill(MOI.ZeroOne(), 3))
+    s     = MOI.SOS1{Float64}([1.0, 2.0, 3.0])
+    c     = MOI.add_constraint(model.source_model, MOI.VectorOfVariables(x), s)
+
+    ToQUBO.Compiler.variables!(model, arch)
+
+    v = model.slack[c]
+    y = ToQUBO.Virtual.target(v)
+
+    @test ToQUBO.Virtual.encoding(v) isa Encoding.DomainWall
+    @test length(y) == 3
+    @test MOI.get(model.target_model, MOI.ListOfVariableIndices()) == y
+    @test ToQUBO.Virtual.expansion(model.source[x[1]]) ==
+          PBO.PBF{VI,Float64}([y[1] => 1.0, y[2] => -1.0])
+    @test ToQUBO.Virtual.expansion(model.source[x[2]]) ==
+          PBO.PBF{VI,Float64}([y[2] => 1.0, y[3] => -1.0])
+    @test ToQUBO.Virtual.expansion(model.source[x[3]]) == PBO.PBF{VI,Float64}(y[3] => 1.0)
+
+    f = MOI.ScalarAffineFunction{Float64}(
+        [
+            MOI.ScalarAffineTerm(1.0, x[1]),
+            MOI.ScalarAffineTerm(2.0, x[2]),
+            MOI.ScalarAffineTerm(3.0, x[3]),
+        ],
+        0.0,
+    )
+    h = PBO.PBF{VI,Float64}()
+
+    ToQUBO.Compiler.parse!(model, h, f, arch)
+
+    @test h == PBO.PBF{VI,Float64}(y[1] => 1.0, y[2] => 1.0, y[3] => 1.0)
+    @test ToQUBO.Compiler.constraint(model, c, MOI.VectorOfVariables(x), s, arch) ==
+          PBO.PBF{VI,Float64}(
+              y[2] => 2.0,
+              y[3] => 2.0,
+              [y[1], y[2]] => -2.0,
+              [y[2], y[3]] => -2.0,
+          )
+
+    return nothing
+end
+
 function test_compiler_constraints()
     @testset "→ Constraints" verbose = true begin
         test_compiler_constraints_quadratic()
         test_compiler_constraints_linear_penalty()
         test_compiler_constraints_linear_penalty_requires_hint()
+        test_compiler_constraints_sos1_domain_wall()
     end
 
     return nothing

@@ -9,18 +9,17 @@ function test_logical_sos1()
         ]
 
         # Penalty Choice
-        ρ̄ = -16
+        ρ̄ = -13.5
 
         # Solution Data
         Q̄ = [
-            15 -28 -28 -32
-             0  15 -28 -32
-             0   0  15 -32
-             0   0   0  16
+            -1  33   0
+             0 -33  33
+             0   0 -33
         ]
 
         ᾱ = 1
-        β̄ = -16
+        β̄ = 0
 
         x̄ = Set{Vector{Int}}([[0, 0, 0]])
         ȳ = 0

@@ -498,6 +498,14 @@ function constraint(
     ::MOI.SOS1{T},
     ::AbstractArchitecture,
 ) where {T}
+    if haskey(model.slack, ci)
+        v = model.slack[ci]
+
+        if Virtual.encoding(v) isa Encoding.DomainWall
+            return _sos1_domain_wall_penalty(T, Virtual.target(v))
+        end
+    end
+
     # Special Ordered Set of Type 1: ∑ x ≤ min x
     g = PBO.PBF{VI,T}()
     h = PBO.PBF{VI,T}()
