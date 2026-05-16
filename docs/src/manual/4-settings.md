@@ -51,7 +51,8 @@ must also have an explicit
 [`ToQUBO.Attributes.ConstraintEncodingPenaltyHint`](@ref).
 
 The method is motivated by the linear Ising penalty approach of Mirkarimi et
-al.[^Mirkarimi2024PRR] and its quantum annealing demonstration.[^Mirkarimi2024NJP]
+al.[^Mirkarimi2024PRR], its quantum annealing demonstration,[^Mirkarimi2024NJP]
+and the accompanying Durham data and code archive.[^Mirkarimi2024Data]
 Those papers highlight the main tradeoff reflected in this API: linear
 penalties can avoid the extra couplings introduced by quadratic penalties, but
 they are heuristic and are not guaranteed to exactly enforce every constraint.
@@ -86,6 +87,12 @@ that should use the linear residual.
     **Experimental demonstration of improved quantum optimization with linear
     Ising penalties**. _New Journal of Physics_ 26, 103005 (2024).
     [{doi}](https://doi.org/10.1088/1367-2630/ad7e4a)
+
+[^Mirkarimi2024Data]:
+    Puya Mirkarimi, Ishaan Shukla, David C. Hoyle, Ross Williams, and Nicholas
+    Chancellor. **Quantum optimization with linear Ising penalty functions for
+    customer data science [dataset]**. Durham University data and code archive
+    (2024). [{doi}](https://doi.org/10.15128/r2fq977t82m)
 
 ```@docs
 ToQUBO.Attributes.VariableEncodingBits
