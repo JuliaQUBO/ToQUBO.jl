@@ -50,6 +50,16 @@ function _equality_penalty(model::Virtual.Model, ci::CI, g::PBO.PBF)
     end
 end
 
+function _combine_penalties(lhs, rhs)
+    if isnothing(lhs)
+        return rhs
+    elseif isnothing(rhs)
+        return lhs
+    else
+        return lhs + rhs
+    end
+end
+
 @doc raw"""
     constraint(
         ::Virtual.Model{T},
@@ -226,8 +236,10 @@ function constraint(
     s::MOI.Interval{T},
     arch::AbstractArchitecture,
 ) where {T}
-    return constraint(model, ci, f, LT{T}(s.upper), arch) +
-           constraint(model, ci, f, GT{T}(s.lower), arch)
+    return _combine_penalties(
+        constraint(model, ci, f, LT{T}(s.upper), arch),
+        constraint(model, ci, f, GT{T}(s.lower), arch),
+    )
 end
 
 @doc raw"""
@@ -446,6 +458,19 @@ function constraint(
     MOI.set(model, Attributes.Quadratize(), true)
 
     return g^2
+end
+
+function constraint(
+    model::Virtual.Model{T},
+    ci::CI,
+    f::SQF{T},
+    s::MOI.Interval{T},
+    arch::AbstractArchitecture,
+) where {T}
+    return _combine_penalties(
+        constraint(model, ci, f, LT{T}(s.upper), arch),
+        constraint(model, ci, f, GT{T}(s.lower), arch),
+    )
 end
 
 @doc raw"""
@@ -696,10 +721,16 @@ function constraint(
     # Tell the compiler that quadratization is necessary
     MOI.set(model, Attributes.Quadratize(), true)
 
+    h = constraint(model, ci, g, s.set, arch)
+
+    if isnothing(h)
+        return nothing
+    end
+
     if A === MOI.ACTIVATE_ON_ONE
-        return yi * constraint(model, ci, g, s.set, arch)
+        return yi * h
     elseif A === MOI.ACTIVATE_ON_ZERO
-        return (one(T) - yi) * constraint(model, ci, g, s.set, arch)
+        return (one(T) - yi) * h
     else
         error("Indicator constraint activation type $(A) not supported")
     end
@@ -730,10 +761,16 @@ function constraint(
     # Tell the compiler that quadratization is necessary
     MOI.set(model, Attributes.Quadratize(), true)
 
+    h = constraint(model, ci, g, s.set, arch)
+
+    if isnothing(h)
+        return nothing
+    end
+
     if A === MOI.ACTIVATE_ON_ONE
-        return yi * constraint(model, ci, g, s.set, arch)
+        return yi * h
     elseif A === MOI.ACTIVATE_ON_ZERO
-        return (one(T) - yi) * constraint(model, ci, g, s.set, arch)
+        return (one(T) - yi) * h
     else
         error("Indicator constraint activation type $(A) not supported")
     end

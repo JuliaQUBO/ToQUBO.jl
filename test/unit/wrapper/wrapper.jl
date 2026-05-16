@@ -41,9 +41,11 @@ function test_wrapper_optimizer()
                     MOI.Indicator{MOI.ACTIVATE_ON_ONE,MOI.EqualTo{Float64}},
                     MOI.Indicator{MOI.ACTIVATE_ON_ONE,MOI.LessThan{Float64}},
                     MOI.Indicator{MOI.ACTIVATE_ON_ONE,MOI.GreaterThan{Float64}},
+                    MOI.Indicator{MOI.ACTIVATE_ON_ONE,MOI.Interval{Float64}},
                     MOI.Indicator{MOI.ACTIVATE_ON_ZERO,MOI.EqualTo{Float64}},
                     MOI.Indicator{MOI.ACTIVATE_ON_ZERO,MOI.LessThan{Float64}},
                     MOI.Indicator{MOI.ACTIVATE_ON_ZERO,MOI.GreaterThan{Float64}},
+                    MOI.Indicator{MOI.ACTIVATE_ON_ZERO,MOI.Interval{Float64}},
                 )
 
                 for S in indicator_sets

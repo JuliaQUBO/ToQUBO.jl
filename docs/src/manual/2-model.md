@@ -69,8 +69,8 @@ compiler cannot infer a safe coefficient for that form automatically. See
 The optimizer accepts scalar affine and scalar quadratic constraints with
 `<=`, `>=`, and `==` bounds. It also accepts `SOS1` constraints and MOI
 indicator constraints whose inner scalar constraint is affine or quadratic and
-uses one of those same bound sets. Indicator constraints may activate on either
-zero or one.
+uses an `EqualTo`, `LessThan`, `GreaterThan`, or `Interval` bound set.
+Indicator constraints may activate on either zero or one.
 
 ### Linear Constraints
 
@@ -114,6 +114,9 @@ zero or one.
 
 # Quadratic inner constraint
 @constraint(model, z => {y[1] * y[2] + y[3] <= 1})
+
+# Interval inner constraint
+@constraint(model, z => {0 <= y[1] * y[2] + y[3] <= 1})
 ```
 
 ### Generalized Disjunctive Programming

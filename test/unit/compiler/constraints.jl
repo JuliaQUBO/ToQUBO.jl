@@ -378,6 +378,40 @@ function test_compiler_constraints_quadratic_indicator_keeps_inner_terms()
     return nothing
 end
 
+function test_compiler_constraints_indicator_interval_sets()
+    model = ToQUBO.Virtual.Model{Float64}()
+    arch  = ToQUBO.Compiler.GenericArchitecture()
+    x, _  = MOI.add_constrained_variables(model.source_model, fill(MOI.ZeroOne(), 3))
+
+    ToQUBO.Compiler.variables!(model, arch)
+
+    s = MOI.Indicator{MOI.ACTIVATE_ON_ONE}(MOI.Interval{Float64}(-1.0, 0.0))
+
+    f_affine = MOI.VectorAffineFunction{Float64}(
+        [
+            MOI.VectorAffineTerm(1, MOI.ScalarAffineTerm(1.0, x[1])),
+            MOI.VectorAffineTerm(2, MOI.ScalarAffineTerm(1.0, x[2])),
+        ],
+        [0.0, 0.0],
+    )
+    c_affine = MOI.add_constraint(model.source_model, f_affine, s)
+
+    @test ToQUBO.Compiler.constraint(model, c_affine, f_affine, s, arch) ==
+          PBO.PBF{VI,Float64}([x[1], x[2]] => 1.0)
+
+    f_quadratic = MOI.VectorQuadraticFunction{Float64}(
+        [MOI.VectorQuadraticTerm(2, MOI.ScalarQuadraticTerm(1.0, x[2], x[3]))],
+        [MOI.VectorAffineTerm(1, MOI.ScalarAffineTerm(1.0, x[1]))],
+        [0.0, 0.0],
+    )
+    c_quadratic = MOI.add_constraint(model.source_model, f_quadratic, s)
+
+    @test ToQUBO.Compiler.constraint(model, c_quadratic, f_quadratic, s, arch) ==
+          PBO.PBF{VI,Float64}([x[1], x[2], x[3]] => 1.0)
+
+    return nothing
+end
+
 function test_compiler_constraints()
     @testset "→ Constraints" verbose = true begin
         test_compiler_constraints_quadratic()
@@ -388,6 +422,7 @@ function test_compiler_constraints()
         test_compiler_constraints_sos1_domain_wall()
         test_compiler_constraints_sos1_domain_wall_indicator_activation()
         test_compiler_constraints_quadratic_indicator_keeps_inner_terms()
+        test_compiler_constraints_indicator_interval_sets()
     end
 
     return nothing
