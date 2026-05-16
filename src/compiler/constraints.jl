@@ -718,14 +718,14 @@ function constraint(
         _indicator_scalar_constant(T, f.constants),
     )
 
-    # Tell the compiler that quadratization is necessary
-    MOI.set(model, Attributes.Quadratize(), true)
-
     h = constraint(model, ci, g, s.set, arch)
 
     if isnothing(h)
         return nothing
     end
+
+    # Tell the compiler that quadratization is necessary
+    MOI.set(model, Attributes.Quadratize(), true)
 
     if A === MOI.ACTIVATE_ON_ONE
         return yi * h
@@ -758,14 +758,14 @@ function constraint(
         _indicator_scalar_constant(T, f.constants),
     )
 
-    # Tell the compiler that quadratization is necessary
-    MOI.set(model, Attributes.Quadratize(), true)
-
     h = constraint(model, ci, g, s.set, arch)
 
     if isnothing(h)
         return nothing
     end
+
+    # Tell the compiler that quadratization is necessary
+    MOI.set(model, Attributes.Quadratize(), true)
 
     if A === MOI.ACTIVATE_ON_ONE
         return yi * h
