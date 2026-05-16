@@ -284,6 +284,11 @@ function test_prequbo_model()
                 for S in indicator_sets
                     @test MOI.supports_constraint(model, MOI.VectorAffineFunction{Float64}, S)
                     @test MOI.supports_constraint(model, MOI.VectorQuadraticFunction{Float64}, S)
+                    @test !MOI.supports_constraint(model, MOI.VectorOfVariables, S)
+                end
+
+                for F in (MOI.VectorAffineFunction{Float64}, MOI.VectorQuadraticFunction{Float64})
+                    @test !MOI.supports_constraint(model, F, MOI.SOS1{Float64})
                 end
             end
         end

@@ -32,3 +32,65 @@ MOIU.@model(
     ),
     false,                       # is optimizer?
 )
+
+# `MOIU.@model` declares vector constraint support as a cross-product. Keep
+# support queries aligned with the compiler methods, which are pair-specific.
+MOI.supports_constraint(
+    ::PreQUBOModel{T},
+    ::Type{MOI.VectorAffineFunction{T}},
+    ::Type{MOI.SOS1{T}},
+) where {T} = false
+
+MOI.supports_constraint(
+    ::PreQUBOModel{T},
+    ::Type{MOI.VectorQuadraticFunction{T}},
+    ::Type{MOI.SOS1{T}},
+) where {T} = false
+
+MOI.supports_constraint(
+    ::PreQUBOModel{T},
+    ::Type{MOI.VectorOfVariables},
+    ::Type{INDICATOR_EQ_ONE{T}},
+) where {T} = false
+
+MOI.supports_constraint(
+    ::PreQUBOModel{T},
+    ::Type{MOI.VectorOfVariables},
+    ::Type{INDICATOR_LT_ONE{T}},
+) where {T} = false
+
+MOI.supports_constraint(
+    ::PreQUBOModel{T},
+    ::Type{MOI.VectorOfVariables},
+    ::Type{INDICATOR_GT_ONE{T}},
+) where {T} = false
+
+MOI.supports_constraint(
+    ::PreQUBOModel{T},
+    ::Type{MOI.VectorOfVariables},
+    ::Type{INDICATOR_Interval_ONE{T}},
+) where {T} = false
+
+MOI.supports_constraint(
+    ::PreQUBOModel{T},
+    ::Type{MOI.VectorOfVariables},
+    ::Type{INDICATOR_EQ_ZERO{T}},
+) where {T} = false
+
+MOI.supports_constraint(
+    ::PreQUBOModel{T},
+    ::Type{MOI.VectorOfVariables},
+    ::Type{INDICATOR_LT_ZERO{T}},
+) where {T} = false
+
+MOI.supports_constraint(
+    ::PreQUBOModel{T},
+    ::Type{MOI.VectorOfVariables},
+    ::Type{INDICATOR_GT_ZERO{T}},
+) where {T} = false
+
+MOI.supports_constraint(
+    ::PreQUBOModel{T},
+    ::Type{MOI.VectorOfVariables},
+    ::Type{INDICATOR_Interval_ZERO{T}},
+) where {T} = false
