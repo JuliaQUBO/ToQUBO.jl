@@ -100,23 +100,31 @@ Indicator constraints may activate on either zero or one.
 
 ### SOS1 Constraints
 
+Special ordered sets of type 1 are supported over `VectorOfVariables`.
+
 ```julia
-@constraint(model, y in SOS1())
+@variable(model, s[1:3], Bin)
+@constraint(model, s in SOS1())
 ```
 
 ### Indicator Constraints
 
+JuMP/MOI represents indicator constraints as a vector function in an
+`Indicator` set. ToQUBO compiles both `VectorAffineFunction` and
+`VectorQuadraticFunction` indicator forms when the inner scalar constraint uses
+`<=`, `>=`, `==`, or an interval bound.
+
 ```julia
-@variable(model, z, Bin)
+@variable(model, a, Bin)
 
 # Affine inner constraint
-@constraint(model, z => {2*y[1] + y[2] <= 1})
+@constraint(model, a => {2*y[1] + y[2] <= 1})
 
 # Quadratic inner constraint
-@constraint(model, z => {y[1] * y[2] + y[3] <= 1})
+@constraint(model, a => {y[1] * y[2] + y[3] <= 1})
 
 # Interval inner constraint
-@constraint(model, z => {0 <= y[1] * y[2] + y[3] <= 1})
+@constraint(model, a => {0 <= y[1] * y[2] + y[3] <= 1})
 ```
 
 ### Generalized Disjunctive Programming
