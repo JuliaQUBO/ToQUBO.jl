@@ -252,6 +252,167 @@ function test_compiler_constraints_quadratic_greater_than_always_feasible()
     return nothing
 end
 
+function test_compiler_constraints_feasibility_actions()
+    model = ToQUBO.Virtual.Model{Float64}()
+    arch  = ToQUBO.Compiler.GenericArchitecture()
+    x, _  = MOI.add_constrained_variables(model.source_model, fill(MOI.ZeroOne(), 2))
+
+    ToQUBO.Compiler.variables!(model, arch)
+
+    feasible_f = MOI.ScalarAffineFunction{Float64}(
+        [MOI.ScalarAffineTerm(1.0, x[1])],
+        0.0,
+    )
+    feasible_s = MOI.LessThan{Float64}(1.0)
+    feasible_c = MOI.add_constraint(model.source_model, feasible_f, feasible_s)
+
+    @test_logs (:warn, r"Always-feasible constraint detected") begin
+        @test ToQUBO.Compiler.constraint(
+            model,
+            feasible_c,
+            feasible_f,
+            feasible_s,
+            arch,
+        ) === nothing
+    end
+
+    MOI.set(model, Attributes.IgnoreFeasibleConstraints(), false)
+
+    feasible_penalty = nothing
+    @test_logs (:warn, r"Always-feasible constraint detected") begin
+        feasible_penalty = ToQUBO.Compiler.constraint(
+            model,
+            feasible_c,
+            feasible_f,
+            feasible_s,
+            arch,
+        )
+    end
+    @test feasible_penalty !== nothing
+    @test haskey(model.slack, feasible_c)
+
+    infeasible_f = MOI.ScalarAffineFunction{Float64}(
+        [MOI.ScalarAffineTerm(1.0, x[2])],
+        1.0,
+    )
+    infeasible_s = MOI.LessThan{Float64}(0.0)
+    infeasible_c = MOI.add_constraint(model.source_model, infeasible_f, infeasible_s)
+
+    infeasible_penalty = nothing
+    @test_logs (:warn, r"Infeasible constraint detected") begin
+        infeasible_penalty = ToQUBO.Compiler.constraint(
+            model,
+            infeasible_c,
+            infeasible_f,
+            infeasible_s,
+            arch,
+        )
+    end
+    @test infeasible_penalty == PBO.PBF{VI,Float64}(1.0, x[2] => 1.0)
+    @test MOI.get(model, Attributes.CompilationStatus()) == MOI.OPTIMIZE_NOT_CALLED
+
+    return nothing
+end
+
+function test_compiler_constraints_strict_infeasible_status()
+    model = ToQUBO.Optimizer{Float64}()
+    x     = MOI.add_variable(model)
+
+    MOI.add_constraint(model, x, MOI.ZeroOne())
+
+    f = MOI.ScalarAffineFunction{Float64}(
+        [MOI.ScalarAffineTerm(1.0, x)],
+        1.0,
+    )
+    MOI.add_constraint(model, f, MOI.LessThan{Float64}(0.0))
+
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+    MOI.set(
+        model,
+        MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
+        MOI.ScalarAffineFunction{Float64}(MOI.ScalarAffineTerm{Float64}[], 0.0),
+    )
+    MOI.set(model, Attributes.ErrorInfeasibleConstraints(), true)
+
+    @test_logs (:warn, r"Infeasible constraint detected") begin
+        @test_throws ToQUBO.Compiler.CompilationError MOI.optimize!(model)
+    end
+    @test MOI.get(model, Attributes.CompilationStatus()) == MOI.INFEASIBLE
+    @test MOI.get(model, MOI.TerminationStatus()) == MOI.INFEASIBLE
+    @test occursin("Infeasible constraint detected", MOI.get(model, MOI.RawStatusString()))
+
+    return nothing
+end
+
+function test_compiler_constraints_equality_feasibility_classification()
+    model = ToQUBO.Virtual.Model{Float64}()
+    arch  = ToQUBO.Compiler.GenericArchitecture()
+    x, _  = MOI.add_constrained_variables(model.source_model, fill(MOI.ZeroOne(), 1))
+
+    ToQUBO.Compiler.variables!(model, arch)
+
+    zero_f = MOI.ScalarAffineFunction{Float64}(MOI.ScalarAffineTerm{Float64}[], 0.0)
+    zero_s = MOI.EqualTo{Float64}(0.0)
+    zero_c = MOI.add_constraint(model.source_model, zero_f, zero_s)
+
+    @test_logs (:warn, r"Always-feasible constraint detected") begin
+        @test ToQUBO.Compiler.constraint(model, zero_c, zero_f, zero_s, arch) === nothing
+    end
+
+    infeasible_f = MOI.ScalarAffineFunction{Float64}(
+        [MOI.ScalarAffineTerm(1.0, x[1])],
+        0.0,
+    )
+    infeasible_s = MOI.EqualTo{Float64}(2.0)
+    infeasible_c = MOI.add_constraint(model.source_model, infeasible_f, infeasible_s)
+
+    infeasible_penalty = nothing
+    @test_logs (:warn, r"Infeasible constraint detected") begin
+        infeasible_penalty = ToQUBO.Compiler.constraint(
+            model,
+            infeasible_c,
+            infeasible_f,
+            infeasible_s,
+            arch,
+        )
+    end
+    @test infeasible_penalty !== nothing
+
+    return nothing
+end
+
+function test_compiler_constraints_indicator_inner_infeasible_is_gated()
+    model = ToQUBO.Virtual.Model{Float64}()
+    arch  = ToQUBO.Compiler.GenericArchitecture()
+    x, _  = MOI.add_constrained_variables(model.source_model, fill(MOI.ZeroOne(), 2))
+
+    ToQUBO.Compiler.variables!(model, arch)
+    MOI.set(model, Attributes.ErrorInfeasibleConstraints(), true)
+
+    f = MOI.VectorAffineFunction{Float64}(
+        [
+            MOI.VectorAffineTerm(1, MOI.ScalarAffineTerm(1.0, x[1])),
+            MOI.VectorAffineTerm(2, MOI.ScalarAffineTerm(1.0, x[2])),
+        ],
+        [0.0, 1.0],
+    )
+    s = MOI.Indicator{MOI.ACTIVATE_ON_ONE}(MOI.LessThan{Float64}(0.0))
+    c = MOI.add_constraint(model.source_model, f, s)
+
+    penalty = nothing
+    @test_logs (:warn, r"Infeasible constraint detected") begin
+        penalty = ToQUBO.Compiler.constraint(model, c, f, s, arch)
+    end
+
+    @test penalty == PBO.PBF{VI,Float64}(
+        x[1] => 1.0,
+        [x[1], x[2]] => 1.0,
+    )
+    @test MOI.get(model, Attributes.CompilationStatus()) == MOI.OPTIMIZE_NOT_CALLED
+
+    return nothing
+end
+
 function test_compiler_constraints_sos1_domain_wall()
     model = ToQUBO.Virtual.Model{Float64}()
     arch  = ToQUBO.Compiler.GenericArchitecture()
@@ -446,6 +607,10 @@ function test_compiler_constraints()
         test_compiler_constraints_linear_penalty_requires_hint()
         test_compiler_constraints_sign_definite_penalty()
         test_compiler_constraints_quadratic_greater_than_always_feasible()
+        test_compiler_constraints_feasibility_actions()
+        test_compiler_constraints_strict_infeasible_status()
+        test_compiler_constraints_equality_feasibility_classification()
+        test_compiler_constraints_indicator_inner_infeasible_is_gated()
         test_compiler_constraints_sos1_domain_wall()
         test_compiler_constraints_sos1_domain_wall_indicator_activation()
         test_compiler_constraints_quadratic_indicator_keeps_inner_terms()

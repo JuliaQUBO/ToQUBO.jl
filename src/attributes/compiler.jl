@@ -168,6 +168,70 @@ function warnings(model::Optimizer)::Bool
 end
 
 @doc raw"""
+    IgnoreFeasibleConstraints()
+
+When set, constraints whose encoded residual is provably always feasible are
+ignored instead of being added as penalty terms.
+"""
+struct IgnoreFeasibleConstraints <: CompilerAttribute end
+
+_attribute_from_key(::Val{:ignore_feasible}) = IgnoreFeasibleConstraints
+
+function MOI.get(model::Optimizer, ::IgnoreFeasibleConstraints)::Bool
+    return get(model.compiler_settings, :ignore_feasible, true)
+end
+
+function MOI.set(model::Optimizer, ::IgnoreFeasibleConstraints, flag::Bool)
+    model.compiler_settings[:ignore_feasible] = flag
+
+    return nothing
+end
+
+function MOI.set(model::Optimizer, ::IgnoreFeasibleConstraints, ::Nothing)
+    delete!(model.compiler_settings, :ignore_feasible)
+
+    return nothing
+end
+
+function ignore_feasible_constraints(model::Optimizer)::Bool
+    return MOI.get(model, IgnoreFeasibleConstraints())
+end
+
+@doc raw"""
+    ErrorInfeasibleConstraints()
+
+When set, direct scalar constraints whose encoded residual is provably
+infeasible stop compilation with `MOI.INFEASIBLE`.
+
+This does not make infeasible inner constraints of indicator constraints fail
+the whole model, because those constraints are conditional on the indicator
+activation.
+"""
+struct ErrorInfeasibleConstraints <: CompilerAttribute end
+
+_attribute_from_key(::Val{:error_infeasible}) = ErrorInfeasibleConstraints
+
+function MOI.get(model::Optimizer, ::ErrorInfeasibleConstraints)::Bool
+    return get(model.compiler_settings, :error_infeasible, false)
+end
+
+function MOI.set(model::Optimizer, ::ErrorInfeasibleConstraints, flag::Bool)
+    model.compiler_settings[:error_infeasible] = flag
+
+    return nothing
+end
+
+function MOI.set(model::Optimizer, ::ErrorInfeasibleConstraints, ::Nothing)
+    delete!(model.compiler_settings, :error_infeasible)
+
+    return nothing
+end
+
+function error_infeasible_constraints(model::Optimizer)::Bool
+    return MOI.get(model, ErrorInfeasibleConstraints())
+end
+
+@doc raw"""
     Optimization()
 """
 struct Optimization <: CompilerAttribute end

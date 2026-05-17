@@ -101,10 +101,14 @@ function MOI.supports(::Virtual.Model, ::MOI.RawStatusString)
 end
 
 function MOI.get(model::Virtual.Model, attr::MOI.TerminationStatus)
-    if !isnothing(model.optimizer)
+    status = MOI.get(model, Attributes.CompilationStatus())
+
+    if !(status in (MOI.OPTIMIZE_NOT_CALLED, MOI.LOCALLY_SOLVED))
+        return status
+    elseif !isnothing(model.optimizer)
         return MOI.get(model.optimizer, attr)
     else
-        return MOI.get(model, Attributes.CompilationStatus())
+        return status
     end
 end
 
