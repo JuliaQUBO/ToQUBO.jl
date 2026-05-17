@@ -79,7 +79,12 @@ function MOI.get(
     model::Virtual.Model,
     attr::MOI.RawStatusString,
 )
-    if !isnothing(model.optimizer) && MOI.supports(model.optimizer, attr)
+    status = MOI.get(model, Attributes.CompilationStatus())
+
+    if haskey(model.moi_settings, :raw_status_string) &&
+       !(status in (MOI.OPTIMIZE_NOT_CALLED, MOI.LOCALLY_SOLVED))
+        return model.moi_settings[:raw_status_string]
+    elseif !isnothing(model.optimizer) && MOI.supports(model.optimizer, attr)
         return MOI.get(model.optimizer, attr)
     else
         return get(model.moi_settings, :raw_status_string, "")

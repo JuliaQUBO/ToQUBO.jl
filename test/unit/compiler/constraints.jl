@@ -315,31 +315,40 @@ function test_compiler_constraints_feasibility_actions()
 end
 
 function test_compiler_constraints_strict_infeasible_status()
-    model = ToQUBO.Optimizer{Float64}()
-    x     = MOI.add_variable(model)
+    function infeasible_model(constructor = nothing)
+        model = ToQUBO.Optimizer{Float64}(constructor)
+        x     = MOI.add_variable(model)
 
-    MOI.add_constraint(model, x, MOI.ZeroOne())
+        MOI.add_constraint(model, x, MOI.ZeroOne())
 
-    f = MOI.ScalarAffineFunction{Float64}(
-        [MOI.ScalarAffineTerm(1.0, x)],
-        1.0,
-    )
-    MOI.add_constraint(model, f, MOI.LessThan{Float64}(0.0))
+        f = MOI.ScalarAffineFunction{Float64}(
+            [MOI.ScalarAffineTerm(1.0, x)],
+            1.0,
+        )
+        MOI.add_constraint(model, f, MOI.LessThan{Float64}(0.0))
 
-    MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
-    MOI.set(
-        model,
-        MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
-        MOI.ScalarAffineFunction{Float64}(MOI.ScalarAffineTerm{Float64}[], 0.0),
-    )
-    MOI.set(model, Attributes.ErrorInfeasibleConstraints(), true)
+        MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+        MOI.set(
+            model,
+            MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
+            MOI.ScalarAffineFunction{Float64}(MOI.ScalarAffineTerm{Float64}[], 0.0),
+        )
+        MOI.set(model, Attributes.ErrorInfeasibleConstraints(), true)
 
-    @test_logs (:warn, r"Infeasible constraint detected") begin
-        @test_throws ToQUBO.Compiler.CompilationError MOI.optimize!(model)
+        return model
     end
-    @test MOI.get(model, Attributes.CompilationStatus()) == MOI.INFEASIBLE
-    @test MOI.get(model, MOI.TerminationStatus()) == MOI.INFEASIBLE
-    @test occursin("Infeasible constraint detected", MOI.get(model, MOI.RawStatusString()))
+
+    for model in (
+        infeasible_model(),
+        infeasible_model(ExactSampler.Optimizer),
+    )
+        @test_logs (:warn, r"Infeasible constraint detected") begin
+            @test_throws ToQUBO.Compiler.CompilationError MOI.optimize!(model)
+        end
+        @test MOI.get(model, Attributes.CompilationStatus()) == MOI.INFEASIBLE
+        @test MOI.get(model, MOI.TerminationStatus()) == MOI.INFEASIBLE
+        @test occursin("Infeasible constraint detected", MOI.get(model, MOI.RawStatusString()))
+    end
 
     return nothing
 end
