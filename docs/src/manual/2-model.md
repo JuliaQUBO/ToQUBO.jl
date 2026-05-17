@@ -66,6 +66,12 @@ requires an explicit `Attributes.ConstraintEncodingPenaltyHint()` because the
 compiler cannot infer a safe coefficient for that form automatically. See
 [Constraint Penalty Methods](@ref) for the settings and an example.
 
+The optimizer accepts scalar affine and scalar quadratic constraints with
+`<=`, `>=`, and `==` bounds. It also accepts `SOS1` constraints and MOI
+indicator constraints whose inner scalar constraint is affine or quadratic and
+uses an `EqualTo`, `LessThan`, `GreaterThan`, or `Interval` bound set.
+Indicator constraints may activate on either zero or one.
+
 ### Linear Constraints
 
 ```julia
@@ -82,7 +88,43 @@ compiler cannot infer a safe coefficient for that form automatically. See
 ### Quadratic Constraints
 
 ```julia
+# Less than or equal
 @constraint(model, y[1] * y[2] + y[3] <= 1)
+
+# Equal to
+@constraint(model, y[1] * y[2] + y[3] == 1)
+
+# Greater than or equal
+@constraint(model, y[1] * y[2] + y[3] >= 1)
+```
+
+### SOS1 Constraints
+
+Special ordered sets of type 1 are supported over `VectorOfVariables`.
+
+```julia
+@variable(model, s[1:3], Bin)
+@constraint(model, s in SOS1())
+```
+
+### Indicator Constraints
+
+JuMP/MOI represents indicator constraints as a vector function in an
+`Indicator` set. ToQUBO compiles both `VectorAffineFunction` and
+`VectorQuadraticFunction` indicator forms when the inner scalar constraint uses
+`<=`, `>=`, `==`, or an interval bound.
+
+```julia
+@variable(model, a, Bin)
+
+# Affine inner constraint
+@constraint(model, a => {2*y[1] + y[2] <= 1})
+
+# Quadratic inner constraint
+@constraint(model, a => {y[1] * y[2] + y[3] <= 1})
+
+# Interval inner constraint
+@constraint(model, a => {0 <= y[1] * y[2] + y[3] <= 1})
 ```
 
 ### Generalized Disjunctive Programming
@@ -91,9 +133,9 @@ Generalized disjunctive programming models can be written with
 [DisjunctiveProgramming.jl](https://github.com/infiniteopt/DisjunctiveProgramming.jl)
 and solved through ToQUBO when they are reformulated with `Indicator()`. In
 that workflow, `DisjunctiveProgramming.jl` turns logical disjuncts into JuMP/MOI
-indicator constraints, and ToQUBO compiles those indicator constraints into the
-QUBO objective. Add `DisjunctiveProgramming.jl` to your project environment
-when using this workflow.
+indicator constraints. ToQUBO then compiles those affine or quadratic indicator
+constraints into the QUBO objective. Add `DisjunctiveProgramming.jl` to your
+project environment when using this workflow.
 
 ToQUBO's maintained GDP support boundary is this indicator-constraint
 compilation path. `DisjunctiveProgramming.jl` remains the modeling and

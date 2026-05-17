@@ -99,7 +99,7 @@ Below, we present a list containing all[⁴](#4) MOI constraint types and their 
 
 | Mathematical Constraint                               | MOI Function            | MOI Set                  | Status |
 | ----------------------------------------------------- | ----------------------- | ------------------------ | :----: |
-| $\vec{x} Q \vec{x} + \vec{a}' \vec{x} + b \ge 0$      | ScalarQuadraticFunction | GreaterThan              |   ♻️    |
+| $\vec{x} Q \vec{x} + \vec{a}' \vec{x} + b \ge 0$      | ScalarQuadraticFunction | GreaterThan              |   ✔️    |
 | $\vec{x} Q \vec{x} + \vec{a}' \vec{x} + b \le 0$      | ScalarQuadraticFunction | LessThan                 |   ✔️    |
 | $\vec{x} Q \vec{x} + \vec{a}' \vec{x} + b = 0$        | ScalarQuadraticFunction | EqualTo                  |   ✔️    |
 | Bilinear matrix inequality                            | VectorQuadraticFunction | PositiveSemidefiniteCone |   ❌    |
@@ -115,6 +115,7 @@ Below, we present a list containing all[⁴](#4) MOI constraint types and their 
 | [¹](#1)                                                                              | VectorOfVariables    | SOS1           |   ✔️    |
 | [²](#2)                                                                              | VectorOfVariables    | SOS2           |   📖    |
 | $y = 1 \implies \vec{a}' \vec{x} \in S$                                              | VectorAffineFunction | Indicator      |   ✔️    |
+| $y = 1 \implies \vec{x}' Q \vec{x} + \vec{a}' \vec{x} \in S$                         | VectorQuadraticFunction | Indicator   |   ✔️    |
 
 <a id="1">¹</a> 
 At most one component of **x** can be nonzero
@@ -123,8 +124,8 @@ At most one component of **x** can be nonzero
 At most two components of **x** can be nonzero, and if so they must be adjacent components
 
 Indicator constraints are supported for activation on zero or one when the
-inner constraint is one of the scalar affine or quadratic constraint classes
-that ToQUBO can otherwise compile. Generalized disjunctive programming (GDP)
+inner constraint is scalar affine or quadratic with an `EqualTo`, `LessThan`,
+`GreaterThan`, or `Interval` bound set. Generalized disjunctive programming (GDP)
 models should use [DisjunctiveProgramming.jl](https://github.com/infiniteopt/DisjunctiveProgramming.jl)'s
 `Indicator()` reformulation, which emits JuMP/MOI indicator constraints that
 ToQUBO compiles directly; no separate `DisjunctiveToQUBO.jl` runtime package is

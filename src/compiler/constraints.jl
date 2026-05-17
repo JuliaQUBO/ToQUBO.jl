@@ -50,6 +50,16 @@ function _equality_penalty(model::Virtual.Model, ci::CI, g::PBO.PBF)
     end
 end
 
+function _combine_penalties(lhs, rhs)
+    if isnothing(lhs)
+        return rhs
+    elseif isnothing(rhs)
+        return lhs
+    else
+        return lhs + rhs
+    end
+end
+
 @doc raw"""
     constraint(
         ::Virtual.Model{T},
@@ -226,8 +236,10 @@ function constraint(
     s::MOI.Interval{T},
     arch::AbstractArchitecture,
 ) where {T}
-    return constraint(model, ci, f, LT{T}(s.upper), arch) +
-           constraint(model, ci, f, GT{T}(s.lower), arch)
+    return _combine_penalties(
+        constraint(model, ci, f, LT{T}(s.upper), arch),
+        constraint(model, ci, f, GT{T}(s.lower), arch),
+    )
 end
 
 @doc raw"""
@@ -448,6 +460,19 @@ function constraint(
     return g^2
 end
 
+function constraint(
+    model::Virtual.Model{T},
+    ci::CI,
+    f::SQF{T},
+    s::MOI.Interval{T},
+    arch::AbstractArchitecture,
+) where {T}
+    return _combine_penalties(
+        constraint(model, ci, f, LT{T}(s.upper), arch),
+        constraint(model, ci, f, GT{T}(s.lower), arch),
+    )
+end
+
 @doc raw"""
     constraint(
         model::Virtual.Model{T},
@@ -495,7 +520,7 @@ function constraint(
     if l > zero(T) # Always feasible
         @warn """
         Always-feasible constraint detected:
-        $(f) ≥ $(s.upper)
+        $(f) ≥ $(s.lower)
         """
         return nothing
     elseif u < zero(T) # Infeasible
@@ -646,6 +671,36 @@ function _indicator_activation(model::Virtual.Model{T}, xi::VI) where {T}
     end
 end
 
+function _indicator_variable(f::MOI.VectorAffineFunction)
+    for term in f.terms
+        if term.output_index == 1
+            return term.scalar_term.variable
+        end
+    end
+
+    error("Indicator constraint missing activation variable")
+end
+
+function _indicator_variable(f::MOI.VectorQuadraticFunction)
+    for term in f.affine_terms
+        if term.output_index == 1
+            return term.scalar_term.variable
+        end
+    end
+
+    error("Indicator constraint missing activation variable")
+end
+
+function _indicator_scalar_constant(::Type{T}, constants::AbstractVector{T}) where {T}
+    c = zero(T)
+
+    for i in 2:length(constants)
+        c += constants[i]
+    end
+
+    return c
+end
+
 function constraint(
     model::Virtual.Model{T},
     ci::CI,
@@ -655,21 +710,27 @@ function constraint(
 ) where {T,A,S}
     # Indicator Constraint: y = 0|1 => {g(x)}
 
-    xi = first(f.terms).scalar_term.variable # Indicator Variable
+    xi = _indicator_variable(f)
     yi = _indicator_activation(model, xi)
 
     g = MOI.ScalarAffineFunction{T}(
-        SAT{T}[f.terms[i].scalar_term for i = 2:length(f.terms)],
-        sum(f.constants[i] for i = 2:length(f.constants)),
+        SAT{T}[term.scalar_term for term in f.terms if term.output_index != 1],
+        _indicator_scalar_constant(T, f.constants),
     )
+
+    h = constraint(model, ci, g, s.set, arch)
+
+    if isnothing(h)
+        return nothing
+    end
 
     # Tell the compiler that quadratization is necessary
     MOI.set(model, Attributes.Quadratize(), true)
 
     if A === MOI.ACTIVATE_ON_ONE
-        return yi * constraint(model, ci, g, s.set, arch)
+        return yi * h
     elseif A === MOI.ACTIVATE_ON_ZERO
-        return (one(T) - yi) * constraint(model, ci, g, s.set, arch)
+        return (one(T) - yi) * h
     else
         error("Indicator constraint activation type $(A) not supported")
     end
@@ -686,22 +747,30 @@ function constraint(
 ) where {T,A,S}
     # Indicator Constraint: y = 0|1 => {g(x)}
 
-    xi = first(f.affine_terms).scalar_term.variable # Indicator Variable
+    xi = _indicator_variable(f)
     yi = _indicator_activation(model, xi)
 
     g = MOI.ScalarQuadraticFunction{T}(
-        SQT{T}[f.quadratic_terms[i].scalar_term for i = 2:length(f.quadratic_terms)],
-        SAT{T}[f.affine_terms[i].scalar_term for i = 2:length(f.affine_terms)],
-        sum(f.constants[i] for i = 2:length(f.constants)),
+        SQT{T}[
+            term.scalar_term for term in f.quadratic_terms if term.output_index != 1
+        ],
+        SAT{T}[term.scalar_term for term in f.affine_terms if term.output_index != 1],
+        _indicator_scalar_constant(T, f.constants),
     )
+
+    h = constraint(model, ci, g, s.set, arch)
+
+    if isnothing(h)
+        return nothing
+    end
 
     # Tell the compiler that quadratization is necessary
     MOI.set(model, Attributes.Quadratize(), true)
 
     if A === MOI.ACTIVATE_ON_ONE
-        return yi * constraint(model, ci, g, s.set, arch)
+        return yi * h
     elseif A === MOI.ACTIVATE_ON_ZERO
-        return (one(T) - yi) * constraint(model, ci, g, s.set, arch)
+        return (one(T) - yi) * h
     else
         error("Indicator constraint activation type $(A) not supported")
     end

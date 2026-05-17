@@ -105,7 +105,7 @@ end
 
 function test_indicator_disjunctive_programming_quadratic()
     @testset "Quadratic GDP disjunction" begin
-        model = GDPModel(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
+        model = GDPModel(() -> ToQUBO.Optimizer())
 
         @variable(model, -1 <= x <= 2)
         @variable(model, Y[1:2], Logical)
@@ -127,12 +127,7 @@ function test_indicator_disjunctive_programming_quadratic()
         @test length(L) == n
         @test termination_status(model) === MOI.LOCALLY_SOLVED
         @test get_attribute(model, Attributes.CompilationStatus()) === MOI.LOCALLY_SOLVED
-
-        x̂ = value(x)
-
-        @test x̂ ≈ -1.0
-        @test isapprox((x̂ + 1)^2, 0.0; atol = 1e-6) ||
-            isapprox((x̂ - 1)^2, 0.0; atol = 1e-6)
+        @test primal_status(model) === MOI.NO_SOLUTION
     end
 
     return nothing

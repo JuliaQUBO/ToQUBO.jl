@@ -259,6 +259,39 @@ function test_prequbo_model()
                 @test MOI.get(model, MOI.ObjectiveSense()) == MOI.MIN_SENSE
             end
         end
+
+        @testset "Issue #38 support queries" begin
+            let model = ToQUBO.PreQUBOModel{Float64}()
+                @test MOI.supports(model, MOI.ObjectiveFunction{MOI.ScalarQuadraticFunction{Float64}}())
+
+                for S in (MOI.EqualTo{Float64}, MOI.LessThan{Float64}, MOI.GreaterThan{Float64})
+                    @test MOI.supports_constraint(model, MOI.ScalarQuadraticFunction{Float64}, S)
+                end
+
+                @test MOI.supports_constraint(model, MOI.VectorOfVariables, MOI.SOS1{Float64})
+
+                indicator_sets = (
+                    MOI.Indicator{MOI.ACTIVATE_ON_ONE,MOI.EqualTo{Float64}},
+                    MOI.Indicator{MOI.ACTIVATE_ON_ONE,MOI.LessThan{Float64}},
+                    MOI.Indicator{MOI.ACTIVATE_ON_ONE,MOI.GreaterThan{Float64}},
+                    MOI.Indicator{MOI.ACTIVATE_ON_ONE,MOI.Interval{Float64}},
+                    MOI.Indicator{MOI.ACTIVATE_ON_ZERO,MOI.EqualTo{Float64}},
+                    MOI.Indicator{MOI.ACTIVATE_ON_ZERO,MOI.LessThan{Float64}},
+                    MOI.Indicator{MOI.ACTIVATE_ON_ZERO,MOI.GreaterThan{Float64}},
+                    MOI.Indicator{MOI.ACTIVATE_ON_ZERO,MOI.Interval{Float64}},
+                )
+
+                for S in indicator_sets
+                    @test MOI.supports_constraint(model, MOI.VectorAffineFunction{Float64}, S)
+                    @test MOI.supports_constraint(model, MOI.VectorQuadraticFunction{Float64}, S)
+                    @test !MOI.supports_constraint(model, MOI.VectorOfVariables, S)
+                end
+
+                for F in (MOI.VectorAffineFunction{Float64}, MOI.VectorQuadraticFunction{Float64})
+                    @test !MOI.supports_constraint(model, F, MOI.SOS1{Float64})
+                end
+            end
+        end
     end
 
     return nothing
