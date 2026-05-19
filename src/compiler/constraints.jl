@@ -60,6 +60,58 @@ function _combine_penalties(lhs, rhs)
     end
 end
 
+abstract type _ConstraintFeasibilityContext end
+
+struct _DirectConstraintContext <: _ConstraintFeasibilityContext end
+struct _IndicatorConstraintContext <: _ConstraintFeasibilityContext end
+
+const _DIRECT_CONSTRAINT = _DirectConstraintContext()
+const _INDICATOR_CONSTRAINT = _IndicatorConstraintContext()
+
+function _constraint_message(kind::AbstractString, f, op::AbstractString, rhs)
+    return """
+    $(kind) constraint detected:
+    $(f) $(op) $(rhs)
+    """
+end
+
+function _constraint_warning(model::Virtual.Model, message::AbstractString)
+    if Attributes.warnings(model)
+        @warn message
+    end
+
+    return nothing
+end
+
+function _infeasible_constraint_error!(model::Virtual.Model, message::AbstractString)
+    MOI.set(model, Attributes.CompilationStatus(), MOI.INFEASIBLE)
+    MOI.set(model, MOI.RawStatusString(), message)
+
+    compilation_error(message)
+
+    return nothing
+end
+
+function _handle_feasible_constraint(model::Virtual.Model, message::AbstractString)::Bool
+    _constraint_warning(model, message)
+
+    return Attributes.ignore_feasible_constraints(model)
+end
+
+function _handle_infeasible_constraint(
+    model::Virtual.Model,
+    context::_ConstraintFeasibilityContext,
+    message::AbstractString,
+)
+    _constraint_warning(model, message)
+
+    if context isa _DirectConstraintContext && Attributes.error_infeasible_constraints(model)
+        _infeasible_constraint_error!(model, message)
+    end
+
+    return nothing
+end
+
 @doc raw"""
     constraint(
         ::Virtual.Model{T},
@@ -130,6 +182,17 @@ function constraint(
     s::EQ{T},
     arch::AbstractArchitecture,
 ) where {T}
+    return constraint(model, ci, f, s, arch, _DIRECT_CONSTRAINT)
+end
+
+function constraint(
+    model::Virtual.Model{T},
+    ci::CI,
+    f::SAF{T},
+    s::EQ{T},
+    arch::AbstractArchitecture,
+    context::_ConstraintFeasibilityContext,
+) where {T}
     # Scalar Affine Equality Constraint: g(x) = a'x - b = 0
     g = _parse(model, f, s, arch)
 
@@ -140,14 +203,19 @@ function constraint(
     # Bounds & Slack Variable 
     l, u = PBO.bounds(g)
 
-    if u < zero(T) # Always feasible
-        @warn """
-        Always-feasible constraint detected:
-        $(f) ≤ $(s.value)
-        """
-        return nothing
-    elseif l > zero(T) # Infeasible
-        @warn "Infeasible constraint detected"
+    if l == zero(T) && u == zero(T) # Always feasible
+        if _handle_feasible_constraint(
+            model,
+            _constraint_message("Always-feasible", f, "=", s.value),
+        )
+            return nothing
+        end
+    elseif u < zero(T) || l > zero(T) # Infeasible
+        _handle_infeasible_constraint(
+            model,
+            context,
+            _constraint_message("Infeasible", f, "=", s.value),
+        )
     end
 
     return _equality_penalty(model, ci, g)
@@ -187,6 +255,17 @@ function constraint(
     s::LT{T},
     arch::AbstractArchitecture,
 ) where {T}
+    return constraint(model, ci, f, s, arch, _DIRECT_CONSTRAINT)
+end
+
+function constraint(
+    model::Virtual.Model{T},
+    ci::CI,
+    f::SAF{T},
+    s::LT{T},
+    arch::AbstractArchitecture,
+    context::_ConstraintFeasibilityContext,
+) where {T}
     # Scalar Affine Inequality Constraint: g(x) = a'x - b ≤ 0 
     g = _parse(model, f, s, arch)
 
@@ -197,14 +276,19 @@ function constraint(
     # Bounds & Slack Variable 
     l, u = PBO.bounds(g)
 
-    if u < zero(T) # Always feasible
-        @warn """
-        Always-feasible constraint detected:
-        $(f) ≤ $(s.upper)
-        """
-        return nothing
+    if u <= zero(T) # Always feasible
+        if _handle_feasible_constraint(
+            model,
+            _constraint_message("Always-feasible", f, "<=", s.upper),
+        )
+            return nothing
+        end
     elseif l > zero(T) # Infeasible
-        @warn "Infeasible constraint detected"
+        _handle_infeasible_constraint(
+            model,
+            context,
+            _constraint_message("Infeasible", f, "<=", s.upper),
+        )
     end
 
     if _is_nonnegative(g)
@@ -236,9 +320,20 @@ function constraint(
     s::MOI.Interval{T},
     arch::AbstractArchitecture,
 ) where {T}
+    return constraint(model, ci, f, s, arch, _DIRECT_CONSTRAINT)
+end
+
+function constraint(
+    model::Virtual.Model{T},
+    ci::CI,
+    f::SAF{T},
+    s::MOI.Interval{T},
+    arch::AbstractArchitecture,
+    context::_ConstraintFeasibilityContext,
+) where {T}
     return _combine_penalties(
-        constraint(model, ci, f, LT{T}(s.upper), arch),
-        constraint(model, ci, f, GT{T}(s.lower), arch),
+        constraint(model, ci, f, LT{T}(s.upper), arch, context),
+        constraint(model, ci, f, GT{T}(s.lower), arch, context),
     )
 end
 
@@ -276,6 +371,17 @@ function constraint(
     s::GT{T},
     arch::AbstractArchitecture,
 ) where {T}
+    return constraint(model, ci, f, s, arch, _DIRECT_CONSTRAINT)
+end
+
+function constraint(
+    model::Virtual.Model{T},
+    ci::CI,
+    f::SAF{T},
+    s::GT{T},
+    arch::AbstractArchitecture,
+    context::_ConstraintFeasibilityContext,
+) where {T}
     # Scalar Affine Inequality Constraint: g(x) = a'x - b ≥ 0 
     g = _parse(model, f, s, arch)
 
@@ -286,14 +392,19 @@ function constraint(
     # Bounds & Slack Variable 
     l, u = PBO.bounds(g)
 
-    if l > zero(T) # Always feasible
-        @warn """
-        Always-feasible constraint detected:
-        $(f) ≥ $(s.lower)
-        """
-        return nothing
+    if l >= zero(T) # Always feasible
+        if _handle_feasible_constraint(
+            model,
+            _constraint_message("Always-feasible", f, ">=", s.lower),
+        )
+            return nothing
+        end
     elseif u < zero(T) # Infeasible
-        @warn "Infeasible constraint detected"
+        _handle_infeasible_constraint(
+            model,
+            context,
+            _constraint_message("Infeasible", f, ">=", s.lower),
+        )
     end
 
     if _is_nonpositive(g)
@@ -349,6 +460,17 @@ function constraint(
     s::EQ{T},
     arch::AbstractArchitecture,
 ) where {T}
+    return constraint(model, ci, f, s, arch, _DIRECT_CONSTRAINT)
+end
+
+function constraint(
+    model::Virtual.Model{T},
+    ci::CI,
+    f::SQF{T},
+    s::EQ{T},
+    arch::AbstractArchitecture,
+    context::_ConstraintFeasibilityContext,
+) where {T}
     # Scalar Quadratic Equality Constraint: g(x) = x' Q x + a' x - b = 0
     g = _parse(model, f, s, arch)
 
@@ -359,17 +481,25 @@ function constraint(
     # Bounds & Slack Variable 
     l, u = PBO.bounds(g)
 
-    if u < zero(T) # Always feasible
-        @warn """
-        Always-feasible constraint detected:
-        $(f) ≤ $(s.value)
-        """
-        return nothing
+    if l == zero(T) && u == zero(T) # Always feasible
+        if _handle_feasible_constraint(
+            model,
+            _constraint_message("Always-feasible", f, "=", s.value),
+        )
+            return nothing
+        end
     elseif l > zero(T) # Infeasible
-        @warn """
-        Infeasible constraint detected:
-        $(f) ≤ $(s.value)
-        """
+        _handle_infeasible_constraint(
+            model,
+            context,
+            _constraint_message("Infeasible", f, "=", s.value),
+        )
+    elseif u < zero(T) # Infeasible
+        _handle_infeasible_constraint(
+            model,
+            context,
+            _constraint_message("Infeasible", f, "=", s.value),
+        )
     end
 
     if _is_quadratic_penalty(model, ci) && !_is_nonnegative(g)
@@ -415,6 +545,17 @@ function constraint(
     s::LT{T},
     arch::AbstractArchitecture,
 ) where {T}
+    return constraint(model, ci, f, s, arch, _DIRECT_CONSTRAINT)
+end
+
+function constraint(
+    model::Virtual.Model{T},
+    ci::CI,
+    f::SQF{T},
+    s::LT{T},
+    arch::AbstractArchitecture,
+    context::_ConstraintFeasibilityContext,
+) where {T}
     # Scalar Quadratic Inequality Constraint: g(x) = x' Q x + a' x - b ≤ 0
     g = _parse(model, f, s, arch)
 
@@ -425,17 +566,19 @@ function constraint(
     # Bounds & Slack Variable 
     l, u = PBO.bounds(g)
 
-    if u < zero(T) # Always feasible
-        @warn """
-        Always-feasible constraint detected:
-        $(f) ≤ $(s.upper)
-        """
-        return nothing
+    if u <= zero(T) # Always feasible
+        if _handle_feasible_constraint(
+            model,
+            _constraint_message("Always-feasible", f, "<=", s.upper),
+        )
+            return nothing
+        end
     elseif l > zero(T) # Infeasible
-        @warn """
-        Infeasible constraint detected:
-        $(f) ≤ $(s.upper)
-        """
+        _handle_infeasible_constraint(
+            model,
+            context,
+            _constraint_message("Infeasible", f, "<=", s.upper),
+        )
     end
 
     if _is_nonnegative(g)
@@ -467,9 +610,20 @@ function constraint(
     s::MOI.Interval{T},
     arch::AbstractArchitecture,
 ) where {T}
+    return constraint(model, ci, f, s, arch, _DIRECT_CONSTRAINT)
+end
+
+function constraint(
+    model::Virtual.Model{T},
+    ci::CI,
+    f::SQF{T},
+    s::MOI.Interval{T},
+    arch::AbstractArchitecture,
+    context::_ConstraintFeasibilityContext,
+) where {T}
     return _combine_penalties(
-        constraint(model, ci, f, LT{T}(s.upper), arch),
-        constraint(model, ci, f, GT{T}(s.lower), arch),
+        constraint(model, ci, f, LT{T}(s.upper), arch, context),
+        constraint(model, ci, f, GT{T}(s.lower), arch, context),
     )
 end
 
@@ -507,6 +661,17 @@ function constraint(
     s::GT{T},
     arch::AbstractArchitecture,
 ) where {T}
+    return constraint(model, ci, f, s, arch, _DIRECT_CONSTRAINT)
+end
+
+function constraint(
+    model::Virtual.Model{T},
+    ci::CI,
+    f::SQF{T},
+    s::GT{T},
+    arch::AbstractArchitecture,
+    context::_ConstraintFeasibilityContext,
+) where {T}
     # Scalar Quadratic Inequality Constraint: g(x) = x' Q x + a' x - b ≥ 0
     g = _parse(model, f, s, arch)
 
@@ -517,14 +682,19 @@ function constraint(
     # Bounds & Slack Variable 
     l, u = PBO.bounds(g)
 
-    if l > zero(T) # Always feasible
-        @warn """
-        Always-feasible constraint detected:
-        $(f) ≥ $(s.lower)
-        """
-        return nothing
+    if l >= zero(T) # Always feasible
+        if _handle_feasible_constraint(
+            model,
+            _constraint_message("Always-feasible", f, ">=", s.lower),
+        )
+            return nothing
+        end
     elseif u < zero(T) # Infeasible
-        @warn "Infeasible constraint detected"
+        _handle_infeasible_constraint(
+            model,
+            context,
+            _constraint_message("Infeasible", f, ">=", s.lower),
+        )
     end
 
     if _is_nonpositive(g)
@@ -718,7 +888,7 @@ function constraint(
         _indicator_scalar_constant(T, f.constants),
     )
 
-    h = constraint(model, ci, g, s.set, arch)
+    h = constraint(model, ci, g, s.set, arch, _INDICATOR_CONSTRAINT)
 
     if isnothing(h)
         return nothing
@@ -758,7 +928,7 @@ function constraint(
         _indicator_scalar_constant(T, f.constants),
     )
 
-    h = constraint(model, ci, g, s.set, arch)
+    h = constraint(model, ci, g, s.set, arch, _INDICATOR_CONSTRAINT)
 
     if isnothing(h)
         return nothing

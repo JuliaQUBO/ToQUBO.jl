@@ -49,6 +49,34 @@ function test_compiler_attributes()
             end
         end
 
+        @testset "IgnoreFeasibleConstraints" begin
+            let model = ToQUBO.Optimizer{Float64}()
+                @test MOI.supports(model, Attributes.IgnoreFeasibleConstraints())
+                @test MOI.get(model, Attributes.IgnoreFeasibleConstraints()) === true
+                @test Attributes.ignore_feasible_constraints(model) === true
+
+                MOI.set(model, Attributes.IgnoreFeasibleConstraints(), false)
+                @test MOI.get(model, Attributes.IgnoreFeasibleConstraints()) === false
+
+                MOI.set(model, Attributes.IgnoreFeasibleConstraints(), nothing)
+                @test MOI.get(model, Attributes.IgnoreFeasibleConstraints()) === true
+            end
+        end
+
+        @testset "ErrorInfeasibleConstraints" begin
+            let model = ToQUBO.Optimizer{Float64}()
+                @test MOI.supports(model, Attributes.ErrorInfeasibleConstraints())
+                @test MOI.get(model, Attributes.ErrorInfeasibleConstraints()) === false
+                @test Attributes.error_infeasible_constraints(model) === false
+
+                MOI.set(model, Attributes.ErrorInfeasibleConstraints(), true)
+                @test MOI.get(model, Attributes.ErrorInfeasibleConstraints()) === true
+
+                MOI.set(model, Attributes.ErrorInfeasibleConstraints(), nothing)
+                @test MOI.get(model, Attributes.ErrorInfeasibleConstraints()) === false
+            end
+        end
+
         @testset "Optimization" begin
             let model = ToQUBO.Optimizer{Float64}()
                 @test MOI.supports(model, Attributes.Optimization())

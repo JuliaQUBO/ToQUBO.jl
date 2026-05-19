@@ -10,6 +10,13 @@ ToQUBO.Attributes.StableCompilation
 ToQUBO.Attributes.Warnings
 ```
 
+## Constraint Feasibility Actions
+
+```@docs
+ToQUBO.Attributes.IgnoreFeasibleConstraints
+ToQUBO.Attributes.ErrorInfeasibleConstraints
+```
+
 ## Compiler Optimization
 
 ```@docs
