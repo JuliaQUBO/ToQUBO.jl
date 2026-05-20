@@ -92,6 +92,11 @@ function reset!(model::Virtual.Model, ::AbstractArchitecture = GenericArchitectu
     Base.empty!(model.η)
     Base.empty!(model.H)
 
+    # Optimize-generated status
+    MOI.set(model, Attributes.CompilationStatus(), nothing)
+    MOI.set(model, Attributes.CompilationTime(), nothing)
+    delete!(model.moi_settings, :raw_status_string)
+
     return nothing
 end
 

@@ -177,6 +177,11 @@ function test_compiler_attributes()
                     ci,
                 ) !== nothing
                 @test MOI.get(model, Attributes.SlackVariableEncodingPenalty(), ci) !== nothing
+                @test MOI.get(model, Attributes.CompilationStatus()) ==
+                      MOI.LOCALLY_SOLVED
+                @test MOI.get(model, Attributes.CompilationTime()) !== nothing
+                @test MOI.get(model, MOI.RawStatusString()) ==
+                      "Compilation complete without an internal solver"
 
                 MOI.empty!(model)
 
@@ -196,6 +201,10 @@ function test_compiler_attributes()
                     ci,
                 ) === nothing
                 @test MOI.get(model, Attributes.SlackVariableEncodingPenalty(), ci) === nothing
+                @test MOI.get(model, Attributes.CompilationStatus()) ==
+                      MOI.OPTIMIZE_NOT_CALLED
+                @test MOI.get(model, Attributes.CompilationTime()) === nothing
+                @test MOI.get(model, MOI.RawStatusString()) == ""
             end
         end
 
