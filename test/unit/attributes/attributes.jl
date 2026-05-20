@@ -113,6 +113,92 @@ function test_compiler_attributes()
             end
         end
 
+        @testset "Formulation introspection for already-QUBO models" begin
+            let model = ToQUBO.Optimizer{Float64}()
+                x, _ = MOI.add_constrained_variable(model, MOI.ZeroOne())
+                y, _ = MOI.add_constrained_variable(model, MOI.ZeroOne())
+
+                obj = MOI.ScalarQuadraticFunction{Float64}(
+                    [MOI.ScalarQuadraticTerm(3.0, x, y)],
+                    [MOI.ScalarAffineTerm(2.0, x)],
+                    1.0,
+                )
+                MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+                MOI.set(model, MOI.ObjectiveFunction{typeof(obj)}(), obj)
+
+                MOI.optimize!(model)
+
+                x_target = only(MOI.get(model, Attributes.VariableTargetVariables(), x))
+                y_target = only(MOI.get(model, Attributes.VariableTargetVariables(), y))
+                expected = PBO.PBF{VI,Float64}(
+                    1.0,
+                    x_target => 2.0,
+                    [x_target, y_target] => 3.0,
+                )
+
+                @test ToQUBO.Compiler.is_qubo(model.source_model)
+                @test MOI.get(model, Attributes.CompiledObjectiveFunction()) == expected
+                @test MOI.get(model, Attributes.CompiledHamiltonian()) == expected
+            end
+        end
+
+        @testset "Reset clears formulation introspection" begin
+            let model = ToQUBO.Optimizer{Float64}()
+                x = MOI.add_variable(model)
+                MOI.add_constraint(model, x, MOI.ZeroOne())
+
+                y = MOI.add_variable(model)
+                MOI.add_constraint(model, y, MOI.Integer())
+                MOI.add_constraint(model, y, MOI.Interval{Float64}(0.0, 3.0))
+
+                obj = MOI.ScalarAffineFunction{Float64}(
+                    [MOI.ScalarAffineTerm(1.0, x)],
+                    0.0,
+                )
+                con = MOI.ScalarAffineFunction{Float64}(
+                    [MOI.ScalarAffineTerm(1.0, x), MOI.ScalarAffineTerm(1.0, y)],
+                    0.0,
+                )
+                ci = MOI.add_constraint(model, con, MOI.LessThan{Float64}(2.0))
+                MOI.set(model, Attributes.SlackVariableEncodingMethod(), ci, Encoding.OneHot())
+
+                MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+                MOI.set(model, MOI.ObjectiveFunction{typeof(obj)}(), obj)
+
+                MOI.optimize!(model)
+
+                @test !isempty(MOI.get(model, Attributes.CompiledHamiltonian()))
+                @test MOI.get(model, Attributes.ConstraintEncodingFunction(), ci) !== nothing
+                @test MOI.get(model, Attributes.SlackVariableTargetVariables(), ci) !== nothing
+                @test MOI.get(model, Attributes.SlackVariableEncodingFunction(), ci) !== nothing
+                @test MOI.get(
+                    model,
+                    Attributes.SlackVariableEncodingPenaltyFunction(),
+                    ci,
+                ) !== nothing
+                @test MOI.get(model, Attributes.SlackVariableEncodingPenalty(), ci) !== nothing
+
+                MOI.empty!(model)
+
+                @test MOI.get(model, Attributes.CompiledObjectiveFunction()) ==
+                      PBO.PBF{VI,Float64}()
+                @test MOI.get(model, Attributes.CompiledHamiltonian()) ==
+                      PBO.PBF{VI,Float64}()
+                @test MOI.get(model, Attributes.VariableTargetVariables(), x) === nothing
+                @test MOI.get(model, Attributes.VariableEncodingFunction(), x) === nothing
+                @test MOI.get(model, Attributes.ConstraintEncodingFunction(), ci) === nothing
+                @test MOI.get(model, Attributes.ConstraintEncodingPenalty(), ci) === nothing
+                @test MOI.get(model, Attributes.SlackVariableTargetVariables(), ci) === nothing
+                @test MOI.get(model, Attributes.SlackVariableEncodingFunction(), ci) === nothing
+                @test MOI.get(
+                    model,
+                    Attributes.SlackVariableEncodingPenaltyFunction(),
+                    ci,
+                ) === nothing
+                @test MOI.get(model, Attributes.SlackVariableEncodingPenalty(), ci) === nothing
+            end
+        end
+
         @testset "CompilationTime" begin
             let model = ToQUBO.Optimizer{Float64}()
                 @test MOI.supports(model, Attributes.CompilationTime())
