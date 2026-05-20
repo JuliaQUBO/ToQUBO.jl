@@ -149,6 +149,22 @@ z = MOI.get(model, Attributes.SlackVariableTargetVariables(), constraint_ref)
 zeta = MOI.get(model, Attributes.SlackVariableEncodingFunction(), constraint_ref)
 ```
 
+```@docs
+ToQUBO.Attributes.CompilationTime
+ToQUBO.Attributes.CompilationStatus
+ToQUBO.Attributes.SourceModel
+ToQUBO.Attributes.TargetModel
+ToQUBO.Attributes.CompiledObjectiveFunction
+ToQUBO.Attributes.CompiledHamiltonian
+ToQUBO.Attributes.VariableTargetVariables
+ToQUBO.Attributes.VariableEncodingFunction
+ToQUBO.Attributes.VariableEncodingPenaltyFunction
+ToQUBO.Attributes.ConstraintEncodingFunction
+ToQUBO.Attributes.SlackVariableTargetVariables
+ToQUBO.Attributes.SlackVariableEncodingFunction
+ToQUBO.Attributes.SlackVariableEncodingPenaltyFunction
+```
+
 ## Penalty Information
 
 Constraints are converted to penalty terms in QUBO. You can retrieve the penalty coefficients used:
