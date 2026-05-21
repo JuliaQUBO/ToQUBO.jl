@@ -6,6 +6,10 @@
 
 ## Compilation Steps
 
+```@docs
+ToQUBO.Compiler.CompilationError
+```
+
 ### Setup
 
 ```@docs

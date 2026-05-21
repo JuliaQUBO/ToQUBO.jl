@@ -108,7 +108,13 @@ ToQUBO.Attributes.VariableEncodingATol
 ToQUBO.Attributes.DefaultVariableEncodingATol
 ToQUBO.Attributes.VariableEncodingMethod
 ToQUBO.Attributes.DefaultVariableEncodingMethod
+ToQUBO.Attributes.VariableEncodingPenaltyHint
 ToQUBO.Attributes.VariableEncodingPenalty
+ToQUBO.Attributes.SlackVariableEncodingMethod
+ToQUBO.Attributes.SlackVariableEncodingATol
+ToQUBO.Attributes.SlackVariableEncodingBits
+ToQUBO.Attributes.SlackVariableEncodingPenaltyHint
+ToQUBO.Attributes.SlackVariableEncodingPenalty
 ToQUBO.Attributes.QuadraticPenalty
 ToQUBO.Attributes.LinearPenalty
 ToQUBO.Attributes.DefaultConstraintEncodingMethod

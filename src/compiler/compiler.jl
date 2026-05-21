@@ -80,6 +80,7 @@ function reset!(model::Virtual.Model, ::AbstractArchitecture = GenericArchitectu
     Base.empty!(model.variables)
     Base.empty!(model.source)
     Base.empty!(model.target)
+    Base.empty!(model.slack)
 
     # PBF/IR
     Base.empty!(model.f)
@@ -87,27 +88,27 @@ function reset!(model::Virtual.Model, ::AbstractArchitecture = GenericArchitectu
     Base.empty!(model.h)
     Base.empty!(model.ρ)
     Base.empty!(model.θ)
+    Base.empty!(model.s)
+    Base.empty!(model.η)
+    Base.empty!(model.H)
+
+    # Optimize-generated status
+    MOI.set(model, Attributes.CompilationStatus(), nothing)
+    MOI.set(model, Attributes.CompilationTime(), nothing)
+    delete!(model.moi_settings, :raw_status_string)
 
     return nothing
 end
 
-function Compiler.copy!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
+function Compiler.copy!(model::Virtual.Model{T}, arch::AbstractArchitecture) where {T}
     # Map Variables
     for vi in MOI.get(model.source_model, MOI.ListOfVariableIndices())
         Encoding.encode!(model, vi, Encoding.Mirror{T}())
     end
 
-    # Copy Objective Sense
-    let s = MOI.get(model.source_model, MOI.ObjectiveSense())
-        MOI.set(model.target_model, MOI.ObjectiveSense(), s)
-    end
-
-    # Copy Objective Function
-    let F = MOI.get(model.source_model, MOI.ObjectiveFunctionType())
-        f = MOI.get(model.source_model, MOI.ObjectiveFunction{F}())
-
-        MOI.set(model.target_model, MOI.ObjectiveFunction{F}(), f)
-    end
+    sense!(model, arch)
+    objective!(model, arch)
+    build!(model, arch)
 
     return nothing
 end
