@@ -1,4 +1,5 @@
 include("compiler/compiler.jl")
+include("compat.jl")
 include("docs.jl")
 include("encoding/encoding.jl")
 include("virtual/virtual.jl")
@@ -10,6 +11,7 @@ function test_unit()
     @testset "⊚ Unit Tests" verbose = true begin
         test_encoding_methods()
         test_compiler()
+        test_compat()
         test_docs()
         test_virtual()
         test_model()
