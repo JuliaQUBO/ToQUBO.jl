@@ -4,7 +4,7 @@
 
 ### Logo
 
-The ideia behind [ToQUBO.jl](https://github.com/psrenergy/ToQUBO.jl)'s logo comes from a wordplay in Portuguese and Spanish.
+The ideia behind [ToQUBO.jl](https://github.com/JuliaQUBO/ToQUBO.jl)'s logo comes from a wordplay in Portuguese and Spanish.
 The package's main purpose is to assemble QUBO Models, which sounds like *cubo*[^1], the translation for *cube*.
 
 ![ToQUBO.jl Logo](../assets/logo.svg)

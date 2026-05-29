@@ -2,15 +2,15 @@
 
 ## Solvers, Annealers & Samplers
 
-[`ToQUBO.jl`](https://github.com/psrenergy/ToQUBO.jl)'s main goal is to make use of parameterized stochastic optimization solvers, particularly those relying on non-conventional hardware such as *Quantum Annealing* and other *Ising Machines*.
-A few `MOI`-compliant interfaces for annealers and samplers are bundled within [`ToQUBO.jl`](https://github.com/psrenergy/ToQUBO.jl) via the [`QUBODrivers.jl`](https://github.com/psrenergy/QUBODrivers.jl) companion package.
+[`ToQUBO.jl`](https://github.com/JuliaQUBO/ToQUBO.jl)'s main goal is to make use of parameterized stochastic optimization solvers, particularly those relying on non-conventional hardware such as *Quantum Annealing* and other *Ising Machines*.
+A few `MOI`-compliant interfaces for annealers and samplers are bundled within [`ToQUBO.jl`](https://github.com/JuliaQUBO/ToQUBO.jl) via the [`QUBODrivers.jl`](https://github.com/JuliaQUBO/QUBODrivers.jl) companion package.
 Some of them are presented below.
 
 ## Simulated Annealing
 
 Provided by D-Wave's open-source code libraries, this [Simulated Annealing](https://en.wikipedia.org/wiki/Simulated_annealing) engine implements some of the features and configurations you would find using the Quantum API.
 Its adoption is recommended for basic usage, tests, and research due to its robustness, simplicity and ease of use.
-The [`DWave.jl`](https://github.com/psrenergy/DWave.jl)'s `DWave.Neal` module uses [`QUBODrivers.jl`](https://github.com/psrenergy/QUBODrivers.jl) to deliver an interface to this sampler.
+The [`DWave.jl`](https://github.com/JuliaQUBO/DWave.jl)'s `DWave.Neal` module uses [`QUBODrivers.jl`](https://github.com/JuliaQUBO/QUBODrivers.jl) to deliver an interface to this sampler.
 
 ## Quantum Annealing
 
@@ -31,5 +31,5 @@ Thus, only problems with at most ``\approxeq 20`` variables should be provided s
 ## Mixed-Integer Quadratic Programming
 
 The most accessible alternative to the forementioned methods are Mixed-Integer Quadratic Programming (MIQP) solvers such as [Gurobi](https://github.com/jump-dev/Gurobi.jl), [CPLEX](https://github.com/jump-dev/CPLEX.jl), [SCIP](https://github.com/scipopt/SCIP.jl) and [BARON](https://github.com/jump-dev/BARON.jl).
-These are not intended to be of regular use alongside [`ToQUBO.jl`](https://github.com/psrenergy/ToQUBO.jl) since providing a QUBO reformulation will usually make things harder for non-specialized solvers.
+These are not intended to be of regular use alongside [`ToQUBO.jl`](https://github.com/JuliaQUBO/ToQUBO.jl) since providing a QUBO reformulation will usually make things harder for non-specialized solvers.
 Yet, there are still a few cases where they may be suitable, such as tests, benchmarks, or any other situation where global optimality is a must.
