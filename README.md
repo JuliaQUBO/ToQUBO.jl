@@ -9,10 +9,10 @@
         <img src="https://img.shields.io/badge/arXiv-2307.02577-b31b1b.svg" alt="arXiv"/>
     </a>
     <a href="https://codecov.io/gh/JuliaQUBO/ToQUBO.jl">
-        <img src="https://codecov.io/gh/JuliaQUBO/ToQUBO.jl/branch/master/graph/badge.svg" alt="Coverage"/>
+        <img src="https://codecov.io/gh/JuliaQUBO/ToQUBO.jl/branch/main/graph/badge.svg" alt="Coverage"/>
     </a>
     <a href="https://github.com/JuliaQUBO/ToQUBO.jl/actions/workflows/ci.yml">
-        <img src="https://github.com/JuliaQUBO/ToQUBO.jl/actions/workflows/ci.yml/badge.svg?branch=master" alt="CI" />
+        <img src="https://github.com/JuliaQUBO/ToQUBO.jl/actions/workflows/ci.yml/badge.svg?branch=main" alt="CI" />
     </a>
     <a href="https://www.youtube.com/watch?v=OTmzlTbqdNo">
         <img src="https://img.shields.io/badge/JuliaCon-2022-9558b2" alt="JuliaCon 2022">
