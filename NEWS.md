@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+## v0.3.1 - 2026-06-03
+
+### Maintenance
+
+- Add Dependabot configuration for the root, documentation, and test Julia environments, plus GitHub Actions workflow updates.
+- Update GitHub Actions dependencies, including `actions/checkout`, `actions/setup-python`, `codecov/codecov-action`, and `julia-actions/setup-julia`.
+- Skip documentation deployment for Dependabot-triggered pull requests while still building the documentation.
+- Add compatibility checks covering the Dependabot configuration and maintenance environments.
+- Allow `TOML` 1.0.3 and QUBODrivers 0.5 in the relevant maintenance environments.
+- Clean legacy repository and default-branch references.
+
 ## v0.3.0 - 2026-05-23
 
 ### Breaking
