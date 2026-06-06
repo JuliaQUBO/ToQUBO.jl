@@ -158,5 +158,9 @@ function Base.show(io::IO, model::Optimizer)
 end
 
 function QUBOTools.backend(model::Optimizer{T}) where {T}
-    return QUBOTools.Model{T}(model.target_model)
+    qubo_model = QUBOTools.Model{T}(model.target_model)
+
+    _attach_reformulation_metadata!(qubo_model, model)
+
+    return qubo_model
 end

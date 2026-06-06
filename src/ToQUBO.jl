@@ -76,4 +76,7 @@ include("attributes/compiler.jl")
 # Compiler
 include("compiler/compiler.jl")
 
+# Reformulation metadata
+include("reformulation.jl")
+
 end # module
