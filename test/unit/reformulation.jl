@@ -2,9 +2,10 @@ function _json_compatible(value)
     if value === nothing ||
        value isa String ||
        value isa Bool ||
-       value isa Integer ||
-       value isa AbstractFloat
+       value isa Integer
         return true
+    elseif value isa AbstractFloat
+        return isfinite(value)
     elseif value isa AbstractVector
         return all(_json_compatible, value)
     elseif value isa AbstractDict
@@ -73,6 +74,9 @@ function test_reformulation_metadata()
         y_entry = only(entry for entry in metadata["original_variables"] if entry["id"] == y.value)
         @test x_entry["expansion_variables"] == x_entry["target_variables"]
         @test y_entry["expansion_variables"] == y_entry["target_variables"]
+        @test x_entry["encoded"] === true
+        @test y_entry["encoded"] === true
+        @test !_json_compatible(Dict{String,Any}("value" => Inf))
 
         @test ToQUBO.original_variables(model) == VI[x, y]
         @test ToQUBO.original_variables(metadata) == [x.value, y.value]
@@ -101,6 +105,15 @@ function test_reformulation_metadata()
         serialized_projected = ToQUBO.project_original_state(metadata, state)
         @test serialized_projected[x.value] == 3.0
         @test serialized_projected[y.value] == 1.0
+
+        unencoded_metadata = deepcopy(metadata)
+        unencoded_entry = only(
+            entry for entry in unencoded_metadata["original_variables"] if entry["id"] == x.value
+        )
+        unencoded_entry["encoded"] = false
+        unencoded_entry["expansion_variables"] = Int[]
+        unencoded_entry["expansion_terms"] = Dict{String,Any}[]
+        @test_throws ErrorException ToQUBO.project_original_state(unencoded_metadata, state)
 
         dict_state = Dict(VI(i) => state[i] for i = 1:length(state))
         dict_projected = ToQUBO.project_original_state(model, dict_state)

@@ -152,13 +152,16 @@ zeta = MOI.get(model, Attributes.SlackVariableEncodingFunction(), constraint_ref
 ### Reformulation Metadata
 
 ToQUBO records JSON-compatible reformulation metadata for downstream tools that
-need to interpret full QUBO states. The metadata is available directly from the
-optimizer and is also attached under `metadata["toqubo"]["reformulation"]` on
-the `QUBOTools` model returned by `QUBOTools.backend`.
+need to interpret full QUBO states. The metadata uses string-keyed dictionaries,
+arrays, primitive values, and finite numeric values. It is available directly
+from the optimizer and is also attached under
+`metadata["toqubo"]["reformulation"]` on the `QUBOTools` model returned by
+`QUBOTools.backend`.
 
 ```julia
-backend = unsafe_backend(model)
-metadata = ToQUBO.reformulation_metadata(backend)
+optimizer = unsafe_backend(model)
+metadata = ToQUBO.reformulation_metadata(optimizer)
+qubo_model = ToQUBO.QUBOTools.backend(optimizer)
 
 original = ToQUBO.original_variables(metadata)
 auxiliary = ToQUBO.auxiliary_variables(metadata)

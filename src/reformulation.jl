@@ -184,6 +184,8 @@ function _target_metadata(model::Virtual.Model{T}) where {T}
     variables = MOI.get(model.target_model, MOI.ListOfVariableIndices())
     objective = MOI.get(model.target_model, MOI.ObjectiveFunction{SQF{T}}())
 
+    # ToQUBO adds penalty and quadratization terms, but does not rescale the
+    # source objective during reformulation.
     return Dict{String,Any}(
         "num_variables" => length(variables),
         "variable_order" => [vi.value for vi in variables],
@@ -197,6 +199,7 @@ function _variable_encoding_entry(model::Virtual.Model, vi::VI)
     entry = Dict{String,Any}(
         "id" => vi.value,
         "name" => _variable_name(model.source_model, vi),
+        "encoded" => false,
         "target_variables" => Int[],
         "encoding" => nothing,
         "expansion_variables" => Int[],
@@ -208,6 +211,7 @@ function _variable_encoding_entry(model::Virtual.Model, vi::VI)
     if haskey(model.source, vi)
         v = model.source[vi]
 
+        entry["encoded"] = true
         entry["target_variables"] = [yi.value for yi in Virtual.target(v)]
         entry["encoding"] = _encoding_metadata(Virtual.encoding(v))
         entry["expansion_variables"] = _pbf_variable_ids(Virtual.expansion(v))
@@ -460,6 +464,10 @@ function _evaluate_serialized_terms(terms::AbstractVector, state)
     return value
 end
 
+function _serialized_entry_encoded(entry::AbstractDict)
+    return get(entry, "encoded", !isempty(entry["expansion_terms"]))
+end
+
 function project_original_state(model::Virtual.Model, qubo_state)
     values = Dict{VI,Any}()
 
@@ -483,6 +491,10 @@ function project_original_state(metadata::AbstractDict, qubo_state)
     values = Dict{Int,Any}()
 
     for entry in data["original_variables"]
+        if !_serialized_entry_encoded(entry)
+            error("Source variable $(entry["id"]) has not been encoded")
+        end
+
         values[entry["id"]] = _evaluate_serialized_terms(
             entry["expansion_terms"],
             qubo_state,
