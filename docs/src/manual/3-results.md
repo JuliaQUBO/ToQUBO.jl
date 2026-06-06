@@ -149,7 +149,39 @@ z = MOI.get(model, Attributes.SlackVariableTargetVariables(), constraint_ref)
 zeta = MOI.get(model, Attributes.SlackVariableEncodingFunction(), constraint_ref)
 ```
 
+### Reformulation Metadata
+
+ToQUBO records JSON-compatible reformulation metadata for downstream tools that
+need to interpret full QUBO states. The metadata uses string-keyed dictionaries,
+arrays, primitive values, and finite numeric values. It is available directly
+from the optimizer and is also attached under
+`metadata["toqubo"]["reformulation"]` on the `QUBOTools` model returned by
+`QUBOTools.backend`.
+
+```julia
+optimizer = unsafe_backend(model)
+metadata = ToQUBO.reformulation_metadata(optimizer)
+qubo_model = ToQUBO.QUBOTools.backend(optimizer)
+
+original = ToQUBO.original_variables(metadata)
+auxiliary = ToQUBO.auxiliary_variables(metadata)
+
+qubo_state = [0, 1, 0, 1]
+source_state = ToQUBO.project_original_state(metadata, qubo_state)
+```
+
+The metadata guarantees the original source variable order, target QUBO
+variable order, source-to-target `expansion_variables` and `expansion_terms`,
+constraint/slack ownership for generated target variables, and penalty terms
+recorded by the compiler. This is enough to project a full QUBO state back to
+original variables. Exact auxiliary consistency checks and repair remain
+encoding-specific and are not guaranteed by this metadata contract.
+
 ```@docs
+ToQUBO.reformulation_metadata
+ToQUBO.original_variables
+ToQUBO.auxiliary_variables
+ToQUBO.project_original_state
 ToQUBO.Attributes.CompilationTime
 ToQUBO.Attributes.CompilationStatus
 ToQUBO.Attributes.SourceModel
