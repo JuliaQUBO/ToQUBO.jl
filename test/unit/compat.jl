@@ -9,11 +9,16 @@ function test_compat()
         test_compat = test_project["compat"]
 
         @test compat["julia"] == "1.10"
+        @test occursin(r"(^|,\s*)0\.11(\s*(,|$))", compat["QUBOTools"])
         @test occursin(r"(^|,\s*)0\.12(\s*(,|$))", compat["QUBOTools"])
+        @test occursin(r"(^|,\s*)0\.13(\s*(,|$))", compat["QUBOTools"])
         @test docs_compat["PySA"] == "0.3.4"
         @test occursin(r"(^|,\s*)0\.4(\s*(,|$))", docs_compat["QUBODrivers"])
-        @test docs_compat["QUBOTools"] == "0.12"
+        @test docs_compat["QUBOTools"] == "0.12, 0.13"
+        @test docs_compat["ToQUBO"] == "0.4.0"
+        @test occursin(r"(^|,\s*)0\.11(\s*(,|$))", test_compat["QUBOTools"])
         @test occursin(r"(^|,\s*)0\.12(\s*(,|$))", test_compat["QUBOTools"])
+        @test occursin(r"(^|,\s*)0\.13(\s*(,|$))", test_compat["QUBOTools"])
 
         ci = replace(
             read(joinpath(root, ".github", "workflows", "ci.yml"), String),

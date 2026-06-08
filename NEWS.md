@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## v0.4.0 - 2026-06-07
+
+### Added
+
+- Add public reformulation metadata helpers for original and auxiliary variables, serialized QUBOTools metadata, and projection of QUBO states back to source variables.
+
+### Maintenance
+
+- Allow QUBOTools 0.13 while keeping package compatibility with QUBOTools 0.11 and 0.12.
+
 ## v0.3.1 - 2026-06-03
 
 ### Maintenance
