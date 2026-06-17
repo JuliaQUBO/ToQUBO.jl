@@ -39,6 +39,53 @@ ToQUBO.Attributes.StableQuadratization
 
 ## Variable & Constraint Encoding
 
+### Penalty Heuristic
+
+When a constraint, variable encoding, or slack-variable encoding needs a penalty
+coefficient and no explicit hint is set, ToQUBO uses the automatic heuristic
+
+```math
+\rho = s \cdot \sigma \cdot \left(\frac{\delta}{\epsilon} + \beta\right)
+```
+
+where `s` is [`ToQUBO.Attributes.PenaltyScale`](@ref), `β` is
+[`ToQUBO.Attributes.PenaltyOffset`](@ref), `σ` is `1` for minimization models
+and `-1` for maximization models, `δ` is the objective gap estimate, and `ϵ` is
+the smallest positive gap in the generated penalty function.
+
+The precedence is:
+
+1. Explicit hints such as
+   [`ToQUBO.Attributes.ConstraintEncodingPenaltyHint`](@ref) are used as-is.
+2. Constraint overrides
+   [`ToQUBO.Attributes.ConstraintPenaltyScale`](@ref) and
+   [`ToQUBO.Attributes.ConstraintPenaltyOffset`](@ref) apply to the source
+   constraint and to the slack-variable encoding penalty generated for that
+   constraint.
+3. Global [`ToQUBO.Attributes.PenaltyScale`](@ref) and
+   [`ToQUBO.Attributes.PenaltyOffset`](@ref) apply everywhere else.
+
+The defaults are `PenaltyScale() == 1.0` and `PenaltyOffset() == 1.0`, matching
+the previous heuristic. For feasibility tuning, start by sweeping
+`PenaltyScale()` while keeping explicit hints unset:
+
+```julia
+using JuMP
+using ToQUBO
+using ToQUBO: Attributes
+
+model = Model(ToQUBO.Optimizer)
+set_attribute(model, Attributes.PenaltyScale(), 2.0)
+set_attribute(model, Attributes.PenaltyOffset(), 1.0)
+
+# Override one source constraint if it needs a different automatic penalty.
+set_attribute(my_constraint, Attributes.ConstraintPenaltyScale(), 5.0)
+```
+
+Very small `ϵ` values can produce large penalties. That usually means the
+penalty function has nearly tied infeasible states, so treat the heuristic as a
+starting point and compare feasibility across several scales.
+
 ### Constraint Penalty Methods
 
 Equality constraints are encoded with
@@ -115,6 +162,10 @@ ToQUBO.Attributes.SlackVariableEncodingATol
 ToQUBO.Attributes.SlackVariableEncodingBits
 ToQUBO.Attributes.SlackVariableEncodingPenaltyHint
 ToQUBO.Attributes.SlackVariableEncodingPenalty
+ToQUBO.Attributes.PenaltyOffset
+ToQUBO.Attributes.PenaltyScale
+ToQUBO.Attributes.ConstraintPenaltyOffset
+ToQUBO.Attributes.ConstraintPenaltyScale
 ToQUBO.Attributes.QuadraticPenalty
 ToQUBO.Attributes.LinearPenalty
 ToQUBO.Attributes.DefaultConstraintEncodingMethod

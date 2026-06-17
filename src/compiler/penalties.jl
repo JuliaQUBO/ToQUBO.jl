@@ -3,11 +3,14 @@ function _uses_linear_equality_penalty(model::Virtual.Model, ci::CI)::Bool
            Attributes.constraint_encoding_method(model, ci) isa Attributes.LinearPenalty
 end
 
+function _inferred_penalty_factor(sign, δ, ϵ, scale, offset)
+    return scale * sign * (δ / ϵ + offset)
+end
+
 function penalties!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
     # Adjust Sign
     σ = MOI.get(model, MOI.ObjectiveSense()) === MOI.MAX_SENSE ? -1 : 1
 
-    β = one(T) # TODO: This should be made a parameter too? Yes!
     δ = PBO.maxgap(model.f)
 
     for (ci, g) in model.g
@@ -23,7 +26,13 @@ function penalties!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
             end
 
             ϵ = PBO.mingap(g)
-            ρ = σ * (δ / ϵ + β)
+            ρ = _inferred_penalty_factor(
+                σ,
+                δ,
+                ϵ,
+                Attributes.constraint_penalty_scale(model, ci),
+                Attributes.constraint_penalty_offset(model, ci),
+            )
         end
 
         MOI.set(model, Attributes.ConstraintEncodingPenalty(), ci, ρ)
@@ -34,7 +43,13 @@ function penalties!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
 
         if isnothing(θ)
             ϵ = PBO.mingap(h)
-            θ = σ * (δ / ϵ + β)
+            θ = _inferred_penalty_factor(
+                σ,
+                δ,
+                ϵ,
+                Attributes.penalty_scale(model),
+                Attributes.penalty_offset(model),
+            )
         end
 
         MOI.set(model, Attributes.VariableEncodingPenalty(), vi, θ)
@@ -45,7 +60,13 @@ function penalties!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
 
         if isnothing(η)
             ϵ = PBO.mingap(s)
-            η = σ * (δ / ϵ + β)
+            η = _inferred_penalty_factor(
+                σ,
+                δ,
+                ϵ,
+                Attributes.constraint_penalty_scale(model, ci),
+                Attributes.constraint_penalty_offset(model, ci),
+            )
         end
 
         MOI.set(model, Attributes.SlackVariableEncodingPenalty(), ci, η)

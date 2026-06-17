@@ -172,10 +172,12 @@ source_state = ToQUBO.project_original_state(metadata, qubo_state)
 
 The metadata guarantees the original source variable order, target QUBO
 variable order, source-to-target `expansion_variables` and `expansion_terms`,
-constraint/slack ownership for generated target variables, and penalty terms
-recorded by the compiler. This is enough to project a full QUBO state back to
-original variables. Exact auxiliary consistency checks and repair remain
-encoding-specific and are not guaranteed by this metadata contract.
+constraint/slack ownership for generated target variables, penalty terms
+recorded by the compiler, and an `applied_penalties` section with the applied
+constraint, variable-encoding, and slack-variable penalty coefficients. This is
+enough to project a full QUBO state back to original variables. Exact auxiliary
+consistency checks and repair remain encoding-specific and are not guaranteed by
+this metadata contract.
 
 ```@docs
 ToQUBO.reformulation_metadata
@@ -192,6 +194,7 @@ ToQUBO.Attributes.VariableTargetVariables
 ToQUBO.Attributes.VariableEncodingFunction
 ToQUBO.Attributes.VariableEncodingPenaltyFunction
 ToQUBO.Attributes.ConstraintEncodingFunction
+ToQUBO.Attributes.AppliedPenalty
 ToQUBO.Attributes.SlackVariableTargetVariables
 ToQUBO.Attributes.SlackVariableEncodingFunction
 ToQUBO.Attributes.SlackVariableEncodingPenaltyFunction
@@ -206,6 +209,9 @@ Constraints are converted to penalty terms in QUBO. You can retrieve the penalty
 ```julia
 # Get the penalty used for a specific constraint
 rho = MOI.get(model, Attributes.ConstraintEncodingPenalty(), constraint_ref)
+
+# Equivalent reporting-oriented alias
+rho = MOI.get(model, Attributes.AppliedPenalty(), constraint_ref)
 ```
 
 ### Variable Encoding Penalties
