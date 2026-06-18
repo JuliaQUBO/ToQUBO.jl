@@ -1,5 +1,12 @@
 module ToQUBO
 
+export ConstraintViolation,
+    FeasibilityResult,
+    FeasibilityReport,
+    violations,
+    is_feasible,
+    feasibility_report
+
 using MathOptInterface
 const MOI = MathOptInterface
 
@@ -78,5 +85,8 @@ include("compiler/compiler.jl")
 
 # Reformulation metadata
 include("reformulation.jl")
+
+# Post-sampling analysis
+include("analysis/feasibility.jl")
 
 end # module
