@@ -46,8 +46,14 @@ function test_qoblib_benchmark_pilot()
         attribution = report["coefficient_attribution"]
         @test attribution["upstream_evidence"]["canonical_artifact_available_at_commit"] ===
               false
+        @test attribution["upstream_evidence"]["manual_verification"] === true
+        @test attribution["upstream_evidence"]["metrics_line_ref"] ==
+              "03-birkhoff/models/integer_linear/metrics_qs_files.csv:42"
         @test attribution["source_lp_comparison"]["matches_qoblib_lp_after_column_renaming"] ===
               true
+        @test attribution["source_lp_comparison"]["manual_verification"] === true
+        @test attribution["constraint_penalties"] == [7.0]
+        @test attribution["penalty"] == 7.0
         @test attribution["ownership_decision"] == "documentation-only"
         @test length(attribution["native_max_terms"]) == 2
         @test all(
@@ -81,6 +87,7 @@ function test_qoblib_benchmark_pilot()
         @test occursin("QOBLib Birkhoff Reformulation Pilot", markdown)
         @test occursin("bhS-03-001.lp", markdown)
         @test occursin("Coefficient Range Attribution", markdown)
+        @test occursin("Upstream verification", markdown)
         @test occursin("documentation-only", markdown)
         @test markdown == _normalized_file(report_path)
     end

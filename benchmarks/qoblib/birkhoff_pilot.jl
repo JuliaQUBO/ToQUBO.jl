@@ -60,14 +60,26 @@ const QOBLIB_CONVERTER_EVIDENCE = Dict{String,Any}(
     "canonical_artifact_available_at_commit" => false,
     "canonical_artifact_note" =>
         "The pinned QOBLIB tree contains 03-birkhoff/models/integer_linear/metrics_qs_files.csv but no stored bhS-3-001.qs or bhS-3-001.qs.xz artifact, so this commit exposes the canonical coefficient range as a metrics-table row.",
+    "manual_verification" => true,
     "converter_path" => "misc/convert_lp2qubo.py",
+    "converter_line_refs" => [
+        "misc/convert_lp2qubo.py:60-65",
+        "misc/convert_lp2qubo.py:82-89",
+    ],
     "converter_convention" =>
         "QOBLIB converts the LP with Qiskit QuadraticProgramToQubo, writes linear coefficients on the diagonal, symmetrizes Q as (Q + Q') / 2, and writes the objective offset separately.",
+    "metrics_line_ref" => "03-birkhoff/models/integer_linear/metrics_qs_files.csv:42",
 )
 
 const SOURCE_LP_COMPARISON = Dict{String,Any}(
     "lp_artifact" =>
         "03-birkhoff/models/integer_linear/lp_files/bhS-03/bhS-03-001.lp.xz",
+    "manual_verification" => true,
+    "lp_line_refs" => [
+        "decompressed LP lines 15-21",
+        "decompressed LP lines 22-39",
+        "decompressed LP lines 40-64",
+    ],
     "matches_qoblib_lp_after_column_renaming" => true,
     "column_renaming" => [
         "lambda[1:4] match LP x#1:x#4",
@@ -220,6 +232,7 @@ function _qubo_terms(target::MOI.ModelLike)
 end
 
 function _qoblib_symmetric_coefficient(key::Tuple{Int,Int}, coefficient::Float64)
+    # ToQUBO stores each full off-diagonal cross-term on one triangle.
     return first(key) == last(key) ? coefficient : coefficient / 2
 end
 
@@ -471,13 +484,17 @@ function _coefficient_attribution(target, metadata::AbstractDict, permutations)
         _annotate_term_records(target["native_max_coeff_terms"], metadata, permutations)
     qoblib_max_terms =
         _annotate_term_records(target["qoblib_symmetric_max_coeff_terms"], metadata, permutations)
+    constraint_penalties = sort!(
+        unique(Float64(entry["penalty"]) for entry in metadata["applied_penalties"]["constraints"]),
+    )
 
     return Dict{String,Any}(
         "upstream_evidence" => copy(QOBLIB_CONVERTER_EVIDENCE),
         "source_lp_comparison" => copy(SOURCE_LP_COMPARISON),
         "native_max_terms" => native_max_terms,
         "qoblib_symmetric_max_terms" => qoblib_max_terms,
-        "penalty" => 7.0,
+        "constraint_penalties" => constraint_penalties,
+        "penalty" => only(constraint_penalties),
         "ownership_decision" => "documentation-only",
         "conclusion" =>
             "The max-coefficient delta is a coefficient-reporting convention difference. ToQUBO's native upper-triangular terms keep full off-diagonal cross-term weights, while the QOBLIB writer symmetrizes Q and reports half of each off-diagonal cross term. Under the QOBLIB symmetrized convention, ToQUBO matches the canonical QUBO min/max coefficient row.",
@@ -662,6 +679,10 @@ function write_markdown_report(io::IO, report::AbstractDict)
     )
     write(
         io,
+        "- Upstream verification: manually checked QOBLIB commit `$(provenance["qoblib_commit"])`; converter refs $(join(upstream["converter_line_refs"], ", ")); metrics ref $(upstream["metrics_line_ref"]); LP refs $(join(source_lp["lp_line_refs"], ", ")).\n",
+    )
+    write(
+        io,
         "- Source LP comparison: `$(source_lp["lp_artifact"])` matches the pilot model after permutation-column renaming; $(join(source_lp["column_renaming"], "; ")).\n",
     )
     write(
@@ -670,7 +691,7 @@ function write_markdown_report(io::IO, report::AbstractDict)
     )
     write(
         io,
-        "- Applied penalty: $(_fmt(attribution["penalty"])) for every source constraint, matching Qiskit's automatic `sum(abs(objective)) + 1` scale for `min sum(z)`.\n",
+        "- Distinct applied constraint penalties from ToQUBO metadata: $(join(_fmt.(attribution["constraint_penalties"]), ", ")); this matches Qiskit's automatic `sum(abs(objective)) + 1` scale for `min sum(z)`.\n",
     )
 
     write(io, "- ToQUBO native maximum coefficient terms:\n")

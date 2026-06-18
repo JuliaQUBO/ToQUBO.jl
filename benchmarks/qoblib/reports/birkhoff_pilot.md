@@ -49,9 +49,10 @@ This report is a ToQUBO-generated reformulation benchmark. It is not a canonical
 
 - Canonical artifact check: The pinned QOBLIB tree contains 03-birkhoff/models/integer_linear/metrics_qs_files.csv but no stored bhS-3-001.qs or bhS-3-001.qs.xz artifact, so this commit exposes the canonical coefficient range as a metrics-table row.
 - QOBLIB converter convention: `misc/convert_lp2qubo.py` records this workflow: QOBLIB converts the LP with Qiskit QuadraticProgramToQubo, writes linear coefficients on the diagonal, symmetrizes Q as (Q + Q') / 2, and writes the objective offset separately.
+- Upstream verification: manually checked QOBLIB commit `a686aaa09fe14651294f744f34d453d5dce9cf57`; converter refs misc/convert_lp2qubo.py:60-65, misc/convert_lp2qubo.py:82-89; metrics ref 03-birkhoff/models/integer_linear/metrics_qs_files.csv:42; LP refs decompressed LP lines 15-21, decompressed LP lines 22-39, decompressed LP lines 40-64.
 - Source LP comparison: `03-birkhoff/models/integer_linear/lp_files/bhS-03/bhS-03-001.lp.xz` matches the pilot model after permutation-column renaming; lambda[1:4] match LP x#1:x#4; lambda[5] matches LP x#6; lambda[6] matches LP x#5; z selectors follow the same permutation-column renaming.
 - Matched source structure: objective min sum(z); six integer lambda variables bounded in [0, scale]; six integer selector variables bounded in [0, 1]; one scale equality; nine matrix-entry equalities; six activation inequalities lambda_i <= scale * z_i.
-- Applied penalty: 7.0 for every source constraint, matching Qiskit's automatic `sum(abs(objective)) + 1` scale for `min sum(z)`.
+- Distinct applied constraint penalties from ToQUBO metadata: 7.0; this matches Qiskit's automatic `sum(abs(objective)) + 1` scale for `min sum(z)`.
 - ToQUBO native maximum coefficient terms:
   - Target term `(29, 30)`: native `8.76288e6`, QOBLIB-style `4.38144e6`; source bits: lambda[3] bit 256.0 x lambda[3] bit 489.0.
     - Contributing constraints: scale equality: sum(lambda) == scale; matrix equality: row 1, column 2; matrix equality: row 2, column 1; matrix equality: row 3, column 3; activation inequality: lambda[3] <= scale * z[3].
