@@ -7,6 +7,7 @@ include("model/model.jl")
 include("wrapper/wrapper.jl")
 include("attributes/attributes.jl")
 include("reformulation.jl")
+include("feasibility.jl")
 
 function test_unit()
     @testset "⊚ Unit Tests" verbose = true begin
@@ -19,6 +20,7 @@ function test_unit()
         test_wrapper()
         test_attributes()
         test_reformulation_metadata()
+        test_feasibility()
     end
 
     return nothing

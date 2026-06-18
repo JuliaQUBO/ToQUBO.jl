@@ -70,6 +70,65 @@ end
 !!! tip "Best Solution"
     By default (without specifying `result`), `value` returns the best solution found.
 
+## Feasibility and Constraint Violations
+
+For constrained models, inspect feasibility separately from the objective value.
+`violations` reports the source constraints violated by a sampled result after
+projecting the QUBO solution back to the source variables. `is_feasible` checks
+one result, and `feasibility_report` summarizes one or more results.
+
+```julia
+violated = ToQUBO.violations(model; result = 1, atol = 1e-6)
+ok = ToQUBO.is_feasible(model; result = 1)
+report = ToQUBO.feasibility_report(model)
+```
+
+For JuMP models, pass the `JuMP.Model` directly. For low-level MOI usage, pass
+the `ToQUBO.Optimizer`.
+
+```@example feasibility-results
+using JuMP
+using QUBODrivers
+using ToQUBO
+using ToQUBO: Attributes
+
+model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
+@variable(model, x[1:2], Bin)
+@objective(model, Max, 3x[1] + 3x[2])
+capacity = @constraint(model, x[1] + x[2] <= 1)
+
+# Deliberately undersize this penalty to demonstrate infeasibility reporting.
+set_attribute(capacity, Attributes.ConstraintEncodingPenaltyHint(), -0.1)
+
+optimize!(model)
+
+violated = ToQUBO.violations(model; result = 1)
+first(violated).violation
+```
+
+The feasibility helpers use the same `result` indexing as `value` and
+`objective_value`, so sampling runs can be summarized as rates:
+
+```@example feasibility-results
+report = ToQUBO.feasibility_report(model; result = 1:result_count(model))
+report.feasible_count / report.result_count
+```
+
+Constraint violations are measured as follows:
+
+| Source constraint type | Violation measure |
+|:--|:--|
+| Variable bounds and scalar affine/quadratic `EqualTo`, `LessThan`, `GreaterThan`, `Interval` | `MOI.Utilities.distance_to_set(value, set)` |
+| `VectorOfVariables` in `SOS1` | Sum of absolute values outside the largest-magnitude entry |
+| Affine/quadratic `Indicator` | Zero when inactive; otherwise the inner scalar-set violation |
+
+Each `ConstraintViolation` includes the source constraint index, function type,
+set type, evaluated source-function value, raw residual, nonnegative violation
+magnitude, and projected values for variables referenced by that constraint.
+For encoded integer variables, the projected source values are the compiler's
+decoded values for the sampled binary state; continuous discretizations report
+the decoded grid value.
+
 ## Objective Value
 
 ### Single Solution
@@ -185,6 +244,12 @@ ToQUBO.reformulation_metadata
 ToQUBO.original_variables
 ToQUBO.auxiliary_variables
 ToQUBO.project_original_state
+ToQUBO.ConstraintViolation
+ToQUBO.FeasibilityResult
+ToQUBO.FeasibilityReport
+ToQUBO.violations
+ToQUBO.is_feasible
+ToQUBO.feasibility_report
 ToQUBO.Attributes.CompilationTime
 ToQUBO.Attributes.CompilationStatus
 ToQUBO.Attributes.SourceModel
