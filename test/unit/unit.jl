@@ -8,6 +8,7 @@ include("wrapper/wrapper.jl")
 include("attributes/attributes.jl")
 include("reformulation.jl")
 include("feasibility.jl")
+include("qoblib_benchmark.jl")
 
 function test_unit()
     @testset "⊚ Unit Tests" verbose = true begin
@@ -21,6 +22,7 @@ function test_unit()
         test_attributes()
         test_reformulation_metadata()
         test_feasibility()
+        test_qoblib_benchmark_pilot()
     end
 
     return nothing
