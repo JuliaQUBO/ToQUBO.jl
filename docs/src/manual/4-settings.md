@@ -66,20 +66,81 @@ The precedence is:
    [`ToQUBO.Attributes.PenaltyOffset`](@ref) apply everywhere else.
 
 The defaults are `PenaltyScale() == 1.0` and `PenaltyOffset() == 1.0`, matching
-the previous heuristic. For feasibility tuning, start by sweeping
-`PenaltyScale()` while keeping explicit hints unset:
+the previous heuristic. The coefficient is positive for minimization models and
+negative for maximization models, so explicit hints should use the same sign as
+the coefficient you want the compiler to apply.
 
-```julia
+Use the controls according to how much of the model you want to change:
+
+- Use [`ToQUBO.Attributes.PenaltyScale`](@ref) and
+  [`ToQUBO.Attributes.PenaltyOffset`](@ref) to change all automatically
+  inferred penalties while preserving their relative dependence on the
+  generated objective and penalty gaps.
+- Use [`ToQUBO.Attributes.ConstraintPenaltyScale`](@ref) and
+  [`ToQUBO.Attributes.ConstraintPenaltyOffset`](@ref) when one source
+  constraint needs a different automatic penalty. These overrides also apply to
+  the slack-variable encoding penalty generated for that constraint.
+- Use explicit hints such as
+  [`ToQUBO.Attributes.ConstraintEncodingPenaltyHint`](@ref),
+  [`ToQUBO.Attributes.SlackVariableEncodingPenaltyHint`](@ref), or
+  [`ToQUBO.Attributes.VariableEncodingPenaltyHint`](@ref) when you need a fixed
+  coefficient. Hints bypass the automatic scale and offset settings.
+
+!!! note "ToQUBO-specific settings"
+    These attributes control the ToQUBO compiler, so the reference for setting,
+    overriding, and retrieving penalty coefficients belongs in this manual.
+    End-to-end ecosystem examples can live in the `QUBO.jl` documentation and
+    link back here when they tune ToQUBO penalties.
+
+### Changing Penalty Values
+
+For feasibility tuning, start by sweeping `PenaltyScale()` while keeping
+explicit hints unset. If only one constraint needs adjustment, override that
+constraint's automatic scale or offset. Pin exact penalty values only when you
+have a known coefficient to apply.
+
+```@example penalty-settings
 using JuMP
+using QUBODrivers
 using ToQUBO
-using ToQUBO: Attributes
+using ToQUBO: Attributes, Encoding
 
-model = Model(ToQUBO.Optimizer)
+# Use an exact sampler for a small example. Replace it with your QUBO solver.
+model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
+@variable(model, x[1:2], Bin)
+@variable(model, 0 <= z <= 3, Int)
+@objective(model, Min, 3x[1] + x[2] + z)
+
+capacity = @constraint(model, x[1] + x[2] <= 1)
+assignment = @constraint(model, x[1] + x[2] == 1)
+
+# Model-wide automatic penalty tuning.
 set_attribute(model, Attributes.PenaltyScale(), 2.0)
 set_attribute(model, Attributes.PenaltyOffset(), 1.0)
 
-# Override one source constraint if it needs a different automatic penalty.
-set_attribute(my_constraint, Attributes.ConstraintPenaltyScale(), 5.0)
+# Automatic tuning for one source constraint and its slack encoding.
+set_attribute(capacity, Attributes.ConstraintPenaltyScale(), 4.0)
+set_attribute(capacity, Attributes.ConstraintPenaltyOffset(), 2.0)
+
+# Fixed values for specific generated penalties.
+set_attribute(assignment, Attributes.ConstraintEncodingPenaltyHint(), 12.0)
+set_attribute(capacity, Attributes.SlackVariableEncodingMethod(), Encoding.OneHot())
+set_attribute(capacity, Attributes.SlackVariableEncodingPenaltyHint(), 9.0)
+set_attribute(z, Attributes.VariableEncodingMethod(), Encoding.OneHot())
+set_attribute(z, Attributes.VariableEncodingPenaltyHint(), 6.0)
+
+optimize!(model)
+
+rho_capacity = get_attribute(capacity, Attributes.ConstraintEncodingPenalty())
+rho_assignment = get_attribute(assignment, Attributes.ConstraintEncodingPenalty())
+eta_capacity = get_attribute(capacity, Attributes.SlackVariableEncodingPenalty())
+theta_z = get_attribute(z, Attributes.VariableEncodingPenalty())
+
+# The capacity penalty is inferred by the automatic heuristic.
+@assert rho_capacity !== nothing
+@assert rho_assignment == 12.0
+@assert eta_capacity == 9.0
+@assert theta_z == 6.0
 ```
 
 Very small `ϵ` values can produce large penalties. That usually means the
