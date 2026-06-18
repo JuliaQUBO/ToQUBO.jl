@@ -43,7 +43,8 @@ The pilot follows QOBLIB's integer-linear Birkhoff formulation:
 - enforce activation with `lambda_i <= scale * z_i`;
 - minimize `sum(z_i)`.
 
-The known incumbent is evaluated on the source model only. This pilot does not
-claim that QOBLIB's canonical QUBO artifact and ToQUBO's generated QUBO use the
-same encoding or penalty scaling. The coefficient-range delta found by the
-pilot is tracked in <https://github.com/JuliaQUBO/ToQUBO.jl/issues/148>.
+The known incumbent is evaluated on the source model only. The native ToQUBO
+upper-triangular coefficient range is reported alongside the QOBLIB-style
+symmetrized convention used by QOBLIB's generated QS writer. The Birkhoff pilot
+attributes the native maximum-coefficient delta to that off-diagonal reporting
+convention, not to a penalty-scaling change.
