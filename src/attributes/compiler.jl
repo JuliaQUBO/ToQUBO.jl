@@ -242,6 +242,77 @@ function ignore_feasible_constraints(model::Optimizer)::Bool
 end
 
 @doc raw"""
+    PenaltyOffset()
+
+Set the global offset ``\beta`` used by the automatic penalty heuristic.
+
+When no explicit penalty hint is set, ToQUBO infers penalty coefficients as
+``scale * sigma * (delta / epsilon + beta)``. The default is `1.0`, which
+preserves the original heuristic. Use [`ConstraintPenaltyOffset`](@ref) to
+override this value for a specific source constraint and its slack-variable
+encoding penalty.
+"""
+struct PenaltyOffset <: CompilerAttribute end
+
+_attribute_from_key(::Val{:penalty_offset}) = PenaltyOffset
+
+function MOI.get(model::Optimizer{T}, ::PenaltyOffset)::T where {T}
+    return get(model.compiler_settings, :penalty_offset, one(T))
+end
+
+function MOI.set(model::Optimizer{T}, ::PenaltyOffset, β::Any) where {T}
+    model.compiler_settings[:penalty_offset] = convert(T, β)
+
+    return nothing
+end
+
+function MOI.set(model::Optimizer, ::PenaltyOffset, ::Nothing)
+    delete!(model.compiler_settings, :penalty_offset)
+
+    return nothing
+end
+
+function penalty_offset(model::Optimizer)
+    return MOI.get(model, PenaltyOffset())
+end
+
+@doc raw"""
+    PenaltyScale()
+
+Set the global multiplier applied to automatically inferred penalty
+coefficients.
+
+When no explicit penalty hint is set, ToQUBO infers penalty coefficients as
+``scale * sigma * (delta / epsilon + beta)``. The default is `1.0`, which
+preserves the original heuristic. Use [`ConstraintPenaltyScale`](@ref) to
+override this value for a specific source constraint and its slack-variable
+encoding penalty.
+"""
+struct PenaltyScale <: CompilerAttribute end
+
+_attribute_from_key(::Val{:penalty_scale}) = PenaltyScale
+
+function MOI.get(model::Optimizer{T}, ::PenaltyScale)::T where {T}
+    return get(model.compiler_settings, :penalty_scale, one(T))
+end
+
+function MOI.set(model::Optimizer{T}, ::PenaltyScale, scale::Any) where {T}
+    model.compiler_settings[:penalty_scale] = convert(T, scale)
+
+    return nothing
+end
+
+function MOI.set(model::Optimizer, ::PenaltyScale, ::Nothing)
+    delete!(model.compiler_settings, :penalty_scale)
+
+    return nothing
+end
+
+function penalty_scale(model::Optimizer)
+    return MOI.get(model, PenaltyScale())
+end
+
+@doc raw"""
     ErrorInfeasibleConstraints()
 
 When set, direct scalar constraints whose encoded residual is provably
@@ -1055,6 +1126,138 @@ function MOI.set(
     delete!(model.ρ, ci)
 
     return nothing
+end
+
+@doc raw"""
+    AppliedPenalty()
+
+Return the applied source-constraint penalty coefficient after compilation.
+
+This is an alias for [`ConstraintEncodingPenalty`](@ref) intended for reporting
+code that wants a generic "applied penalty" query.
+"""
+struct AppliedPenalty <: CompilerConstraintAttribute end
+
+MOI.is_set_by_optimize(::AppliedPenalty) = true
+
+function applied_penalty(model::Optimizer, ci::CI)
+    return MOI.get(model, AppliedPenalty(), ci)
+end
+
+function MOI.get(model::Optimizer, ::AppliedPenalty, ci::CI)
+    return MOI.get(model, ConstraintEncodingPenalty(), ci)
+end
+
+@doc raw"""
+    ConstraintPenaltyOffset()
+
+Override [`PenaltyOffset`](@ref) for a specific source constraint.
+
+The override applies to automatically inferred source-constraint penalties and
+to the slack-variable encoding penalty generated for the same source
+constraint. Explicit penalty hints still take precedence.
+"""
+struct ConstraintPenaltyOffset <: CompilerConstraintAttribute end
+
+_attribute_from_key(::Val{:constraint_penalty_offset}) = ConstraintPenaltyOffset
+
+function MOI.get(model::Optimizer{T}, ::ConstraintPenaltyOffset, ci::CI) where {T}
+    attr = :constraint_penalty_offset
+
+    if !haskey(model.constraint_settings, attr) ||
+       !haskey(model.constraint_settings[attr], ci)
+        return nothing
+    else
+        return model.constraint_settings[attr][ci]::T
+    end
+end
+
+function MOI.set(model::Optimizer{T}, ::ConstraintPenaltyOffset, ci::CI, β) where {T}
+    attr = :constraint_penalty_offset
+
+    if !haskey(model.constraint_settings, attr)
+        model.constraint_settings[attr] = Dict{CI,Any}()
+    end
+
+    model.constraint_settings[attr][ci] = convert(T, β)
+
+    return nothing
+end
+
+function MOI.set(model::Optimizer, ::ConstraintPenaltyOffset, ci::CI, ::Nothing)
+    attr = :constraint_penalty_offset
+
+    if haskey(model.constraint_settings, attr)
+        delete!(model.constraint_settings[attr], ci)
+    end
+
+    return nothing
+end
+
+function constraint_penalty_offset(model::Optimizer, ci::CI)
+    β = MOI.get(model, ConstraintPenaltyOffset(), ci)
+
+    if isnothing(β)
+        return MOI.get(model, PenaltyOffset())
+    else
+        return β
+    end
+end
+
+@doc raw"""
+    ConstraintPenaltyScale()
+
+Override [`PenaltyScale`](@ref) for a specific source constraint.
+
+The override applies to automatically inferred source-constraint penalties and
+to the slack-variable encoding penalty generated for the same source
+constraint. Explicit penalty hints still take precedence.
+"""
+struct ConstraintPenaltyScale <: CompilerConstraintAttribute end
+
+_attribute_from_key(::Val{:constraint_penalty_scale}) = ConstraintPenaltyScale
+
+function MOI.get(model::Optimizer{T}, ::ConstraintPenaltyScale, ci::CI) where {T}
+    attr = :constraint_penalty_scale
+
+    if !haskey(model.constraint_settings, attr) ||
+       !haskey(model.constraint_settings[attr], ci)
+        return nothing
+    else
+        return model.constraint_settings[attr][ci]::T
+    end
+end
+
+function MOI.set(model::Optimizer{T}, ::ConstraintPenaltyScale, ci::CI, scale) where {T}
+    attr = :constraint_penalty_scale
+
+    if !haskey(model.constraint_settings, attr)
+        model.constraint_settings[attr] = Dict{CI,Any}()
+    end
+
+    model.constraint_settings[attr][ci] = convert(T, scale)
+
+    return nothing
+end
+
+function MOI.set(model::Optimizer, ::ConstraintPenaltyScale, ci::CI, ::Nothing)
+    attr = :constraint_penalty_scale
+
+    if haskey(model.constraint_settings, attr)
+        delete!(model.constraint_settings[attr], ci)
+    end
+
+    return nothing
+end
+
+function constraint_penalty_scale(model::Optimizer, ci::CI)
+    scale = MOI.get(model, ConstraintPenaltyScale(), ci)
+
+    if isnothing(scale)
+        return MOI.get(model, PenaltyScale())
+    else
+        return scale
+    end
 end
 
 @doc raw"""

@@ -9,6 +9,10 @@ Return JSON-compatible ToQUBO reformulation metadata. For a live
 `ToQUBO.Optimizer`, the metadata is generated from the compiled virtual model.
 For a `QUBOTools.AbstractModel` or a metadata dictionary, the metadata is read
 from `metadata["toqubo"]["reformulation"]`.
+
+The `applied_penalties` section is a convenience view. Its entries duplicate
+the applied penalty coefficients also attached to the corresponding variable,
+constraint, and slack-variable metadata records.
 """
 function reformulation_metadata end
 
@@ -307,6 +311,50 @@ function _constraint_encoding_entries(model::Virtual.Model)
     return entries
 end
 
+function _applied_penalty_metadata(model::Virtual.Model)
+    constraints = Dict{String,Any}[]
+
+    for (ci, ρ) in sort!(collect(model.ρ); by = pair -> _constraint_sort_key(first(pair)))
+        push!(
+            constraints,
+            Dict{String,Any}(
+                "constraint" => _constraint_ref(ci),
+                "penalty" => ρ,
+            ),
+        )
+    end
+
+    variables = Dict{String,Any}[]
+
+    for (vi, θ) in sort!(collect(model.θ); by = pair -> first(pair).value)
+        push!(
+            variables,
+            Dict{String,Any}(
+                "variable" => vi.value,
+                "penalty" => θ,
+            ),
+        )
+    end
+
+    slack_variables = Dict{String,Any}[]
+
+    for (ci, η) in sort!(collect(model.η); by = pair -> _constraint_sort_key(first(pair)))
+        push!(
+            slack_variables,
+            Dict{String,Any}(
+                "constraint" => _constraint_ref(ci),
+                "penalty" => η,
+            ),
+        )
+    end
+
+    return Dict{String,Any}(
+        "constraints" => constraints,
+        "variables" => variables,
+        "slack_variables" => slack_variables,
+    )
+end
+
 function reformulation_metadata(model::Virtual.Model)
     target_variables = _target_variable_entries(model)
 
@@ -323,6 +371,7 @@ function reformulation_metadata(model::Virtual.Model)
         "auxiliary_variables" => _auxiliary_variable_entries(target_variables),
         "slack_variables" => _slack_variable_entries(model),
         "constraint_encodings" => _constraint_encoding_entries(model),
+        "applied_penalties" => _applied_penalty_metadata(model),
         "guarantees" => Dict{String,Any}(
             "project_original_state" => true,
             "auxiliary_consistency" => "encoding-specific",
