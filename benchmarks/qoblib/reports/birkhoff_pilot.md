@@ -8,8 +8,11 @@ This report is a ToQUBO-generated reformulation benchmark. It is not a canonical
 - QOBLIB commit: `a686aaa09fe14651294f744f34d453d5dce9cf57`
 - QOBLIB class: `03-birkhoff`
 - Source data: `03-birkhoff/instances/qbench_03_sparse.json`
+- Source instance JSON key: `1`
 - Source metrics: `03-birkhoff/models/integer_linear/lp_files/metrics.csv`
+- Source metrics CSV row: `bhS-03-001.lp,0,12,0,12,16,0,16,0.1875,-1000.0,1.0`
 - Canonical QUBO metrics: `03-birkhoff/models/integer_linear/metrics_qs_files.csv`
+- Canonical QUBO metrics CSV row: `bhS-3-001.qs,126,0.3607049118860142,-13346277.0,7000001.0`
 - Data license: Creative Commons Attribution 4.0 International
 - Generated collection label: ToQUBO-generated reformulation benchmark
 
@@ -69,4 +72,4 @@ This report is a ToQUBO-generated reformulation benchmark. It is not a canonical
 
 ## Follow-Up
 
-The pilot records a coefficient-range delta: ToQUBO's maximum coefficient is above the canonical QOBLIB metrics row for this instance. Keep this PR as the pilot evidence and investigate the penalty-scaling convention before expanding class coverage.
+The pilot records a coefficient-range delta: ToQUBO's maximum coefficient is above the canonical QOBLIB metrics row for this instance. Track the penalty-scaling investigation in JuliaQUBO/ToQUBO.jl#148 before expanding class coverage.

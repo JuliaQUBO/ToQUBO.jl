@@ -1,5 +1,9 @@
 include(joinpath(@__DIR__, "..", "..", "benchmarks", "qoblib", "birkhoff_pilot.jl"))
 
+function _normalized_file(path)
+    return replace(read(path, String), "\r\n" => "\n")
+end
+
 function test_qoblib_benchmark_pilot()
     @testset "QOBLib benchmark pilot" begin
         report = QOBLibBirkhoffPilot.run_birkhoff_pilot()
@@ -7,6 +11,9 @@ function test_qoblib_benchmark_pilot()
         @test report["provenance"]["canonical_qoblib_artifact"] === false
         @test report["provenance"]["collection"] ==
               "ToQUBO-generated reformulation benchmark"
+        @test report["provenance"]["source_instance_json_key"] == "1"
+        @test report["provenance"]["coefficient_gap_follow_up"] ==
+              "https://github.com/JuliaQUBO/ToQUBO.jl/issues/148"
 
         source = report["source"]
         @test source["generated_metrics"]["num_vars"] == 12
@@ -31,11 +38,21 @@ function test_qoblib_benchmark_pilot()
 
         io = IOBuffer()
         QOBLibBirkhoffPilot.write_markdown_report(io, report)
-        markdown = String(take!(io))
+        markdown = replace(String(take!(io)), "\r\n" => "\n")
+        report_path = joinpath(
+            @__DIR__,
+            "..",
+            "..",
+            "benchmarks",
+            "qoblib",
+            "reports",
+            "birkhoff_pilot.md",
+        )
 
         @test occursin("not a canonical QOBLIB artifact", markdown)
         @test occursin("QOBLib Birkhoff Reformulation Pilot", markdown)
         @test occursin("bhS-03-001.lp", markdown)
+        @test markdown == _normalized_file(report_path)
     end
 
     return nothing

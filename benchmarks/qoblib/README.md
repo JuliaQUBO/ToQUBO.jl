@@ -22,11 +22,13 @@ The embedded pilot data is the smallest sparse Birkhoff instance from QOBLIB:
 
 - upstream repository: `https://github.com/ZIB-AOPT/QOBLIB`;
 - upstream commit used for provenance: `a686aaa09fe14651294f744f34d453d5dce9cf57`;
-- source data path: `03-birkhoff/instances/qbench_03_sparse.json`;
+- source data path: `03-birkhoff/instances/qbench_03_sparse.json`, key `1`;
 - source LP metrics path:
-  `03-birkhoff/models/integer_linear/lp_files/metrics.csv`;
+  `03-birkhoff/models/integer_linear/lp_files/metrics.csv`, row
+  `bhS-03-001.lp`;
 - canonical QUBO metrics path:
-  `03-birkhoff/models/integer_linear/metrics_qs_files.csv`;
+  `03-birkhoff/models/integer_linear/metrics_qs_files.csv`, row
+  `bhS-3-001.qs`;
 - QOBLIB data license: Creative Commons Attribution 4.0 International.
 
 ## Modeling Assumptions
@@ -43,4 +45,5 @@ The pilot follows QOBLIB's integer-linear Birkhoff formulation:
 
 The known incumbent is evaluated on the source model only. This pilot does not
 claim that QOBLIB's canonical QUBO artifact and ToQUBO's generated QUBO use the
-same encoding or penalty scaling.
+same encoding or penalty scaling. The coefficient-range delta found by the
+pilot is tracked in <https://github.com/JuliaQUBO/ToQUBO.jl/issues/148>.

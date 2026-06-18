@@ -15,6 +15,12 @@ const PROVENANCE = Dict{String,Any}(
     "source_metrics_path" => "03-birkhoff/models/integer_linear/lp_files/metrics.csv",
     "canonical_qubo_metrics_path" =>
         "03-birkhoff/models/integer_linear/metrics_qs_files.csv",
+    "source_instance_json_key" => "1",
+    "source_metrics_csv_row" =>
+        "bhS-03-001.lp,0,12,0,12,16,0,16,0.1875,-1000.0,1.0",
+    "canonical_qubo_metrics_csv_row" =>
+        "bhS-3-001.qs,126,0.3607049118860142,-13346277.0,7000001.0",
+    "coefficient_gap_follow_up" => "https://github.com/JuliaQUBO/ToQUBO.jl/issues/148",
 )
 
 const INSTANCE = Dict{String,Any}(
@@ -316,7 +322,7 @@ function run_birkhoff_pilot()
         "known_incumbent" => _known_incumbent_summary(permutations),
         "comparison" => _comparison(target),
         "follow_up" =>
-            "The pilot records a coefficient-range delta: ToQUBO's maximum coefficient is above the canonical QOBLIB metrics row for this instance. Keep this PR as the pilot evidence and investigate the penalty-scaling convention before expanding class coverage.",
+            "The pilot records a coefficient-range delta: ToQUBO's maximum coefficient is above the canonical QOBLIB metrics row for this instance. Track the penalty-scaling investigation in JuliaQUBO/ToQUBO.jl#148 before expanding class coverage.",
     )
 end
 
@@ -356,8 +362,14 @@ function write_markdown_report(io::IO, report::AbstractDict)
     write(io, "- QOBLIB commit: `$(provenance["qoblib_commit"])`\n")
     write(io, "- QOBLIB class: `$(provenance["qoblib_class"])`\n")
     write(io, "- Source data: `$(provenance["source_instance_path"])`\n")
+    write(io, "- Source instance JSON key: `$(provenance["source_instance_json_key"])`\n")
     write(io, "- Source metrics: `$(provenance["source_metrics_path"])`\n")
+    write(io, "- Source metrics CSV row: `$(provenance["source_metrics_csv_row"])`\n")
     write(io, "- Canonical QUBO metrics: `$(provenance["canonical_qubo_metrics_path"])`\n")
+    write(
+        io,
+        "- Canonical QUBO metrics CSV row: `$(provenance["canonical_qubo_metrics_csv_row"])`\n",
+    )
     write(io, "- Data license: $(provenance["qoblib_data_license"])\n")
     write(io, "- Generated collection label: $(provenance["collection"])\n\n")
 
