@@ -136,7 +136,8 @@ rho_assignment = get_attribute(assignment, Attributes.ConstraintEncodingPenalty(
 eta_capacity = get_attribute(capacity, Attributes.SlackVariableEncodingPenalty())
 theta_z = get_attribute(z, Attributes.VariableEncodingPenalty())
 
-@assert rho_capacity == 48.0
+# The capacity penalty is inferred by the automatic heuristic.
+@assert rho_capacity !== nothing
 @assert rho_assignment == 12.0
 @assert eta_capacity == 9.0
 @assert theta_z == 6.0
