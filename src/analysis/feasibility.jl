@@ -20,6 +20,11 @@ struct ConstraintViolation
     variable_values::Dict{VI,Any}
 end
 
+const ConstraintTypeSummary = NamedTuple{
+    (:count, :violation_count, :max_violation, :total_violation),
+    Tuple{Int,Int,Float64,Float64},
+}
+
 @doc raw"""
     FeasibilityResult
 
@@ -31,7 +36,7 @@ struct FeasibilityResult
     violation_count::Int
     max_violation::Float64
     total_violation::Float64
-    by_constraint_type::Dict{String,Any}
+    by_constraint_type::Dict{String,ConstraintTypeSummary}
 end
 
 @doc raw"""
@@ -49,7 +54,7 @@ struct FeasibilityReport
 end
 
 @doc raw"""
-    violations(model; result::Int = 1, atol::Real = 0.0)
+    violations(model; result::Int = 1, atol::Real = 1e-6)
 
 Return source constraints violated by sampled result `result`.
 
@@ -61,11 +66,11 @@ only when their activation value triggers the inner set; SOS1 constraints use
 the distance to the nearest one-nonzero vector under the ``\ell_1`` projection
 convention.
 """
-function violations(model; result::Integer = 1, atol::Real = 0.0)
+function violations(model; result::Integer = 1, atol::Real = 1e-6)
     return violations(_toqubo_model(model); result, atol)
 end
 
-function violations(model::Virtual.Model; result::Integer = 1, atol::Real = 0.0)
+function violations(model::Virtual.Model; result::Integer = 1, atol::Real = 1e-6)
     return filter(
         measurement -> measurement.violation > Float64(atol),
         _constraint_measurements(model, Int(result)),
@@ -141,11 +146,11 @@ function _unsafe_backend(model)
         return nothing
     end
 
-    try
-        return unsafe_backend(model)
-    catch
+    if !hasmethod(unsafe_backend, Tuple{typeof(model)})
         return nothing
     end
+
+    return unsafe_backend(model)
 end
 
 function _result_count(model::Virtual.Model)
@@ -248,14 +253,14 @@ function _constraint_type_label(measurement::ConstraintViolation)
 end
 
 function _summarize_by_constraint_type(measurements, atol::Float64)
-    summary = Dict{String,Any}()
+    summary = Dict{String,ConstraintTypeSummary}()
 
     for measurement in measurements
         key = _constraint_type_label(measurement)
         previous = get(
             summary,
             key,
-            (count = 0, violation_count = 0, max_violation = 0.0, total_violation = 0.0),
+            _empty_constraint_type_summary(),
         )
         violation_count = previous.violation_count + (measurement.violation > atol ? 1 : 0)
 
@@ -268,6 +273,10 @@ function _summarize_by_constraint_type(measurements, atol::Float64)
     end
 
     return summary
+end
+
+function _empty_constraint_type_summary()::ConstraintTypeSummary
+    return (count = 0, violation_count = 0, max_violation = 0.0, total_violation = 0.0)
 end
 
 function _constraint_violation(

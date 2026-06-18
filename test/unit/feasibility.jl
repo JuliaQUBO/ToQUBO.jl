@@ -1,3 +1,13 @@
+module FeasibilityBackendProbe
+
+struct Model end
+
+function unsafe_backend(::Model)
+    error("backend failed")
+end
+
+end
+
 function _measure_constraint(model, ci, values)
     f = MOI.get(model.source_model, MOI.ConstraintFunction(), ci)
     s = MOI.get(model.source_model, MOI.ConstraintSet(), ci)
@@ -172,11 +182,39 @@ function test_feasibility_public_api()
     @test any(v -> v.violation ≈ 1.0, result_violations)
 
     report = ToQUBO.feasibility_report(model; result = 1:min(result_count(model), 4))
+    all_report = ToQUBO.feasibility_report(model)
 
     @test report.result_count == min(result_count(model), 4)
     @test report.feasible_count < report.result_count
     @test report.max_violation >= 1.0
     @test !isempty(first(report.results).by_constraint_type)
+    @test all_report.result_count == result_count(model)
+    @test all_report.feasible_count <= all_report.result_count
+    @test first(values(first(report.results).by_constraint_type)) isa ToQUBO.ConstraintTypeSummary
+
+    return nothing
+end
+
+function test_feasibility_error_paths()
+    model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
+
+    @variable(model, x, Bin)
+    @objective(model, Min, x)
+
+    @test_throws ErrorException ToQUBO.feasibility_report(model)
+
+    optimize!(model)
+
+    @test_throws ErrorException ToQUBO.violations(model; result = 0)
+    @test_throws ErrorException ToQUBO.violations(model; result = result_count(model) + 1)
+    @test_throws ErrorException ToQUBO.violations(nothing)
+
+    try
+        ToQUBO.violations(FeasibilityBackendProbe.Model())
+        @test false
+    catch err
+        @test occursin("backend failed", sprint(showerror, err))
+    end
 
     return nothing
 end
@@ -186,6 +224,7 @@ function test_feasibility()
         test_feasibility_scalar_measurements()
         test_feasibility_vector_measurements()
         test_feasibility_public_api()
+        test_feasibility_error_paths()
     end
 
     return nothing
