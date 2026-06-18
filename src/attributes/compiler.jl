@@ -1148,18 +1148,6 @@ function MOI.get(model::Optimizer, ::AppliedPenalty, ci::CI)
     return MOI.get(model, ConstraintEncodingPenalty(), ci)
 end
 
-function MOI.set(model::Optimizer{T}, ::AppliedPenalty, ci::CI, ρ) where {T}
-    MOI.set(model, ConstraintEncodingPenalty(), ci, convert(T, ρ))
-
-    return nothing
-end
-
-function MOI.set(model::Optimizer, ::AppliedPenalty, ci::CI, ::Nothing)
-    MOI.set(model, ConstraintEncodingPenalty(), ci, nothing)
-
-    return nothing
-end
-
 @doc raw"""
     ConstraintPenaltyOffset()
 

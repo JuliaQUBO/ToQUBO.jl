@@ -132,6 +132,12 @@ function test_compiler_penalty_scale_and_offset()
     )
     @test MOI.get(hinted_model, Attributes.ConstraintEncodingPenalty(), hinted_c) == -7.0
     @test MOI.get(hinted_model, Attributes.AppliedPenalty(), hinted_c) == -7.0
+    @test_throws MOI.SetAttributeNotAllowed MOI.set(
+        hinted_model,
+        Attributes.AppliedPenalty(),
+        hinted_c,
+        -8.0,
+    )
 
     default_variable_model, default_x = _variable_penalty_test_model()
     scaled_variable_model, scaled_x = _variable_penalty_test_model(;

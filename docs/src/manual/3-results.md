@@ -174,10 +174,11 @@ The metadata guarantees the original source variable order, target QUBO
 variable order, source-to-target `expansion_variables` and `expansion_terms`,
 constraint/slack ownership for generated target variables, penalty terms
 recorded by the compiler, and an `applied_penalties` section with the applied
-constraint, variable-encoding, and slack-variable penalty coefficients. This is
-enough to project a full QUBO state back to original variables. Exact auxiliary
-consistency checks and repair remain encoding-specific and are not guaranteed by
-this metadata contract.
+constraint, variable-encoding, and slack-variable penalty coefficients.
+`applied_penalties` is a convenience view of values also stored on the
+corresponding metadata records. This is enough to project a full QUBO state back
+to original variables. Exact auxiliary consistency checks and repair remain
+encoding-specific and are not guaranteed by this metadata contract.
 
 ```@docs
 ToQUBO.reformulation_metadata
