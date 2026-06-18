@@ -24,6 +24,7 @@ function test_docs()
             read(joinpath(docs_dir, "manual", "4-settings.md"), String)
 
         @test occursin("### Changing Penalty Values", settings_page)
+        @test occursin("```@example penalty-settings", settings_page)
         @test occursin("Attributes.ConstraintPenaltyScale()", settings_page)
         @test occursin("Attributes.SlackVariableEncodingPenaltyHint()", settings_page)
         @test occursin("ToQUBO-specific settings", settings_page)

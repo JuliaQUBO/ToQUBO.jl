@@ -99,7 +99,7 @@ explicit hints unset. If only one constraint needs adjustment, override that
 constraint's automatic scale or offset. Pin exact penalty values only when you
 have a known coefficient to apply.
 
-```julia
+```@example penalty-settings
 using JuMP
 using QUBODrivers
 using ToQUBO
@@ -135,6 +135,11 @@ rho_capacity = get_attribute(capacity, Attributes.ConstraintEncodingPenalty())
 rho_assignment = get_attribute(assignment, Attributes.ConstraintEncodingPenalty())
 eta_capacity = get_attribute(capacity, Attributes.SlackVariableEncodingPenalty())
 theta_z = get_attribute(z, Attributes.VariableEncodingPenalty())
+
+@assert rho_capacity == 48.0
+@assert rho_assignment == 12.0
+@assert eta_capacity == 9.0
+@assert theta_z == 6.0
 ```
 
 Very small `ϵ` values can produce large penalties. That usually means the
