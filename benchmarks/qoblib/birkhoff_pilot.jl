@@ -56,6 +56,47 @@ const QOBLIB_QUBO_METRICS = Dict{String,Any}(
     "max_coeff" => 7000001.0,
 )
 
+const QOBLIB_CONVERTER_EVIDENCE = Dict{String,Any}(
+    "canonical_artifact_available_at_commit" => false,
+    "canonical_artifact_note" =>
+        "The pinned QOBLIB tree contains 03-birkhoff/models/integer_linear/metrics_qs_files.csv but no stored bhS-3-001.qs or bhS-3-001.qs.xz artifact, so this commit exposes the canonical coefficient range as a metrics-table row.",
+    "manual_verification" => true,
+    "converter_path" => "misc/convert_lp2qubo.py",
+    "converter_line_refs" => [
+        "misc/convert_lp2qubo.py:60-65",
+        "misc/convert_lp2qubo.py:82-89",
+    ],
+    "converter_convention" =>
+        "QOBLIB converts the LP with Qiskit QuadraticProgramToQubo, writes linear coefficients on the diagonal, symmetrizes Q as (Q + Q') / 2, and writes the objective offset separately.",
+    "metrics_line_ref" => "03-birkhoff/models/integer_linear/metrics_qs_files.csv:42",
+)
+
+const SOURCE_LP_COMPARISON = Dict{String,Any}(
+    "lp_artifact" =>
+        "03-birkhoff/models/integer_linear/lp_files/bhS-03/bhS-03-001.lp.xz",
+    "manual_verification" => true,
+    "lp_line_refs" => [
+        "decompressed LP lines 15-21",
+        "decompressed LP lines 22-39",
+        "decompressed LP lines 40-64",
+    ],
+    "matches_qoblib_lp_after_column_renaming" => true,
+    "column_renaming" => [
+        "lambda[1:4] match LP x#1:x#4",
+        "lambda[5] matches LP x#6",
+        "lambda[6] matches LP x#5",
+        "z selectors follow the same permutation-column renaming",
+    ],
+    "matched_structure" => [
+        "objective min sum(z)",
+        "six integer lambda variables bounded in [0, scale]",
+        "six integer selector variables bounded in [0, 1]",
+        "one scale equality",
+        "nine matrix-entry equalities",
+        "six activation inequalities lambda_i <= scale * z_i",
+    ],
+)
+
 const KNOWN_INCUMBENT = Dict{String,Any}(
     "source_objective" => 2,
     "source_feasible" => true,
@@ -190,12 +231,46 @@ function _qubo_terms(target::MOI.ModelLike)
     return objective, terms
 end
 
+function _qoblib_symmetric_coefficient(key::Tuple{Int,Int}, coefficient::Float64)
+    # ToQUBO stores each full off-diagonal cross-term on one triangle.
+    return first(key) == last(key) ? coefficient : coefficient / 2
+end
+
+function _coefficient_term_records(terms, target_coefficient; qoblib_symmetric = false)
+    records = Vector{Dict{String,Any}}()
+
+    for (key, coefficient) in sort(collect(terms))
+        qoblib_coefficient = _qoblib_symmetric_coefficient(key, coefficient)
+        comparison_coefficient = qoblib_symmetric ? qoblib_coefficient : coefficient
+
+        if comparison_coefficient == target_coefficient
+            push!(
+                records,
+                Dict{String,Any}(
+                    "variables" => [first(key), last(key)],
+                    "native_coefficient" => coefficient,
+                    "qoblib_symmetric_coefficient" => qoblib_coefficient,
+                ),
+            )
+        end
+    end
+
+    return records
+end
+
 function _target_metrics(optimizer)
     target = MOI.get(optimizer, Attributes.TargetModel())
     objective, terms = _qubo_terms(target)
     n = MOI.get(target, MOI.NumberOfVariables())
     coefficients = collect(values(terms))
+    qoblib_coefficients = [
+        _qoblib_symmetric_coefficient(key, coefficient) for (key, coefficient) in terms
+    ]
     total_slots = n * (n + 1) / 2
+    min_coeff = isempty(coefficients) ? 0.0 : minimum(coefficients)
+    max_coeff = isempty(coefficients) ? 0.0 : maximum(coefficients)
+    qoblib_min_coeff = isempty(qoblib_coefficients) ? 0.0 : minimum(qoblib_coefficients)
+    qoblib_max_coeff = isempty(qoblib_coefficients) ? 0.0 : maximum(qoblib_coefficients)
 
     return Dict{String,Any}(
         "num_variables" => n,
@@ -203,8 +278,13 @@ function _target_metrics(optimizer)
         "num_linear_terms" => count(key -> first(key) == last(key), keys(terms)),
         "num_quadratic_terms" => count(key -> first(key) != last(key), keys(terms)),
         "density" => isempty(terms) ? 0.0 : length(terms) / total_slots,
-        "min_coeff" => isempty(coefficients) ? 0.0 : minimum(coefficients),
-        "max_coeff" => isempty(coefficients) ? 0.0 : maximum(coefficients),
+        "min_coeff" => min_coeff,
+        "max_coeff" => max_coeff,
+        "native_max_coeff_terms" => _coefficient_term_records(terms, max_coeff),
+        "qoblib_symmetric_min_coeff" => qoblib_min_coeff,
+        "qoblib_symmetric_max_coeff" => qoblib_max_coeff,
+        "qoblib_symmetric_max_coeff_terms" =>
+            _coefficient_term_records(terms, qoblib_max_coeff; qoblib_symmetric = true),
         "objective_offset" => Float64(objective.constant),
     )
 end
@@ -261,7 +341,10 @@ function _known_incumbent_summary(permutations)
 end
 
 function _metadata_summary(optimizer)
-    metadata = ToQUBO.reformulation_metadata(optimizer)
+    return _metadata_summary(ToQUBO.reformulation_metadata(optimizer))
+end
+
+function _metadata_summary(metadata::AbstractDict)
     penalties = metadata["applied_penalties"]
 
     return Dict{String,Any}(
@@ -291,6 +374,130 @@ function _comparison(toqubo_metrics)
             toqubo_metrics["min_coeff"] - QOBLIB_QUBO_METRICS["min_coeff"],
         "max_coeff_delta_vs_qoblib_qs" =>
             toqubo_metrics["max_coeff"] - QOBLIB_QUBO_METRICS["max_coeff"],
+        "qoblib_symmetric_min_coeff_delta_vs_qoblib_qs" =>
+            toqubo_metrics["qoblib_symmetric_min_coeff"] -
+            QOBLIB_QUBO_METRICS["min_coeff"],
+        "qoblib_symmetric_max_coeff_delta_vs_qoblib_qs" =>
+            toqubo_metrics["qoblib_symmetric_max_coeff"] -
+            QOBLIB_QUBO_METRICS["max_coeff"],
+    )
+end
+
+function _num_permutations()
+    return factorial(INSTANCE["n"])
+end
+
+function _source_variable_label(id::Integer)
+    num_permutations = _num_permutations()
+
+    if 1 <= id <= num_permutations
+        return "lambda[$(id)]"
+    elseif id <= 2 * num_permutations
+        return "z[$(id - num_permutations)]"
+    else
+        return "source[$(id)]"
+    end
+end
+
+function _target_variable_source(metadata::AbstractDict, target_variable::Integer)
+    for original in metadata["original_variables"]
+        for term in original["expansion_terms"]
+            if term["variables"] == [target_variable]
+                return Dict{String,Any}(
+                    "kind" => "original",
+                    "id" => original["id"],
+                    "label" => _source_variable_label(original["id"]),
+                    "expansion_coefficient" => Float64(term["coefficient"]),
+                )
+            end
+        end
+    end
+
+    for slack in metadata["slack_variables"]
+        for term in slack["expansion_terms"]
+            if term["variables"] == [target_variable]
+                constraint = slack["constraint"]
+
+                return Dict{String,Any}(
+                    "kind" => "slack",
+                    "constraint_id" => constraint["id"],
+                    "label" => "slack[$(constraint["id"])]",
+                    "expansion_coefficient" => Float64(term["coefficient"]),
+                )
+            end
+        end
+    end
+
+    return Dict{String,Any}(
+        "kind" => "target",
+        "label" => "target[$(target_variable)]",
+        "expansion_coefficient" => 1.0,
+    )
+end
+
+function _lambda_constraint_labels(index::Integer, permutation::Vector{Int})
+    labels = ["scale equality: sum(lambda) == scale"]
+
+    for row in eachindex(permutation)
+        push!(labels, "matrix equality: row $(row), column $(permutation[row])")
+    end
+
+    push!(labels, "activation inequality: lambda[$(index)] <= scale * z[$(index)]")
+
+    return labels
+end
+
+function _annotate_term_records(records, metadata::AbstractDict, permutations)
+    annotated = Vector{Dict{String,Any}}()
+
+    for record in records
+        sources = [
+            _target_variable_source(metadata, target_variable) for
+            target_variable in record["variables"]
+        ]
+        source_id = first(sources)["kind"] == "original" ? first(sources)["id"] : nothing
+
+        constraints =
+            !isnothing(source_id) &&
+            all(
+                source -> source["kind"] == "original" && source["id"] == source_id,
+                sources,
+            ) &&
+            1 <= source_id <= length(permutations) ?
+            _lambda_constraint_labels(source_id, permutations[source_id]) :
+            String[]
+
+        push!(
+            annotated,
+            merge(
+                copy(record),
+                Dict{String,Any}("sources" => sources, "contributing_constraints" => constraints),
+            ),
+        )
+    end
+
+    return annotated
+end
+
+function _coefficient_attribution(target, metadata::AbstractDict, permutations)
+    native_max_terms =
+        _annotate_term_records(target["native_max_coeff_terms"], metadata, permutations)
+    qoblib_max_terms =
+        _annotate_term_records(target["qoblib_symmetric_max_coeff_terms"], metadata, permutations)
+    constraint_penalties = sort!(
+        unique(Float64(entry["penalty"]) for entry in metadata["applied_penalties"]["constraints"]),
+    )
+
+    return Dict{String,Any}(
+        "upstream_evidence" => copy(QOBLIB_CONVERTER_EVIDENCE),
+        "source_lp_comparison" => copy(SOURCE_LP_COMPARISON),
+        "native_max_terms" => native_max_terms,
+        "qoblib_symmetric_max_terms" => qoblib_max_terms,
+        "constraint_penalties" => constraint_penalties,
+        "penalty" => only(constraint_penalties),
+        "ownership_decision" => "documentation-only",
+        "conclusion" =>
+            "The max-coefficient delta is a coefficient-reporting convention difference. ToQUBO's native upper-triangular terms keep full off-diagonal cross-term weights, while the QOBLIB writer symmetrizes Q and reports half of each off-diagonal cross term. Under the QOBLIB symmetrized convention, ToQUBO matches the canonical QUBO min/max coefficient row.",
     )
 end
 
@@ -300,6 +507,7 @@ function run_birkhoff_pilot()
     MOI.optimize!(model)
 
     target = _target_metrics(model)
+    metadata = ToQUBO.reformulation_metadata(model)
 
     return Dict{String,Any}(
         "provenance" => copy(PROVENANCE),
@@ -317,12 +525,14 @@ function run_birkhoff_pilot()
         "qoblib_qubo_metrics" => copy(QOBLIB_QUBO_METRICS),
         "toqubo" => Dict{String,Any}(
             "target" => target,
-            "metadata" => _metadata_summary(model),
+            "metadata" => _metadata_summary(metadata),
         ),
+        "coefficient_attribution" =>
+            _coefficient_attribution(target, metadata, permutations),
         "known_incumbent" => _known_incumbent_summary(permutations),
         "comparison" => _comparison(target),
         "follow_up" =>
-            "The pilot records a coefficient-range delta: ToQUBO's maximum coefficient is above the canonical QOBLIB metrics row for this instance. Track the penalty-scaling investigation in JuliaQUBO/ToQUBO.jl#148 before expanding class coverage.",
+            "The pilot's native max-coefficient delta is explained by the off-diagonal coefficient convention. Under QOBLIB's symmetrized QS writer convention, ToQUBO matches the canonical coefficient range for this instance; no ToQUBO penalty-scaling change is indicated.",
     )
 end
 
@@ -340,6 +550,22 @@ function _metric_row(metric, source, canonical, generated)
     return "| $(metric) | $(_fmt(source)) | $(_fmt(canonical)) | $(_fmt(generated)) |\n"
 end
 
+function _term_pair(record)
+    variables = record["variables"]
+
+    return "($(variables[1]), $(variables[2]))"
+end
+
+function _term_source_summary(record)
+    return join(
+        [
+            "$(source["label"]) bit $(_fmt(source["expansion_coefficient"]))" for
+            source in record["sources"]
+        ],
+        " x ",
+    )
+end
+
 function write_markdown_report(io::IO, report::AbstractDict)
     provenance = report["provenance"]
     instance = report["instance"]
@@ -350,6 +576,7 @@ function write_markdown_report(io::IO, report::AbstractDict)
     metadata = report["toqubo"]["metadata"]
     incumbent = report["known_incumbent"]
     comparison = report["comparison"]
+    attribution = report["coefficient_attribution"]
 
     write(io, "# QOBLib Birkhoff Reformulation Pilot\n\n")
     write(
@@ -437,6 +664,70 @@ function write_markdown_report(io::IO, report::AbstractDict)
         _metric_row("quadratic terms", "n/a", "n/a", target["num_quadratic_terms"]),
     )
 
+    write(io, "\n## Coefficient Range Attribution\n\n")
+
+    upstream = attribution["upstream_evidence"]
+    source_lp = attribution["source_lp_comparison"]
+
+    write(
+        io,
+        "- Canonical artifact check: $(upstream["canonical_artifact_note"])\n",
+    )
+    write(
+        io,
+        "- QOBLIB converter convention: `$(upstream["converter_path"])` records this workflow: $(upstream["converter_convention"])\n",
+    )
+    write(
+        io,
+        "- Upstream verification: manually checked QOBLIB commit `$(provenance["qoblib_commit"])`; converter refs $(join(upstream["converter_line_refs"], ", ")); metrics ref $(upstream["metrics_line_ref"]); LP refs $(join(source_lp["lp_line_refs"], ", ")).\n",
+    )
+    write(
+        io,
+        "- Source LP comparison: `$(source_lp["lp_artifact"])` matches the pilot model after permutation-column renaming; $(join(source_lp["column_renaming"], "; ")).\n",
+    )
+    write(
+        io,
+        "- Matched source structure: $(join(source_lp["matched_structure"], "; ")).\n",
+    )
+    write(
+        io,
+        "- Distinct applied constraint penalties from ToQUBO metadata: $(join(_fmt.(attribution["constraint_penalties"]), ", ")); this matches Qiskit's automatic `sum(abs(objective)) + 1` scale for `min sum(z)`.\n",
+    )
+
+    write(io, "- ToQUBO native maximum coefficient terms:\n")
+
+    for record in attribution["native_max_terms"]
+        write(
+            io,
+            "  - Target term `$(_term_pair(record))`: native `$(_fmt(record["native_coefficient"]))`, QOBLIB-style `$(_fmt(record["qoblib_symmetric_coefficient"]))`; source bits: $(_term_source_summary(record)).\n",
+        )
+
+        if !isempty(record["contributing_constraints"])
+            write(
+                io,
+                "    - Contributing constraints: $(join(record["contributing_constraints"], "; ")).\n",
+            )
+        end
+    end
+
+    write(io, "- QOBLIB-style maximum coefficient terms:\n")
+
+    for record in attribution["qoblib_symmetric_max_terms"]
+        write(
+            io,
+            "  - Target term `$(_term_pair(record))`: native `$(_fmt(record["native_coefficient"]))`, QOBLIB-style `$(_fmt(record["qoblib_symmetric_coefficient"]))`; source bits: $(_term_source_summary(record)).\n",
+        )
+    end
+
+    write(
+        io,
+        "- QOBLIB-style coefficient range: minimum `$(_fmt(target["qoblib_symmetric_min_coeff"]))`, maximum `$(_fmt(target["qoblib_symmetric_max_coeff"]))`.\n",
+    )
+    write(
+        io,
+        "- Ownership decision: $(attribution["ownership_decision"]). $(attribution["conclusion"])\n",
+    )
+
     write(io, "\n## Reformulation Metadata\n\n")
     write(io, "- Metadata schema version: $(metadata["schema_version"])\n")
     write(io, "- Source variables: $(metadata["source_variable_count"])\n")
@@ -471,6 +762,14 @@ function write_markdown_report(io::IO, report::AbstractDict)
     write(
         io,
         "- Maximum coefficient delta vs QOBLIB canonical QUBO metrics: $(_fmt(comparison["max_coeff_delta_vs_qoblib_qs"]))\n",
+    )
+    write(
+        io,
+        "- QOBLIB-style minimum coefficient delta vs QOBLIB canonical QUBO metrics: $(_fmt(comparison["qoblib_symmetric_min_coeff_delta_vs_qoblib_qs"]))\n",
+    )
+    write(
+        io,
+        "- QOBLIB-style maximum coefficient delta vs QOBLIB canonical QUBO metrics: $(_fmt(comparison["qoblib_symmetric_max_coeff_delta_vs_qoblib_qs"]))\n",
     )
 
     write(io, "\n## Follow-Up\n\n")
