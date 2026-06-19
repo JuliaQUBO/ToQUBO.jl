@@ -1,6 +1,7 @@
 include(joinpath(@__DIR__, "..", "..", "benchmarks", "qoblib", "birkhoff_pilot.jl"))
 include(joinpath(@__DIR__, "..", "..", "benchmarks", "qoblib", "steiner_pilot.jl"))
 include(joinpath(@__DIR__, "..", "..", "benchmarks", "qoblib", "sports_pilot.jl"))
+include(joinpath(@__DIR__, "..", "..", "benchmarks", "qoblib", "network_pilot.jl"))
 
 function _normalized_file(path)
     return replace(read(path, String), "\r\n" => "\n")
@@ -254,6 +255,90 @@ function test_qoblib_benchmark_pilot()
         @test occursin("Addition_000_Small.lp", markdown)
         @test occursin("QOBLIB-style coefficient range", markdown)
         @test occursin("Redundant source constraints detected", markdown)
+        @test occursin("QOBLIB solution artifact consistency check: pass", markdown)
+        @test markdown == _normalized_file(report_path)
+
+        report = QOBLibNetworkPilot.run_network_pilot()
+
+        @test report["provenance"]["canonical_qoblib_artifact"] === false
+        @test report["provenance"]["collection"] ==
+              "ToQUBO-generated reformulation benchmark"
+        @test report["provenance"]["qoblib_class"] == "08-network"
+        @test report["provenance"]["source_model_path"] ==
+              "08-network/models/integer_lp/d3ver0int.zpl"
+        @test report["provenance"]["canonical_qubo_metrics_csv_row"] ==
+              "network05.qs,3640,0.05271012974940467,-4.75713475713e+17,4.5260616934376417e+18"
+        @test report["instance"]["qoblib_id"] == "network05"
+
+        verification = report["upstream_verification"]
+        @test verification["manual_verification"] === true
+        @test "08-network/models/integer_lp/d3ver0int.zpl:66-84" in
+              verification["model_line_refs"]
+        @test "08-network/solutions/network05.opt.sol:24-103" in
+              verification["solution_line_refs"]
+
+        source = report["source"]
+        @test source["generated_metrics"]["num_vars"] == 101
+        @test source["generated_metrics"]["num_linear_constraints"] == 130
+        @test source["generated_metrics"]["num_flow_balance_constraints"] == 20
+        @test source["generated_metrics"]["num_arc_linking_constraints"] == 80
+        @test source["generated_metrics"]["num_edge_capacity_constraints"] == 20
+        @test source["qoblib_metrics"]["density"] == 0.03351104341203351
+
+        target = report["toqubo"]["target"]
+        @test target["num_variables"] == 3661
+        @test target["num_terms"] == 350272
+        @test target["num_quadratic_terms"] == 346611
+        @test isapprox(target["density"], 0.05225373626178544; rtol = 1e-14)
+        @test isapprox(target["min_coeff"], -2.3688802611453573e26; rtol = 1e-14)
+        @test isapprox(target["max_coeff"], 2.3688762012720738e26; rtol = 1e-14)
+        @test isapprox(target["objective_offset"], 2.737918134653359e23; rtol = 1e-14)
+
+        metadata = report["toqubo"]["metadata"]
+        @test metadata["source_variable_count"] == 101
+        @test metadata["target_variable_count"] == target["num_variables"]
+        @test metadata["auxiliary_variable_count"] == 2021
+        @test metadata["slack_variable_count"] == 100
+        @test metadata["constraint_penalty_count"] == 130
+        @test length(metadata["constraint_penalties"]) == 23
+        @test metadata["encoding_types"] == ["Binary"]
+
+        comparison = report["comparison"]
+        @test comparison["canonical_qubo_metrics_available"] === true
+        @test comparison["target_variable_delta_vs_qoblib_qs"] == 21
+        @test isapprox(
+            comparison["density_delta_vs_qoblib_qs"],
+            -0.0004563934876192291;
+            rtol = 1e-14,
+        )
+
+        incumbent = report["known_incumbent"]
+        @test incumbent["source_objective"] == 65_500
+        @test incumbent["source_feasible"] === true
+        @test incumbent["flow_balance_feasible"] === true
+        @test incumbent["edge_capacity_feasible"] === true
+        @test incumbent["positive_flow_count"] == 17
+        @test incumbent["max_aggregate_edge_load"] == 65_500
+        @test incumbent["matches_qoblib_solution_artifact"] === true
+
+        io = IOBuffer()
+        QOBLibNetworkPilot.write_markdown_report(io, report)
+        markdown = replace(String(take!(io)), "\r\n" => "\n")
+        report_path = joinpath(
+            @__DIR__,
+            "..",
+            "..",
+            "benchmarks",
+            "qoblib",
+            "reports",
+            "network_pilot.md",
+        )
+
+        @test occursin("not a canonical QOBLIB artifact", markdown)
+        @test occursin("QOBLib Network Reformulation Pilot", markdown)
+        @test occursin("network05.lp", markdown)
+        @test occursin("Canonical QUBO artifact available at pinned commit: false", markdown)
+        @test occursin("Flow-balance constraints: 20", markdown)
         @test occursin("QOBLIB solution artifact consistency check: pass", markdown)
         @test markdown == _normalized_file(report_path)
     end

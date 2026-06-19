@@ -117,3 +117,36 @@ instance. The generated report documents the known feasible schedule from the
 QOBLIB solution artifact, four redundant hard constraints that ToQUBO detects as
 always feasible, and the QOBLIB-style symmetrized coefficient range used for QS
 metric comparison.
+
+## Network Pilot
+
+Run the Network pilot report generator from the repository root:
+
+```bash
+julia --project=. benchmarks/qoblib/network_pilot.jl
+```
+
+The script builds the QOBLIB integer network design model for `network05`
+through MathOptInterface and compiles it with `ToQUBO.Optimizer`. It writes a
+Markdown comparison report to `benchmarks/qoblib/reports/network_pilot.md`.
+
+The embedded pilot data is the smallest network instance from QOBLIB:
+
+- upstream repository: `https://github.com/ZIB-AOPT/QOBLIB`;
+- upstream commit used for provenance: `a686aaa09fe14651294f744f34d453d5dce9cf57`;
+- source model path: `08-network/models/integer_lp/d3ver0int.zpl`;
+- source demand path: `08-network/instances/demand.txt`;
+- source LP path: `08-network/models/integer_lp/lp_files/network05.lp.xz`;
+- source solution path: `08-network/solutions/network05.opt.sol`;
+- source LP metrics path:
+  `08-network/models/integer_lp/lp_files/metrics.csv`, row `network05.lp`;
+- canonical QUBO metrics path:
+  `08-network/models/integer_lp/metrics_qs_files.csv`, row `network05.qs`;
+- QOBLIB data license: Creative Commons Attribution 4.0 International.
+
+The pilot transcribes the `num_nodes=5` network design model with fixed in- and
+out-degree constraints, source-indexed integer flow balance, arc-linking
+constraints, and the max-load objective. The generated report documents the
+known QOBLIB feasible solution, ToQUBO target metrics, penalty and encoding
+metadata, and the absence of a stored `network05.qs` artifact at the pinned
+commit.
