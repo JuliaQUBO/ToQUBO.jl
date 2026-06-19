@@ -13,6 +13,16 @@ const PROVENANCE = Dict{String,Any}(
     "qoblib_class" => "04-steiner",
     "source_model_path" => "04-steiner/models/integer_linear/stp_node_disjoint.zpl",
     "source_instance_path" => "04-steiner/instances/stp_s003_l1_t2_h0_rs97531",
+    "source_param_path" =>
+        "04-steiner/instances/stp_s003_l1_t2_h0_rs97531/param.dat",
+    "source_terms_path" =>
+        "04-steiner/instances/stp_s003_l1_t2_h0_rs97531/terms.dat",
+    "source_roots_path" =>
+        "04-steiner/instances/stp_s003_l1_t2_h0_rs97531/roots.dat",
+    "source_arcs_path" =>
+        "04-steiner/instances/stp_s003_l1_t2_h0_rs97531/arcs.dat",
+    "source_solution_path" =>
+        "04-steiner/instances/stp_s003_l1_t2_h0_rs97531/sol.txt",
     "source_metrics_path" => "04-steiner/models/integer_linear/lp_files/metrics.csv",
     "source_metrics_csv_row" =>
         "stp_s003_l1_t2_h0_rs97531.lp,0,48,0,48,44,0,44,0.056818181818181816,-1.0,1.0",
@@ -21,6 +31,32 @@ const PROVENANCE = Dict{String,Any}(
     "canonical_qubo_metrics_available" => false,
     "canonical_qubo_metrics_note" =>
         "The pinned QOBLIB metrics_qs_files.csv has rows for larger Steiner instances, but no row or stored QS artifact for stp_s003_l1_t2_h0_rs97531; this pilot reports ToQUBO-generated QUBO metrics for the smallest source instance instead.",
+)
+
+const UPSTREAM_VERIFICATION = Dict{String,Any}(
+    "manual_verification" => true,
+    "model_line_refs" => [
+        "04-steiner/models/integer_linear/stp_node_disjoint.zpl:30-49",
+        "04-steiner/models/integer_linear/stp_node_disjoint.zpl:51-104",
+    ],
+    "instance_line_refs" => [
+        "04-steiner/instances/stp_s003_l1_t2_h0_rs97531/param.dat:10-11",
+        "04-steiner/instances/stp_s003_l1_t2_h0_rs97531/terms.dat:11-12",
+        "04-steiner/instances/stp_s003_l1_t2_h0_rs97531/roots.dat:11",
+        "04-steiner/instances/stp_s003_l1_t2_h0_rs97531/arcs.dat:11-34",
+    ],
+    "solution_line_refs" => [
+        "04-steiner/instances/stp_s003_l1_t2_h0_rs97531/sol.txt:1",
+        "04-steiner/instances/stp_s003_l1_t2_h0_rs97531/sol.txt:4-7",
+    ],
+    "metrics_line_ref" => "04-steiner/models/integer_linear/lp_files/metrics.csv:2",
+    "transcription_notes" => [
+        "param.dat lines 10-11 define 9 nodes and 1 net",
+        "terms.dat lines 11-12 identify terminal node 9 and root node 1 for net 1",
+        "roots.dat line 11 identifies root node 1",
+        "arcs.dat lines 11-34 are transcribed in order as the 24 directed unit-cost arcs",
+        "sol.txt line 1 gives cost 4 and lines 4-7 give the four active solution arcs",
+    ],
 )
 
 const INSTANCE = Dict{String,Any}(
@@ -89,9 +125,9 @@ const QOBLIB_QUBO_METRICS = Dict{String,Any}(
 )
 
 const KNOWN_INCUMBENT = Dict{String,Any}(
-    "source_objective" => 4,
-    "source_feasible" => true,
-    "active_arcs" => [(1, 2), (2, 3), (3, 6), (6, 9)],
+    "qoblib_solution_cost" => 4,
+    "active_flow_arcs" => [(1, 2), (2, 3), (3, 6), (6, 9)],
+    "active_selected_arcs" => [(1, 2), (2, 3), (3, 6), (6, 9)],
     "solution_path" => "1 -> 2 -> 3 -> 6 -> 9",
 )
 
@@ -115,6 +151,14 @@ function _indices_with_head(node::Integer)
     return [index for index in eachindex(ARCS) if _arc_head(index) == node]
 end
 
+function _normal_nodes()
+    return setdiff(collect(1:INSTANCE["nodes"]), INSTANCE["special_nodes"])
+end
+
+function _nonroot_nodes()
+    return setdiff(collect(1:INSTANCE["nodes"]), INSTANCE["roots"])
+end
+
 function _affine(terms::Vector{MOI.ScalarAffineTerm{Float64}}, constant = 0.0)
     return MOI.ScalarAffineFunction{Float64}(terms, Float64(constant))
 end
@@ -128,13 +172,25 @@ function _add_binary_integer_variable(model)
     return variable
 end
 
+function _add_counted_constraint(model, func, set, counts::AbstractDict, category::String)
+    MOI.add_constraint(model, func, set)
+    counts[category] = get(counts, category, 0) + 1
+
+    return nothing
+end
+
 function _build_steiner_model()
     model = ToQUBO.Optimizer{Float64}()
     x = [_add_binary_integer_variable(model) for _ in eachindex(ARCS)]
     y = [_add_binary_integer_variable(model) for _ in eachindex(ARCS)]
     root = only(INSTANCE["roots"])
     term = only(INSTANCE["terms"])
-    normal_nodes = setdiff(collect(1:INSTANCE["nodes"]), INSTANCE["special_nodes"])
+    normal_nodes = _normal_nodes()
+    constraint_counts = Dict{String,Int}(
+        "flow" => 0,
+        "binding" => 0,
+        "disjointness" => 0,
+    )
 
     MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
     MOI.set(
@@ -146,37 +202,45 @@ function _build_steiner_model()
         ]),
     )
 
-    MOI.add_constraint(
+    _add_counted_constraint(
         model,
         _affine([
             MOI.ScalarAffineTerm{Float64}(1.0, x[index]) for
             index in _indices_with_tail(root)
         ]),
         MOI.EqualTo(1.0),
+        constraint_counts,
+        "flow",
     )
-    MOI.add_constraint(
+    _add_counted_constraint(
         model,
         _affine([
             MOI.ScalarAffineTerm{Float64}(1.0, x[index]) for
             index in _indices_with_head(root)
         ]),
         MOI.EqualTo(0.0),
+        constraint_counts,
+        "flow",
     )
-    MOI.add_constraint(
+    _add_counted_constraint(
         model,
         _affine([
             MOI.ScalarAffineTerm{Float64}(1.0, x[index]) for
             index in _indices_with_tail(term)
         ]),
         MOI.EqualTo(0.0),
+        constraint_counts,
+        "flow",
     )
-    MOI.add_constraint(
+    _add_counted_constraint(
         model,
         _affine([
             MOI.ScalarAffineTerm{Float64}(1.0, x[index]) for
             index in _indices_with_head(term)
         ]),
         MOI.EqualTo(1.0),
+        constraint_counts,
+        "flow",
     )
 
     for node in normal_nodes
@@ -197,41 +261,53 @@ function _build_steiner_model()
             ],
         )
 
-        MOI.add_constraint(model, _affine(terms), MOI.EqualTo(0.0))
+        _add_counted_constraint(
+            model,
+            _affine(terms),
+            MOI.EqualTo(0.0),
+            constraint_counts,
+            "flow",
+        )
     end
 
     for index in eachindex(ARCS)
-        MOI.add_constraint(
+        _add_counted_constraint(
             model,
             _affine([
                 MOI.ScalarAffineTerm{Float64}(1.0, x[index]),
                 MOI.ScalarAffineTerm{Float64}(-1.0, y[index]),
             ]),
             MOI.LessThan(0.0),
+            constraint_counts,
+            "binding",
         )
     end
 
-    for node in setdiff(collect(1:INSTANCE["nodes"]), INSTANCE["roots"])
-        MOI.add_constraint(
+    for node in _nonroot_nodes()
+        _add_counted_constraint(
             model,
             _affine([
                 MOI.ScalarAffineTerm{Float64}(1.0, y[index]) for
                 index in _indices_with_head(node)
             ]),
             MOI.LessThan(1.0),
+            constraint_counts,
+            "disjointness",
         )
     end
 
-    MOI.add_constraint(
+    _add_counted_constraint(
         model,
         _affine([
             MOI.ScalarAffineTerm{Float64}(1.0, y[index]) for
             index in _indices_with_head(root)
         ]),
         MOI.LessThan(0.0),
+        constraint_counts,
+        "disjointness",
     )
 
-    return model, x, y
+    return model, x, y, constraint_counts
 end
 
 function _term_key(vi::MOI.VariableIndex, vj::MOI.VariableIndex)
@@ -280,18 +356,20 @@ function _target_metrics(optimizer)
     )
 end
 
-function _source_metrics()
+function _source_metrics(constraint_counts::AbstractDict)
+    num_constraints = sum(values(constraint_counts))
+
     return Dict{String,Any}(
         "num_binary_vars" => 0,
         "num_integer_vars" => length(ARCS) * 2,
         "num_continuous_vars" => 0,
         "num_vars" => length(ARCS) * 2,
-        "num_linear_constraints" => 44,
+        "num_linear_constraints" => num_constraints,
         "num_quadratic_constraints" => 0,
-        "num_constraints" => 44,
-        "num_flow_constraints" => 11,
-        "num_binding_constraints" => length(ARCS),
-        "num_disjointness_constraints" => 9,
+        "num_constraints" => num_constraints,
+        "num_flow_constraints" => constraint_counts["flow"],
+        "num_binding_constraints" => constraint_counts["binding"],
+        "num_disjointness_constraints" => constraint_counts["disjointness"],
     )
 end
 
@@ -322,16 +400,23 @@ function _metadata_summary(metadata::AbstractDict)
 end
 
 function _known_incumbent_summary()
-    active = Set(KNOWN_INCUMBENT["active_arcs"])
+    active_flow = Set(KNOWN_INCUMBENT["active_flow_arcs"])
+    active_selected = Set(KNOWN_INCUMBENT["active_selected_arcs"])
     root = only(INSTANCE["roots"])
     term = only(INSTANCE["terms"])
-    normal_nodes = setdiff(collect(1:INSTANCE["nodes"]), INSTANCE["special_nodes"])
+    normal_nodes = _normal_nodes()
     active_indices = [
-        index for index in eachindex(ARCS) if (_arc_tail(index), _arc_head(index)) in active
+        index for index in eachindex(ARCS) if
+        (_arc_tail(index), _arc_head(index)) in active_flow
+    ]
+    selected_indices = [
+        index for index in eachindex(ARCS) if
+        (_arc_tail(index), _arc_head(index)) in active_selected
     ]
     out_count(node) = count(index -> _arc_tail(index) == node, active_indices)
     in_count(node) = count(index -> _arc_head(index) == node, active_indices)
-    source_objective = sum(_arc_cost(index) for index in active_indices)
+    selected_in_count(node) = count(index -> _arc_head(index) == node, selected_indices)
+    source_objective = sum(_arc_cost(index) for index in selected_indices)
     flow_feasible =
         out_count(root) == 1 &&
         in_count(root) == 0 &&
@@ -339,23 +424,27 @@ function _known_incumbent_summary()
         in_count(term) == 1 &&
         all(node -> out_count(node) - in_count(node) == 0, normal_nodes)
     disjoint_feasible =
-        all(node -> in_count(node) <= 1, setdiff(collect(1:INSTANCE["nodes"]), INSTANCE["roots"])) &&
-        in_count(root) == 0
-    x_active(index) = (_arc_tail(index), _arc_head(index)) in active
-    y_active(index) = (_arc_tail(index), _arc_head(index)) in active
+        all(node -> selected_in_count(node) <= 1, _nonroot_nodes()) &&
+        selected_in_count(root) == 0
+    x_active(index) = (_arc_tail(index), _arc_head(index)) in active_flow
+    y_active(index) = (_arc_tail(index), _arc_head(index)) in active_selected
     binding_feasible = all(index -> !x_active(index) || y_active(index), eachindex(ARCS))
     source_feasible = flow_feasible && disjoint_feasible && binding_feasible
+    solution_artifact_matches =
+        source_objective == KNOWN_INCUMBENT["qoblib_solution_cost"] && source_feasible
 
     return Dict{String,Any}(
         "source_objective" => source_objective,
+        "qoblib_solution_cost" => KNOWN_INCUMBENT["qoblib_solution_cost"],
         "source_feasible" => source_feasible,
         "flow_feasible" => flow_feasible,
         "disjointness_feasible" => disjoint_feasible,
         "binding_feasible" => binding_feasible,
-        "active_arcs" => [collect(arc) for arc in KNOWN_INCUMBENT["active_arcs"]],
+        "active_flow_arcs" => [collect(arc) for arc in KNOWN_INCUMBENT["active_flow_arcs"]],
+        "active_selected_arcs" =>
+            [collect(arc) for arc in KNOWN_INCUMBENT["active_selected_arcs"]],
         "solution_path" => KNOWN_INCUMBENT["solution_path"],
-        "matches_qoblib_solution_record" =>
-            source_objective == KNOWN_INCUMBENT["source_objective"] && source_feasible,
+        "matches_qoblib_solution_artifact" => solution_artifact_matches,
     )
 end
 
@@ -370,7 +459,7 @@ function _comparison(target)
 end
 
 function run_steiner_pilot()
-    model, _x, _y = _build_steiner_model()
+    model, _x, _y, constraint_counts = _build_steiner_model()
 
     MOI.optimize!(model)
 
@@ -379,6 +468,7 @@ function run_steiner_pilot()
 
     return Dict{String,Any}(
         "provenance" => copy(PROVENANCE),
+        "upstream_verification" => copy(UPSTREAM_VERIFICATION),
         "instance" => copy(INSTANCE),
         "source" => Dict{String,Any}(
             "modeling_assumptions" => [
@@ -397,7 +487,7 @@ function run_steiner_pilot()
                 "0 <= x[index] <= 1, integer",
                 "0 <= y[index] <= 1, integer",
             ],
-            "generated_metrics" => _source_metrics(),
+            "generated_metrics" => _source_metrics(constraint_counts),
             "qoblib_metrics" => copy(QOBLIB_SOURCE_METRICS),
         ),
         "qoblib_qubo_metrics" => copy(QOBLIB_QUBO_METRICS),
@@ -430,6 +520,7 @@ end
 
 function write_markdown_report(io::IO, report::AbstractDict)
     provenance = report["provenance"]
+    verification = report["upstream_verification"]
     instance = report["instance"]
     source = report["source"]
     qoblib_source = source["qoblib_metrics"]
@@ -451,6 +542,7 @@ function write_markdown_report(io::IO, report::AbstractDict)
     write(io, "- QOBLIB class: `$(provenance["qoblib_class"])`\n")
     write(io, "- Source model: `$(provenance["source_model_path"])`\n")
     write(io, "- Source instance: `$(provenance["source_instance_path"])`\n")
+    write(io, "- Source solution: `$(provenance["source_solution_path"])`\n")
     write(io, "- Source metrics: `$(provenance["source_metrics_path"])`\n")
     write(io, "- Source metrics CSV row: `$(provenance["source_metrics_csv_row"])`\n")
     write(io, "- Canonical QUBO metrics: `$(provenance["canonical_qubo_metrics_path"])`\n")
@@ -458,6 +550,22 @@ function write_markdown_report(io::IO, report::AbstractDict)
     write(io, "- Canonical QUBO metrics note: $(provenance["canonical_qubo_metrics_note"])\n")
     write(io, "- Data license: $(provenance["qoblib_data_license"])\n")
     write(io, "- Generated collection label: $(provenance["collection"])\n\n")
+
+    write(io, "## Upstream Verification\n\n")
+    write(
+        io,
+        "- Manual verification: $(_fmt(verification["manual_verification"])) against QOBLIB commit `$(provenance["qoblib_commit"])`.\n",
+    )
+    write(io, "- Model refs: $(join(verification["model_line_refs"], ", ")).\n")
+    write(io, "- Instance refs: $(join(verification["instance_line_refs"], ", ")).\n")
+    write(io, "- Solution refs: $(join(verification["solution_line_refs"], ", ")).\n")
+    write(io, "- Metrics ref: $(verification["metrics_line_ref"]).\n")
+
+    for note in verification["transcription_notes"]
+        write(io, "- $(note).\n")
+    end
+
+    write(io, "\n")
 
     write(io, "## Instance\n\n")
     write(io, "- QOBLIB id: `$(instance["qoblib_id"])`\n")
@@ -551,12 +659,24 @@ function write_markdown_report(io::IO, report::AbstractDict)
 
     write(io, "\n## Known Incumbent\n\n")
     write(io, "- QOBLIB solution path: $(incumbent["solution_path"])\n")
-    write(io, "- Active arcs: $(join(["($(arc[1]), $(arc[2]))" for arc in incumbent["active_arcs"]], ", "))\n")
+    write(
+        io,
+        "- Active flow arcs: $(join(["($(arc[1]), $(arc[2]))" for arc in incumbent["active_flow_arcs"]], ", "))\n",
+    )
+    write(
+        io,
+        "- Active selected arcs: $(join(["($(arc[1]), $(arc[2]))" for arc in incumbent["active_selected_arcs"]], ", "))\n",
+    )
     write(io, "- Source objective: $(_fmt(incumbent["source_objective"]))\n")
+    write(io, "- QOBLIB solution artifact cost: $(_fmt(incumbent["qoblib_solution_cost"]))\n")
     write(io, "- Source feasible: $(_fmt(incumbent["source_feasible"]))\n")
     write(io, "- Flow feasible: $(_fmt(incumbent["flow_feasible"]))\n")
     write(io, "- Node-disjointness feasible: $(_fmt(incumbent["disjointness_feasible"]))\n")
-    write(io, "- Matches QOBLIB solution record: $(_fmt(incumbent["matches_qoblib_solution_record"]))\n")
+    write(io, "- Binding feasible: $(_fmt(incumbent["binding_feasible"]))\n")
+    write(
+        io,
+        "- QOBLIB solution artifact consistency check: $(_fmt(incumbent["matches_qoblib_solution_artifact"] ? "pass" : "fail"))\n",
+    )
 
     write(io, "\n## Comparison Notes\n\n")
     write(

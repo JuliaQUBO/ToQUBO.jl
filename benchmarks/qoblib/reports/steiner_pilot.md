@@ -9,6 +9,7 @@ This report is a ToQUBO-generated reformulation benchmark. It is not a canonical
 - QOBLIB class: `04-steiner`
 - Source model: `04-steiner/models/integer_linear/stp_node_disjoint.zpl`
 - Source instance: `04-steiner/instances/stp_s003_l1_t2_h0_rs97531`
+- Source solution: `04-steiner/instances/stp_s003_l1_t2_h0_rs97531/sol.txt`
 - Source metrics: `04-steiner/models/integer_linear/lp_files/metrics.csv`
 - Source metrics CSV row: `stp_s003_l1_t2_h0_rs97531.lp,0,48,0,48,44,0,44,0.056818181818181816,-1.0,1.0`
 - Canonical QUBO metrics: `04-steiner/models/integer_linear/metrics_qs_files.csv`
@@ -16,6 +17,19 @@ This report is a ToQUBO-generated reformulation benchmark. It is not a canonical
 - Canonical QUBO metrics note: The pinned QOBLIB metrics_qs_files.csv has rows for larger Steiner instances, but no row or stored QS artifact for stp_s003_l1_t2_h0_rs97531; this pilot reports ToQUBO-generated QUBO metrics for the smallest source instance instead.
 - Data license: Creative Commons Attribution 4.0 International
 - Generated collection label: ToQUBO-generated reformulation benchmark
+
+## Upstream Verification
+
+- Manual verification: true against QOBLIB commit `a686aaa09fe14651294f744f34d453d5dce9cf57`.
+- Model refs: 04-steiner/models/integer_linear/stp_node_disjoint.zpl:30-49, 04-steiner/models/integer_linear/stp_node_disjoint.zpl:51-104.
+- Instance refs: 04-steiner/instances/stp_s003_l1_t2_h0_rs97531/param.dat:10-11, 04-steiner/instances/stp_s003_l1_t2_h0_rs97531/terms.dat:11-12, 04-steiner/instances/stp_s003_l1_t2_h0_rs97531/roots.dat:11, 04-steiner/instances/stp_s003_l1_t2_h0_rs97531/arcs.dat:11-34.
+- Solution refs: 04-steiner/instances/stp_s003_l1_t2_h0_rs97531/sol.txt:1, 04-steiner/instances/stp_s003_l1_t2_h0_rs97531/sol.txt:4-7.
+- Metrics ref: 04-steiner/models/integer_linear/lp_files/metrics.csv:2.
+- param.dat lines 10-11 define 9 nodes and 1 net.
+- terms.dat lines 11-12 identify terminal node 9 and root node 1 for net 1.
+- roots.dat line 11 identifies root node 1.
+- arcs.dat lines 11-34 are transcribed in order as the 24 directed unit-cost arcs.
+- sol.txt line 1 gives cost 4 and lines 4-7 give the four active solution arcs.
 
 ## Instance
 
@@ -75,12 +89,15 @@ This report is a ToQUBO-generated reformulation benchmark. It is not a canonical
 ## Known Incumbent
 
 - QOBLIB solution path: 1 -> 2 -> 3 -> 6 -> 9
-- Active arcs: (1, 2), (2, 3), (3, 6), (6, 9)
+- Active flow arcs: (1, 2), (2, 3), (3, 6), (6, 9)
+- Active selected arcs: (1, 2), (2, 3), (3, 6), (6, 9)
 - Source objective: 4
+- QOBLIB solution artifact cost: 4
 - Source feasible: true
 - Flow feasible: true
 - Node-disjointness feasible: true
-- Matches QOBLIB solution record: true
+- Binding feasible: true
+- QOBLIB solution artifact consistency check: pass
 
 ## Comparison Notes
 

@@ -99,7 +99,18 @@ function test_qoblib_benchmark_pilot()
               "ToQUBO-generated reformulation benchmark"
         @test report["provenance"]["qoblib_class"] == "04-steiner"
         @test report["provenance"]["canonical_qubo_metrics_available"] === false
+        @test report["provenance"]["source_solution_path"] ==
+              "04-steiner/instances/stp_s003_l1_t2_h0_rs97531/sol.txt"
         @test report["instance"]["qoblib_id"] == "stp_s003_l1_t2_h0_rs97531"
+
+        verification = report["upstream_verification"]
+        @test verification["manual_verification"] === true
+        @test verification["metrics_line_ref"] ==
+              "04-steiner/models/integer_linear/lp_files/metrics.csv:2"
+        @test "04-steiner/instances/stp_s003_l1_t2_h0_rs97531/arcs.dat:11-34" in
+              verification["instance_line_refs"]
+        @test "04-steiner/instances/stp_s003_l1_t2_h0_rs97531/sol.txt:4-7" in
+              verification["solution_line_refs"]
 
         source = report["source"]
         @test source["generated_metrics"]["num_vars"] == 48
@@ -133,7 +144,10 @@ function test_qoblib_benchmark_pilot()
         @test incumbent["source_feasible"] === true
         @test incumbent["flow_feasible"] === true
         @test incumbent["disjointness_feasible"] === true
-        @test incumbent["matches_qoblib_solution_record"] === true
+        @test incumbent["binding_feasible"] === true
+        @test incumbent["qoblib_solution_cost"] == 4
+        @test incumbent["active_flow_arcs"] == incumbent["active_selected_arcs"]
+        @test incumbent["matches_qoblib_solution_artifact"] === true
 
         io = IOBuffer()
         QOBLibSteinerPilot.write_markdown_report(io, report)
@@ -151,8 +165,11 @@ function test_qoblib_benchmark_pilot()
         @test occursin("not a canonical QOBLIB artifact", markdown)
         @test occursin("QOBLib Steiner Reformulation Pilot", markdown)
         @test occursin("stp_s003_l1_t2_h0_rs97531.lp", markdown)
+        @test occursin("Upstream Verification", markdown)
+        @test occursin("sol.txt:4-7", markdown)
         @test occursin("Canonical QUBO metrics available for this instance: false", markdown)
         @test occursin("Distinct constraint penalties: 25.0", markdown)
+        @test occursin("QOBLIB solution artifact consistency check: pass", markdown)
         @test markdown == _normalized_file(report_path)
     end
 
