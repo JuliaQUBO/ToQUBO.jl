@@ -76,6 +76,27 @@ function test_wrapper_optimizer()
                 backend = QUBOTools.backend(model)
                 @test backend isa QUBOTools.Model
             end
+
+            let model = Model(ToQUBO.Optimizer)
+                @variable(model, x[1:2], Bin)
+                @constraint(model, x[1] + x[2] <= 1)
+                @objective(model, Min, x[1] - 2x[2])
+
+                optimize!(model)
+
+                backend = QUBOTools.backend(model)
+                @test backend isa QUBOTools.Model
+                @test haskey(QUBOTools.metadata(backend), "toqubo")
+
+                n, L, Q, α, β = QUBOTools.qubo(model, :dense)
+                n′, L′, Q′, α′, β′ = ToQUBO.qubo(model, :dense)
+
+                @test n == n′
+                @test L ≈ L′
+                @test Q ≈ Q′
+                @test α ≈ α′
+                @test β ≈ β′
+            end
         end
 
         @testset "Solver Name and Version" begin

@@ -5,13 +5,28 @@ export ConstraintViolation,
     FeasibilityReport,
     violations,
     is_feasible,
-    feasibility_report
+    feasibility_report,
+    qubo
 
 using MathOptInterface
 const MOI = MathOptInterface
 
 import PseudoBooleanOptimization as PBO
 import QUBOTools
+
+@doc raw"""
+    qubo(model, args...; kwargs...)
+
+Return the compiled QUBO representation for a model supported by
+`QUBOTools`.
+
+This is a public ToQUBO convenience wrapper around `QUBOTools.qubo`. For a
+JuMP model using `ToQUBO.Optimizer`, call `optimize!` first, then pass the
+`JuMP.Model` directly.
+"""
+function qubo(model, args...; kwargs...)
+    return QUBOTools.qubo(model, args...; kwargs...)
+end
 
 # Versioning
 import TOML

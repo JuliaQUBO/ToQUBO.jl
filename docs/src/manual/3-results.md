@@ -218,9 +218,10 @@ from the optimizer and is also attached under
 `QUBOTools.backend`.
 
 ```julia
-optimizer = unsafe_backend(model)
-metadata = ToQUBO.reformulation_metadata(optimizer)
-qubo_model = ToQUBO.QUBOTools.backend(optimizer)
+using ToQUBO: QUBOTools
+
+qubo_model = QUBOTools.backend(model)
+metadata = ToQUBO.reformulation_metadata(qubo_model)
 
 original = ToQUBO.original_variables(metadata)
 auxiliary = ToQUBO.auxiliary_variables(metadata)
@@ -244,6 +245,7 @@ ToQUBO.reformulation_metadata
 ToQUBO.original_variables
 ToQUBO.auxiliary_variables
 ToQUBO.project_original_state
+ToQUBO.qubo
 ToQUBO.ConstraintViolation
 ToQUBO.FeasibilityResult
 ToQUBO.FeasibilityReport
@@ -324,13 +326,22 @@ end
 
 ## Working with QUBOTools
 
-ToQUBO.jl integrates with [QUBOTools.jl](https://github.com/JuliaQUBO/QUBOTools.jl) for advanced QUBO manipulation. You can extract the underlying QUBO model:
+ToQUBO.jl integrates with [QUBOTools.jl](https://github.com/JuliaQUBO/QUBOTools.jl) for advanced QUBO manipulation. You can extract the compiled QUBO from a JuMP model after `optimize!`:
 
 ```julia
+using JuMP
+using ToQUBO
 using ToQUBO: QUBOTools
 
-# Get the QUBO backend from the attached MOI optimizer
-qubo_model = QUBOTools.backend(unsafe_backend(model))
+model = Model(ToQUBO.Optimizer)
+@variable(model, x[1:2], Bin)
+@constraint(model, x[1] + x[2] <= 1)
+@objective(model, Min, x[1] - 2x[2])
+
+optimize!(model)
+
+qubo_model = QUBOTools.backend(model)
+n, linear, quadratic, scale, offset = ToQUBO.qubo(model, :dense)
 ```
 
 This allows you to:
