@@ -15,7 +15,7 @@ function test_compat()
         @test docs_compat["PySA"] == "0.3.4"
         @test occursin(r"(^|,\s*)0\.4(\s*(,|$))", docs_compat["QUBODrivers"])
         @test docs_compat["QUBOTools"] == "0.12, 0.13"
-        @test docs_compat["ToQUBO"] == "0.4.0"
+        @test docs_compat["ToQUBO"] == "0.4.1"
         @test occursin(r"(^|,\s*)0\.11(\s*(,|$))", test_compat["QUBOTools"])
         @test occursin(r"(^|,\s*)0\.12(\s*(,|$))", test_compat["QUBOTools"])
         @test occursin(r"(^|,\s*)0\.13(\s*(,|$))", test_compat["QUBOTools"])

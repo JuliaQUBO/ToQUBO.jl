@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## v0.4.1 - 2026-06-19
+
+### Added
+
+- Add public post-sampling feasibility helpers for source-constraint violations, per-result feasibility checks, and feasibility summaries.
+- Add configurable penalty heuristic scaling and offset controls, with applied-penalty reporting.
+- Add a QOBLib Birkhoff reformulation benchmark pilot with provenance, comparison metrics, and coefficient-range attribution.
+
+### Maintenance
+
+- Allow QUBODrivers 0.6 in the test environment.
+
 ## v0.4.0 - 2026-06-07
 
 ### Added
