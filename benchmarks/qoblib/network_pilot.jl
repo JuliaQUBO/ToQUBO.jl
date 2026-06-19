@@ -26,6 +26,7 @@ const PROVENANCE = Dict{String,Any}(
     "canonical_qoblib_artifact" => false,
     "qoblib_repository" => "https://github.com/ZIB-AOPT/QOBLIB",
     "qoblib_commit" => "a686aaa09fe14651294f744f34d453d5dce9cf57",
+    "qoblib_model_license" => "Apache License, Version 2.0",
     "qoblib_data_license" => "Creative Commons Attribution 4.0 International",
     "qoblib_class" => "08-network",
     "source_model_path" => "08-network/models/integer_lp/d3ver0int.zpl",
@@ -42,6 +43,7 @@ const PROVENANCE = Dict{String,Any}(
     "canonical_qubo_artifact_available_at_commit" => false,
     "canonical_qubo_artifact_note" =>
         "The pinned QOBLIB tree contains the network05.qs metrics row but no stored network05.qs or network05.qs.xz artifact, so this pilot compares against the metrics table row.",
+    "penalty_scaling_follow_up" => "https://github.com/JuliaQUBO/ToQUBO.jl/issues/160",
 )
 
 const UPSTREAM_VERIFICATION = Dict{String,Any}(
@@ -443,6 +445,8 @@ function _comparison(target)
         "canonical_qubo_metrics_available" => QOBLIB_QUBO_METRICS["available"],
         "target_variable_delta_vs_qoblib_qs" =>
             target["num_variables"] - QOBLIB_QUBO_METRICS["num_variables"],
+        "target_variable_delta_note" =>
+            "ToQUBO generates 21 more binary variables than the pinned QOBLIB QS metrics row. Reformulation metadata attributes 20 bits to the explicit bounded integer max-load variable z and reports one additional auxiliary variable under ToQUBO's current constraint encodings.",
         "density_delta_vs_qoblib_qs" =>
             target["density"] - QOBLIB_QUBO_METRICS["density"],
         "min_coeff_delta_vs_qoblib_qs" =>
@@ -498,7 +502,7 @@ function run_network_pilot()
         "known_incumbent" => _known_incumbent_summary(),
         "comparison" => _comparison(target),
         "follow_up" =>
-            "No major formulation gap was found in this pilot. The checked-in QOBLIB tree exposes the canonical network05 QUBO comparison as a metrics row, but not as a stored QS artifact, so deeper coefficient attribution should be handled separately if QS-file parity is needed.",
+            "The pilot found a major coefficient-scaling gap: ToQUBO's generated network QUBO coefficient range remains about eight orders of magnitude larger than the pinned QOBLIB QS metrics row even under the QOBLIB-style symmetrized convention. The source transcription and incumbent feasibility checks pass, so this PR keeps the reproducible network pilot and tracks penalty-scaling investigation in https://github.com/JuliaQUBO/ToQUBO.jl/issues/160 before expanding the network benchmark class.",
     )
 end
 
@@ -556,7 +560,9 @@ function write_markdown_report(io::IO, report::AbstractDict)
         "- Canonical QUBO artifact available at pinned commit: $(_fmt(provenance["canonical_qubo_artifact_available_at_commit"]))\n",
     )
     write(io, "- Canonical QUBO artifact note: $(provenance["canonical_qubo_artifact_note"])\n")
+    write(io, "- Model license: $(provenance["qoblib_model_license"])\n")
     write(io, "- Data license: $(provenance["qoblib_data_license"])\n")
+    write(io, "- Penalty scaling follow-up: $(provenance["penalty_scaling_follow_up"])\n")
     write(io, "- Generated collection label: $(provenance["collection"])\n\n")
 
     write(io, "## Upstream Verification\n\n")
@@ -724,6 +730,7 @@ function write_markdown_report(io::IO, report::AbstractDict)
         io,
         "- Target variable delta vs QOBLIB QS metrics: $(comparison["target_variable_delta_vs_qoblib_qs"])\n",
     )
+    write(io, "- Target variable delta note: $(comparison["target_variable_delta_note"])\n")
     write(
         io,
         "- Target density delta vs QOBLIB QS metrics: $(_fmt(comparison["density_delta_vs_qoblib_qs"]))\n",

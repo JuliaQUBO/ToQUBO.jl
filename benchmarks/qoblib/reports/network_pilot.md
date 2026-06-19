@@ -17,7 +17,9 @@ This report is a ToQUBO-generated reformulation benchmark. It is not a canonical
 - Canonical QUBO metrics CSV row: `network05.qs,3640,0.05271012974940467,-4.75713475713e+17,4.5260616934376417e+18`
 - Canonical QUBO artifact available at pinned commit: false
 - Canonical QUBO artifact note: The pinned QOBLIB tree contains the network05.qs metrics row but no stored network05.qs or network05.qs.xz artifact, so this pilot compares against the metrics table row.
+- Model license: Apache License, Version 2.0
 - Data license: Creative Commons Attribution 4.0 International
+- Penalty scaling follow-up: https://github.com/JuliaQUBO/ToQUBO.jl/issues/160
 - Generated collection label: ToQUBO-generated reformulation benchmark
 
 ## Upstream Verification
@@ -119,6 +121,7 @@ This report is a ToQUBO-generated reformulation benchmark. It is not a canonical
 
 - Canonical QUBO metrics available for this instance: true
 - Target variable delta vs QOBLIB QS metrics: 21
+- Target variable delta note: ToQUBO generates 21 more binary variables than the pinned QOBLIB QS metrics row. Reformulation metadata attributes 20 bits to the explicit bounded integer max-load variable z and reports one additional auxiliary variable under ToQUBO's current constraint encodings.
 - Target density delta vs QOBLIB QS metrics: -0.00045639349
 - Native min-coefficient delta vs QOBLIB QS metrics: -2.3688803e26
 - Native max-coefficient delta vs QOBLIB QS metrics: 2.3688762e26
@@ -127,4 +130,4 @@ This report is a ToQUBO-generated reformulation benchmark. It is not a canonical
 
 ## Follow-Up
 
-No major formulation gap was found in this pilot. The checked-in QOBLIB tree exposes the canonical network05 QUBO comparison as a metrics row, but not as a stored QS artifact, so deeper coefficient attribution should be handled separately if QS-file parity is needed.
+The pilot found a major coefficient-scaling gap: ToQUBO's generated network QUBO coefficient range remains about eight orders of magnitude larger than the pinned QOBLIB QS metrics row even under the QOBLIB-style symmetrized convention. The source transcription and incumbent feasibility checks pass, so this PR keeps the reproducible network pilot and tracks penalty-scaling investigation in https://github.com/JuliaQUBO/ToQUBO.jl/issues/160 before expanding the network benchmark class.

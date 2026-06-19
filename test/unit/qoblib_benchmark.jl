@@ -266,6 +266,10 @@ function test_qoblib_benchmark_pilot()
         @test report["provenance"]["qoblib_class"] == "08-network"
         @test report["provenance"]["source_model_path"] ==
               "08-network/models/integer_lp/d3ver0int.zpl"
+        @test report["provenance"]["qoblib_model_license"] ==
+              "Apache License, Version 2.0"
+        @test report["provenance"]["penalty_scaling_follow_up"] ==
+              "https://github.com/JuliaQUBO/ToQUBO.jl/issues/160"
         @test report["provenance"]["canonical_qubo_metrics_csv_row"] ==
               "network05.qs,3640,0.05271012974940467,-4.75713475713e+17,4.5260616934376417e+18"
         @test report["instance"]["qoblib_id"] == "network05"
@@ -306,6 +310,10 @@ function test_qoblib_benchmark_pilot()
         comparison = report["comparison"]
         @test comparison["canonical_qubo_metrics_available"] === true
         @test comparison["target_variable_delta_vs_qoblib_qs"] == 21
+        @test occursin(
+            "explicit bounded integer max-load variable z",
+            comparison["target_variable_delta_note"],
+        )
         @test isapprox(
             comparison["density_delta_vs_qoblib_qs"],
             -0.0004563934876192291;
@@ -338,7 +346,11 @@ function test_qoblib_benchmark_pilot()
         @test occursin("QOBLib Network Reformulation Pilot", markdown)
         @test occursin("network05.lp", markdown)
         @test occursin("Canonical QUBO artifact available at pinned commit: false", markdown)
+        @test occursin("Model license: Apache License, Version 2.0", markdown)
+        @test occursin("Penalty scaling follow-up: https://github.com/JuliaQUBO/ToQUBO.jl/issues/160", markdown)
+        @test occursin("Target variable delta note", markdown)
         @test occursin("Flow-balance constraints: 20", markdown)
+        @test occursin("major coefficient-scaling gap", markdown)
         @test occursin("QOBLIB solution artifact consistency check: pass", markdown)
         @test markdown == _normalized_file(report_path)
     end

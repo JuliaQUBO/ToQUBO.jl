@@ -142,11 +142,13 @@ The embedded pilot data is the smallest network instance from QOBLIB:
   `08-network/models/integer_lp/lp_files/metrics.csv`, row `network05.lp`;
 - canonical QUBO metrics path:
   `08-network/models/integer_lp/metrics_qs_files.csv`, row `network05.qs`;
+- QOBLIB model license: Apache License, Version 2.0;
 - QOBLIB data license: Creative Commons Attribution 4.0 International.
 
 The pilot transcribes the `num_nodes=5` network design model with fixed in- and
 out-degree constraints, source-indexed integer flow balance, arc-linking
 constraints, and the max-load objective. The generated report documents the
 known QOBLIB feasible solution, ToQUBO target metrics, penalty and encoding
-metadata, and the absence of a stored `network05.qs` artifact at the pinned
-commit.
+metadata, the absence of a stored `network05.qs` artifact at the pinned commit,
+and the network penalty-scaling follow-up tracked in
+https://github.com/JuliaQUBO/ToQUBO.jl/issues/160.
