@@ -48,3 +48,34 @@ upper-triangular coefficient range is reported alongside the QOBLIB-style
 symmetrized convention used by QOBLIB's generated QS writer. The Birkhoff pilot
 attributes the native maximum-coefficient delta to that off-diagonal reporting
 convention, not to a penalty-scaling change.
+
+## Steiner Pilot
+
+Run the Steiner pilot report generator from the repository root:
+
+```bash
+julia --project=. benchmarks/qoblib/steiner_pilot.jl
+```
+
+The script builds the QOBLIB node-disjoint Steiner tree packing model for
+`stp_s003_l1_t2_h0_rs97531` through MathOptInterface and compiles it with
+`ToQUBO.Optimizer`. It writes a Markdown comparison report to
+`benchmarks/qoblib/reports/steiner_pilot.md`.
+
+The embedded pilot data is the smallest Steiner instance from QOBLIB:
+
+- upstream repository: `https://github.com/ZIB-AOPT/QOBLIB`;
+- upstream commit used for provenance: `a686aaa09fe14651294f744f34d453d5dce9cf57`;
+- source instance path:
+  `04-steiner/instances/stp_s003_l1_t2_h0_rs97531`;
+- source model path:
+  `04-steiner/models/integer_linear/stp_node_disjoint.zpl`;
+- source LP metrics path:
+  `04-steiner/models/integer_linear/lp_files/metrics.csv`, row
+  `stp_s003_l1_t2_h0_rs97531.lp`;
+- QOBLIB data license: Creative Commons Attribution 4.0 International.
+
+The pinned QOBLIB tree does not include a canonical QS metrics row or stored QS
+artifact for this smallest Steiner instance. The pilot therefore reports
+ToQUBO-generated QUBO metrics for the small source instance and documents the
+absence of canonical QUBO metrics in the generated report.

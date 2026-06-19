@@ -1,4 +1,5 @@
 include(joinpath(@__DIR__, "..", "..", "benchmarks", "qoblib", "birkhoff_pilot.jl"))
+include(joinpath(@__DIR__, "..", "..", "benchmarks", "qoblib", "steiner_pilot.jl"))
 
 function _normalized_file(path)
     return replace(read(path, String), "\r\n" => "\n")
@@ -89,6 +90,69 @@ function test_qoblib_benchmark_pilot()
         @test occursin("Coefficient Range Attribution", markdown)
         @test occursin("Upstream verification", markdown)
         @test occursin("documentation-only", markdown)
+        @test markdown == _normalized_file(report_path)
+
+        report = QOBLibSteinerPilot.run_steiner_pilot()
+
+        @test report["provenance"]["canonical_qoblib_artifact"] === false
+        @test report["provenance"]["collection"] ==
+              "ToQUBO-generated reformulation benchmark"
+        @test report["provenance"]["qoblib_class"] == "04-steiner"
+        @test report["provenance"]["canonical_qubo_metrics_available"] === false
+        @test report["instance"]["qoblib_id"] == "stp_s003_l1_t2_h0_rs97531"
+
+        source = report["source"]
+        @test source["generated_metrics"]["num_vars"] == 48
+        @test source["generated_metrics"]["num_linear_constraints"] == 44
+        @test source["generated_metrics"]["num_binding_constraints"] == 24
+        @test source["qoblib_metrics"]["density"] == 0.056818181818181816
+
+        target = report["toqubo"]["target"]
+        @test target["num_variables"] == 80
+        @test target["num_terms"] == 289
+        @test target["num_quadratic_terms"] == 209
+        @test target["density"] == 0.08919753086419753
+        @test target["min_coeff"] == -100.0
+        @test target["max_coeff"] == 75.0
+        @test target["objective_offset"] == 250.0
+
+        metadata = report["toqubo"]["metadata"]
+        @test metadata["source_variable_count"] == 48
+        @test metadata["target_variable_count"] == target["num_variables"]
+        @test metadata["slack_variable_count"] == 32
+        @test metadata["constraint_penalty_count"] == 44
+        @test metadata["constraint_penalties"] == [25.0]
+        @test metadata["encoding_types"] == ["Binary"]
+
+        comparison = report["comparison"]
+        @test comparison["canonical_qubo_metrics_available"] === false
+        @test comparison["target_variables_minus_source_integer_vars"] == 32
+
+        incumbent = report["known_incumbent"]
+        @test incumbent["source_objective"] == 4
+        @test incumbent["source_feasible"] === true
+        @test incumbent["flow_feasible"] === true
+        @test incumbent["disjointness_feasible"] === true
+        @test incumbent["matches_qoblib_solution_record"] === true
+
+        io = IOBuffer()
+        QOBLibSteinerPilot.write_markdown_report(io, report)
+        markdown = replace(String(take!(io)), "\r\n" => "\n")
+        report_path = joinpath(
+            @__DIR__,
+            "..",
+            "..",
+            "benchmarks",
+            "qoblib",
+            "reports",
+            "steiner_pilot.md",
+        )
+
+        @test occursin("not a canonical QOBLIB artifact", markdown)
+        @test occursin("QOBLib Steiner Reformulation Pilot", markdown)
+        @test occursin("stp_s003_l1_t2_h0_rs97531.lp", markdown)
+        @test occursin("Canonical QUBO metrics available for this instance: false", markdown)
+        @test occursin("Distinct constraint penalties: 25.0", markdown)
         @test markdown == _normalized_file(report_path)
     end
 
