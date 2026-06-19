@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- Add a QOBLib network reformulation benchmark pilot with provenance, comparison metrics, and incumbent feasibility checks.
+
 ## v0.4.1 - 2026-06-19
 
 ### Added
