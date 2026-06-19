@@ -1,5 +1,6 @@
 include(joinpath(@__DIR__, "..", "..", "benchmarks", "qoblib", "birkhoff_pilot.jl"))
 include(joinpath(@__DIR__, "..", "..", "benchmarks", "qoblib", "steiner_pilot.jl"))
+include(joinpath(@__DIR__, "..", "..", "benchmarks", "qoblib", "sports_pilot.jl"))
 
 function _normalized_file(path)
     return replace(read(path, String), "\r\n" => "\n")
@@ -169,6 +170,90 @@ function test_qoblib_benchmark_pilot()
         @test occursin("sol.txt:4-7", markdown)
         @test occursin("Canonical QUBO metrics available for this instance: false", markdown)
         @test occursin("Distinct constraint penalties: 25.0", markdown)
+        @test occursin("QOBLIB solution artifact consistency check: pass", markdown)
+        @test markdown == _normalized_file(report_path)
+
+        report = QOBLibSportsPilot.run_sports_pilot()
+
+        @test report["provenance"]["canonical_qoblib_artifact"] === false
+        @test report["provenance"]["collection"] ==
+              "ToQUBO-generated reformulation benchmark"
+        @test report["provenance"]["qoblib_class"] == "05-sports"
+        @test report["provenance"]["source_instance_path"] ==
+              "05-sports/instances/Small/Addition_000_Small.xml.gz"
+        @test report["provenance"]["canonical_qubo_metrics_csv_row"] ==
+              "Addition_000_Small.qs,1737,0.12329035750036603,-497.0,88.0"
+        @test report["instance"]["qoblib_id"] == "Addition_000_Small"
+
+        verification = report["upstream_verification"]
+        @test verification["manual_verification"] === true
+        @test "05-sports/instances/Small/Addition_000_Small.xml.gz:73-159" in
+              verification["instance_line_refs"]
+        @test "05-sports/misc/itc2mip.py:334-399" in
+              verification["converter_line_refs"]
+
+        source = report["source"]
+        @test source["generated_metrics"]["num_vars"] == 992
+        @test source["generated_metrics"]["num_linear_constraints"] == 587
+        @test source["generated_metrics"]["num_capacity_constraints"] == 85
+        @test source["generated_metrics"]["num_game_constraints"] == 41
+        @test source["generated_metrics"]["num_break_limit_constraints"] == 43
+        @test source["qoblib_metrics"]["density"] == 0.027009946694510085
+
+        target = report["toqubo"]["target"]
+        @test target["num_variables"] == 1733
+        @test target["num_terms"] == 186093
+        @test target["num_quadratic_terms"] == 184360
+        @test target["density"] == 0.12385466728696162
+        @test target["min_coeff"] == -497.0
+        @test target["max_coeff"] == 176.0
+        @test target["qoblib_symmetric_min_coeff"] ==
+              report["qoblib_qubo_metrics"]["min_coeff"]
+        @test target["qoblib_symmetric_max_coeff"] ==
+              report["qoblib_qubo_metrics"]["max_coeff"]
+        @test target["objective_offset"] == 6084.0
+
+        metadata = report["toqubo"]["metadata"]
+        @test metadata["source_variable_count"] == 992
+        @test metadata["target_variable_count"] == target["num_variables"]
+        @test metadata["slack_variable_count"] == 344
+        @test metadata["constraint_penalty_count"] == 583
+        @test metadata["constraint_penalties"] == [1.0]
+        @test metadata["encoding_types"] == ["Binary"]
+
+        comparison = report["comparison"]
+        @test comparison["canonical_qubo_metrics_available"] === true
+        @test comparison["target_variable_delta_vs_qoblib_qs"] == -4
+        @test comparison["redundant_constraint_count"] == 4
+        @test comparison["qoblib_symmetric_min_coeff_delta_vs_qoblib_qs"] == 0.0
+        @test comparison["qoblib_symmetric_max_coeff_delta_vs_qoblib_qs"] == 0.0
+
+        incumbent = report["known_incumbent"]
+        @test incumbent["source_objective"] == 0
+        @test incumbent["source_feasible"] === true
+        @test incumbent["active_game_count"] == 56
+        @test incumbent["home_break_count"] == 13
+        @test incumbent["away_break_count"] == 13
+        @test incumbent["matches_qoblib_solution_artifact"] === true
+
+        io = IOBuffer()
+        QOBLibSportsPilot.write_markdown_report(io, report)
+        markdown = replace(String(take!(io)), "\r\n" => "\n")
+        report_path = joinpath(
+            @__DIR__,
+            "..",
+            "..",
+            "benchmarks",
+            "qoblib",
+            "reports",
+            "sports_pilot.md",
+        )
+
+        @test occursin("not a canonical QOBLIB artifact", markdown)
+        @test occursin("QOBLib Sports Reformulation Pilot", markdown)
+        @test occursin("Addition_000_Small.lp", markdown)
+        @test occursin("QOBLIB-style coefficient range", markdown)
+        @test occursin("Redundant source constraints detected", markdown)
         @test occursin("QOBLIB solution artifact consistency check: pass", markdown)
         @test markdown == _normalized_file(report_path)
     end
