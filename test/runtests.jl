@@ -23,10 +23,6 @@ function MOIU.map_indices(::Function, quad::PBO.QuadratizationMethod)
     return quad
 end
 
-function QUBOTools.backend(model::JuMP.Model)
-    return QUBOTools.backend(JuMP.unsafe_backend(model))
-end
-
 include("unit/unit.jl")
 include("integration/integration.jl")
 
