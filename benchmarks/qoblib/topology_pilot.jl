@@ -111,7 +111,7 @@ const QOBLIB_QUBO_METRICS = Dict{String,Any}(
 
 const KNOWN_INCUMBENT = Dict{String,Any}(
     "qoblib_solution_objective" => 2,
-    "solution_model" => "seidl_linear",
+    "solution_model" => "seidel_linear",
     "selected_edges" => [
         (1, 2),
         (1, 3),
