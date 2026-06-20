@@ -2,6 +2,7 @@ include(joinpath(@__DIR__, "..", "..", "benchmarks", "qoblib", "birkhoff_pilot.j
 include(joinpath(@__DIR__, "..", "..", "benchmarks", "qoblib", "steiner_pilot.jl"))
 include(joinpath(@__DIR__, "..", "..", "benchmarks", "qoblib", "sports_pilot.jl"))
 include(joinpath(@__DIR__, "..", "..", "benchmarks", "qoblib", "network_pilot.jl"))
+include(joinpath(@__DIR__, "..", "..", "benchmarks", "qoblib", "routing_pilot.jl"))
 
 function _normalized_file(path)
     return replace(read(path, String), "\r\n" => "\n")
@@ -350,6 +351,110 @@ function test_qoblib_benchmark_pilot()
         @test occursin("Penalty scaling follow-up: https://github.com/JuliaQUBO/ToQUBO.jl/issues/160", markdown)
         @test occursin("Target variable delta note", markdown)
         @test occursin("Flow-balance constraints: 20", markdown)
+        @test occursin("major coefficient-scaling gap", markdown)
+        @test occursin("QOBLIB solution artifact consistency check: pass", markdown)
+        @test markdown == _normalized_file(report_path)
+
+        report = QOBLibRoutingPilot.run_routing_pilot()
+
+        @test report["provenance"]["canonical_qoblib_artifact"] === false
+        @test report["provenance"]["collection"] ==
+              "ToQUBO-generated reformulation benchmark"
+        @test report["provenance"]["qoblib_class"] == "09-routing"
+        @test report["provenance"]["source_model_path"] ==
+              "09-routing/models/integer_linear/cvrp_ilp.zpl"
+        @test report["provenance"]["qoblib_model_license"] ==
+              "Apache License, Version 2.0"
+        @test report["provenance"]["penalty_scaling_follow_up"] ==
+              "https://github.com/JuliaQUBO/ToQUBO.jl/issues/162"
+        @test report["provenance"]["canonical_qubo_metrics_csv_row"] ==
+              "XSH-n20-k4-01.qs,4527,0.011716313817136443,-12874612219.171257,7397605618.245156"
+        @test report["instance"]["qoblib_id"] == "XSH-n20-k4-01"
+
+        verification = report["upstream_verification"]
+        @test verification["manual_verification"] === true
+        @test "09-routing/models/integer_linear/cvrp_ilp.zpl:49-84" in
+              verification["model_line_refs"]
+        @test "09-routing/solutions/XSH-n20-k4-01.opt.sol:1-5" in
+              verification["solution_line_refs"]
+
+        source = report["source"]
+        @test source["generated_metrics"]["num_vars"] == 441
+        @test source["generated_metrics"]["num_linear_constraints"] == 483
+        @test source["generated_metrics"]["num_customer_visited_once_constraints"] == 20
+        @test source["generated_metrics"]["num_flow_conservation_constraints"] == 20
+        @test source["generated_metrics"]["num_capacity_limit_constraints"] == 400
+        @test source["qoblib_metrics"]["density"] == 0.011558522649915729
+
+        target = report["toqubo"]["target"]
+        @test target["num_variables"] == 4351
+        @test target["num_terms"] == 117882
+        @test target["num_quadratic_terms"] == 113531
+        @test isapprox(target["density"], 0.012450864912731353; rtol = 1e-14)
+        @test isapprox(target["min_coeff"], -1.4036904381157936e13; rtol = 1e-14)
+        @test isapprox(target["max_coeff"], 2.793883852788166e13; rtol = 1e-14)
+        @test isapprox(
+            target["qoblib_symmetric_min_coeff"],
+            -1.4036904364404846e13;
+            rtol = 1e-14,
+        )
+        @test isapprox(
+            target["qoblib_symmetric_max_coeff"],
+            1.5646506544178379e13;
+            rtol = 1e-14,
+        )
+        @test isapprox(target["objective_offset"], 1.5412343291804879e13; rtol = 1e-14)
+
+        metadata = report["toqubo"]["metadata"]
+        @test metadata["source_variable_count"] == 441
+        @test metadata["target_variable_count"] == target["num_variables"]
+        @test metadata["auxiliary_variable_count"] == 3763
+        @test metadata["slack_variable_count"] == 421
+        @test metadata["constraint_penalty_count"] == 461
+        @test length(metadata["constraint_penalties"]) == 3
+        @test metadata["encoding_types"] == ["Binary"]
+
+        comparison = report["comparison"]
+        @test comparison["canonical_qubo_metrics_available"] === true
+        @test comparison["target_variable_delta_vs_qoblib_qs"] == -176
+        @test comparison["redundant_constraint_count"] == 22
+        @test occursin("fewer binary variables", comparison["target_variable_delta_note"])
+        @test isapprox(
+            comparison["density_delta_vs_qoblib_qs"],
+            0.0007345510955949104;
+            rtol = 1e-14,
+        )
+
+        incumbent = report["known_incumbent"]
+        @test isapprox(incumbent["source_objective"], 646.6703590218194; rtol = 1e-14)
+        @test incumbent["rounded_route_cost"] == 646.0
+        @test incumbent["qoblib_solution_cost"] == 646
+        @test incumbent["source_feasible"] === true
+        @test incumbent["capacity_tight"] === true
+        @test incumbent["active_arc_count"] == 24
+        @test incumbent["matches_qoblib_solution_artifact"] === true
+
+        io = IOBuffer()
+        QOBLibRoutingPilot.write_markdown_report(io, report)
+        markdown = replace(String(take!(io)), "\r\n" => "\n")
+        report_path = joinpath(
+            @__DIR__,
+            "..",
+            "..",
+            "benchmarks",
+            "qoblib",
+            "reports",
+            "routing_pilot.md",
+        )
+
+        @test occursin("not a canonical QOBLIB artifact", markdown)
+        @test occursin("QOBLib Routing Reformulation Pilot", markdown)
+        @test occursin("XSH-n20-k4-01.lp", markdown)
+        @test occursin("Canonical QUBO artifact available at pinned commit: false", markdown)
+        @test occursin("Model license: Apache License, Version 2.0", markdown)
+        @test occursin("Penalty scaling follow-up: https://github.com/JuliaQUBO/ToQUBO.jl/issues/162", markdown)
+        @test occursin("Rounded CVRPLIB route cost", markdown)
+        @test occursin("Redundant source constraints detected: 22", markdown)
         @test occursin("major coefficient-scaling gap", markdown)
         @test occursin("QOBLIB solution artifact consistency check: pass", markdown)
         @test markdown == _normalized_file(report_path)

@@ -152,3 +152,42 @@ known QOBLIB feasible solution, ToQUBO target metrics, penalty and encoding
 metadata, the absence of a stored `network05.qs` artifact at the pinned commit,
 and the network penalty-scaling follow-up tracked in
 https://github.com/JuliaQUBO/ToQUBO.jl/issues/160.
+
+## Routing Pilot
+
+Run the Routing pilot report generator from the repository root:
+
+```bash
+julia --project=. benchmarks/qoblib/routing_pilot.jl
+```
+
+The script builds the QOBLIB integer-linear CVRP model for
+`XSH-n20-k4-01` through MathOptInterface and compiles it with
+`ToQUBO.Optimizer`. It writes a Markdown comparison report to
+`benchmarks/qoblib/reports/routing_pilot.md`.
+
+The embedded pilot data is the first routing instance from QOBLIB:
+
+- upstream repository: `https://github.com/ZIB-AOPT/QOBLIB`;
+- upstream commit used for provenance: `a686aaa09fe14651294f744f34d453d5dce9cf57`;
+- source model path: `09-routing/models/integer_linear/cvrp_ilp.zpl`;
+- source instance path: `09-routing/instances/XSH-n20-k4-01.vrp`;
+- source LP path:
+  `09-routing/models/integer_linear/lp_files/XSH-n20-k4-01.lp.xz`;
+- source solution path: `09-routing/solutions/XSH-n20-k4-01.opt.sol`;
+- source LP metrics path:
+  `09-routing/models/integer_linear/lp_files/metrics.csv`, row
+  `XSH-n20-k4-01.lp`;
+- canonical QUBO metrics path:
+  `09-routing/models/integer_linear/metrics_qs_files.csv`, row
+  `XSH-n20-k4-01.qs`;
+- QOBLIB model license: Apache License, Version 2.0;
+- QOBLIB data license: Creative Commons Attribution 4.0 International.
+
+The pilot transcribes the `XSH-n20-k4-01` capacitated vehicle routing model with
+one depot, 20 customers, four vehicles, MTZ-style load variables, and explicit
+capacity bounds. The generated report documents the known QOBLIB feasible
+solution, the rounded CVRPLIB solution-cost convention, ToQUBO target metrics,
+penalty and encoding metadata, the absence of a stored `XSH-n20-k4-01.qs`
+artifact at the pinned commit, and the routing penalty-scaling follow-up tracked
+in https://github.com/JuliaQUBO/ToQUBO.jl/issues/162.
