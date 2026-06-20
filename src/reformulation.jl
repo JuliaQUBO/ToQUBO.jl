@@ -8,7 +8,9 @@ const _REFORMULATION_SCHEMA_VERSION = 1
 Return JSON-compatible ToQUBO reformulation metadata. For a live
 `ToQUBO.Optimizer`, the metadata is generated from the compiled virtual model.
 For a `QUBOTools.AbstractModel` or a metadata dictionary, the metadata is read
-from `metadata["toqubo"]["reformulation"]`.
+from `metadata["toqubo"]["reformulation"]`. `QUBOTools.backend` skips this full
+metadata payload by default; call `QUBOTools.backend(model; full_metadata = true)`
+when a returned QUBOTools model needs embedded reformulation metadata.
 
 The `applied_penalties` section is a convenience view. Its entries duplicate
 the applied penalty coefficients also attached to the corresponding variable,

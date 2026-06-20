@@ -121,6 +121,9 @@ function test_reformulation_metadata()
         @test dict_projected[y] == 1.0
 
         backend = QUBOTools.backend(model)
+        @test_throws ErrorException ToQUBO.reformulation_metadata(backend)
+
+        backend = QUBOTools.backend(model; full_metadata = true)
         backend_metadata = QUBOTools.metadata(backend)
         backend_reformulation = ToQUBO.reformulation_metadata(backend)
 

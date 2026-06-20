@@ -213,14 +213,18 @@ zeta = MOI.get(model, Attributes.SlackVariableEncodingFunction(), constraint_ref
 ToQUBO records JSON-compatible reformulation metadata for downstream tools that
 need to interpret full QUBO states. The metadata uses string-keyed dictionaries,
 arrays, primitive values, and finite numeric values. It is available directly
-from the optimizer and is also attached under
-`metadata["toqubo"]["reformulation"]` on the `QUBOTools` model returned by
-`QUBOTools.backend`.
+from the optimizer. `QUBOTools.backend` does not attach the full metadata payload
+by default, so public QUBO extraction can avoid materializing large
+JSON-compatible term dictionaries. Opt in with `full_metadata = true` when the
+returned `QUBOTools` model needs embedded metadata under
+`metadata["toqubo"]["reformulation"]`.
 
 ```julia
 using ToQUBO: QUBOTools
 
-qubo_model = QUBOTools.backend(model)
+metadata = ToQUBO.reformulation_metadata(JuMP.unsafe_backend(model))
+
+qubo_model = QUBOTools.backend(model; full_metadata = true)
 metadata = ToQUBO.reformulation_metadata(qubo_model)
 
 original = ToQUBO.original_variables(metadata)
@@ -239,6 +243,15 @@ constraint, variable-encoding, and slack-variable penalty coefficients.
 corresponding metadata records. This is enough to project a full QUBO state back
 to original variables. Exact auxiliary consistency checks and repair remain
 encoding-specific and are not guaranteed by this metadata contract.
+
+Full reformulation metadata is intentionally generated on request. Dense models
+can create one metadata record per source-to-target expansion term and per
+constraint-encoding term, so the JSON-compatible payload may allocate gigabytes
+on large TSP-style formulations. Use the default `QUBOTools.backend(model)` path
+when you only need the compiled QUBO, and use
+`QUBOTools.backend(model; full_metadata = true)` or
+`ToQUBO.reformulation_metadata(JuMP.unsafe_backend(model))` when you need
+projection and interpretation metadata.
 
 ```@docs
 ToQUBO.reformulation_metadata
