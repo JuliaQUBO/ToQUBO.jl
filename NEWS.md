@@ -6,6 +6,10 @@
 
 - Add QOBLib network and routing reformulation benchmark pilots with provenance, comparison metrics, and incumbent feasibility checks.
 
+### Maintenance
+
+- Allow QUBOTools 0.14 while keeping package compatibility with QUBOTools 0.11, 0.12, and 0.13.
+
 ## v0.4.1 - 2026-06-19
 
 ### Added
