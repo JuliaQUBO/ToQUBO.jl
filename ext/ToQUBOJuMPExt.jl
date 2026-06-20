@@ -6,8 +6,8 @@ import ToQUBO
 
 # Intentional extension glue: ToQUBO owns the compiler result, while
 # QUBOTools owns the backend/export surface used to inspect it.
-function QUBOTools.backend(model::JuMP.Model)
-    return QUBOTools.backend(JuMP.unsafe_backend(model))
+function QUBOTools.backend(model::JuMP.Model; kwargs...)
+    return QUBOTools.backend(JuMP.unsafe_backend(model); kwargs...)
 end
 
 function ToQUBO.violations(model::JuMP.Model; kwargs...)

@@ -157,10 +157,12 @@ function Base.show(io::IO, model::Optimizer)
     )
 end
 
-function QUBOTools.backend(model::Optimizer{T}) where {T}
+function QUBOTools.backend(model::Optimizer{T}; full_metadata::Bool = false) where {T}
     qubo_model = QUBOTools.Model{T}(model.target_model)
 
-    _attach_reformulation_metadata!(qubo_model, model)
+    if full_metadata
+        _attach_reformulation_metadata!(qubo_model, model)
+    end
 
     return qubo_model
 end

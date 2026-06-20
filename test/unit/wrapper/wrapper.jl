@@ -86,7 +86,11 @@ function test_wrapper_optimizer()
 
                 backend = QUBOTools.backend(model)
                 @test backend isa QUBOTools.Model
-                @test haskey(QUBOTools.metadata(backend), "toqubo")
+                @test !haskey(QUBOTools.metadata(backend), "toqubo")
+
+                backend_with_metadata = QUBOTools.backend(model; full_metadata = true)
+                @test backend_with_metadata isa QUBOTools.Model
+                @test haskey(QUBOTools.metadata(backend_with_metadata), "toqubo")
 
                 n, L, Q, α, β = QUBOTools.qubo(model, :dense)
                 n′, L′, Q′, α′, β′ = ToQUBO.qubo(model, :dense)
