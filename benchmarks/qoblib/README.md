@@ -191,3 +191,42 @@ solution, the rounded CVRPLIB solution-cost convention, ToQUBO target metrics,
 penalty and encoding metadata, the absence of a stored `XSH-n20-k4-01.qs`
 artifact at the pinned commit, and the routing penalty-scaling follow-up tracked
 in https://github.com/JuliaQUBO/ToQUBO.jl/issues/162.
+
+## Topology Pilot
+
+Run the Topology pilot report generator from the repository root:
+
+```bash
+julia --project=. benchmarks/qoblib/topology_pilot.jl
+```
+
+The script builds the QOBLIB linearized Seidel all-pairs shortest-path model for
+`topology_15_4` through MathOptInterface and compiles it with
+`ToQUBO.Optimizer`. It writes a Markdown comparison report to
+`benchmarks/qoblib/reports/topology_pilot.md`.
+
+The embedded pilot data is the smallest checked topology instance with the lower
+target-variable count among the 15-node Seidel-linear rows from QOBLIB:
+
+- upstream repository: `https://github.com/ZIB-AOPT/QOBLIB`;
+- upstream commit used for provenance: `a686aaa09fe14651294f744f34d453d5dce9cf57`;
+- source model path:
+  `10-topology/models/seidel_linear/topology_seidel_linear.zpl`;
+- source instance path: `10-topology/instances/topology_15_4.dat`;
+- source bounds path: `10-topology/instances/bounds.csv`, row `15, 4`;
+- source LP path:
+  `10-topology/models/seidel_linear/lp_files/topology_15_4.lp.xz`;
+- source solution path: `10-topology/solutions/topology_15_4.opt.gph`;
+- source LP metrics path:
+  `10-topology/models/seidel_linear/lp_files/metrics.csv`, row
+  `topology_15_4.lp`;
+- canonical QUBO metrics path:
+  `10-topology/models/seidel_linear/metrics_qs_files.csv`, row
+  `topology_15_4.qs`;
+- QOBLIB model license: Apache License, Version 2.0;
+- QOBLIB data license: Creative Commons Attribution 4.0 International.
+
+The pilot fixes the Seidel diameter bounds to 2, transcribes the zero-based
+QOBLIB distance and linearization variables, checks the one-based `.gph`
+incumbent graph after relabeling, and records ToQUBO's QOBLIB-style symmetrized
+coefficient range against the pinned QS metrics row.

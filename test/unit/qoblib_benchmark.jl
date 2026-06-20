@@ -3,6 +3,7 @@ include(joinpath(@__DIR__, "..", "..", "benchmarks", "qoblib", "steiner_pilot.jl
 include(joinpath(@__DIR__, "..", "..", "benchmarks", "qoblib", "sports_pilot.jl"))
 include(joinpath(@__DIR__, "..", "..", "benchmarks", "qoblib", "network_pilot.jl"))
 include(joinpath(@__DIR__, "..", "..", "benchmarks", "qoblib", "routing_pilot.jl"))
+include(joinpath(@__DIR__, "..", "..", "benchmarks", "qoblib", "topology_pilot.jl"))
 
 function _normalized_file(path)
     return replace(read(path, String), "\r\n" => "\n")
@@ -456,6 +457,108 @@ function test_qoblib_benchmark_pilot()
         @test occursin("Rounded CVRPLIB route cost", markdown)
         @test occursin("Redundant source constraints detected: 22", markdown)
         @test occursin("major coefficient-scaling gap", markdown)
+        @test occursin("QOBLIB solution artifact consistency check: pass", markdown)
+        @test markdown == _normalized_file(report_path)
+
+        report = QOBLibTopologyPilot.run_topology_pilot()
+
+        @test report["provenance"]["canonical_qoblib_artifact"] === false
+        @test report["provenance"]["collection"] ==
+              "ToQUBO-generated reformulation benchmark"
+        @test report["provenance"]["qoblib_class"] == "10-topology"
+        @test report["provenance"]["source_model_path"] ==
+              "10-topology/models/seidel_linear/topology_seidel_linear.zpl"
+        @test report["provenance"]["qoblib_model_license"] ==
+              "Apache License, Version 2.0"
+        @test report["provenance"]["canonical_qubo_metrics_csv_row"] ==
+              "topology_15_4.qs,4831,0.002770805545312352,-7.0,49.0"
+        @test report["instance"]["qoblib_id"] == "topology_15_4"
+
+        verification = report["upstream_verification"]
+        @test verification["manual_verification"] === true
+        @test "10-topology/models/seidel_linear/topology_seidel_linear.zpl:30-44" in
+              verification["model_line_refs"]
+        @test "10-topology/instances/bounds.csv:3" in
+              verification["instance_line_refs"]
+        @test "10-topology/solutions/topology_15_4.opt.gph:4-33" in
+              verification["solution_line_refs"]
+
+        source = report["source"]
+        @test source["generated_metrics"]["num_vars"] == 1576
+        @test source["generated_metrics"]["num_linear_constraints"] == 2955
+        @test source["generated_metrics"]["num_diameter_constraints"] == 105
+        @test source["generated_metrics"]["num_distance_calculation_constraints"] == 105
+        @test source["generated_metrics"]["num_linearization_constraints"] == 2730
+        @test source["generated_metrics"]["num_degree_constraints"] == 15
+        @test source["qoblib_metrics"]["density"] == 0.0016233347934757401
+
+        target = report["toqubo"]["target"]
+        @test target["num_variables"] == 4830
+        @test target["num_terms"] == 32340
+        @test target["num_quadratic_terms"] == 27615
+        @test isapprox(target["density"], 0.0027719528768010942; rtol = 1e-14)
+        @test target["min_coeff"] == -14.0
+        @test target["max_coeff"] == 56.0
+        @test target["qoblib_symmetric_min_coeff"] ==
+              report["qoblib_qubo_metrics"]["min_coeff"]
+        @test target["qoblib_symmetric_max_coeff"] ==
+              report["qoblib_qubo_metrics"]["max_coeff"]
+        @test target["objective_offset"] == 347.0
+
+        metadata = report["toqubo"]["metadata"]
+        @test metadata["source_variable_count"] == 1576
+        @test metadata["target_variable_count"] == target["num_variables"]
+        @test metadata["auxiliary_variable_count"] == 3255
+        @test metadata["slack_variable_count"] == 2940
+        @test metadata["constraint_penalty_count"] == 2955
+        @test metadata["constraint_penalties"] == [1.0]
+        @test metadata["encoding_types"] == ["Binary"]
+
+        comparison = report["comparison"]
+        @test comparison["canonical_qubo_metrics_available"] === true
+        @test comparison["target_variable_delta_vs_qoblib_qs"] == -1
+        @test isapprox(
+            comparison["density_delta_vs_qoblib_qs"],
+            1.1473314887422252e-6;
+            rtol = 1e-14,
+        )
+        @test comparison["qoblib_symmetric_min_coeff_delta_vs_qoblib_qs"] == 0.0
+        @test comparison["qoblib_symmetric_max_coeff_delta_vs_qoblib_qs"] == 0.0
+
+        incumbent = report["known_incumbent"]
+        @test incumbent["source_objective"] == 2
+        @test incumbent["source_feasible"] === true
+        @test incumbent["degree_feasible"] === true
+        @test incumbent["diameter_constraints_feasible"] === true
+        @test incumbent["distance_calculation_feasible"] === true
+        @test incumbent["linearization_feasible"] === true
+        @test incumbent["max_shortest_path_distance"] == 2
+        @test incumbent["selected_edge_count"] == 30
+        @test incumbent["distance_zero_count"] == 30
+        @test incumbent["distance_one_count"] == 105
+        @test incumbent["linearization_active_count"] == 90
+        @test incumbent["matches_qoblib_solution_artifact"] === true
+
+        io = IOBuffer()
+        QOBLibTopologyPilot.write_markdown_report(io, report)
+        markdown = replace(String(take!(io)), "\r\n" => "\n")
+        report_path = joinpath(
+            @__DIR__,
+            "..",
+            "..",
+            "benchmarks",
+            "qoblib",
+            "reports",
+            "topology_pilot.md",
+        )
+
+        @test occursin("not a canonical QOBLIB artifact", markdown)
+        @test occursin("QOBLib Topology Reformulation Pilot", markdown)
+        @test occursin("topology_15_4.lp", markdown)
+        @test occursin("Canonical QUBO artifact available at pinned commit: false", markdown)
+        @test occursin("Model license: Apache License, Version 2.0", markdown)
+        @test occursin("Diameter constraints: 105", markdown)
+        @test occursin("QOBLIB-style maximum coefficient", markdown)
         @test occursin("QOBLIB solution artifact consistency check: pass", markdown)
         @test markdown == _normalized_file(report_path)
     end
