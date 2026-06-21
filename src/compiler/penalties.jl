@@ -3,8 +3,112 @@ function _uses_linear_equality_penalty(model::Virtual.Model, ci::CI)::Bool
            Attributes.constraint_encoding_method(model, ci) isa Attributes.LinearPenalty
 end
 
-function _inferred_penalty_factor(sign, δ, ϵ, scale, offset)
+function _legacy_penalty_factor(sign, δ, ϵ, scale, offset)
     return scale * sign * (δ / ϵ + offset)
+end
+
+function _objective_range_metadata(model::Virtual.Model)
+    lower, upper = PBO.bounds(model.f)
+    range = upper - lower
+    finite = isfinite(lower) && isfinite(upper) && isfinite(range) && range >= zero(range)
+
+    return Dict{String,Any}(
+        "source" => "compiled_pbf_bounds",
+        "lower" => lower,
+        "upper" => upper,
+        "range" => range,
+        "finite" => finite,
+    )
+end
+
+function _penalty_context(model::Virtual.Model)
+    policy = Attributes.penalty_policy(model)
+    objective_bounds = _objective_range_metadata(model)
+
+    return Dict{String,Any}(
+        "policy" => string(nameof(typeof(policy))),
+        "objective_bounds" => objective_bounds,
+        "fallbacks" => Dict{String,Any}[],
+    )
+end
+
+function _fallback!(context::AbstractDict, kind::String, id::Integer, reason::String)
+    push!(
+        context["fallbacks"],
+        Dict{String,Any}(
+            "kind" => kind,
+            "id" => id,
+            "reason" => reason,
+            "fallback_policy" => "LegacyPenalty",
+        ),
+    )
+
+    return nothing
+end
+
+function _objective_range_penalty_factor(
+    sign,
+    range,
+    ϵ,
+    scale,
+    offset,
+)
+    return scale * sign * ((range + offset) / ϵ)
+end
+
+function _is_integer_valued(p::PBO.PBF)
+    for (_ω, coefficient) in p
+        isinteger(coefficient) || return false
+    end
+
+    return true
+end
+
+function _positive_penalty_gap(p::PBO.PBF{VI,T}) where {T}
+    if _is_integer_valued(p)
+        return one(T), "integer_valued_penalty"
+    else
+        return PBO.mingap(p), "pbo_mingap"
+    end
+end
+
+function _inferred_penalty_factor(
+    model::Virtual.Model,
+    context::AbstractDict,
+    sign,
+    δ,
+    ϵ,
+    scale,
+    offset,
+    kind::String,
+    id::Integer,
+)
+    policy = Attributes.penalty_policy(model)
+
+    if policy isa Attributes.LegacyPenalty
+        return _legacy_penalty_factor(sign, δ, ϵ, scale, offset)
+    end
+
+    objective_bounds = context["objective_bounds"]
+
+    if !(policy isa Attributes.ObjectiveRangePenalty)
+        _fallback!(context, kind, id, "Unknown automatic penalty policy")
+        return _legacy_penalty_factor(sign, δ, ϵ, scale, offset)
+    elseif !objective_bounds["finite"]
+        _fallback!(context, kind, id, "Objective range is not finite")
+        return _legacy_penalty_factor(sign, δ, ϵ, scale, offset)
+    elseif !(isfinite(ϵ) && ϵ > zero(ϵ))
+        _fallback!(context, kind, id, "Penalty function positive gap is not finite")
+        return _legacy_penalty_factor(sign, δ, ϵ, scale, offset)
+    end
+
+    return _objective_range_penalty_factor(
+        sign,
+        objective_bounds["range"],
+        ϵ,
+        scale,
+        offset,
+    )
 end
 
 function penalties!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
@@ -12,6 +116,7 @@ function penalties!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
     σ = MOI.get(model, MOI.ObjectiveSense()) === MOI.MAX_SENSE ? -1 : 1
 
     δ = PBO.maxgap(model.f)
+    context = _penalty_context(model)
 
     for (ci, g) in model.g
         ρ = Attributes.constraint_encoding_penalty_hint(model, ci)
@@ -25,13 +130,17 @@ function penalties!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
                 )
             end
 
-            ϵ = PBO.mingap(g)
+            ϵ, _gap_source = _positive_penalty_gap(g)
             ρ = _inferred_penalty_factor(
+                model,
+                context,
                 σ,
                 δ,
                 ϵ,
                 Attributes.constraint_penalty_scale(model, ci),
                 Attributes.constraint_penalty_offset(model, ci),
+                "constraint",
+                ci.value,
             )
         end
 
@@ -42,13 +151,17 @@ function penalties!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
         θ = Attributes.variable_encoding_penalty_hint(model, vi)
 
         if isnothing(θ)
-            ϵ = PBO.mingap(h)
+            ϵ, _gap_source = _positive_penalty_gap(h)
             θ = _inferred_penalty_factor(
+                model,
+                context,
                 σ,
                 δ,
                 ϵ,
                 Attributes.penalty_scale(model),
                 Attributes.penalty_offset(model),
+                "variable",
+                vi.value,
             )
         end
 
@@ -59,18 +172,26 @@ function penalties!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
         η = Attributes.slack_variable_encoding_penalty_hint(model, ci)
 
         if isnothing(η)
-            ϵ = PBO.mingap(s)
+            ϵ, _gap_source = _positive_penalty_gap(s)
             η = _inferred_penalty_factor(
+                model,
+                context,
                 σ,
                 δ,
                 ϵ,
                 Attributes.constraint_penalty_scale(model, ci),
                 Attributes.constraint_penalty_offset(model, ci),
+                "slack_variable",
+                ci.value,
             )
         end
 
         MOI.set(model, Attributes.SlackVariableEncodingPenalty(), ci, η)
     end
+
+    context["fallback_count"] = length(context["fallbacks"])
+    context["legacy_objective_gap"] = δ
+    model.compiler_settings[:penalty_policy_metadata] = context
 
     return nothing
 end

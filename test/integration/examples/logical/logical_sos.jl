@@ -9,13 +9,13 @@ function test_logical_sos1()
         ]
 
         # Penalty Choice
-        ρ̄ = -13.5
+        ρ̄ = -26.0
 
         # Solution Data
         Q̄ = [
-            -1  33   0
-             0 -33  33
-             0   0 -33
+            -1  58   0
+             0 -58  58
+             0   0 -58
         ]
 
         ᾱ = 1

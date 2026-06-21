@@ -5,6 +5,7 @@ function _constraint_penalty_test_model(;
     constraint_offset = nothing,
     hint = nothing,
     slack_encoding = nothing,
+    policy = nothing,
 )
     model = ToQUBO.Optimizer{Float64}()
     x = [MOI.add_variable(model) for _ = 1:2]
@@ -47,13 +48,14 @@ function _constraint_penalty_test_model(;
     !isnothing(hint) && MOI.set(model, Attributes.ConstraintEncodingPenaltyHint(), c, hint)
     !isnothing(slack_encoding) &&
         MOI.set(model, Attributes.SlackVariableEncodingMethod(), c, slack_encoding)
+    !isnothing(policy) && MOI.set(model, Attributes.PenaltyPolicy(), policy)
 
     MOI.optimize!(model)
 
     return model, c
 end
 
-function _variable_penalty_test_model(; scale = nothing, offset = nothing)
+function _variable_penalty_test_model(; scale = nothing, offset = nothing, policy = nothing)
     model = ToQUBO.Optimizer{Float64}()
     x = MOI.add_variable(model)
 
@@ -69,20 +71,41 @@ function _variable_penalty_test_model(; scale = nothing, offset = nothing)
 
     !isnothing(scale) && MOI.set(model, Attributes.PenaltyScale(), scale)
     !isnothing(offset) && MOI.set(model, Attributes.PenaltyOffset(), offset)
+    !isnothing(policy) && MOI.set(model, Attributes.PenaltyPolicy(), policy)
 
     MOI.optimize!(model)
 
     return model, x
 end
 
-function test_compiler_penalty_defaults_match_previous_heuristic()
-    default_model, default_c = _constraint_penalty_test_model()
-    explicit_model, explicit_c = _constraint_penalty_test_model(; scale = 1.0, offset = 1.0)
+function test_compiler_penalty_default_policy()
+    model, c = _constraint_penalty_test_model()
+    penalty = MOI.get(model, Attributes.ConstraintEncodingPenalty(), c)
+    metadata = MOI.get(model, Attributes.PenaltyPolicyMetadata())
 
-    @test MOI.get(default_model, Attributes.ConstraintEncodingPenalty(), default_c) ==
-          MOI.get(explicit_model, Attributes.ConstraintEncodingPenalty(), explicit_c)
-    @test MOI.get(default_model, Attributes.CompiledHamiltonian()) ==
-          MOI.get(explicit_model, Attributes.CompiledHamiltonian())
+    @test MOI.get(model, Attributes.PenaltyPolicy()) isa Attributes.ObjectiveRangePenalty
+    @test penalty == -3.0
+    @test metadata["policy"] == "ObjectiveRangePenalty"
+    @test metadata["objective_bounds"]["source"] == "compiled_pbf_bounds"
+    @test metadata["objective_bounds"]["lower"] == 0.0
+    @test metadata["objective_bounds"]["upper"] == 2.0
+    @test metadata["objective_bounds"]["range"] == 2.0
+    @test metadata["objective_bounds"]["finite"] === true
+    @test metadata["fallback_count"] == 0
+    @test isempty(metadata["fallbacks"])
+
+    return nothing
+end
+
+function test_compiler_legacy_penalty_policy()
+    model, c = _constraint_penalty_test_model(; policy = Attributes.LegacyPenalty())
+    metadata = MOI.get(model, Attributes.PenaltyPolicyMetadata())
+
+    @test MOI.get(model, Attributes.PenaltyPolicy()) isa Attributes.LegacyPenalty
+    @test MOI.get(model, Attributes.ConstraintEncodingPenalty(), c) == -3.0
+    @test metadata["policy"] == "LegacyPenalty"
+    @test metadata["fallback_count"] == 0
+    @test isempty(metadata["fallbacks"])
 
     return nothing
 end
@@ -175,13 +198,17 @@ function test_compiler_applied_penalty_metadata()
     @test only(metadata["constraint_encodings"])["penalty"] == penalty
     @test only(metadata["applied_penalties"]["slack_variables"])["penalty"] ==
           MOI.get(model, Attributes.SlackVariableEncodingPenalty(), c)
+    @test metadata["penalty_policy"]["policy"] == "ObjectiveRangePenalty"
+    @test metadata["penalty_policy"]["objective_bounds"]["range"] == 2.0
+    @test metadata["penalty_policy"]["fallback_count"] == 0
 
     return nothing
 end
 
 function test_compiler_penalties()
-    @testset "Penalty heuristic" begin
-        test_compiler_penalty_defaults_match_previous_heuristic()
+    @testset "Penalty inference" begin
+        test_compiler_penalty_default_policy()
+        test_compiler_legacy_penalty_policy()
         test_compiler_penalty_scale_and_offset()
         test_compiler_applied_penalty_metadata()
     end

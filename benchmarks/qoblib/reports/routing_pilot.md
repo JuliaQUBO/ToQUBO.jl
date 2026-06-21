@@ -72,11 +72,11 @@ This report is a ToQUBO-generated reformulation benchmark. It is not a canonical
 |:--|--:|--:|--:|
 | variables | 441 | 4527 | 4351 |
 | density | 0.011558523 | 0.011716314 | 0.012450865 |
-| minimum coefficient | -331.0 | -1.2874612e10 | -1.4036904e13 |
-| maximum coefficient | 1.0 | 7.3976056e9 | 2.7938839e13 |
-| QOBLIB-style minimum coefficient | n/a | -1.2874612e10 | -1.4036904e13 |
-| QOBLIB-style maximum coefficient | n/a | 7.3976056e9 | 1.5646507e13 |
-| objective offset | n/a | n/a | 1.5412343e13 |
+| minimum coefficient | -331.0 | -1.2874612e10 | -1.2433534e10 |
+| maximum coefficient | 1.0 | 7.3976056e9 | 8.891019e9 |
+| QOBLIB-style minimum coefficient | n/a | -1.2874612e10 | -1.2433534e10 |
+| QOBLIB-style maximum coefficient | n/a | 7.3976056e9 | 8.0192823e9 |
+| objective offset | n/a | n/a | 3.5731794e11 |
 | QUBO terms | n/a | n/a | 117882 |
 | quadratic terms | n/a | n/a | 113531 |
 
@@ -101,7 +101,7 @@ This report is a ToQUBO-generated reformulation benchmark. It is not a canonical
 - Constraint penalties: 461
 - Variable penalties: 0
 - Slack penalties: 0
-- Distinct constraint penalties: 16697.376, 1.6479324e7, 2.6568944e8
+- Distinct constraint penalties: 16697.376
 - Encoding types: `Binary`
 
 ## Known Incumbent
@@ -129,11 +129,11 @@ This report is a ToQUBO-generated reformulation benchmark. It is not a canonical
 - Target variable delta note: ToQUBO generates fewer binary variables than the pinned QOBLIB QS metrics row. The current compiler also detects 22 explicit source constraints as always feasible, so the target-size delta should be interpreted alongside the redundant-constraint count and encoding metadata.
 - Redundant source constraints detected: 22
 - Target density delta vs QOBLIB QS metrics: 0.0007345511
-- Native min-coefficient delta vs QOBLIB QS metrics: -1.402403e13
-- Native max-coefficient delta vs QOBLIB QS metrics: 2.7931441e13
-- QOBLIB-style min-coefficient delta vs QOBLIB QS metrics: -1.402403e13
-- QOBLIB-style max-coefficient delta vs QOBLIB QS metrics: 1.5639109e13
+- Native min-coefficient delta vs QOBLIB QS metrics: 4.4107789e8
+- Native max-coefficient delta vs QOBLIB QS metrics: 1.4934133e9
+- QOBLIB-style min-coefficient delta vs QOBLIB QS metrics: 4.4107789e8
+- QOBLIB-style max-coefficient delta vs QOBLIB QS metrics: 6.2167672e8
 
 ## Follow-Up
 
-The pilot found a major coefficient-scaling gap: ToQUBO's generated routing QUBO coefficient range is about three orders of magnitude larger than the pinned QOBLIB QS metrics row even under the QOBLIB-style symmetrized convention. The source transcription and incumbent feasibility checks pass, so this PR keeps the reproducible routing pilot and tracks penalty-scaling investigation in https://github.com/JuliaQUBO/ToQUBO.jl/issues/162 before expanding the routing benchmark class.
+The objective-range automatic penalty policy brings ToQUBO's generated routing QUBO coefficient range into the same order as the pinned QOBLIB QS metrics row under the QOBLIB-style symmetrized convention. The source transcription and incumbent feasibility checks pass. Remaining routing differences should be interpreted alongside ToQUBO's variable and slack encodings, redundant-constraint handling, and target-variable delta; those benchmark-expansion questions remain tracked in https://github.com/JuliaQUBO/ToQUBO.jl/issues/162.

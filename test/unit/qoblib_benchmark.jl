@@ -271,7 +271,7 @@ function test_qoblib_benchmark_pilot()
         @test report["provenance"]["qoblib_model_license"] ==
               "Apache License, Version 2.0"
         @test report["provenance"]["penalty_scaling_follow_up"] ==
-              "https://github.com/JuliaQUBO/ToQUBO.jl/issues/160"
+              "https://github.com/JuliaQUBO/ToQUBO.jl/issues/172"
         @test report["provenance"]["canonical_qubo_metrics_csv_row"] ==
               "network05.qs,3640,0.05271012974940467,-4.75713475713e+17,4.5260616934376417e+18"
         @test report["instance"]["qoblib_id"] == "network05"
@@ -320,9 +320,9 @@ function test_qoblib_benchmark_pilot()
         @test target["num_terms"] == 350272
         @test target["num_quadratic_terms"] == 346611
         @test isapprox(target["density"], 0.05225373626178544; rtol = 1e-14)
-        @test isapprox(target["min_coeff"], -2.3688802611453573e26; rtol = 1e-14)
-        @test isapprox(target["max_coeff"], 2.3688762012720738e26; rtol = 1e-14)
-        @test isapprox(target["objective_offset"], 2.737918134653359e23; rtol = 1e-14)
+        @test isapprox(target["min_coeff"], -1.418426307690889e24; rtol = 1e-14)
+        @test isapprox(target["max_coeff"], 1.821469821468e24; rtol = 1e-14)
+        @test isapprox(target["objective_offset"], 6.113365033359323e20; rtol = 1e-14)
 
         metadata = report["toqubo"]["metadata"]
         @test metadata["source_variable_count"] == 101
@@ -330,7 +330,7 @@ function test_qoblib_benchmark_pilot()
         @test metadata["auxiliary_variable_count"] == 2021
         @test metadata["slack_variable_count"] == 100
         @test metadata["constraint_penalty_count"] == 130
-        @test length(metadata["constraint_penalties"]) == 23
+        @test metadata["constraint_penalties"] == [1_000_001.0]
         @test metadata["encoding_types"] == ["Binary"]
 
         source_encoding = metadata["source_encoding"]
@@ -342,23 +342,26 @@ function test_qoblib_benchmark_pilot()
 
         penalty_diagnostics = report["toqubo"]["penalty_diagnostics"]
         @test penalty_diagnostics["heuristic"] ==
-              "scale * sigma * (delta / epsilon + beta)"
+              "objective-range exact penalty with legacy fallback"
+        @test penalty_diagnostics["automatic_penalty_policy"] == "ObjectiveRangePenalty"
+        @test penalty_diagnostics["objective_range"] == 1_000_000.0
+        @test penalty_diagnostics["fallback_count"] == 0
         @test penalty_diagnostics["default_penalty_scale"] == 1.0
         @test penalty_diagnostics["default_penalty_offset"] == 1.0
-        @test penalty_diagnostics["largest_applied_penalty_family"] == "flow_balance"
+        @test penalty_diagnostics["largest_applied_penalty_family"] == "out_degree"
         @test isapprox(
             penalty_diagnostics["largest_applied_penalty"],
-            5.2338627500000094e14;
+            1_000_001.0;
             rtol = 1e-14,
         )
         @test penalty_diagnostics["largest_expanded_residual_scale_family"] ==
-              "flow_balance"
+              "arc_linking"
         family_by_category = Dict(
             family["category"] => family for
             family in penalty_diagnostics["constraint_families"]
         )
         @test family_by_category["flow_balance"]["constraint_count"] == 20
-        @test family_by_category["flow_balance"]["distinct_penalty_count"] == 15
+        @test family_by_category["flow_balance"]["distinct_penalty_count"] == 1
         @test isapprox(
             family_by_category["flow_balance"]["max_penalty"],
             penalty_diagnostics["largest_applied_penalty"];
@@ -373,25 +376,25 @@ function test_qoblib_benchmark_pilot()
 
         scaling_diagnostics = report["toqubo"]["scaling_diagnostics"]
         @test scaling_diagnostics["largest_expanded_residual_scale_family"] ==
-              "flow_balance"
-        @test scaling_diagnostics["largest_expanded_residual_coefficient"] == 475_713.0
+              "arc_linking"
+        @test scaling_diagnostics["largest_expanded_residual_coefficient"] == 1.0e6
         @test isapprox(
             scaling_diagnostics["largest_penalty_times_expanded_residual_coefficient_squared"],
-            1.1844381006360369e26;
+            1.000001e18;
             rtol = 1e-14,
         )
         @test isapprox(
             scaling_diagnostics["qoblib_symmetric_to_canonical_abs_ratio"],
-            2.624386183067761e7;
+            402440.34324785223;
             rtol = 1e-14,
         )
         @test isapprox(
             scaling_diagnostics["qoblib_symmetric_min_to_canonical_min_abs_ratio"],
-            2.4898183277180412e8;
+            1.4908409999999998e6;
             rtol = 1e-14,
         )
         @test occursin(
-            "default automatic penalty heuristic",
+            "objective-range exact-penalty policy",
             scaling_diagnostics["assessment"],
         )
 
@@ -440,16 +443,17 @@ function test_qoblib_benchmark_pilot()
         @test occursin("Reproduced converter penalty: 1.000001e6", markdown)
         @test occursin("match the pinned metrics row exactly", markdown)
         @test occursin("Model license: Apache License, Version 2.0", markdown)
-        @test occursin("Penalty scaling follow-up: https://github.com/JuliaQUBO/ToQUBO.jl/issues/160", markdown)
+        @test occursin("Penalty scaling follow-up: https://github.com/JuliaQUBO/ToQUBO.jl/issues/172", markdown)
         @test occursin("Target variable delta note", markdown)
         @test occursin("Source Variable Encoding", markdown)
         @test occursin("z and flow target binary variables: 1620", markdown)
         @test occursin("Penalty Scaling Diagnostics", markdown)
-        @test occursin("Largest applied penalty family: flow-balance", markdown)
-        @test occursin("Largest expanded residual scale family: flow-balance", markdown)
+        @test occursin("Automatic penalty policy: `ObjectiveRangePenalty`", markdown)
+        @test occursin("Largest applied penalty family: out-degree", markdown)
+        @test occursin("Largest expanded residual scale family: arc-linking", markdown)
         @test occursin("QOBLIB-style minimum-coefficient absolute ratio", markdown)
         @test occursin("Flow-balance constraints: 20", markdown)
-        @test occursin("major coefficient-scaling gap", markdown)
+        @test occursin("remaining coefficient-range gap is no longer caused", markdown)
         @test occursin("QOBLIB solution artifact consistency check: pass", markdown)
         @test markdown == _normalized_file(report_path)
 
@@ -489,19 +493,19 @@ function test_qoblib_benchmark_pilot()
         @test target["num_terms"] == 117882
         @test target["num_quadratic_terms"] == 113531
         @test isapprox(target["density"], 0.012450864912731353; rtol = 1e-14)
-        @test isapprox(target["min_coeff"], -1.4036904381157936e13; rtol = 1e-14)
-        @test isapprox(target["max_coeff"], 2.793883852788166e13; rtol = 1e-14)
+        @test isapprox(target["min_coeff"], -1.243353432550125e10; rtol = 1e-14)
+        @test isapprox(target["max_coeff"], 8.891018959017647e9; rtol = 1e-14)
         @test isapprox(
             target["qoblib_symmetric_min_coeff"],
-            -1.4036904364404846e13;
+            -1.243353432550125e10;
             rtol = 1e-14,
         )
         @test isapprox(
             target["qoblib_symmetric_max_coeff"],
-            1.5646506544178379e13;
+            8.019282334520212e9;
             rtol = 1e-14,
         )
-        @test isapprox(target["objective_offset"], 1.5412343291804879e13; rtol = 1e-14)
+        @test isapprox(target["objective_offset"], 3.573179430255874e11; rtol = 1e-14)
 
         metadata = report["toqubo"]["metadata"]
         @test metadata["source_variable_count"] == 441
@@ -509,7 +513,12 @@ function test_qoblib_benchmark_pilot()
         @test metadata["auxiliary_variable_count"] == 3763
         @test metadata["slack_variable_count"] == 421
         @test metadata["constraint_penalty_count"] == 461
-        @test length(metadata["constraint_penalties"]) == 3
+        @test length(metadata["constraint_penalties"]) == 1
+        @test isapprox(
+            only(metadata["constraint_penalties"]),
+            16_697.376350318606;
+            rtol = 1e-14,
+        )
         @test metadata["encoding_types"] == ["Binary"]
 
         comparison = report["comparison"]
@@ -553,7 +562,7 @@ function test_qoblib_benchmark_pilot()
         @test occursin("Penalty scaling follow-up: https://github.com/JuliaQUBO/ToQUBO.jl/issues/162", markdown)
         @test occursin("Rounded CVRPLIB route cost", markdown)
         @test occursin("Redundant source constraints detected: 22", markdown)
-        @test occursin("major coefficient-scaling gap", markdown)
+        @test occursin("same order as the pinned QOBLIB QS metrics row", markdown)
         @test occursin("QOBLIB solution artifact consistency check: pass", markdown)
         @test markdown == _normalized_file(report_path)
 

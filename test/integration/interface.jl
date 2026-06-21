@@ -523,6 +523,19 @@ function test_interface_jump()
                 JuMP.set_attribute(model, Attributes.Warnings(), false)
                 @test JuMP.get_attribute(model, Attributes.Warnings()) === false
 
+                @test JuMP.get_attribute(model, Attributes.PenaltyPolicy()) isa
+                      Attributes.ObjectiveRangePenalty
+                JuMP.set_attribute(model, Attributes.PenaltyPolicy(), Attributes.LegacyPenalty())
+                @test JuMP.get_attribute(model, Attributes.PenaltyPolicy()) isa
+                      Attributes.LegacyPenalty
+                JuMP.set_attribute(
+                    model,
+                    Attributes.PenaltyPolicy(),
+                    Attributes.ObjectiveRangePenalty(),
+                )
+                @test JuMP.get_attribute(model, Attributes.PenaltyPolicy()) isa
+                      Attributes.ObjectiveRangePenalty
+
                 @test JuMP.get_attribute(model, Attributes.QuadratizationMethod()) isa PBO.DEFAULT
                 JuMP.set_attribute(model, Attributes.QuadratizationMethod(), PBO.PTR_BG())
                 @test JuMP.get_attribute(model, Attributes.QuadratizationMethod()) isa PBO.PTR_BG
@@ -662,6 +675,10 @@ function test_interface_jump()
 
                 @test JuMP.get_attribute(c[1], Attributes.ConstraintEncodingPenalty()) == -10.0
                 @test JuMP.get_attribute(c[2], Attributes.ConstraintEncodingPenalty()) == -4.0
+                penalty_metadata =
+                    JuMP.get_attribute(model, Attributes.PenaltyPolicyMetadata())
+                @test penalty_metadata["policy"] == "ObjectiveRangePenalty"
+                @test penalty_metadata["fallback_count"] == 0
             end
         end
     end

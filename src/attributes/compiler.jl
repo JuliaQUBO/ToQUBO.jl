@@ -62,6 +62,45 @@ MOI.supports(::Optimizer, ::A) where {A<:CompilerAttribute} = true
 
 _copy_or_nothing(x) = isnothing(x) ? nothing : copy(x)
 
+abstract type AutomaticPenaltyPolicy end
+
+@doc raw"""
+    ObjectiveRangePenalty()
+
+Infer automatic penalty coefficients from a sufficient exact-penalty bound
+based on the compiled objective range. When ToQUBO can certify finite objective
+bounds and a positive violation gap for a generated nonnegative penalty
+function, penalties are inferred as
+``scale * sigma * ((objective_range + margin) / epsilon)``.
+
+This is the default policy. If the bound cannot be certified for a particular
+penalty function, ToQUBO falls back to [`LegacyPenalty`](@ref) for that
+coefficient and records the fallback in reformulation metadata.
+"""
+struct ObjectiveRangePenalty <: AutomaticPenaltyPolicy end
+
+@doc raw"""
+    LegacyPenalty()
+
+Use the historical ToQUBO automatic penalty heuristic
+``scale * sigma * (delta / epsilon + beta)``, where `delta` is computed with
+`PBO.maxgap` on the compiled source objective. This policy remains available
+for compatibility and as a fallback when [`ObjectiveRangePenalty`](@ref) cannot
+be certified.
+"""
+struct LegacyPenalty <: AutomaticPenaltyPolicy end
+
+function MOIU.map_indices(::Function, policy::AutomaticPenaltyPolicy)
+    return policy
+end
+
+function MOIU.map_indices(
+    ::AbstractDict{T,T},
+    policy::AutomaticPenaltyPolicy,
+) where {T<:Union{MOI.VariableIndex,MOI.ConstraintIndex}}
+    return policy
+end
+
 @doc raw"""
     SourceModel()
 """
@@ -242,15 +281,74 @@ function ignore_feasible_constraints(model::Optimizer)::Bool
 end
 
 @doc raw"""
+    PenaltyPolicy()
+
+Select the automatic penalty inference policy used when no explicit penalty
+hint is set. The default is [`ObjectiveRangePenalty`](@ref), which uses a
+certified objective-range exact-penalty bound when available and falls back to
+[`LegacyPenalty`](@ref) otherwise.
+"""
+struct PenaltyPolicy <: CompilerAttribute end
+
+_attribute_from_key(::Val{:penalty_policy}) = PenaltyPolicy
+
+function MOI.get(model::Optimizer, ::PenaltyPolicy)::AutomaticPenaltyPolicy
+    return get(model.compiler_settings, :penalty_policy, ObjectiveRangePenalty())
+end
+
+function MOI.set(model::Optimizer, ::PenaltyPolicy, policy::AutomaticPenaltyPolicy)
+    model.compiler_settings[:penalty_policy] = policy
+
+    return nothing
+end
+
+function MOI.set(model::Optimizer, ::PenaltyPolicy, ::Nothing)
+    delete!(model.compiler_settings, :penalty_policy)
+
+    return nothing
+end
+
+function penalty_policy(model::Optimizer)::AutomaticPenaltyPolicy
+    return MOI.get(model, PenaltyPolicy())
+end
+
+@doc raw"""
+    PenaltyPolicyMetadata()
+
+Return diagnostic metadata for the automatic penalty policy used during the
+last compilation, including objective bounds and any fallback reasons.
+"""
+struct PenaltyPolicyMetadata <: CompilerAttribute end
+
+MOI.is_set_by_optimize(::PenaltyPolicyMetadata) = true
+
+function MOIU.map_indices(::Any, ::PenaltyPolicyMetadata, metadata::AbstractDict)
+    return copy(metadata)
+end
+
+function MOIU.map_indices(::Any, ::PenaltyPolicyMetadata, ::Nothing)
+    return nothing
+end
+
+function MOI.get(model::Optimizer, ::PenaltyPolicyMetadata)
+    return get(model.compiler_settings, :penalty_policy_metadata, nothing)
+end
+
+function penalty_policy_metadata(model::Optimizer)
+    return MOI.get(model, PenaltyPolicyMetadata())
+end
+
+@doc raw"""
     PenaltyOffset()
 
-Set the global offset ``\beta`` used by the automatic penalty heuristic.
+Set the global offset or margin used by automatic penalty inference.
 
-When no explicit penalty hint is set, ToQUBO infers penalty coefficients as
-``scale * sigma * (delta / epsilon + beta)``. The default is `1.0`, which
-preserves the original heuristic. Use [`ConstraintPenaltyOffset`](@ref) to
-override this value for a specific source constraint and its slack-variable
-encoding penalty.
+Under [`ObjectiveRangePenalty`](@ref), this is the objective-range margin in
+``scale * sigma * ((objective_range + beta) / epsilon)``. Under
+[`LegacyPenalty`](@ref), this is the historical additive offset in
+``scale * sigma * (delta / epsilon + beta)``. The default is `1.0`.
+Use [`ConstraintPenaltyOffset`](@ref) to override this value for a specific
+source constraint and its slack-variable encoding penalty.
 """
 struct PenaltyOffset <: CompilerAttribute end
 
@@ -282,11 +380,10 @@ end
 Set the global multiplier applied to automatically inferred penalty
 coefficients.
 
-When no explicit penalty hint is set, ToQUBO infers penalty coefficients as
-``scale * sigma * (delta / epsilon + beta)``. The default is `1.0`, which
-preserves the original heuristic. Use [`ConstraintPenaltyScale`](@ref) to
-override this value for a specific source constraint and its slack-variable
-encoding penalty.
+When no explicit penalty hint is set, ToQUBO infers penalty coefficients from
+[`PenaltyPolicy`](@ref). The default scale is `1.0`. Use
+[`ConstraintPenaltyScale`](@ref) to override this value for a specific source
+constraint and its slack-variable encoding penalty.
 """
 struct PenaltyScale <: CompilerAttribute end
 
@@ -933,9 +1030,9 @@ end
 Set a fixed penalty coefficient for a variable encoding that generates a
 penalty function.
 
-When unset, ToQUBO infers the coefficient from [`PenaltyScale`](@ref),
-[`PenaltyOffset`](@ref), the objective gap estimate, and the generated penalty
-function gap. The hint is used as-is and bypasses the automatic heuristic.
+When unset, ToQUBO infers the coefficient from [`PenaltyPolicy`](@ref),
+[`PenaltyScale`](@ref), [`PenaltyOffset`](@ref), and the generated penalty
+function gap. The hint is used as-is and bypasses automatic inference.
 """
 struct VariableEncodingPenaltyHint <: CompilerVariableAttribute end
 
@@ -1051,7 +1148,7 @@ end
 
 Set a fixed penalty coefficient for a source constraint.
 
-When unset, ToQUBO infers the coefficient from the automatic penalty heuristic,
+When unset, ToQUBO infers the coefficient from the automatic penalty policy,
 unless the constraint uses [`LinearPenalty`](@ref). Linear penalties require an
 explicit hint because their sign and magnitude control whether the residual
 discourages infeasible assignments.
@@ -1114,7 +1211,7 @@ Return the applied source-constraint penalty coefficient after compilation.
 
 Use [`ConstraintEncodingPenaltyHint`](@ref) before compilation to pin a
 specific coefficient, or [`ConstraintPenaltyScale`](@ref) and
-[`ConstraintPenaltyOffset`](@ref) to tune the automatic heuristic for one
+[`ConstraintPenaltyOffset`](@ref) to tune automatic inference for one
 source constraint.
 """
 struct ConstraintEncodingPenalty <: CompilerConstraintAttribute end
@@ -1614,7 +1711,7 @@ end
 Set a fixed penalty coefficient for a slack-variable encoding generated by a
 source constraint.
 
-When unset, ToQUBO infers the coefficient from the automatic penalty heuristic.
+When unset, ToQUBO infers the coefficient from the automatic penalty policy.
 [`ConstraintPenaltyScale`](@ref) and [`ConstraintPenaltyOffset`](@ref) apply to
 the source constraint and to its generated slack-variable encoding penalty.
 """

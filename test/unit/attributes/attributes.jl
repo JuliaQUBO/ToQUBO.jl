@@ -250,6 +250,29 @@ function test_compiler_attributes()
             end
         end
 
+        @testset "PenaltyPolicy" begin
+            let model = ToQUBO.Optimizer{Float64}()
+                @test MOI.supports(model, Attributes.PenaltyPolicy())
+                @test MOI.supports(model, Attributes.PenaltyPolicyMetadata())
+                @test MOI.get(model, Attributes.PenaltyPolicy()) isa
+                      Attributes.ObjectiveRangePenalty
+                @test Attributes.penalty_policy(model) isa Attributes.ObjectiveRangePenalty
+                @test MOI.get(model, Attributes.PenaltyPolicyMetadata()) === nothing
+                @test Attributes.penalty_policy_metadata(model) === nothing
+
+                MOI.set(model, Attributes.PenaltyPolicy(), Attributes.LegacyPenalty())
+                @test MOI.get(model, Attributes.PenaltyPolicy()) isa Attributes.LegacyPenalty
+
+                MOI.set(model, Attributes.PenaltyPolicy(), Attributes.ObjectiveRangePenalty())
+                @test MOI.get(model, Attributes.PenaltyPolicy()) isa
+                      Attributes.ObjectiveRangePenalty
+
+                MOI.set(model, Attributes.PenaltyPolicy(), nothing)
+                @test MOI.get(model, Attributes.PenaltyPolicy()) isa
+                      Attributes.ObjectiveRangePenalty
+            end
+        end
+
         @testset "IgnoreFeasibleConstraints" begin
             let model = ToQUBO.Optimizer{Float64}()
                 @test MOI.supports(model, Attributes.IgnoreFeasibleConstraints())
