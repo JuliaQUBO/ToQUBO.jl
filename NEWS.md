@@ -5,6 +5,7 @@
 ### Added
 
 - Add QOBLib network and routing reformulation benchmark pilots with provenance, comparison metrics, and incumbent feasibility checks.
+- Add QOBLib network penalty-scaling diagnostics with source-variable bit counts and applied-penalty attribution by constraint family.
 
 ### Maintenance
 

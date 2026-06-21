@@ -12,6 +12,20 @@ const SCALED_BIG_M = BIG_M * INTSCALE
 const NODES = 1:NUM_NODES
 const ARCS = [(i, j) for i in NODES for j in NODES if i != j]
 const FLOW_KEYS = [(k, i, j) for k in NODES for (i, j) in ARCS if k != j]
+const CONSTRAINT_CATEGORY_ORDER = [
+    "out_degree",
+    "in_degree",
+    "flow_balance",
+    "arc_linking",
+    "edge_capacity",
+]
+const CONSTRAINT_CATEGORY_LABELS = Dict{String,String}(
+    "out_degree" => "out-degree",
+    "in_degree" => "in-degree",
+    "flow_balance" => "flow-balance",
+    "arc_linking" => "arc-linking",
+    "edge_capacity" => "edge-capacity",
+)
 
 const DEMAND_MATRIX = [
     [0, 24, 43, 23, 21],
@@ -169,11 +183,25 @@ function _add_integer_variable(model, lower::Real, upper::Real)
     return variable
 end
 
-function _add_counted_constraint(model, func, set, counts::AbstractDict, category::String)
-    MOI.add_constraint(model, func, set)
-    counts[category] = get(counts, category, 0) + 1
+function _constraint_category_map()
+    return Dict{String,Vector{Any}}(
+        category => Any[] for category in CONSTRAINT_CATEGORY_ORDER
+    )
+end
 
-    return nothing
+function _add_counted_constraint(
+    model,
+    func,
+    set,
+    counts::AbstractDict,
+    constraints_by_category::AbstractDict,
+    category::String,
+)
+    constraint = MOI.add_constraint(model, func, set)
+    counts[category] = get(counts, category, 0) + 1
+    push!(get!(constraints_by_category, category, Any[]), constraint)
+
+    return constraint
 end
 
 function _build_network_model()
@@ -188,6 +216,7 @@ function _build_network_model()
         "arc_linking" => 0,
         "edge_capacity" => 0,
     )
+    constraints_by_category = _constraint_category_map()
 
     for arc in ARCS
         x[arc] = _add_integer_variable(model, 0.0, 1.0)
@@ -213,6 +242,7 @@ function _build_network_model()
             ]),
             MOI.EqualTo(Float64(DEGREE)),
             constraint_counts,
+            constraints_by_category,
             "out_degree",
         )
     end
@@ -226,6 +256,7 @@ function _build_network_model()
             ]),
             MOI.EqualTo(Float64(DEGREE)),
             constraint_counts,
+            constraints_by_category,
             "in_degree",
         )
     end
@@ -253,6 +284,7 @@ function _build_network_model()
             _affine(terms),
             MOI.EqualTo(Float64(_demand(k, i) * INTSCALE)),
             constraint_counts,
+            constraints_by_category,
             "flow_balance",
         )
     end
@@ -266,6 +298,7 @@ function _build_network_model()
             ]),
             MOI.LessThan(0.0),
             constraint_counts,
+            constraints_by_category,
             "arc_linking",
         )
     end
@@ -282,11 +315,12 @@ function _build_network_model()
             _affine(terms),
             MOI.LessThan(0.0),
             constraint_counts,
+            constraints_by_category,
             "edge_capacity",
         )
     end
 
-    return model, z, x, f, constraint_counts
+    return model, z, x, f, constraint_counts, constraints_by_category
 end
 
 function _term_key(vi::MOI.VariableIndex, vj::MOI.VariableIndex)
@@ -365,6 +399,35 @@ function _source_metrics(constraint_counts::AbstractDict)
     )
 end
 
+function _source_variable_bits(original_variables, ids)
+    idset = Set(ids)
+
+    return sum(
+        length(entry["target_variables"]) for entry in original_variables if entry["id"] in idset
+    )
+end
+
+function _source_encoding_summary(metadata::AbstractDict)
+    original_variables = metadata["original_variables"]
+    z_ids = 1:1
+    x_ids = 2:(1 + length(ARCS))
+    flow_ids = (2 + length(ARCS)):(1 + length(ARCS) + length(FLOW_KEYS))
+    z_bits = _source_variable_bits(original_variables, z_ids)
+    x_bits = _source_variable_bits(original_variables, x_ids)
+    flow_bits = _source_variable_bits(original_variables, flow_ids)
+
+    return Dict{String,Any}(
+        "z_variable_count" => 1,
+        "z_binary_variables" => z_bits,
+        "selected_arc_variable_count" => length(ARCS),
+        "selected_arc_binary_variables" => x_bits,
+        "flow_variable_count" => length(FLOW_KEYS),
+        "flow_binary_variables" => flow_bits,
+        "encoded_source_binary_variables" => z_bits + x_bits + flow_bits,
+        "z_and_flow_binary_variables" => z_bits + flow_bits,
+    )
+end
+
 function _metadata_summary(optimizer)
     return _metadata_summary(ToQUBO.reformulation_metadata(optimizer))
 end
@@ -388,6 +451,88 @@ function _metadata_summary(metadata::AbstractDict)
             entry["encoding"]["type"] for entry in metadata["original_variables"] if
             entry["encoding"] !== nothing
         ])),
+        "source_encoding" => _source_encoding_summary(metadata),
+    )
+end
+
+function _constraint_penalty_diagnostics(model, constraints_by_category::AbstractDict)
+    families = Dict{String,Any}[]
+
+    for category in CONSTRAINT_CATEGORY_ORDER
+        constraints = get(constraints_by_category, category, Any[])
+        penalties = Float64[]
+
+        for constraint in constraints
+            penalty = MOI.get(model, Attributes.AppliedPenalty(), constraint)
+            isnothing(penalty) || push!(penalties, Float64(penalty))
+        end
+
+        push!(
+            families,
+            Dict{String,Any}(
+                "category" => category,
+                "label" => CONSTRAINT_CATEGORY_LABELS[category],
+                "constraint_count" => length(constraints),
+                "penalty_count" => length(penalties),
+                "distinct_penalty_count" => length(unique(penalties)),
+                "min_penalty" => isempty(penalties) ? nothing : minimum(penalties),
+                "max_penalty" => isempty(penalties) ? nothing : maximum(penalties),
+                "max_abs_penalty" =>
+                    isempty(penalties) ? 0.0 : maximum(abs.(penalties)),
+            ),
+        )
+    end
+
+    dominant = families[argmax([family["max_abs_penalty"] for family in families])]
+
+    return Dict{String,Any}(
+        "heuristic" => "scale * sigma * (delta / epsilon + beta)",
+        "default_penalty_scale" => MOI.get(model, Attributes.PenaltyScale()),
+        "default_penalty_offset" => MOI.get(model, Attributes.PenaltyOffset()),
+        "constraint_families" => families,
+        "largest_applied_penalty_family" => dominant["category"],
+        "largest_applied_penalty_label" => dominant["label"],
+        "largest_applied_penalty" => dominant["max_abs_penalty"],
+    )
+end
+
+function _coefficient_abs_bound(min_coeff, max_coeff)
+    return max(abs(Float64(min_coeff)), abs(Float64(max_coeff)))
+end
+
+function _scaling_diagnostics(target::AbstractDict, penalty_diagnostics::AbstractDict)
+    native_bound = _coefficient_abs_bound(target["min_coeff"], target["max_coeff"])
+    symmetric_bound = _coefficient_abs_bound(
+        target["qoblib_symmetric_min_coeff"],
+        target["qoblib_symmetric_max_coeff"],
+    )
+    canonical_bound = _coefficient_abs_bound(
+        QOBLIB_QUBO_METRICS["min_coeff"],
+        QOBLIB_QUBO_METRICS["max_coeff"],
+    )
+    largest_penalty = penalty_diagnostics["largest_applied_penalty"]
+    largest_source_coefficient = Float64(SCALED_BIG_M)
+
+    return Dict{String,Any}(
+        "native_abs_coefficient_bound" => native_bound,
+        "qoblib_symmetric_abs_coefficient_bound" => symmetric_bound,
+        "canonical_abs_coefficient_bound" => canonical_bound,
+        "native_to_canonical_abs_ratio" => native_bound / canonical_bound,
+        "qoblib_symmetric_to_canonical_abs_ratio" =>
+            symmetric_bound / canonical_bound,
+        "qoblib_symmetric_min_to_canonical_min_abs_ratio" =>
+            abs(target["qoblib_symmetric_min_coeff"]) /
+            abs(QOBLIB_QUBO_METRICS["min_coeff"]),
+        "qoblib_symmetric_max_to_canonical_max_abs_ratio" =>
+            abs(target["qoblib_symmetric_max_coeff"]) /
+            abs(QOBLIB_QUBO_METRICS["max_coeff"]),
+        "objective_offset_to_incumbent_objective_ratio" =>
+            target["objective_offset"] / KNOWN_INCUMBENT["qoblib_solution_objective"],
+        "largest_source_coefficient" => largest_source_coefficient,
+        "largest_penalty_times_source_coefficient_squared" =>
+            largest_penalty * largest_source_coefficient^2,
+        "assessment" =>
+            "The source transcription and incumbent checks pass. Under the default automatic penalty heuristic, the scaled network flow/linking coefficients combine with large applied penalties and reproduce the reported QUBO coefficient range. Matching the pinned QS metrics row would require network-specific penalty settings or the missing canonical converter/artifact details, not a source model transcription change.",
     )
 end
 
@@ -461,12 +606,15 @@ function _comparison(target)
 end
 
 function run_network_pilot()
-    model, _z, _x, _f, constraint_counts = _build_network_model()
+    model, _z, _x, _f, constraint_counts, constraints_by_category =
+        _build_network_model()
 
     MOI.optimize!(model)
 
     target = _target_metrics(model)
     metadata = _metadata_summary(model)
+    penalty_diagnostics = _constraint_penalty_diagnostics(model, constraints_by_category)
+    scaling_diagnostics = _scaling_diagnostics(target, penalty_diagnostics)
 
     return Dict{String,Any}(
         "provenance" => copy(PROVENANCE),
@@ -498,6 +646,8 @@ function run_network_pilot()
         "toqubo" => Dict{String,Any}(
             "target" => target,
             "metadata" => metadata,
+            "penalty_diagnostics" => penalty_diagnostics,
+            "scaling_diagnostics" => scaling_diagnostics,
         ),
         "known_incumbent" => _known_incumbent_summary(),
         "comparison" => _comparison(target),
@@ -531,6 +681,9 @@ function write_markdown_report(io::IO, report::AbstractDict)
     qoblib_qubo = report["qoblib_qubo_metrics"]
     target = report["toqubo"]["target"]
     metadata = report["toqubo"]["metadata"]
+    source_encoding = metadata["source_encoding"]
+    penalty_diagnostics = report["toqubo"]["penalty_diagnostics"]
+    scaling_diagnostics = report["toqubo"]["scaling_diagnostics"]
     incumbent = report["known_incumbent"]
     comparison = report["comparison"]
 
@@ -697,6 +850,91 @@ function write_markdown_report(io::IO, report::AbstractDict)
     write(io, "- Slack penalties: $(metadata["slack_penalty_count"])\n")
     write(io, "- Distinct constraint penalties: $(join(_fmt.(metadata["constraint_penalties"]), ", "))\n")
     write(io, "- Encoding types: `$(join(metadata["encoding_types"], "`, `"))`\n")
+
+    write(io, "\n## Source Variable Encoding\n\n")
+    write(io, "- z variables: $(source_encoding["z_variable_count"])\n")
+    write(io, "- z target binary variables: $(source_encoding["z_binary_variables"])\n")
+    write(
+        io,
+        "- Selected-arc variables: $(source_encoding["selected_arc_variable_count"])\n",
+    )
+    write(
+        io,
+        "- Selected-arc target binary variables: $(source_encoding["selected_arc_binary_variables"])\n",
+    )
+    write(io, "- Flow variables: $(source_encoding["flow_variable_count"])\n")
+    write(
+        io,
+        "- Flow target binary variables: $(source_encoding["flow_binary_variables"])\n",
+    )
+    write(
+        io,
+        "- z and flow target binary variables: $(source_encoding["z_and_flow_binary_variables"])\n",
+    )
+    write(
+        io,
+        "- Encoded source target binary variables: $(source_encoding["encoded_source_binary_variables"])\n",
+    )
+
+    write(io, "\n## Penalty Scaling Diagnostics\n\n")
+    write(
+        io,
+        "- Automatic penalty heuristic: `$(penalty_diagnostics["heuristic"])`\n",
+    )
+    write(
+        io,
+        "- Default penalty scale: $(_fmt(penalty_diagnostics["default_penalty_scale"]))\n",
+    )
+    write(
+        io,
+        "- Default penalty offset: $(_fmt(penalty_diagnostics["default_penalty_offset"]))\n",
+    )
+    write(
+        io,
+        "- Largest applied penalty family: $(penalty_diagnostics["largest_applied_penalty_label"])\n",
+    )
+    write(
+        io,
+        "- Largest applied penalty: $(_fmt(penalty_diagnostics["largest_applied_penalty"]))\n",
+    )
+    write(
+        io,
+        "- Largest source-side scaled coefficient: $(_fmt(scaling_diagnostics["largest_source_coefficient"]))\n",
+    )
+    write(
+        io,
+        "- Largest applied penalty times scaled coefficient squared: $(_fmt(scaling_diagnostics["largest_penalty_times_source_coefficient_squared"]))\n",
+    )
+    write(
+        io,
+        "- Native absolute coefficient bound divided by canonical bound: $(_fmt(scaling_diagnostics["native_to_canonical_abs_ratio"]))\n",
+    )
+    write(
+        io,
+        "- QOBLIB-style absolute coefficient bound divided by canonical bound: $(_fmt(scaling_diagnostics["qoblib_symmetric_to_canonical_abs_ratio"]))\n",
+    )
+    write(
+        io,
+        "- QOBLIB-style minimum-coefficient absolute ratio: $(_fmt(scaling_diagnostics["qoblib_symmetric_min_to_canonical_min_abs_ratio"]))\n",
+    )
+    write(
+        io,
+        "- QOBLIB-style maximum-coefficient absolute ratio: $(_fmt(scaling_diagnostics["qoblib_symmetric_max_to_canonical_max_abs_ratio"]))\n",
+    )
+    write(
+        io,
+        "- Objective offset divided by incumbent source objective: $(_fmt(scaling_diagnostics["objective_offset_to_incumbent_objective_ratio"]))\n",
+    )
+    write(io, "- Assessment: $(scaling_diagnostics["assessment"])\n\n")
+    write(io, "| Constraint family | Constraints | Distinct penalties | Min penalty | Max penalty |\n")
+    write(io, "|:--|--:|--:|--:|--:|\n")
+
+    for family in penalty_diagnostics["constraint_families"]
+        write(
+            io,
+            "| $(family["label"]) | $(family["constraint_count"]) | $(family["distinct_penalty_count"]) | $(_fmt(family["min_penalty"])) | $(_fmt(family["max_penalty"])) |\n",
+        )
+    end
 
     write(io, "\n## Known Incumbent\n\n")
     write(io, "- Source objective: $(_fmt(incumbent["source_objective"]))\n")

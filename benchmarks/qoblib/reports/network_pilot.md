@@ -102,6 +102,41 @@ This report is a ToQUBO-generated reformulation benchmark. It is not a canonical
 - Distinct constraint penalties: 1.000001e6, 1.57e8, 2.4963614e8, 3.13e8, 5.75e8, 6.43e8, 6.53e8, 8.97e8, 1.079e9, 1.637e9, 3.741e9, 5.537e9, 9.208e9, 1.7165e10, 1.7907e10, 4.3151e10, 5.5105e10, 3.75475e11, 4.61671e11, 9.10237e11, 1.9915847e13, 2.7404982e14, 5.2338628e14
 - Encoding types: `Binary`
 
+## Source Variable Encoding
+
+- z variables: 1
+- z target binary variables: 20
+- Selected-arc variables: 20
+- Selected-arc target binary variables: 20
+- Flow variables: 80
+- Flow target binary variables: 1600
+- z and flow target binary variables: 1620
+- Encoded source target binary variables: 1640
+
+## Penalty Scaling Diagnostics
+
+- Automatic penalty heuristic: `scale * sigma * (delta / epsilon + beta)`
+- Default penalty scale: 1.0
+- Default penalty offset: 1.0
+- Largest applied penalty family: flow-balance
+- Largest applied penalty: 5.2338628e14
+- Largest source-side scaled coefficient: 1.0e6
+- Largest applied penalty times scaled coefficient squared: 5.2338628e26
+- Native absolute coefficient bound divided by canonical bound: 5.2338665e7
+- QOBLIB-style absolute coefficient bound divided by canonical bound: 2.6243862e7
+- QOBLIB-style minimum-coefficient absolute ratio: 2.4898183e8
+- QOBLIB-style maximum-coefficient absolute ratio: 2.6243862e7
+- Objective offset divided by incumbent source objective: 4.1800277e18
+- Assessment: The source transcription and incumbent checks pass. Under the default automatic penalty heuristic, the scaled network flow/linking coefficients combine with large applied penalties and reproduce the reported QUBO coefficient range. Matching the pinned QS metrics row would require network-specific penalty settings or the missing canonical converter/artifact details, not a source model transcription change.
+
+| Constraint family | Constraints | Distinct penalties | Min penalty | Max penalty |
+|:--|--:|--:|--:|--:|
+| out-degree | 5 | 1 | 1.000001e6 | 1.000001e6 |
+| in-degree | 5 | 1 | 1.000001e6 | 1.000001e6 |
+| flow-balance | 20 | 15 | 1.000001e6 | 5.2338628e14 |
+| arc-linking | 80 | 7 | 1.000001e6 | 4.3151e10 |
+| edge-capacity | 20 | 7 | 1.000001e6 | 5.5105e10 |
+
 ## Known Incumbent
 
 - Source objective: 65500
