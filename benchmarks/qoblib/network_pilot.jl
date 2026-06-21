@@ -127,6 +127,23 @@ const QOBLIB_QUBO_METRICS = Dict{String,Any}(
     "max_coeff" => 4.5260616934376417e18,
 )
 
+const QOBLIB_CONVERTER_EVIDENCE = Dict{String,Any}(
+    "manual_verification" => true,
+    "converter_path" => "misc/convert_lp2qubo.py",
+    "converter_line_refs" => [
+        "misc/convert_lp2qubo.py:55-65",
+        "misc/convert_lp2qubo.py:82-89",
+    ],
+    "converter_convention" =>
+        "QOBLIB reads the LP with Gurobi, converts continuous variables to integer, builds a Qiskit QuadraticProgram with from_gurobipy, converts it with QuadraticProgramToQubo() using the converter default penalty, writes linear coefficients on the diagonal, symmetrizes Q as (Q + Q') / 2, and writes the objective offset separately.",
+    "network_metrics_line_ref" =>
+        "08-network/models/integer_lp/metrics_qs_files.csv:2",
+    "local_reproduction_note" =>
+        "The local Python environment checked for this audit does not provide qiskit_optimization, so this pilot records the converter source path and metrics row but does not reproduce network05.qs from the script.",
+    "toqubo_follow_up_hint" =>
+        "A useful compiler follow-up is a verified benchmark-compatible penalty policy comparable to Qiskit's default QuadraticProgramToQubo behavior.",
+)
+
 const KNOWN_INCUMBENT = Dict{String,Any}(
     "qoblib_solution_objective" => 65_500,
     "selected_arcs" => [
@@ -613,7 +630,7 @@ function _scaling_diagnostics(target::AbstractDict, penalty_diagnostics::Abstrac
         "largest_penalty_times_expanded_residual_coefficient_squared" =>
             penalty_diagnostics["largest_expanded_residual_scale"],
         "assessment" =>
-            "The source transcription and incumbent checks pass. Under the default automatic penalty heuristic, flow-balance constraints dominate after integer flow-variable expansion; the largest applied penalty and expanded residual coefficient from that family reproduce the reported QUBO coefficient scale. Matching the pinned QS metrics row would require network-specific penalty settings or the missing canonical converter/artifact details, not a source model transcription change.",
+            "The source transcription and incumbent checks pass. Under the default automatic penalty heuristic, flow-balance constraints dominate after integer flow-variable expansion; the largest applied penalty and expanded residual coefficient from that family reproduce the reported QUBO coefficient scale. Matching the pinned QS metrics row would require network-specific penalty settings or a verified benchmark-compatible converter policy, not a source model transcription change.",
     )
 end
 
@@ -726,6 +743,7 @@ function run_network_pilot()
             "qoblib_metrics" => copy(QOBLIB_SOURCE_METRICS),
         ),
         "qoblib_qubo_metrics" => copy(QOBLIB_QUBO_METRICS),
+        "qoblib_converter_evidence" => copy(QOBLIB_CONVERTER_EVIDENCE),
         "toqubo" => Dict{String,Any}(
             "target" => target,
             "metadata" => metadata,
@@ -762,6 +780,7 @@ function write_markdown_report(io::IO, report::AbstractDict)
     source = report["source"]
     qoblib_source = source["qoblib_metrics"]
     qoblib_qubo = report["qoblib_qubo_metrics"]
+    converter = report["qoblib_converter_evidence"]
     target = report["toqubo"]["target"]
     metadata = report["toqubo"]["metadata"]
     source_encoding = metadata["source_encoding"]
@@ -817,6 +836,16 @@ function write_markdown_report(io::IO, report::AbstractDict)
     end
 
     write(io, "\n")
+
+    write(io, "## QOBLIB Converter Evidence\n\n")
+    write(
+        io,
+        "- Converter source: `$(converter["converter_path"])`; refs $(join(converter["converter_line_refs"], ", ")).\n",
+    )
+    write(io, "- Converter convention: $(converter["converter_convention"])\n")
+    write(io, "- Network QS metrics ref: $(converter["network_metrics_line_ref"]).\n")
+    write(io, "- Local reproduction note: $(converter["local_reproduction_note"])\n")
+    write(io, "- ToQUBO follow-up hint: $(converter["toqubo_follow_up_hint"])\n\n")
 
     write(io, "## Instance\n\n")
     write(io, "- QOBLIB id: `$(instance["qoblib_id"])`\n")

@@ -35,6 +35,14 @@ This report is a ToQUBO-generated reformulation benchmark. It is not a canonical
 - x[i,j] marks selected directed arcs and f[k,i,j] routes traffic for source k over arc i -> j.
 - the source objective z minimizes the maximum aggregate scaled flow on any selected edge.
 
+## QOBLIB Converter Evidence
+
+- Converter source: `misc/convert_lp2qubo.py`; refs misc/convert_lp2qubo.py:55-65, misc/convert_lp2qubo.py:82-89.
+- Converter convention: QOBLIB reads the LP with Gurobi, converts continuous variables to integer, builds a Qiskit QuadraticProgram with from_gurobipy, converts it with QuadraticProgramToQubo() using the converter default penalty, writes linear coefficients on the diagonal, symmetrizes Q as (Q + Q') / 2, and writes the objective offset separately.
+- Network QS metrics ref: 08-network/models/integer_lp/metrics_qs_files.csv:2.
+- Local reproduction note: The local Python environment checked for this audit does not provide qiskit_optimization, so this pilot records the converter source path and metrics row but does not reproduce network05.qs from the script.
+- ToQUBO follow-up hint: A useful compiler follow-up is a verified benchmark-compatible penalty policy comparable to Qiskit's default QuadraticProgramToQubo behavior.
+
 ## Instance
 
 - QOBLIB id: `network05`
@@ -128,7 +136,7 @@ This report is a ToQUBO-generated reformulation benchmark. It is not a canonical
 - QOBLIB-style minimum-coefficient absolute ratio: 2.4898183e8
 - QOBLIB-style maximum-coefficient absolute ratio: 2.6243862e7
 - Objective offset divided by incumbent source objective: 4.1800277e18
-- Assessment: The source transcription and incumbent checks pass. Under the default automatic penalty heuristic, flow-balance constraints dominate after integer flow-variable expansion; the largest applied penalty and expanded residual coefficient from that family reproduce the reported QUBO coefficient scale. Matching the pinned QS metrics row would require network-specific penalty settings or the missing canonical converter/artifact details, not a source model transcription change.
+- Assessment: The source transcription and incumbent checks pass. Under the default automatic penalty heuristic, flow-balance constraints dominate after integer flow-variable expansion; the largest applied penalty and expanded residual coefficient from that family reproduce the reported QUBO coefficient scale. Matching the pinned QS metrics row would require network-specific penalty settings or a verified benchmark-compatible converter policy, not a source model transcription change.
 
 | Constraint family | Constraints | Distinct penalties | Min penalty | Max penalty | Max source coefficient | Max expanded coefficient | Max expanded scale |
 |:--|--:|--:|--:|--:|--:|--:|--:|

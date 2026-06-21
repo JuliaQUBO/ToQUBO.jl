@@ -283,6 +283,21 @@ function test_qoblib_benchmark_pilot()
         @test "08-network/solutions/network05.opt.sol:24-103" in
               verification["solution_line_refs"]
 
+        converter = report["qoblib_converter_evidence"]
+        @test converter["manual_verification"] === true
+        @test converter["converter_path"] == "misc/convert_lp2qubo.py"
+        @test "misc/convert_lp2qubo.py:55-65" in converter["converter_line_refs"]
+        @test occursin(
+            "QuadraticProgramToQubo() using the converter default penalty",
+            converter["converter_convention"],
+        )
+        @test converter["network_metrics_line_ref"] ==
+              "08-network/models/integer_lp/metrics_qs_files.csv:2"
+        @test occursin(
+            "does not provide qiskit_optimization",
+            converter["local_reproduction_note"],
+        )
+
         source = report["source"]
         @test source["generated_metrics"]["num_vars"] == 101
         @test source["generated_metrics"]["num_linear_constraints"] == 130
@@ -410,6 +425,9 @@ function test_qoblib_benchmark_pilot()
         @test occursin("QOBLib Network Reformulation Pilot", markdown)
         @test occursin("network05.lp", markdown)
         @test occursin("Canonical QUBO artifact available at pinned commit: false", markdown)
+        @test occursin("QOBLIB Converter Evidence", markdown)
+        @test occursin("QuadraticProgramToQubo() using the converter default penalty", markdown)
+        @test occursin("does not provide qiskit_optimization", markdown)
         @test occursin("Model license: Apache License, Version 2.0", markdown)
         @test occursin("Penalty scaling follow-up: https://github.com/JuliaQUBO/ToQUBO.jl/issues/160", markdown)
         @test occursin("Target variable delta note", markdown)
