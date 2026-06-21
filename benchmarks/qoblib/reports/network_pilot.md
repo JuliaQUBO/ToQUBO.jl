@@ -35,6 +35,17 @@ This report is a ToQUBO-generated reformulation benchmark. It is not a canonical
 - x[i,j] marks selected directed arcs and f[k,i,j] routes traffic for source k over arc i -> j.
 - the source objective z minimizes the maximum aggregate scaled flow on any selected edge.
 
+## QOBLIB Converter Evidence
+
+- Converter source: `misc/convert_lp2qubo.py`; refs misc/convert_lp2qubo.py:55-65, misc/convert_lp2qubo.py:82-89.
+- Converter convention: QOBLIB reads the LP with Gurobi, converts continuous variables to integer, builds a Qiskit QuadraticProgram with from_gurobipy, converts it with QuadraticProgramToQubo() using the converter default penalty, writes linear coefficients on the diagonal, symmetrizes Q as (Q + Q') / 2, and writes the objective offset separately.
+- Network QS metrics ref: 08-network/models/integer_lp/metrics_qs_files.csv:2.
+- Reproduction environment: Python 3.12, Qiskit 2.4.2, qiskit-optimization 0.7.0, gurobipy 13.0.2.
+- Local reproduction: Reproduced the network05 QS metrics from the local QOBLIB LP with Qiskit's default converter; the reproduced variable count, density, minimum coefficient, and maximum coefficient match the pinned metrics row exactly.
+- Reproduced converter penalty: 1.000001e6
+- Reproduced metrics: variables 3640, nonzero entries 349290, density 0.05271013, minimum coefficient -4.7571348e17, maximum coefficient 4.5260617e18, objective offset 1.2116012e16.
+- ToQUBO follow-up hint: A useful compiler follow-up is a verified benchmark-compatible penalty policy comparable to Qiskit's default QuadraticProgramToQubo behavior.
+
 ## Instance
 
 - QOBLIB id: `network05`
@@ -102,6 +113,42 @@ This report is a ToQUBO-generated reformulation benchmark. It is not a canonical
 - Distinct constraint penalties: 1.000001e6, 1.57e8, 2.4963614e8, 3.13e8, 5.75e8, 6.43e8, 6.53e8, 8.97e8, 1.079e9, 1.637e9, 3.741e9, 5.537e9, 9.208e9, 1.7165e10, 1.7907e10, 4.3151e10, 5.5105e10, 3.75475e11, 4.61671e11, 9.10237e11, 1.9915847e13, 2.7404982e14, 5.2338628e14
 - Encoding types: `Binary`
 
+## Source Variable Encoding
+
+- z variables: 1
+- z target binary variables: 20
+- Selected-arc variables: 20
+- Selected-arc target binary variables: 20
+- Flow variables: 80
+- Flow target binary variables: 1600
+- z and flow target binary variables: 1620
+- Encoded source target binary variables: 1640
+
+## Penalty Scaling Diagnostics
+
+- Automatic penalty heuristic: `scale * sigma * (delta / epsilon + beta)`
+- Default penalty scale: 1.0
+- Default penalty offset: 1.0
+- Largest applied penalty family: flow-balance
+- Largest applied penalty: 5.2338628e14
+- Largest expanded residual scale family: flow-balance
+- Expanded residual coefficient at largest scale: 475713.0
+- Largest applied penalty times expanded residual coefficient squared: 1.1844381e26
+- Native absolute coefficient bound divided by canonical bound: 5.2338665e7
+- QOBLIB-style absolute coefficient bound divided by canonical bound: 2.6243862e7
+- QOBLIB-style minimum-coefficient absolute ratio: 2.4898183e8
+- QOBLIB-style maximum-coefficient absolute ratio: 2.6243862e7
+- Objective offset divided by incumbent source objective: 4.1800277e18
+- Assessment: The source transcription and incumbent checks pass. QOBLIB's network05 QS metrics are reproduced by Qiskit's default converter with a uniform penalty of 1000001.0. Under ToQUBO's default automatic penalty heuristic, flow-balance constraints dominate after integer flow-variable expansion; the largest applied penalty and expanded residual coefficient from that family reproduce ToQUBO's larger coefficient scale. Matching the pinned QS metrics row requires a benchmark-compatible penalty policy, not a source model transcription change.
+
+| Constraint family | Constraints | Distinct penalties | Min penalty | Max penalty | Max source coefficient | Max expanded coefficient | Max expanded scale |
+|:--|--:|--:|--:|--:|--:|--:|--:|
+| out-degree | 5 | 1 | 1.000001e6 | 1.000001e6 | 1.0 | 1.0 | 1.000001e6 |
+| in-degree | 5 | 1 | 1.000001e6 | 1.000001e6 | 1.0 | 1.0 | 1.000001e6 |
+| flow-balance | 20 | 15 | 1.000001e6 | 5.2338628e14 | 1.0 | 475713.0 | 1.1844381e26 |
+| arc-linking | 80 | 7 | 1.000001e6 | 4.3151e10 | 1.0e6 | 1.0e6 | 4.3151e22 |
+| edge-capacity | 20 | 7 | 1.000001e6 | 5.5105e10 | 1.0 | 475713.0 | 1.2470419e22 |
+
 ## Known Incumbent
 
 - Source objective: 65500
@@ -130,4 +177,4 @@ This report is a ToQUBO-generated reformulation benchmark. It is not a canonical
 
 ## Follow-Up
 
-The pilot found a major coefficient-scaling gap: ToQUBO's generated network QUBO coefficient range remains about eight orders of magnitude larger than the pinned QOBLIB QS metrics row even under the QOBLIB-style symmetrized convention. The source transcription and incumbent feasibility checks pass, so this PR keeps the reproducible network pilot and tracks penalty-scaling investigation in https://github.com/JuliaQUBO/ToQUBO.jl/issues/160 before expanding the network benchmark class.
+The pilot found a major coefficient-scaling gap: ToQUBO's generated network QUBO coefficient range remains about eight orders of magnitude larger than the pinned QOBLIB QS metrics row even under the QOBLIB-style symmetrized convention. The source transcription and incumbent feasibility checks pass, and the local QOBLIB converter reproduces the pinned QS metrics row with Qiskit's default uniform penalty of 1000001.0. This points to a penalty-policy difference rather than a bad QOBLIB conversion; issue https://github.com/JuliaQUBO/ToQUBO.jl/issues/160 tracks a benchmark-compatible penalty policy before expanding the network benchmark class.

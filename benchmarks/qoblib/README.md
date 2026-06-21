@@ -150,7 +150,8 @@ out-degree constraints, source-indexed integer flow balance, arc-linking
 constraints, and the max-load objective. The generated report documents the
 known QOBLIB feasible solution, ToQUBO target metrics, penalty and encoding
 metadata, the absence of a stored `network05.qs` artifact at the pinned commit,
-and the network penalty-scaling follow-up tracked in
+source-variable encoding bit counts, applied-penalty attribution by network
+constraint family, and the network penalty-scaling follow-up tracked in
 https://github.com/JuliaQUBO/ToQUBO.jl/issues/160.
 
 ## Routing Pilot

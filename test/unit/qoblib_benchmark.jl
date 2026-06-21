@@ -283,6 +283,30 @@ function test_qoblib_benchmark_pilot()
         @test "08-network/solutions/network05.opt.sol:24-103" in
               verification["solution_line_refs"]
 
+        converter = report["qoblib_converter_evidence"]
+        @test converter["manual_verification"] === true
+        @test converter["converter_path"] == "misc/convert_lp2qubo.py"
+        @test "misc/convert_lp2qubo.py:55-65" in converter["converter_line_refs"]
+        @test occursin(
+            "QuadraticProgramToQubo() using the converter default penalty",
+            converter["converter_convention"],
+        )
+        @test converter["network_metrics_line_ref"] ==
+              "08-network/models/integer_lp/metrics_qs_files.csv:2"
+        @test converter["reproduction_environment"]["qiskit_optimization"] == "0.7.0"
+        @test converter["reproduction_environment"]["gurobipy"] == "13.0.2"
+        @test converter["reproduced_converter_penalty"] == 1_000_001.0
+        reproduced = converter["reproduced_network05_metrics"]
+        @test reproduced["num_variables"] == 3_640
+        @test reproduced["nonzero_entries"] == 349_290
+        @test reproduced["density"] == 0.05271012974940467
+        @test reproduced["min_coeff"] == -4.75713475713e17
+        @test reproduced["max_coeff"] == 4.5260616934376417e18
+        @test occursin(
+            "match the pinned metrics row exactly",
+            converter["local_reproduction_note"],
+        )
+
         source = report["source"]
         @test source["generated_metrics"]["num_vars"] == 101
         @test source["generated_metrics"]["num_linear_constraints"] == 130
@@ -308,6 +332,68 @@ function test_qoblib_benchmark_pilot()
         @test metadata["constraint_penalty_count"] == 130
         @test length(metadata["constraint_penalties"]) == 23
         @test metadata["encoding_types"] == ["Binary"]
+
+        source_encoding = metadata["source_encoding"]
+        @test source_encoding["z_binary_variables"] == 20
+        @test source_encoding["selected_arc_binary_variables"] == 20
+        @test source_encoding["flow_binary_variables"] == 1600
+        @test source_encoding["z_and_flow_binary_variables"] == 1620
+        @test source_encoding["encoded_source_binary_variables"] == 1640
+
+        penalty_diagnostics = report["toqubo"]["penalty_diagnostics"]
+        @test penalty_diagnostics["heuristic"] ==
+              "scale * sigma * (delta / epsilon + beta)"
+        @test penalty_diagnostics["default_penalty_scale"] == 1.0
+        @test penalty_diagnostics["default_penalty_offset"] == 1.0
+        @test penalty_diagnostics["largest_applied_penalty_family"] == "flow_balance"
+        @test isapprox(
+            penalty_diagnostics["largest_applied_penalty"],
+            5.2338627500000094e14;
+            rtol = 1e-14,
+        )
+        @test penalty_diagnostics["largest_expanded_residual_scale_family"] ==
+              "flow_balance"
+        family_by_category = Dict(
+            family["category"] => family for
+            family in penalty_diagnostics["constraint_families"]
+        )
+        @test family_by_category["flow_balance"]["constraint_count"] == 20
+        @test family_by_category["flow_balance"]["distinct_penalty_count"] == 15
+        @test isapprox(
+            family_by_category["flow_balance"]["max_penalty"],
+            penalty_diagnostics["largest_applied_penalty"];
+            rtol = 1e-14,
+        )
+        @test family_by_category["flow_balance"]["max_source_coefficient"] == 1.0
+        @test family_by_category["flow_balance"]["max_expanded_residual_coefficient"] ==
+              475_713.0
+        @test family_by_category["arc_linking"]["constraint_count"] == 80
+        @test family_by_category["arc_linking"]["max_source_coefficient"] == 1.0e6
+        @test family_by_category["edge_capacity"]["constraint_count"] == 20
+
+        scaling_diagnostics = report["toqubo"]["scaling_diagnostics"]
+        @test scaling_diagnostics["largest_expanded_residual_scale_family"] ==
+              "flow_balance"
+        @test scaling_diagnostics["largest_expanded_residual_coefficient"] == 475_713.0
+        @test isapprox(
+            scaling_diagnostics["largest_penalty_times_expanded_residual_coefficient_squared"],
+            1.1844381006360369e26;
+            rtol = 1e-14,
+        )
+        @test isapprox(
+            scaling_diagnostics["qoblib_symmetric_to_canonical_abs_ratio"],
+            2.624386183067761e7;
+            rtol = 1e-14,
+        )
+        @test isapprox(
+            scaling_diagnostics["qoblib_symmetric_min_to_canonical_min_abs_ratio"],
+            2.4898183277180412e8;
+            rtol = 1e-14,
+        )
+        @test occursin(
+            "default automatic penalty heuristic",
+            scaling_diagnostics["assessment"],
+        )
 
         comparison = report["comparison"]
         @test comparison["canonical_qubo_metrics_available"] === true
@@ -348,9 +434,20 @@ function test_qoblib_benchmark_pilot()
         @test occursin("QOBLib Network Reformulation Pilot", markdown)
         @test occursin("network05.lp", markdown)
         @test occursin("Canonical QUBO artifact available at pinned commit: false", markdown)
+        @test occursin("QOBLIB Converter Evidence", markdown)
+        @test occursin("QuadraticProgramToQubo() using the converter default penalty", markdown)
+        @test occursin("qiskit-optimization 0.7.0", markdown)
+        @test occursin("Reproduced converter penalty: 1.000001e6", markdown)
+        @test occursin("match the pinned metrics row exactly", markdown)
         @test occursin("Model license: Apache License, Version 2.0", markdown)
         @test occursin("Penalty scaling follow-up: https://github.com/JuliaQUBO/ToQUBO.jl/issues/160", markdown)
         @test occursin("Target variable delta note", markdown)
+        @test occursin("Source Variable Encoding", markdown)
+        @test occursin("z and flow target binary variables: 1620", markdown)
+        @test occursin("Penalty Scaling Diagnostics", markdown)
+        @test occursin("Largest applied penalty family: flow-balance", markdown)
+        @test occursin("Largest expanded residual scale family: flow-balance", markdown)
+        @test occursin("QOBLIB-style minimum-coefficient absolute ratio", markdown)
         @test occursin("Flow-balance constraints: 20", markdown)
         @test occursin("major coefficient-scaling gap", markdown)
         @test occursin("QOBLIB solution artifact consistency check: pass", markdown)
