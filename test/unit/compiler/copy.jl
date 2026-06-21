@@ -225,6 +225,46 @@ function test_compiler_copy()
                 @test !isempty(model.g)
             end
         end
+
+        @testset "non-binary domain models use normal reformulation path" begin
+            let model = ToQUBO.Optimizer{Float64}()
+                x, _ = MOI.add_constrained_variable(model, MOI.ZeroOne())
+                y = MOI.add_variable(model)
+                MOI.add_constraint(model, y, MOI.Integer())
+                MOI.add_constraint(model, y, MOI.Interval(0.0, 3.0))
+
+                obj = MOI.ScalarQuadraticFunction{Float64}(
+                    [MOI.ScalarQuadraticTerm(2.0, x, y)],
+                    [
+                        MOI.ScalarAffineTerm(1.0, x),
+                        MOI.ScalarAffineTerm(3.0, y),
+                    ],
+                    4.0,
+                )
+                _set_objective!(model, MOI.MIN_SENSE, obj)
+
+                MOI.optimize!(model)
+
+                x_target = only(MOI.get(model, Attributes.VariableTargetVariables(), x))
+                y_targets = MOI.get(model, Attributes.VariableTargetVariables(), y)
+                state = zeros(Int, MOI.get(model.target_model, MOI.NumberOfVariables()))
+                state[x_target.value] = 1
+
+                for yi in y_targets
+                    state[yi.value] = 1
+                end
+
+                projected = ToQUBO.project_original_state(model, state)
+
+                @test !ToQUBO.Compiler.is_qubo(model.source_model)
+                @test !_compiled_uses_qubo_fast_path(model)
+                @test MOI.get(model.target_model, MOI.NumberOfVariables()) == 3
+                @test length(y_targets) == 2
+                @test projected[x] == 1.0
+                @test projected[y] == 3.0
+                @test QUBOTools.backend(model) isa QUBOTools.Model
+            end
+        end
     end
 
     return nothing
