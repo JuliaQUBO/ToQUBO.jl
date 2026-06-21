@@ -138,8 +138,23 @@ const QOBLIB_CONVERTER_EVIDENCE = Dict{String,Any}(
         "QOBLIB reads the LP with Gurobi, converts continuous variables to integer, builds a Qiskit QuadraticProgram with from_gurobipy, converts it with QuadraticProgramToQubo() using the converter default penalty, writes linear coefficients on the diagonal, symmetrizes Q as (Q + Q') / 2, and writes the objective offset separately.",
     "network_metrics_line_ref" =>
         "08-network/models/integer_lp/metrics_qs_files.csv:2",
+    "reproduction_environment" => Dict{String,Any}(
+        "python" => "3.12",
+        "qiskit" => "2.4.2",
+        "qiskit_optimization" => "0.7.0",
+        "gurobipy" => "13.0.2",
+    ),
+    "reproduced_converter_penalty" => 1_000_001.0,
+    "reproduced_network05_metrics" => Dict{String,Any}(
+        "num_variables" => 3_640,
+        "nonzero_entries" => 349_290,
+        "density" => 0.05271012974940467,
+        "min_coeff" => -4.75713475713e17,
+        "max_coeff" => 4.5260616934376417e18,
+        "objective_offset" => 1.211601215600004e16,
+    ),
     "local_reproduction_note" =>
-        "The local Python environment checked for this audit does not provide qiskit_optimization, so this pilot records the converter source path and metrics row but does not reproduce network05.qs from the script.",
+        "Reproduced the network05 QS metrics from the local QOBLIB LP with Qiskit's default converter; the reproduced variable count, density, minimum coefficient, and maximum coefficient match the pinned metrics row exactly.",
     "toqubo_follow_up_hint" =>
         "A useful compiler follow-up is a verified benchmark-compatible penalty policy comparable to Qiskit's default QuadraticProgramToQubo behavior.",
 )
@@ -630,7 +645,7 @@ function _scaling_diagnostics(target::AbstractDict, penalty_diagnostics::Abstrac
         "largest_penalty_times_expanded_residual_coefficient_squared" =>
             penalty_diagnostics["largest_expanded_residual_scale"],
         "assessment" =>
-            "The source transcription and incumbent checks pass. Under the default automatic penalty heuristic, flow-balance constraints dominate after integer flow-variable expansion; the largest applied penalty and expanded residual coefficient from that family reproduce the reported QUBO coefficient scale. Matching the pinned QS metrics row would require network-specific penalty settings or a verified benchmark-compatible converter policy, not a source model transcription change.",
+            "The source transcription and incumbent checks pass. QOBLIB's network05 QS metrics are reproduced by Qiskit's default converter with a uniform penalty of 1000001.0. Under ToQUBO's default automatic penalty heuristic, flow-balance constraints dominate after integer flow-variable expansion; the largest applied penalty and expanded residual coefficient from that family reproduce ToQUBO's larger coefficient scale. Matching the pinned QS metrics row requires a benchmark-compatible penalty policy, not a source model transcription change.",
     )
 end
 
@@ -753,7 +768,7 @@ function run_network_pilot()
         "known_incumbent" => _known_incumbent_summary(),
         "comparison" => _comparison(target),
         "follow_up" =>
-            "The pilot found a major coefficient-scaling gap: ToQUBO's generated network QUBO coefficient range remains about eight orders of magnitude larger than the pinned QOBLIB QS metrics row even under the QOBLIB-style symmetrized convention. The source transcription and incumbent feasibility checks pass, so this PR keeps the reproducible network pilot and tracks penalty-scaling investigation in https://github.com/JuliaQUBO/ToQUBO.jl/issues/160 before expanding the network benchmark class.",
+            "The pilot found a major coefficient-scaling gap: ToQUBO's generated network QUBO coefficient range remains about eight orders of magnitude larger than the pinned QOBLIB QS metrics row even under the QOBLIB-style symmetrized convention. The source transcription and incumbent feasibility checks pass, and the local QOBLIB converter reproduces the pinned QS metrics row with Qiskit's default uniform penalty of 1000001.0. This points to a penalty-policy difference rather than a bad QOBLIB conversion; issue https://github.com/JuliaQUBO/ToQUBO.jl/issues/160 tracks a benchmark-compatible penalty policy before expanding the network benchmark class.",
     )
 end
 
@@ -838,13 +853,27 @@ function write_markdown_report(io::IO, report::AbstractDict)
     write(io, "\n")
 
     write(io, "## QOBLIB Converter Evidence\n\n")
+    environment = converter["reproduction_environment"]
+    reproduced = converter["reproduced_network05_metrics"]
     write(
         io,
         "- Converter source: `$(converter["converter_path"])`; refs $(join(converter["converter_line_refs"], ", ")).\n",
     )
     write(io, "- Converter convention: $(converter["converter_convention"])\n")
     write(io, "- Network QS metrics ref: $(converter["network_metrics_line_ref"]).\n")
-    write(io, "- Local reproduction note: $(converter["local_reproduction_note"])\n")
+    write(
+        io,
+        "- Reproduction environment: Python $(environment["python"]), Qiskit $(environment["qiskit"]), qiskit-optimization $(environment["qiskit_optimization"]), gurobipy $(environment["gurobipy"]).\n",
+    )
+    write(io, "- Local reproduction: $(converter["local_reproduction_note"])\n")
+    write(
+        io,
+        "- Reproduced converter penalty: $(_fmt(converter["reproduced_converter_penalty"]))\n",
+    )
+    write(
+        io,
+        "- Reproduced metrics: variables $(reproduced["num_variables"]), nonzero entries $(reproduced["nonzero_entries"]), density $(_fmt(reproduced["density"])), minimum coefficient $(_fmt(reproduced["min_coeff"])), maximum coefficient $(_fmt(reproduced["max_coeff"])), objective offset $(_fmt(reproduced["objective_offset"])).\n",
+    )
     write(io, "- ToQUBO follow-up hint: $(converter["toqubo_follow_up_hint"])\n\n")
 
     write(io, "## Instance\n\n")

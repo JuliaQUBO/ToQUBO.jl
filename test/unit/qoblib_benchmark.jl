@@ -293,8 +293,17 @@ function test_qoblib_benchmark_pilot()
         )
         @test converter["network_metrics_line_ref"] ==
               "08-network/models/integer_lp/metrics_qs_files.csv:2"
+        @test converter["reproduction_environment"]["qiskit_optimization"] == "0.7.0"
+        @test converter["reproduction_environment"]["gurobipy"] == "13.0.2"
+        @test converter["reproduced_converter_penalty"] == 1_000_001.0
+        reproduced = converter["reproduced_network05_metrics"]
+        @test reproduced["num_variables"] == 3_640
+        @test reproduced["nonzero_entries"] == 349_290
+        @test reproduced["density"] == 0.05271012974940467
+        @test reproduced["min_coeff"] == -4.75713475713e17
+        @test reproduced["max_coeff"] == 4.5260616934376417e18
         @test occursin(
-            "does not provide qiskit_optimization",
+            "match the pinned metrics row exactly",
             converter["local_reproduction_note"],
         )
 
@@ -427,7 +436,9 @@ function test_qoblib_benchmark_pilot()
         @test occursin("Canonical QUBO artifact available at pinned commit: false", markdown)
         @test occursin("QOBLIB Converter Evidence", markdown)
         @test occursin("QuadraticProgramToQubo() using the converter default penalty", markdown)
-        @test occursin("does not provide qiskit_optimization", markdown)
+        @test occursin("qiskit-optimization 0.7.0", markdown)
+        @test occursin("Reproduced converter penalty: 1.000001e6", markdown)
+        @test occursin("match the pinned metrics row exactly", markdown)
         @test occursin("Model license: Apache License, Version 2.0", markdown)
         @test occursin("Penalty scaling follow-up: https://github.com/JuliaQUBO/ToQUBO.jl/issues/160", markdown)
         @test occursin("Target variable delta note", markdown)

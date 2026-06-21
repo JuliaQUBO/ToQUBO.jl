@@ -40,7 +40,10 @@ This report is a ToQUBO-generated reformulation benchmark. It is not a canonical
 - Converter source: `misc/convert_lp2qubo.py`; refs misc/convert_lp2qubo.py:55-65, misc/convert_lp2qubo.py:82-89.
 - Converter convention: QOBLIB reads the LP with Gurobi, converts continuous variables to integer, builds a Qiskit QuadraticProgram with from_gurobipy, converts it with QuadraticProgramToQubo() using the converter default penalty, writes linear coefficients on the diagonal, symmetrizes Q as (Q + Q') / 2, and writes the objective offset separately.
 - Network QS metrics ref: 08-network/models/integer_lp/metrics_qs_files.csv:2.
-- Local reproduction note: The local Python environment checked for this audit does not provide qiskit_optimization, so this pilot records the converter source path and metrics row but does not reproduce network05.qs from the script.
+- Reproduction environment: Python 3.12, Qiskit 2.4.2, qiskit-optimization 0.7.0, gurobipy 13.0.2.
+- Local reproduction: Reproduced the network05 QS metrics from the local QOBLIB LP with Qiskit's default converter; the reproduced variable count, density, minimum coefficient, and maximum coefficient match the pinned metrics row exactly.
+- Reproduced converter penalty: 1.000001e6
+- Reproduced metrics: variables 3640, nonzero entries 349290, density 0.05271013, minimum coefficient -4.7571348e17, maximum coefficient 4.5260617e18, objective offset 1.2116012e16.
 - ToQUBO follow-up hint: A useful compiler follow-up is a verified benchmark-compatible penalty policy comparable to Qiskit's default QuadraticProgramToQubo behavior.
 
 ## Instance
@@ -136,7 +139,7 @@ This report is a ToQUBO-generated reformulation benchmark. It is not a canonical
 - QOBLIB-style minimum-coefficient absolute ratio: 2.4898183e8
 - QOBLIB-style maximum-coefficient absolute ratio: 2.6243862e7
 - Objective offset divided by incumbent source objective: 4.1800277e18
-- Assessment: The source transcription and incumbent checks pass. Under the default automatic penalty heuristic, flow-balance constraints dominate after integer flow-variable expansion; the largest applied penalty and expanded residual coefficient from that family reproduce the reported QUBO coefficient scale. Matching the pinned QS metrics row would require network-specific penalty settings or a verified benchmark-compatible converter policy, not a source model transcription change.
+- Assessment: The source transcription and incumbent checks pass. QOBLIB's network05 QS metrics are reproduced by Qiskit's default converter with a uniform penalty of 1000001.0. Under ToQUBO's default automatic penalty heuristic, flow-balance constraints dominate after integer flow-variable expansion; the largest applied penalty and expanded residual coefficient from that family reproduce ToQUBO's larger coefficient scale. Matching the pinned QS metrics row requires a benchmark-compatible penalty policy, not a source model transcription change.
 
 | Constraint family | Constraints | Distinct penalties | Min penalty | Max penalty | Max source coefficient | Max expanded coefficient | Max expanded scale |
 |:--|--:|--:|--:|--:|--:|--:|--:|
@@ -174,4 +177,4 @@ This report is a ToQUBO-generated reformulation benchmark. It is not a canonical
 
 ## Follow-Up
 
-The pilot found a major coefficient-scaling gap: ToQUBO's generated network QUBO coefficient range remains about eight orders of magnitude larger than the pinned QOBLIB QS metrics row even under the QOBLIB-style symmetrized convention. The source transcription and incumbent feasibility checks pass, so this PR keeps the reproducible network pilot and tracks penalty-scaling investigation in https://github.com/JuliaQUBO/ToQUBO.jl/issues/160 before expanding the network benchmark class.
+The pilot found a major coefficient-scaling gap: ToQUBO's generated network QUBO coefficient range remains about eight orders of magnitude larger than the pinned QOBLIB QS metrics row even under the QOBLIB-style symmetrized convention. The source transcription and incumbent feasibility checks pass, and the local QOBLIB converter reproduces the pinned QS metrics row with Qiskit's default uniform penalty of 1000001.0. This points to a penalty-policy difference rather than a bad QOBLIB conversion; issue https://github.com/JuliaQUBO/ToQUBO.jl/issues/160 tracks a benchmark-compatible penalty policy before expanding the network benchmark class.
