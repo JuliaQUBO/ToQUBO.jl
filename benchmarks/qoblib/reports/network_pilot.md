@@ -120,22 +120,23 @@ This report is a ToQUBO-generated reformulation benchmark. It is not a canonical
 - Default penalty offset: 1.0
 - Largest applied penalty family: flow-balance
 - Largest applied penalty: 5.2338628e14
-- Largest source-side scaled coefficient: 1.0e6
-- Largest applied penalty times scaled coefficient squared: 5.2338628e26
+- Largest expanded residual scale family: flow-balance
+- Expanded residual coefficient at largest scale: 475713.0
+- Largest applied penalty times expanded residual coefficient squared: 1.1844381e26
 - Native absolute coefficient bound divided by canonical bound: 5.2338665e7
 - QOBLIB-style absolute coefficient bound divided by canonical bound: 2.6243862e7
 - QOBLIB-style minimum-coefficient absolute ratio: 2.4898183e8
 - QOBLIB-style maximum-coefficient absolute ratio: 2.6243862e7
 - Objective offset divided by incumbent source objective: 4.1800277e18
-- Assessment: The source transcription and incumbent checks pass. Under the default automatic penalty heuristic, the scaled network flow/linking coefficients combine with large applied penalties and reproduce the reported QUBO coefficient range. Matching the pinned QS metrics row would require network-specific penalty settings or the missing canonical converter/artifact details, not a source model transcription change.
+- Assessment: The source transcription and incumbent checks pass. Under the default automatic penalty heuristic, flow-balance constraints dominate after integer flow-variable expansion; the largest applied penalty and expanded residual coefficient from that family reproduce the reported QUBO coefficient scale. Matching the pinned QS metrics row would require network-specific penalty settings or the missing canonical converter/artifact details, not a source model transcription change.
 
-| Constraint family | Constraints | Distinct penalties | Min penalty | Max penalty |
-|:--|--:|--:|--:|--:|
-| out-degree | 5 | 1 | 1.000001e6 | 1.000001e6 |
-| in-degree | 5 | 1 | 1.000001e6 | 1.000001e6 |
-| flow-balance | 20 | 15 | 1.000001e6 | 5.2338628e14 |
-| arc-linking | 80 | 7 | 1.000001e6 | 4.3151e10 |
-| edge-capacity | 20 | 7 | 1.000001e6 | 5.5105e10 |
+| Constraint family | Constraints | Distinct penalties | Min penalty | Max penalty | Max source coefficient | Max expanded coefficient | Max expanded scale |
+|:--|--:|--:|--:|--:|--:|--:|--:|
+| out-degree | 5 | 1 | 1.000001e6 | 1.000001e6 | 1.0 | 1.0 | 1.000001e6 |
+| in-degree | 5 | 1 | 1.000001e6 | 1.000001e6 | 1.0 | 1.0 | 1.000001e6 |
+| flow-balance | 20 | 15 | 1.000001e6 | 5.2338628e14 | 1.0 | 475713.0 | 1.1844381e26 |
+| arc-linking | 80 | 7 | 1.000001e6 | 4.3151e10 | 1.0e6 | 1.0e6 | 4.3151e22 |
+| edge-capacity | 20 | 7 | 1.000001e6 | 5.5105e10 | 1.0 | 475713.0 | 1.2470419e22 |
 
 ## Known Incumbent
 

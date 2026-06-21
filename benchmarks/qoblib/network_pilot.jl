@@ -428,6 +428,43 @@ function _source_encoding_summary(metadata::AbstractDict)
     )
 end
 
+function _source_variable_expansion_coefficients(metadata::AbstractDict)
+    coefficients = Dict{Int,Float64}()
+
+    for entry in metadata["original_variables"]
+        max_coefficient = 0.0
+
+        for term in entry["expansion_terms"]
+            max_coefficient = max(max_coefficient, abs(Float64(term["coefficient"])))
+        end
+
+        coefficients[Int(entry["id"])] = max_coefficient
+    end
+
+    return coefficients
+end
+
+function _constraint_coefficient_scales(
+    model,
+    constraint,
+    expansion_coefficients::AbstractDict,
+)
+    func = MOI.get(model, MOI.ConstraintFunction(), constraint)
+    max_source_coefficient = 0.0
+    max_expanded_coefficient = 0.0
+
+    for term in func.terms
+        source_coefficient = abs(Float64(term.coefficient))
+        expansion_coefficient = get(expansion_coefficients, term.variable.value, 1.0)
+
+        max_source_coefficient = max(max_source_coefficient, source_coefficient)
+        max_expanded_coefficient =
+            max(max_expanded_coefficient, source_coefficient * expansion_coefficient)
+    end
+
+    return max_source_coefficient, max_expanded_coefficient
+end
+
 function _metadata_summary(optimizer)
     return _metadata_summary(ToQUBO.reformulation_metadata(optimizer))
 end
@@ -455,16 +492,39 @@ function _metadata_summary(metadata::AbstractDict)
     )
 end
 
-function _constraint_penalty_diagnostics(model, constraints_by_category::AbstractDict)
+function _constraint_penalty_diagnostics(
+    model,
+    constraints_by_category::AbstractDict,
+    metadata::AbstractDict,
+)
+    expansion_coefficients = _source_variable_expansion_coefficients(metadata)
     families = Dict{String,Any}[]
 
     for category in CONSTRAINT_CATEGORY_ORDER
         constraints = get(constraints_by_category, category, Any[])
         penalties = Float64[]
+        source_coefficients = Float64[]
+        expanded_coefficients = Float64[]
+        max_expanded_scale = 0.0
+        expanded_coefficient_at_max_scale = 0.0
 
         for constraint in constraints
             penalty = MOI.get(model, Attributes.AppliedPenalty(), constraint)
+            source_coefficient, expanded_coefficient =
+                _constraint_coefficient_scales(model, constraint, expansion_coefficients)
+
+            push!(source_coefficients, source_coefficient)
+            push!(expanded_coefficients, expanded_coefficient)
             isnothing(penalty) || push!(penalties, Float64(penalty))
+
+            if !isnothing(penalty)
+                expanded_scale = abs(Float64(penalty)) * expanded_coefficient^2
+
+                if expanded_scale > max_expanded_scale
+                    max_expanded_scale = expanded_scale
+                    expanded_coefficient_at_max_scale = expanded_coefficient
+                end
+            end
         end
 
         push!(
@@ -479,11 +539,23 @@ function _constraint_penalty_diagnostics(model, constraints_by_category::Abstrac
                 "max_penalty" => isempty(penalties) ? nothing : maximum(penalties),
                 "max_abs_penalty" =>
                     isempty(penalties) ? 0.0 : maximum(abs.(penalties)),
+                "max_source_coefficient" =>
+                    isempty(source_coefficients) ? 0.0 : maximum(source_coefficients),
+                "max_expanded_residual_coefficient" =>
+                    isempty(expanded_coefficients) ? 0.0 : maximum(expanded_coefficients),
+                "expanded_residual_coefficient_at_max_scale" =>
+                    expanded_coefficient_at_max_scale,
+                "max_penalty_times_expanded_residual_coefficient_squared" =>
+                    max_expanded_scale,
             ),
         )
     end
 
     dominant = families[argmax([family["max_abs_penalty"] for family in families])]
+    scale_dominant = families[argmax([
+        family["max_penalty_times_expanded_residual_coefficient_squared"] for
+        family in families
+    ])]
 
     return Dict{String,Any}(
         "heuristic" => "scale * sigma * (delta / epsilon + beta)",
@@ -493,6 +565,12 @@ function _constraint_penalty_diagnostics(model, constraints_by_category::Abstrac
         "largest_applied_penalty_family" => dominant["category"],
         "largest_applied_penalty_label" => dominant["label"],
         "largest_applied_penalty" => dominant["max_abs_penalty"],
+        "largest_expanded_residual_scale_family" => scale_dominant["category"],
+        "largest_expanded_residual_scale_label" => scale_dominant["label"],
+        "largest_expanded_residual_coefficient" =>
+            scale_dominant["expanded_residual_coefficient_at_max_scale"],
+        "largest_expanded_residual_scale" =>
+            scale_dominant["max_penalty_times_expanded_residual_coefficient_squared"],
     )
 end
 
@@ -510,8 +588,6 @@ function _scaling_diagnostics(target::AbstractDict, penalty_diagnostics::Abstrac
         QOBLIB_QUBO_METRICS["min_coeff"],
         QOBLIB_QUBO_METRICS["max_coeff"],
     )
-    largest_penalty = penalty_diagnostics["largest_applied_penalty"]
-    largest_source_coefficient = Float64(SCALED_BIG_M)
 
     return Dict{String,Any}(
         "native_abs_coefficient_bound" => native_bound,
@@ -528,11 +604,16 @@ function _scaling_diagnostics(target::AbstractDict, penalty_diagnostics::Abstrac
             abs(QOBLIB_QUBO_METRICS["max_coeff"]),
         "objective_offset_to_incumbent_objective_ratio" =>
             target["objective_offset"] / KNOWN_INCUMBENT["qoblib_solution_objective"],
-        "largest_source_coefficient" => largest_source_coefficient,
-        "largest_penalty_times_source_coefficient_squared" =>
-            largest_penalty * largest_source_coefficient^2,
+        "largest_expanded_residual_scale_family" =>
+            penalty_diagnostics["largest_expanded_residual_scale_family"],
+        "largest_expanded_residual_scale_label" =>
+            penalty_diagnostics["largest_expanded_residual_scale_label"],
+        "largest_expanded_residual_coefficient" =>
+            penalty_diagnostics["largest_expanded_residual_coefficient"],
+        "largest_penalty_times_expanded_residual_coefficient_squared" =>
+            penalty_diagnostics["largest_expanded_residual_scale"],
         "assessment" =>
-            "The source transcription and incumbent checks pass. Under the default automatic penalty heuristic, the scaled network flow/linking coefficients combine with large applied penalties and reproduce the reported QUBO coefficient range. Matching the pinned QS metrics row would require network-specific penalty settings or the missing canonical converter/artifact details, not a source model transcription change.",
+            "The source transcription and incumbent checks pass. Under the default automatic penalty heuristic, flow-balance constraints dominate after integer flow-variable expansion; the largest applied penalty and expanded residual coefficient from that family reproduce the reported QUBO coefficient scale. Matching the pinned QS metrics row would require network-specific penalty settings or the missing canonical converter/artifact details, not a source model transcription change.",
     )
 end
 
@@ -612,8 +693,10 @@ function run_network_pilot()
     MOI.optimize!(model)
 
     target = _target_metrics(model)
-    metadata = _metadata_summary(model)
-    penalty_diagnostics = _constraint_penalty_diagnostics(model, constraints_by_category)
+    reformulation = ToQUBO.reformulation_metadata(model)
+    metadata = _metadata_summary(reformulation)
+    penalty_diagnostics =
+        _constraint_penalty_diagnostics(model, constraints_by_category, reformulation)
     scaling_diagnostics = _scaling_diagnostics(target, penalty_diagnostics)
 
     return Dict{String,Any}(
@@ -899,11 +982,15 @@ function write_markdown_report(io::IO, report::AbstractDict)
     )
     write(
         io,
-        "- Largest source-side scaled coefficient: $(_fmt(scaling_diagnostics["largest_source_coefficient"]))\n",
+        "- Largest expanded residual scale family: $(scaling_diagnostics["largest_expanded_residual_scale_label"])\n",
     )
     write(
         io,
-        "- Largest applied penalty times scaled coefficient squared: $(_fmt(scaling_diagnostics["largest_penalty_times_source_coefficient_squared"]))\n",
+        "- Expanded residual coefficient at largest scale: $(_fmt(scaling_diagnostics["largest_expanded_residual_coefficient"]))\n",
+    )
+    write(
+        io,
+        "- Largest applied penalty times expanded residual coefficient squared: $(_fmt(scaling_diagnostics["largest_penalty_times_expanded_residual_coefficient_squared"]))\n",
     )
     write(
         io,
@@ -926,13 +1013,16 @@ function write_markdown_report(io::IO, report::AbstractDict)
         "- Objective offset divided by incumbent source objective: $(_fmt(scaling_diagnostics["objective_offset_to_incumbent_objective_ratio"]))\n",
     )
     write(io, "- Assessment: $(scaling_diagnostics["assessment"])\n\n")
-    write(io, "| Constraint family | Constraints | Distinct penalties | Min penalty | Max penalty |\n")
-    write(io, "|:--|--:|--:|--:|--:|\n")
+    write(
+        io,
+        "| Constraint family | Constraints | Distinct penalties | Min penalty | Max penalty | Max source coefficient | Max expanded coefficient | Max expanded scale |\n",
+    )
+    write(io, "|:--|--:|--:|--:|--:|--:|--:|--:|\n")
 
     for family in penalty_diagnostics["constraint_families"]
         write(
             io,
-            "| $(family["label"]) | $(family["constraint_count"]) | $(family["distinct_penalty_count"]) | $(_fmt(family["min_penalty"])) | $(_fmt(family["max_penalty"])) |\n",
+            "| $(family["label"]) | $(family["constraint_count"]) | $(family["distinct_penalty_count"]) | $(_fmt(family["min_penalty"])) | $(_fmt(family["max_penalty"])) | $(_fmt(family["max_source_coefficient"])) | $(_fmt(family["max_expanded_residual_coefficient"])) | $(_fmt(family["max_penalty_times_expanded_residual_coefficient_squared"])) |\n",
         )
     end
 

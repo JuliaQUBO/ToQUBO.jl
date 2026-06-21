@@ -327,6 +327,8 @@ function test_qoblib_benchmark_pilot()
             5.2338627500000094e14;
             rtol = 1e-14,
         )
+        @test penalty_diagnostics["largest_expanded_residual_scale_family"] ==
+              "flow_balance"
         family_by_category = Dict(
             family["category"] => family for
             family in penalty_diagnostics["constraint_families"]
@@ -338,11 +340,22 @@ function test_qoblib_benchmark_pilot()
             penalty_diagnostics["largest_applied_penalty"];
             rtol = 1e-14,
         )
+        @test family_by_category["flow_balance"]["max_source_coefficient"] == 1.0
+        @test family_by_category["flow_balance"]["max_expanded_residual_coefficient"] ==
+              475_713.0
         @test family_by_category["arc_linking"]["constraint_count"] == 80
+        @test family_by_category["arc_linking"]["max_source_coefficient"] == 1.0e6
         @test family_by_category["edge_capacity"]["constraint_count"] == 20
 
         scaling_diagnostics = report["toqubo"]["scaling_diagnostics"]
-        @test scaling_diagnostics["largest_source_coefficient"] == 1.0e6
+        @test scaling_diagnostics["largest_expanded_residual_scale_family"] ==
+              "flow_balance"
+        @test scaling_diagnostics["largest_expanded_residual_coefficient"] == 475_713.0
+        @test isapprox(
+            scaling_diagnostics["largest_penalty_times_expanded_residual_coefficient_squared"],
+            1.1844381006360369e26;
+            rtol = 1e-14,
+        )
         @test isapprox(
             scaling_diagnostics["qoblib_symmetric_to_canonical_abs_ratio"],
             2.624386183067761e7;
@@ -404,6 +417,7 @@ function test_qoblib_benchmark_pilot()
         @test occursin("z and flow target binary variables: 1620", markdown)
         @test occursin("Penalty Scaling Diagnostics", markdown)
         @test occursin("Largest applied penalty family: flow-balance", markdown)
+        @test occursin("Largest expanded residual scale family: flow-balance", markdown)
         @test occursin("QOBLIB-style minimum-coefficient absolute ratio", markdown)
         @test occursin("Flow-balance constraints: 20", markdown)
         @test occursin("major coefficient-scaling gap", markdown)
