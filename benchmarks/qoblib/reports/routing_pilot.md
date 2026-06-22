@@ -19,7 +19,7 @@ This report is a ToQUBO-generated reformulation benchmark. It is not a canonical
 - Canonical QUBO artifact note: The pinned QOBLIB tree contains the XSH-n20-k4-01.qs metrics row but no stored QS artifact, so this pilot compares against the metrics table row.
 - Model license: Apache License, Version 2.0
 - Data license: Creative Commons Attribution 4.0 International
-- Penalty scaling follow-up: https://github.com/JuliaQUBO/ToQUBO.jl/issues/162
+- Penalty scaling issue: https://github.com/JuliaQUBO/ToQUBO.jl/issues/162
 - Generated collection label: ToQUBO-generated reformulation benchmark
 
 ## Upstream Verification
@@ -34,6 +34,15 @@ This report is a ToQUBO-generated reformulation benchmark. It is not a canonical
 - node 1 is the depot and nodes 2 through 21 are the customers.
 - the QOBLIB solution file uses CVRPLIB customer numbering, so each listed customer id is mapped to QOBLIB node id customer + 1.
 - the ZIMPL model uses Euclidean sqrt distances in the LP objective, while the solution artifact reports the rounded CVRPLIB route cost.
+
+## QOBLIB Converter Evidence
+
+- Manual verification: true against QOBLIB commit `a686aaa09fe14651294f744f34d453d5dce9cf57`.
+- Converter path: `misc/convert_lp2qubo.py`.
+- Converter refs: misc/convert_lp2qubo.py:55-65, misc/convert_lp2qubo.py:82-89.
+- Converter convention: QOBLIB reads the LP with Gurobi, changes any continuous variables to integer, builds a Qiskit QuadraticProgram with from_gurobipy, converts it with QuadraticProgramToQubo() using the converter default penalty, writes linear coefficients on the diagonal, symmetrizes Q as (Q + Q') / 2, and writes the objective offset separately.
+- Qiskit converter pipeline: QuadraticProgramToQubo first handles a narrow set of special binary inequalities, then converts remaining inequalities to equalities with integer slack variables, encodes integer variables to binary, and finally applies equality penalties.
+- Qiskit default penalty note: For integer-coefficient constraints, Qiskit's automatic equality penalty is 1 plus the objective coefficient bound range. For this routing pilot that matches ToQUBO's objective-range penalty 16697.376350318606.
 
 ## Instance
 
@@ -104,6 +113,19 @@ This report is a ToQUBO-generated reformulation benchmark. It is not a canonical
 - Distinct constraint penalties: 16697.376
 - Encoding types: `Binary`
 
+## Converter Variable Accounting
+
+- Source arc binary variables: 420
+- Source load variables: 21
+- Source load binary variables: 168
+- Encoded source binary variables: 588
+- ToQUBO redundant constraints dropped: 22
+- QOBLIB retained redundant capacity upper-bound constraints: 21
+- QOBLIB retained redundant depot lower-bound constraints: 1
+- QOBLIB redundant slack bits vs ToQUBO: 176
+- Target variable delta explained by redundant slack bits: true
+- Target variable accounting note: Both converters use eight binary variables for each 0..231 load variable. QOBLIB/Qiskit retains 21 redundant y[i] <= 231 constraints and the redundant depot lower-bound constraint y[1] >= 0; each retained 0..231 slack contributes eight binary variables, explaining the 176-variable target delta exactly.
+
 ## Known Incumbent
 
 - Source objective using sqrt distances: 646.67036
@@ -126,14 +148,22 @@ This report is a ToQUBO-generated reformulation benchmark. It is not a canonical
 
 - Canonical QUBO metrics available for this instance: true
 - Target variable delta vs QOBLIB QS metrics: -176
-- Target variable delta note: ToQUBO generates fewer binary variables than the pinned QOBLIB QS metrics row. The current compiler also detects 22 explicit source constraints as always feasible, so the target-size delta should be interpreted alongside the redundant-constraint count and encoding metadata.
+- Target variable delta note: ToQUBO generates 176 fewer binary variables than the pinned QOBLIB QS metrics row. This is explained by redundant-constraint handling: QOBLIB/Qiskit retains 22 redundant routing bounds as equality constraints with 0..231 integer slacks, while ToQUBO detects and drops those constraints.
 - Redundant source constraints detected: 22
+- QOBLIB redundant slack bits vs ToQUBO: 176
+- Target variable delta explained by redundant slack bits: true
 - Target density delta vs QOBLIB QS metrics: 0.0007345511
 - Native min-coefficient delta vs QOBLIB QS metrics: 4.4107789e8
 - Native max-coefficient delta vs QOBLIB QS metrics: 1.4934133e9
 - QOBLIB-style min-coefficient delta vs QOBLIB QS metrics: 4.4107789e8
 - QOBLIB-style max-coefficient delta vs QOBLIB QS metrics: 6.2167672e8
+- QOBLIB-style minimum-coefficient absolute ratio: 0.96574049
+- QOBLIB-style maximum-coefficient absolute ratio: 1.0840376
+- QOBLIB-style largest absolute coefficient ratio: 0.96574049
+- Penalty-scaling divergence resolved: true
+- Routing-specific penalty scaling needed: false
+- Penalty scaling resolution note: The original issue-162 coefficient-range divergence no longer reproduces under the default objective-range penalty policy; ToQUBO's QOBLIB-style routing coefficient range is within the pinned QS row's 1e10 scale. ToQUBO's largest absolute coefficient is slightly smaller than QOBLIB's pinned largest absolute coefficient, although its positive-side maximum is larger. No routing-specific penalty scaling is needed for this pilot.
 
-## Follow-Up
+## Penalty Scaling Resolution
 
-The objective-range automatic penalty policy brings ToQUBO's generated routing QUBO coefficient range into the same order as the pinned QOBLIB QS metrics row under the QOBLIB-style symmetrized convention. The source transcription and incumbent feasibility checks pass. Remaining routing differences should be interpreted alongside ToQUBO's variable and slack encodings, redundant-constraint handling, and target-variable delta; those benchmark-expansion questions remain tracked in https://github.com/JuliaQUBO/ToQUBO.jl/issues/162.
+The issue-162 penalty-scaling divergence does not reproduce under the objective-range automatic penalty policy. ToQUBO's QOBLIB-style routing coefficient range is within the pinned QOBLIB QS metrics row's 1e10 scale under the symmetrized convention, and the source transcription and incumbent feasibility checks pass. No routing-specific penalty scaling is needed for this pilot. The exact target-size delta is explained by QOBLIB/Qiskit retaining 22 redundant routing bounds as 176 slack bits that ToQUBO drops. Remaining coefficient-extrema differences are conversion-convention effects, not evidence that the objective-range penalty is worse.

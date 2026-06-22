@@ -477,6 +477,13 @@ function test_qoblib_benchmark_pilot()
         @test "09-routing/solutions/XSH-n20-k4-01.opt.sol:1-5" in
               verification["solution_line_refs"]
 
+        converter = report["qoblib_converter_evidence"]
+        @test converter["manual_verification"] === true
+        @test converter["converter_path"] == "misc/convert_lp2qubo.py"
+        @test occursin("QuadraticProgramToQubo", converter["converter_convention"])
+        @test occursin("integer slack variables", converter["qiskit_converter_pipeline"])
+        @test occursin("16697.376350318606", converter["qiskit_default_penalty_note"])
+
         source = report["source"]
         @test source["generated_metrics"]["num_vars"] == 441
         @test source["generated_metrics"]["num_linear_constraints"] == 483
@@ -518,14 +525,51 @@ function test_qoblib_benchmark_pilot()
         )
         @test metadata["encoding_types"] == ["Binary"]
 
+        accounting = report["converter_accounting"]
+        @test accounting["source_arc_binary_variables"] == 420
+        @test accounting["source_load_variables"] == 21
+        @test accounting["source_load_binary_variables"] == 168
+        @test accounting["source_binary_variables_after_encoding"] == 588
+        @test accounting["toqubo_redundant_constraints_dropped"] == 22
+        @test accounting["qoblib_redundant_capacity_upper_bound_constraints"] == 21
+        @test accounting["qoblib_redundant_depot_lower_bound_constraints"] == 1
+        @test accounting["qoblib_redundant_slack_bits"] == 176
+        @test accounting["target_variable_delta_explained_by_redundant_slack_bits"] ===
+              true
+        @test occursin("explaining the 176-variable target delta exactly", accounting["target_variable_accounting_note"])
+
         comparison = report["comparison"]
         @test comparison["canonical_qubo_metrics_available"] === true
         @test comparison["target_variable_delta_vs_qoblib_qs"] == -176
         @test comparison["redundant_constraint_count"] == 22
         @test occursin("fewer binary variables", comparison["target_variable_delta_note"])
+        @test comparison["qoblib_redundant_slack_bits_vs_toqubo"] == 176
+        @test comparison["target_variable_delta_explained_by_redundant_slack_bits"] ===
+              true
+        @test comparison["penalty_scaling_divergence_resolved"] === true
+        @test comparison["routing_specific_scaling_needed"] === false
+        @test occursin(
+            "No routing-specific penalty scaling is needed",
+            comparison["penalty_scaling_resolution_note"],
+        )
         @test isapprox(
             comparison["density_delta_vs_qoblib_qs"],
             0.0007345510955949104;
+            rtol = 1e-14,
+        )
+        @test isapprox(
+            comparison["qoblib_symmetric_min_to_canonical_min_abs_ratio"],
+            0.9657404909630436;
+            rtol = 1e-14,
+        )
+        @test isapprox(
+            comparison["qoblib_symmetric_max_to_canonical_max_abs_ratio"],
+            1.0840375586854452;
+            rtol = 1e-14,
+        )
+        @test isapprox(
+            comparison["qoblib_symmetric_abs_bound_ratio"],
+            0.9657404909630436;
             rtol = 1e-14,
         )
 
@@ -555,11 +599,18 @@ function test_qoblib_benchmark_pilot()
         @test occursin("QOBLib Routing Reformulation Pilot", markdown)
         @test occursin("XSH-n20-k4-01.lp", markdown)
         @test occursin("Canonical QUBO artifact available at pinned commit: false", markdown)
+        @test occursin("QOBLIB Converter Evidence", markdown)
         @test occursin("Model license: Apache License, Version 2.0", markdown)
-        @test occursin("Penalty scaling follow-up: https://github.com/JuliaQUBO/ToQUBO.jl/issues/162", markdown)
+        @test occursin("Penalty scaling issue: https://github.com/JuliaQUBO/ToQUBO.jl/issues/162", markdown)
+        @test occursin("Converter Variable Accounting", markdown)
+        @test occursin("QOBLIB redundant slack bits vs ToQUBO: 176", markdown)
+        @test occursin("target delta exactly", markdown)
         @test occursin("Rounded CVRPLIB route cost", markdown)
         @test occursin("Redundant source constraints detected: 22", markdown)
-        @test occursin("same order as the pinned QOBLIB QS metrics row", markdown)
+        @test occursin("largest absolute coefficient ratio", markdown)
+        @test occursin("Penalty-scaling divergence resolved: true", markdown)
+        @test occursin("Routing-specific penalty scaling needed: false", markdown)
+        @test occursin("No routing-specific penalty scaling is needed", markdown)
         @test occursin("QOBLIB solution artifact consistency check: pass", markdown)
         @test markdown == _normalized_file(report_path)
 
