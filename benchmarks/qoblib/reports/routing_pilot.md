@@ -42,7 +42,9 @@ This report is a ToQUBO-generated reformulation benchmark. It is not a canonical
 - Converter refs: misc/convert_lp2qubo.py:55-65, misc/convert_lp2qubo.py:82-89.
 - Converter convention: QOBLIB reads the LP with Gurobi, changes any continuous variables to integer, builds a Qiskit QuadraticProgram with from_gurobipy, converts it with QuadraticProgramToQubo() using the converter default penalty, writes linear coefficients on the diagonal, symmetrizes Q as (Q + Q') / 2, and writes the objective offset separately.
 - Qiskit converter pipeline: QuadraticProgramToQubo first handles a narrow set of special binary inequalities, then converts remaining inequalities to equalities with integer slack variables, encodes integer variables to binary, and finally applies equality penalties.
-- Qiskit default penalty note: For integer-coefficient constraints, Qiskit's automatic equality penalty is 1 plus the objective coefficient bound range. For this routing pilot that matches ToQUBO's objective-range penalty 16697.376350318606.
+- Qiskit optimization version checked: 0.7.0
+- Qiskit penalty formula checked: LinearEqualityToPenalty._auto_define_penalty and LinearInequalityToPenalty._auto_define_penalty return 1 plus the objective linear/quadratic coefficient bound range for integer-coefficient constraints.
+- Qiskit default penalty note: For integer-coefficient constraints, Qiskit's automatic equality penalty is 1 plus the objective coefficient bound range. The pinned QOBLIB converter uses that default path, and for this routing pilot the formula matches ToQUBO's objective-range penalty 16697.376350318606.
 
 ## Instance
 
@@ -124,7 +126,7 @@ This report is a ToQUBO-generated reformulation benchmark. It is not a canonical
 - QOBLIB retained redundant depot lower-bound constraints: 1
 - QOBLIB redundant slack bits vs ToQUBO: 176
 - Target variable delta explained by redundant slack bits: true
-- Target variable accounting note: Both converters use eight binary variables for each 0..231 load variable. QOBLIB/Qiskit retains 21 redundant y[i] <= 231 constraints and the redundant depot lower-bound constraint y[1] >= 0; each retained 0..231 slack contributes eight binary variables, explaining the 176-variable target delta exactly.
+- Target variable accounting note: Both converters use 8 binary variables for each 0..231 load variable. QOBLIB/Qiskit retains 21 redundant y[i] <= 231 constraints and the redundant depot lower-bound constraint y[1] >= 0; each retained 0..231 slack contributes 8 binary variables, explaining the 176-variable target delta exactly.
 
 ## Known Incumbent
 
@@ -160,6 +162,7 @@ This report is a ToQUBO-generated reformulation benchmark. It is not a canonical
 - QOBLIB-style minimum-coefficient absolute ratio: 0.96574049
 - QOBLIB-style maximum-coefficient absolute ratio: 1.0840376
 - QOBLIB-style largest absolute coefficient ratio: 0.96574049
+- Same-order coefficient ratio bounds: 0.1 to 10.0
 - Penalty-scaling divergence resolved: true
 - Routing-specific penalty scaling needed: false
 - Penalty scaling resolution note: The original issue-162 coefficient-range divergence no longer reproduces under the default objective-range penalty policy; ToQUBO's QOBLIB-style routing coefficient range is within the pinned QS row's 1e10 scale. ToQUBO's largest absolute coefficient is slightly smaller than QOBLIB's pinned largest absolute coefficient, although its positive-side maximum is larger. No routing-specific penalty scaling is needed for this pilot.

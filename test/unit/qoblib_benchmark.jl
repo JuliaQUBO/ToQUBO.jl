@@ -482,6 +482,11 @@ function test_qoblib_benchmark_pilot()
         @test converter["converter_path"] == "misc/convert_lp2qubo.py"
         @test occursin("QuadraticProgramToQubo", converter["converter_convention"])
         @test occursin("integer slack variables", converter["qiskit_converter_pipeline"])
+        @test converter["qiskit_optimization_version_checked"] == "0.7.0"
+        @test occursin(
+            "1 plus the objective linear/quadratic coefficient bound range",
+            converter["qiskit_penalty_formula_checked"],
+        )
         @test occursin("16697.376350318606", converter["qiskit_default_penalty_note"])
 
         source = report["source"]
@@ -572,6 +577,8 @@ function test_qoblib_benchmark_pilot()
             0.9657404909630436;
             rtol = 1e-14,
         )
+        @test comparison["coefficient_same_order_lower"] == 0.1
+        @test comparison["coefficient_same_order_upper"] == 10.0
 
         incumbent = report["known_incumbent"]
         @test isapprox(incumbent["source_objective"], 646.6703590218194; rtol = 1e-14)
@@ -600,6 +607,8 @@ function test_qoblib_benchmark_pilot()
         @test occursin("XSH-n20-k4-01.lp", markdown)
         @test occursin("Canonical QUBO artifact available at pinned commit: false", markdown)
         @test occursin("QOBLIB Converter Evidence", markdown)
+        @test occursin("Qiskit optimization version checked: 0.7.0", markdown)
+        @test occursin("Qiskit penalty formula checked", markdown)
         @test occursin("Model license: Apache License, Version 2.0", markdown)
         @test occursin("Penalty scaling issue: https://github.com/JuliaQUBO/ToQUBO.jl/issues/162", markdown)
         @test occursin("Converter Variable Accounting", markdown)
@@ -608,6 +617,7 @@ function test_qoblib_benchmark_pilot()
         @test occursin("Rounded CVRPLIB route cost", markdown)
         @test occursin("Redundant source constraints detected: 22", markdown)
         @test occursin("largest absolute coefficient ratio", markdown)
+        @test occursin("Same-order coefficient ratio bounds: 0.1 to 10.0", markdown)
         @test occursin("Penalty-scaling divergence resolved: true", markdown)
         @test occursin("Routing-specific penalty scaling needed: false", markdown)
         @test occursin("No routing-specific penalty scaling is needed", markdown)
