@@ -19,7 +19,6 @@ This report is a ToQUBO-generated reformulation benchmark. It is not a canonical
 - Canonical QUBO artifact note: The pinned QOBLIB tree contains the network05.qs metrics row but no stored network05.qs or network05.qs.xz artifact, so this pilot compares against the metrics table row.
 - Model license: Apache License, Version 2.0
 - Data license: Creative Commons Attribution 4.0 International
-- Penalty scaling follow-up: https://github.com/JuliaQUBO/ToQUBO.jl/issues/172
 - Generated collection label: ToQUBO-generated reformulation benchmark
 
 ## Upstream Verification

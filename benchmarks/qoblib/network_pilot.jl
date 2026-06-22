@@ -57,7 +57,6 @@ const PROVENANCE = Dict{String,Any}(
     "canonical_qubo_artifact_available_at_commit" => false,
     "canonical_qubo_artifact_note" =>
         "The pinned QOBLIB tree contains the network05.qs metrics row but no stored network05.qs or network05.qs.xz artifact, so this pilot compares against the metrics table row.",
-    "penalty_scaling_follow_up" => "https://github.com/JuliaQUBO/ToQUBO.jl/issues/172",
 )
 
 const UPSTREAM_VERIFICATION = Dict{String,Any}(
@@ -836,7 +835,6 @@ function write_markdown_report(io::IO, report::AbstractDict)
     write(io, "- Canonical QUBO artifact note: $(provenance["canonical_qubo_artifact_note"])\n")
     write(io, "- Model license: $(provenance["qoblib_model_license"])\n")
     write(io, "- Data license: $(provenance["qoblib_data_license"])\n")
-    write(io, "- Penalty scaling follow-up: $(provenance["penalty_scaling_follow_up"])\n")
     write(io, "- Generated collection label: $(provenance["collection"])\n\n")
 
     write(io, "## Upstream Verification\n\n")

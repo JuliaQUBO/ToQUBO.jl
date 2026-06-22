@@ -270,8 +270,6 @@ function test_qoblib_benchmark_pilot()
               "08-network/models/integer_lp/d3ver0int.zpl"
         @test report["provenance"]["qoblib_model_license"] ==
               "Apache License, Version 2.0"
-        @test report["provenance"]["penalty_scaling_follow_up"] ==
-              "https://github.com/JuliaQUBO/ToQUBO.jl/issues/172"
         @test report["provenance"]["canonical_qubo_metrics_csv_row"] ==
               "network05.qs,3640,0.05271012974940467,-4.75713475713e+17,4.5260616934376417e+18"
         @test report["instance"]["qoblib_id"] == "network05"
@@ -443,7 +441,6 @@ function test_qoblib_benchmark_pilot()
         @test occursin("Reproduced converter penalty: 1.000001e6", markdown)
         @test occursin("match the pinned metrics row exactly", markdown)
         @test occursin("Model license: Apache License, Version 2.0", markdown)
-        @test occursin("Penalty scaling follow-up: https://github.com/JuliaQUBO/ToQUBO.jl/issues/172", markdown)
         @test occursin("Target variable delta note", markdown)
         @test occursin("Source Variable Encoding", markdown)
         @test occursin("z and flow target binary variables: 1620", markdown)

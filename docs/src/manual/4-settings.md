@@ -54,9 +54,19 @@ where `s` is [`ToQUBO.Attributes.PenaltyScale`](@ref), `β` is
 [`ToQUBO.Attributes.PenaltyOffset`](@ref), `σ` is `1` for minimization models
 and `-1` for maximization models, `U - L` is the compiled pseudo-boolean
 objective range, and `ϵ` is the smallest positive value of the generated
-nonnegative penalty function. With `β > 0`, any infeasible assignment is
-penalized by more than the largest possible objective improvement available
-within the compiled objective range.
+nonnegative penalty function. With the default scale `s = 1` and `β > 0`, any
+infeasible assignment is penalized by more than the largest possible objective
+improvement available within the compiled objective range. With custom scales,
+the same sufficient exactness condition is `s * (U - L + β) > U - L`; smaller
+scales can make the penalty a tuning heuristic rather than a certified exact
+penalty.
+
+The objective range is computed from interval bounds on the compiled PBF over
+encoded target binary variables. For normal finite JuMP/MOI models this bound
+is finite after encoding, but it may overestimate the exact source-objective
+span when an encoding has redundant target states or feasibility relations such
+as one-hot sums. That overestimate keeps the penalty sufficient, but it is not
+always the tightest possible objective range.
 
 When the objective range or positive penalty gap cannot be certified, ToQUBO
 falls back for that coefficient to [`ToQUBO.Attributes.LegacyPenalty`](@ref):
@@ -66,9 +76,10 @@ falls back for that coefficient to [`ToQUBO.Attributes.LegacyPenalty`](@ref):
 ```
 
 where `δ` is the historical objective gap estimate from `PBO.maxgap`.
-The selected policy, objective bounds, and any fallback reasons are exposed
-through [`ToQUBO.Attributes.PenaltyPolicyMetadata`](@ref) and the
-`"penalty_policy"` field in reformulation metadata.
+The selected policy, objective bounds, inferred penalties with their `ϵ`
+sources, and any fallback reasons are exposed through
+[`ToQUBO.Attributes.PenaltyPolicyMetadata`](@ref) and the `"penalty_policy"`
+field in reformulation metadata.
 
 The precedence is:
 

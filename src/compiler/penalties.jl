@@ -28,6 +28,11 @@ function _penalty_context(model::Virtual.Model)
     return Dict{String,Any}(
         "policy" => string(nameof(typeof(policy))),
         "objective_bounds" => objective_bounds,
+        "inferred_penalties" => Dict{String,Any}(
+            "constraints" => Dict{String,Any}[],
+            "variables" => Dict{String,Any}[],
+            "slack_variables" => Dict{String,Any}[],
+        ),
         "fallbacks" => Dict{String,Any}[],
     )
 end
@@ -111,6 +116,82 @@ function _inferred_penalty_factor(
     )
 end
 
+function _inferred_penalty_bucket(kind::String)
+    if kind == "constraint"
+        return "constraints"
+    elseif kind == "variable"
+        return "variables"
+    elseif kind == "slack_variable"
+        return "slack_variables"
+    else
+        return kind
+    end
+end
+
+function _record_inferred_penalty!(
+    context::AbstractDict,
+    kind::String,
+    id::Integer,
+    ρ,
+    ϵ,
+    gap_source::String,
+    scale,
+    offset,
+    fallback,
+)
+    entry = Dict{String,Any}(
+        "kind" => kind,
+        "id" => id,
+        "penalty" => ρ,
+        "epsilon" => ϵ,
+        "epsilon_source" => gap_source,
+        "scale" => scale,
+        "offset" => offset,
+        "automatic_policy" => context["policy"],
+        "selected_policy" =>
+            isnothing(fallback) ? context["policy"] : fallback["fallback_policy"],
+    )
+
+    if !isnothing(fallback)
+        entry["fallback_reason"] = fallback["reason"]
+    end
+
+    push!(context["inferred_penalties"][_inferred_penalty_bucket(kind)], entry)
+
+    return nothing
+end
+
+function _infer_and_record_penalty_factor(
+    model::Virtual.Model,
+    context::AbstractDict,
+    sign,
+    δ,
+    p::PBO.PBF,
+    scale,
+    offset,
+    kind::String,
+    id::Integer,
+)
+    ϵ, gap_source = _positive_penalty_gap(p)
+    fallback_count = length(context["fallbacks"])
+    ρ = _inferred_penalty_factor(
+        model,
+        context,
+        sign,
+        δ,
+        ϵ,
+        scale,
+        offset,
+        kind,
+        id,
+    )
+    fallback = length(context["fallbacks"]) > fallback_count ? last(context["fallbacks"]) : nothing
+
+    _record_inferred_penalty!(context, kind, id, ρ, ϵ, gap_source, scale, offset, fallback)
+
+    return ρ
+end
+
 function penalties!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
     # Adjust Sign
     σ = MOI.get(model, MOI.ObjectiveSense()) === MOI.MAX_SENSE ? -1 : 1
@@ -130,15 +211,16 @@ function penalties!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
                 )
             end
 
-            ϵ, _gap_source = _positive_penalty_gap(g)
-            ρ = _inferred_penalty_factor(
+            scale = Attributes.constraint_penalty_scale(model, ci)
+            offset = Attributes.constraint_penalty_offset(model, ci)
+            ρ = _infer_and_record_penalty_factor(
                 model,
                 context,
                 σ,
                 δ,
-                ϵ,
-                Attributes.constraint_penalty_scale(model, ci),
-                Attributes.constraint_penalty_offset(model, ci),
+                g,
+                scale,
+                offset,
                 "constraint",
                 ci.value,
             )
@@ -151,15 +233,16 @@ function penalties!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
         θ = Attributes.variable_encoding_penalty_hint(model, vi)
 
         if isnothing(θ)
-            ϵ, _gap_source = _positive_penalty_gap(h)
-            θ = _inferred_penalty_factor(
+            scale = Attributes.penalty_scale(model)
+            offset = Attributes.penalty_offset(model)
+            θ = _infer_and_record_penalty_factor(
                 model,
                 context,
                 σ,
                 δ,
-                ϵ,
-                Attributes.penalty_scale(model),
-                Attributes.penalty_offset(model),
+                h,
+                scale,
+                offset,
                 "variable",
                 vi.value,
             )
@@ -172,15 +255,16 @@ function penalties!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
         η = Attributes.slack_variable_encoding_penalty_hint(model, ci)
 
         if isnothing(η)
-            ϵ, _gap_source = _positive_penalty_gap(s)
-            η = _inferred_penalty_factor(
+            scale = Attributes.constraint_penalty_scale(model, ci)
+            offset = Attributes.constraint_penalty_offset(model, ci)
+            η = _infer_and_record_penalty_factor(
                 model,
                 context,
                 σ,
                 δ,
-                ϵ,
-                Attributes.constraint_penalty_scale(model, ci),
-                Attributes.constraint_penalty_offset(model, ci),
+                s,
+                scale,
+                offset,
                 "slack_variable",
                 ci.value,
             )
