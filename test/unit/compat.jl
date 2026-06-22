@@ -1,3 +1,11 @@
+function _release_line_compat(version::VersionNumber)
+    if version.major == 0
+        return version.minor == 0 ? "0.0.$(version.patch)" : "0.$(version.minor)"
+    end
+
+    return string(version.major)
+end
+
 function test_compat()
     @testset "Compatibility and CI" begin
         root = normpath(joinpath(@__DIR__, "..", ".."))
@@ -17,7 +25,7 @@ function test_compat()
         @test occursin(r"(^|,\s*)0\.4(\s*(,|$))", docs_compat["QUBODrivers"])
         @test occursin(r"(^|,\s*)0\.6(\s*(,|$))", docs_compat["QUBODrivers"])
         @test docs_compat["QUBOTools"] == "0.12, 0.13"
-        @test docs_compat["ToQUBO"] == "0.5"
+        @test docs_compat["ToQUBO"] == _release_line_compat(VersionNumber(project["version"]))
         @test occursin(r"(^|,\s*)0\.11(\s*(,|$))", test_compat["QUBOTools"])
         @test occursin(r"(^|,\s*)0\.12(\s*(,|$))", test_compat["QUBOTools"])
         @test occursin(r"(^|,\s*)0\.13(\s*(,|$))", test_compat["QUBOTools"])
