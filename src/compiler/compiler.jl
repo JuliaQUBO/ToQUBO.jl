@@ -98,6 +98,7 @@ function reset!(model::Virtual.Model, ::AbstractArchitecture = GenericArchitectu
     MOI.set(model, Attributes.CompilationStatus(), nothing)
     MOI.set(model, Attributes.CompilationTime(), nothing)
     delete!(model.compiler_settings, :qubo_fast_path)
+    delete!(model.compiler_settings, :penalty_policy_metadata)
     delete!(model.moi_settings, :raw_status_string)
 
     return nothing

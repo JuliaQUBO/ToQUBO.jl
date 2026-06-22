@@ -39,19 +39,47 @@ ToQUBO.Attributes.StableQuadratization
 
 ## Variable & Constraint Encoding
 
-### Penalty Heuristic
+### Automatic Penalty Inference
 
 When a constraint, variable encoding, or slack-variable encoding needs a penalty
-coefficient and no explicit hint is set, ToQUBO uses the automatic heuristic
+coefficient and no explicit hint is set, ToQUBO infers one automatically. The
+default [`ToQUBO.Attributes.ObjectiveRangePenalty`](@ref) policy uses an
+objective-range exact-penalty bound:
+
+```math
+\rho = s \cdot \sigma \cdot \left(\frac{U - L + \beta}{\epsilon}\right)
+```
+
+where `s` is [`ToQUBO.Attributes.PenaltyScale`](@ref), `β` is
+[`ToQUBO.Attributes.PenaltyOffset`](@ref), `σ` is `1` for minimization models
+and `-1` for maximization models, `U - L` is the compiled pseudo-boolean
+objective range, and `ϵ` is the smallest positive value of the generated
+nonnegative penalty function. With the default scale `s = 1` and `β > 0`, any
+infeasible assignment is penalized by more than the largest possible objective
+improvement available within the compiled objective range. With custom scales,
+the same sufficient exactness condition is `s * (U - L + β) > U - L`; smaller
+scales can make the penalty a tuning heuristic rather than a certified exact
+penalty.
+
+The objective range is computed from interval bounds on the compiled PBF over
+encoded target binary variables. For normal finite JuMP/MOI models this bound
+is finite after encoding, but it may overestimate the exact source-objective
+span when an encoding has redundant target states or feasibility relations such
+as one-hot sums. That overestimate keeps the penalty sufficient, but it is not
+always the tightest possible objective range.
+
+When the objective range or positive penalty gap cannot be certified, ToQUBO
+falls back for that coefficient to [`ToQUBO.Attributes.LegacyPenalty`](@ref):
 
 ```math
 \rho = s \cdot \sigma \cdot \left(\frac{\delta}{\epsilon} + \beta\right)
 ```
 
-where `s` is [`ToQUBO.Attributes.PenaltyScale`](@ref), `β` is
-[`ToQUBO.Attributes.PenaltyOffset`](@ref), `σ` is `1` for minimization models
-and `-1` for maximization models, `δ` is the objective gap estimate, and `ϵ` is
-the smallest positive gap in the generated penalty function.
+where `δ` is the historical objective gap estimate from `PBO.maxgap`.
+The selected policy, objective bounds, inferred penalties with their `ϵ`
+sources, and any fallback reasons are exposed through
+[`ToQUBO.Attributes.PenaltyPolicyMetadata`](@ref) and the `"penalty_policy"`
+field in reformulation metadata.
 
 The precedence is:
 
@@ -62,20 +90,25 @@ The precedence is:
    [`ToQUBO.Attributes.ConstraintPenaltyOffset`](@ref) apply to the source
    constraint and to the slack-variable encoding penalty generated for that
    constraint.
-3. Global [`ToQUBO.Attributes.PenaltyScale`](@ref) and
+3. Global [`ToQUBO.Attributes.PenaltyPolicy`](@ref),
+   [`ToQUBO.Attributes.PenaltyScale`](@ref), and
    [`ToQUBO.Attributes.PenaltyOffset`](@ref) apply everywhere else.
 
-The defaults are `PenaltyScale() == 1.0` and `PenaltyOffset() == 1.0`, matching
-the previous heuristic. The coefficient is positive for minimization models and
-negative for maximization models, so explicit hints should use the same sign as
-the coefficient you want the compiler to apply.
+The defaults are `PenaltyPolicy() == ObjectiveRangePenalty()`,
+`PenaltyScale() == 1.0`, and `PenaltyOffset() == 1.0`. The coefficient is
+positive for minimization models and negative for maximization models, so
+explicit hints should use the same sign as the coefficient you want the
+compiler to apply.
 
 Use the controls according to how much of the model you want to change:
 
+- Use [`ToQUBO.Attributes.PenaltyPolicy`](@ref) to select the automatic
+  inference policy. Set it to [`ToQUBO.Attributes.LegacyPenalty`](@ref) only
+  when you need to reproduce the historical maxgap-based coefficients.
 - Use [`ToQUBO.Attributes.PenaltyScale`](@ref) and
   [`ToQUBO.Attributes.PenaltyOffset`](@ref) to change all automatically
-  inferred penalties while preserving their relative dependence on the
-  generated objective and penalty gaps.
+  inferred penalties while preserving their policy-dependent objective and
+  penalty-gap dependence.
 - Use [`ToQUBO.Attributes.ConstraintPenaltyScale`](@ref) and
   [`ToQUBO.Attributes.ConstraintPenaltyOffset`](@ref) when one source
   constraint needs a different automatic penalty. These overrides also apply to
@@ -94,10 +127,11 @@ Use the controls according to how much of the model you want to change:
 
 ### Changing Penalty Values
 
-For feasibility tuning, start by sweeping `PenaltyScale()` while keeping
-explicit hints unset. If only one constraint needs adjustment, override that
-constraint's automatic scale or offset. Pin exact penalty values only when you
-have a known coefficient to apply.
+For feasibility tuning, start by inspecting
+[`ToQUBO.Attributes.PenaltyPolicyMetadata`](@ref) and sweeping `PenaltyScale()`
+while keeping explicit hints unset. If only one constraint needs adjustment,
+override that constraint's automatic scale or offset. Pin exact penalty values
+only when you have a known coefficient to apply.
 
 ```@example penalty-settings
 using JuMP
@@ -135,17 +169,19 @@ rho_capacity = get_attribute(capacity, Attributes.ConstraintEncodingPenalty())
 rho_assignment = get_attribute(assignment, Attributes.ConstraintEncodingPenalty())
 eta_capacity = get_attribute(capacity, Attributes.SlackVariableEncodingPenalty())
 theta_z = get_attribute(z, Attributes.VariableEncodingPenalty())
+policy_metadata = get_attribute(model, Attributes.PenaltyPolicyMetadata())
 
-# The capacity penalty is inferred by the automatic heuristic.
+# The capacity penalty is inferred by the automatic policy.
 @assert rho_capacity !== nothing
 @assert rho_assignment == 12.0
 @assert eta_capacity == 9.0
 @assert theta_z == 6.0
+@assert policy_metadata["policy"] == "ObjectiveRangePenalty"
 ```
 
-Very small `ϵ` values can produce large penalties. That usually means the
-penalty function has nearly tied infeasible states, so treat the heuristic as a
-starting point and compare feasibility across several scales.
+Very small `ϵ` values or broad objective ranges can produce large penalties.
+Inspect the policy metadata before overriding the policy or pinning explicit
+penalties.
 
 ### Constraint Penalty Methods
 
@@ -223,6 +259,10 @@ ToQUBO.Attributes.SlackVariableEncodingATol
 ToQUBO.Attributes.SlackVariableEncodingBits
 ToQUBO.Attributes.SlackVariableEncodingPenaltyHint
 ToQUBO.Attributes.SlackVariableEncodingPenalty
+ToQUBO.Attributes.ObjectiveRangePenalty
+ToQUBO.Attributes.LegacyPenalty
+ToQUBO.Attributes.PenaltyPolicy
+ToQUBO.Attributes.PenaltyPolicyMetadata
 ToQUBO.Attributes.PenaltyOffset
 ToQUBO.Attributes.PenaltyScale
 ToQUBO.Attributes.ConstraintPenaltyOffset

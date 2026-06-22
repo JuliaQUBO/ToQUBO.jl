@@ -6,6 +6,8 @@
 
 - Add QOBLib network and routing reformulation benchmark pilots with provenance, comparison metrics, and incumbent feasibility checks.
 - Add QOBLib network penalty-scaling diagnostics with source-variable bit counts and applied-penalty attribution by constraint family.
+- Add objective-range automatic penalty inference, with legacy maxgap inference available as an explicit fallback policy and diagnostic metadata.
+- Record per-inferred penalty gaps, gap sources, selected policies, and final coefficients in penalty policy metadata.
 
 ### Maintenance
 

@@ -57,7 +57,6 @@ const PROVENANCE = Dict{String,Any}(
     "canonical_qubo_artifact_available_at_commit" => false,
     "canonical_qubo_artifact_note" =>
         "The pinned QOBLIB tree contains the network05.qs metrics row but no stored network05.qs or network05.qs.xz artifact, so this pilot compares against the metrics table row.",
-    "penalty_scaling_follow_up" => "https://github.com/JuliaQUBO/ToQUBO.jl/issues/160",
 )
 
 const UPSTREAM_VERIFICATION = Dict{String,Any}(
@@ -530,6 +529,7 @@ function _constraint_penalty_diagnostics(
     metadata::AbstractDict,
 )
     expansion_coefficients = _source_variable_expansion_coefficients(metadata)
+    penalty_policy = metadata["penalty_policy"]
     families = Dict{String,Any}[]
 
     for category in CONSTRAINT_CATEGORY_ORDER
@@ -590,7 +590,10 @@ function _constraint_penalty_diagnostics(
     ])]
 
     return Dict{String,Any}(
-        "heuristic" => "scale * sigma * (delta / epsilon + beta)",
+        "heuristic" => "objective-range exact penalty with legacy fallback",
+        "automatic_penalty_policy" => penalty_policy["policy"],
+        "objective_range" => penalty_policy["objective_bounds"]["range"],
+        "fallback_count" => penalty_policy["fallback_count"],
         "default_penalty_scale" => MOI.get(model, Attributes.PenaltyScale()),
         "default_penalty_offset" => MOI.get(model, Attributes.PenaltyOffset()),
         "constraint_families" => families,
@@ -645,7 +648,7 @@ function _scaling_diagnostics(target::AbstractDict, penalty_diagnostics::Abstrac
         "largest_penalty_times_expanded_residual_coefficient_squared" =>
             penalty_diagnostics["largest_expanded_residual_scale"],
         "assessment" =>
-            "The source transcription and incumbent checks pass. QOBLIB's network05 QS metrics are reproduced by Qiskit's default converter with a uniform penalty of 1000001.0. Under ToQUBO's default automatic penalty heuristic, flow-balance constraints dominate after integer flow-variable expansion; the largest applied penalty and expanded residual coefficient from that family reproduce ToQUBO's larger coefficient scale. Matching the pinned QS metrics row requires a benchmark-compatible penalty policy, not a source model transcription change.",
+            "The source transcription and incumbent checks pass. QOBLIB's network05 QS metrics are reproduced by Qiskit's default converter with a uniform penalty of 1000001.0. ToQUBO's objective-range exact-penalty policy now infers the same uniform applied penalty for all network constraints. The remaining coefficient gap is driven by residual expansion and encoding differences, with arc-linking dominating after the 1000000 source coefficient is expanded into the QUBO.",
     )
 end
 
@@ -768,7 +771,7 @@ function run_network_pilot()
         "known_incumbent" => _known_incumbent_summary(),
         "comparison" => _comparison(target),
         "follow_up" =>
-            "The pilot found a major coefficient-scaling gap: ToQUBO's generated network QUBO coefficient range remains about eight orders of magnitude larger than the pinned QOBLIB QS metrics row even under the QOBLIB-style symmetrized convention. The source transcription and incumbent feasibility checks pass, and the local QOBLIB converter reproduces the pinned QS metrics row with Qiskit's default uniform penalty of 1000001.0. This points to a penalty-policy difference rather than a bad QOBLIB conversion; issue https://github.com/JuliaQUBO/ToQUBO.jl/issues/160 tracks a benchmark-compatible penalty policy before expanding the network benchmark class.",
+            "The objective-range exact-penalty policy tightens ToQUBO's applied network penalties from many family-dependent values up to about 5.23e14 down to the Qiskit/QOBLib-compatible uniform value 1000001.0. The source transcription and incumbent feasibility checks pass, and the local QOBLIB converter reproduces the pinned QS metrics row. The remaining coefficient-range gap is no longer caused by oversized applied penalties; it should be interpreted alongside ToQUBO's variable/slack encodings, residual expansion coefficients, and the target-variable delta before expanding the network benchmark class.",
     )
 end
 
@@ -832,7 +835,6 @@ function write_markdown_report(io::IO, report::AbstractDict)
     write(io, "- Canonical QUBO artifact note: $(provenance["canonical_qubo_artifact_note"])\n")
     write(io, "- Model license: $(provenance["qoblib_model_license"])\n")
     write(io, "- Data license: $(provenance["qoblib_data_license"])\n")
-    write(io, "- Penalty scaling follow-up: $(provenance["penalty_scaling_follow_up"])\n")
     write(io, "- Generated collection label: $(provenance["collection"])\n\n")
 
     write(io, "## Upstream Verification\n\n")
@@ -1021,6 +1023,18 @@ function write_markdown_report(io::IO, report::AbstractDict)
     write(
         io,
         "- Automatic penalty heuristic: `$(penalty_diagnostics["heuristic"])`\n",
+    )
+    write(
+        io,
+        "- Automatic penalty policy: `$(penalty_diagnostics["automatic_penalty_policy"])`\n",
+    )
+    write(
+        io,
+        "- Objective range used for automatic penalties: $(_fmt(penalty_diagnostics["objective_range"]))\n",
+    )
+    write(
+        io,
+        "- Penalty policy fallback count: $(penalty_diagnostics["fallback_count"])\n",
     )
     write(
         io,

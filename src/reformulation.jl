@@ -374,6 +374,8 @@ function reformulation_metadata(model::Virtual.Model)
         "slack_variables" => _slack_variable_entries(model),
         "constraint_encodings" => _constraint_encoding_entries(model),
         "applied_penalties" => _applied_penalty_metadata(model),
+        "penalty_policy" =>
+            MOI.get(model, Attributes.PenaltyPolicyMetadata()),
         "guarantees" => Dict{String,Any}(
             "project_original_state" => true,
             "auxiliary_consistency" => "encoding-specific",

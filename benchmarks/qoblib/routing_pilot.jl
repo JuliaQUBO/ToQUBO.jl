@@ -586,7 +586,7 @@ function run_routing_pilot()
         "known_incumbent" => _known_incumbent_summary(),
         "comparison" => _comparison(target, metadata),
         "follow_up" =>
-            "The pilot found a major coefficient-scaling gap: ToQUBO's generated routing QUBO coefficient range is about three orders of magnitude larger than the pinned QOBLIB QS metrics row even under the QOBLIB-style symmetrized convention. The source transcription and incumbent feasibility checks pass, so this PR keeps the reproducible routing pilot and tracks penalty-scaling investigation in https://github.com/JuliaQUBO/ToQUBO.jl/issues/162 before expanding the routing benchmark class.",
+            "The objective-range automatic penalty policy brings ToQUBO's generated routing QUBO coefficient range into the same order as the pinned QOBLIB QS metrics row under the QOBLIB-style symmetrized convention. The source transcription and incumbent feasibility checks pass. Remaining routing differences should be interpreted alongside ToQUBO's variable and slack encodings, redundant-constraint handling, and target-variable delta; those benchmark-expansion questions remain tracked in https://github.com/JuliaQUBO/ToQUBO.jl/issues/162.",
     )
 end
 
