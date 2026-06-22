@@ -249,6 +249,15 @@ function test_compiler_penalty_scale_and_offset()
     )
     default_variable_penalty =
         MOI.get(default_variable_model, Attributes.VariableEncodingPenalty(), default_x)
+    default_variable_metadata =
+        MOI.get(default_variable_model, Attributes.PenaltyPolicyMetadata())
+    variable_inferred = only(default_variable_metadata["inferred_penalties"]["variables"])
+    @test variable_inferred["kind"] == "variable"
+    @test variable_inferred["id"] == default_x.value
+    @test variable_inferred["penalty"] == default_variable_penalty
+    @test variable_inferred["epsilon"] == 1.0
+    @test variable_inferred["epsilon_source"] == "integer_valued_penalty"
+    @test variable_inferred["selected_policy"] == "ObjectiveRangePenalty"
     variable_gap_ratio = default_variable_penalty - 1.0
     @test MOI.get(scaled_variable_model, Attributes.VariableEncodingPenalty(), scaled_x) ==
           2.0 * (variable_gap_ratio + 3.0)
@@ -263,7 +272,9 @@ function test_compiler_applied_penalty_metadata()
         slack_encoding = Encoding.OneHot(),
     )
     penalty = MOI.get(model, Attributes.AppliedPenalty(), c)
+    slack_penalty = MOI.get(model, Attributes.SlackVariableEncodingPenalty(), c)
     metadata = ToQUBO.reformulation_metadata(model)
+    penalty_metadata = metadata["penalty_policy"]
 
     @test metadata["applied_penalties"]["constraints"] == [
         Dict{String,Any}(
@@ -277,10 +288,17 @@ function test_compiler_applied_penalty_metadata()
     ]
     @test only(metadata["constraint_encodings"])["penalty"] == penalty
     @test only(metadata["applied_penalties"]["slack_variables"])["penalty"] ==
-          MOI.get(model, Attributes.SlackVariableEncodingPenalty(), c)
-    @test metadata["penalty_policy"]["policy"] == "ObjectiveRangePenalty"
-    @test metadata["penalty_policy"]["objective_bounds"]["range"] == 2.0
-    @test metadata["penalty_policy"]["fallback_count"] == 0
+          slack_penalty
+    @test penalty_metadata["policy"] == "ObjectiveRangePenalty"
+    @test penalty_metadata["objective_bounds"]["range"] == 2.0
+    @test penalty_metadata["fallback_count"] == 0
+    slack_inferred = only(penalty_metadata["inferred_penalties"]["slack_variables"])
+    @test slack_inferred["kind"] == "slack_variable"
+    @test slack_inferred["id"] == c.value
+    @test slack_inferred["penalty"] == slack_penalty
+    @test slack_inferred["epsilon"] == 1.0
+    @test slack_inferred["epsilon_source"] == "integer_valued_penalty"
+    @test slack_inferred["selected_policy"] == "ObjectiveRangePenalty"
 
     return nothing
 end

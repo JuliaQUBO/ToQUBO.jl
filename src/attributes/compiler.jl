@@ -316,7 +316,19 @@ end
     PenaltyPolicyMetadata()
 
 Return diagnostic metadata for the automatic penalty policy used during the
-last compilation, including objective bounds and any fallback reasons.
+last compilation.
+
+The returned dictionary includes the selected automatic policy, objective
+bounds, the legacy objective gap, fallback records, and `inferred_penalties`.
+`inferred_penalties` is grouped under `"constraints"`, `"variables"`, and
+`"slack_variables"`. Each entry records the source item kind and id, final
+automatic coefficient, `epsilon`, `epsilon_source`, scale, offset, automatic
+policy, selected policy, and any fallback reason.
+
+Only automatically inferred coefficients are included in `inferred_penalties`.
+Explicit penalty hints bypass automatic inference; use [`AppliedPenalty`](@ref)
+or reformulation metadata's `applied_penalties` section when a complete list of
+applied coefficients is needed.
 """
 struct PenaltyPolicyMetadata <: CompilerAttribute end
 

@@ -123,9 +123,9 @@ function _inferred_penalty_bucket(kind::String)
         return "variables"
     elseif kind == "slack_variable"
         return "slack_variables"
-    else
-        return kind
     end
+
+    error("Unknown inferred penalty kind: $(kind)")
 end
 
 function _record_inferred_penalty!(
