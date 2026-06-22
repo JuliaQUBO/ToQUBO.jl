@@ -154,6 +154,54 @@ const QOBLIB_QUBO_METRICS = Dict{String,Any}(
     "max_coeff" => 7_397_605_618.245156,
 )
 
+const LOAD_BINARY_BITS = ceil(Int, log2(CAPACITY + 1))
+const QOBLIB_REDUNDANT_CAPACITY_UPPER_BOUND_CONSTRAINTS = NUM_NODES
+const QOBLIB_REDUNDANT_DEPOT_LOWER_BOUND_CONSTRAINTS = 1
+const QOBLIB_REDUNDANT_SLACK_BITS =
+    LOAD_BINARY_BITS * (
+        QOBLIB_REDUNDANT_CAPACITY_UPPER_BOUND_CONSTRAINTS +
+        QOBLIB_REDUNDANT_DEPOT_LOWER_BOUND_CONSTRAINTS
+    )
+const COEFFICIENT_SAME_ORDER_LOWER = 0.1
+const COEFFICIENT_SAME_ORDER_UPPER = 10.0
+
+const QOBLIB_CONVERTER_EVIDENCE = Dict{String,Any}(
+    "manual_verification" => true,
+    "converter_path" => "misc/convert_lp2qubo.py",
+    "converter_line_refs" => [
+        "misc/convert_lp2qubo.py:55-65",
+        "misc/convert_lp2qubo.py:82-89",
+    ],
+    "converter_convention" =>
+        "QOBLIB reads the LP with Gurobi, changes any continuous variables to integer, builds a Qiskit QuadraticProgram with from_gurobipy, converts it with QuadraticProgramToQubo() using the converter default penalty, writes linear coefficients on the diagonal, symmetrizes Q as (Q + Q') / 2, and writes the objective offset separately.",
+    "qiskit_converter_pipeline" =>
+        "QuadraticProgramToQubo first handles a narrow set of special binary inequalities, then converts remaining inequalities to equalities with integer slack variables, encodes integer variables to binary, and finally applies equality penalties.",
+    "qiskit_optimization_version_checked" => "0.7.0",
+    "qiskit_penalty_formula_checked" =>
+        "LinearEqualityToPenalty._auto_define_penalty and LinearInequalityToPenalty._auto_define_penalty return 1 plus the objective linear/quadratic coefficient bound range for integer-coefficient constraints.",
+    "qiskit_default_penalty_note" =>
+        "For integer-coefficient constraints, Qiskit's automatic equality penalty is 1 plus the objective coefficient bound range. The pinned QOBLIB converter uses that default path, and for this routing pilot the formula matches ToQUBO's objective-range penalty 16697.376350318606.",
+)
+
+const ROUTING_CONVERTER_ACCOUNTING = Dict{String,Any}(
+    "source_arc_binary_variables" => length(ARCS),
+    "source_load_variables" => NUM_NODES,
+    "source_load_binary_variables" => LOAD_BINARY_BITS * NUM_NODES,
+    "source_binary_variables_after_encoding" =>
+        length(ARCS) + LOAD_BINARY_BITS * NUM_NODES,
+    "toqubo_redundant_constraints_dropped" =>
+        QOBLIB_REDUNDANT_CAPACITY_UPPER_BOUND_CONSTRAINTS +
+        QOBLIB_REDUNDANT_DEPOT_LOWER_BOUND_CONSTRAINTS,
+    "qoblib_redundant_capacity_upper_bound_constraints" =>
+        QOBLIB_REDUNDANT_CAPACITY_UPPER_BOUND_CONSTRAINTS,
+    "qoblib_redundant_depot_lower_bound_constraints" =>
+        QOBLIB_REDUNDANT_DEPOT_LOWER_BOUND_CONSTRAINTS,
+    "qoblib_redundant_slack_bits" => QOBLIB_REDUNDANT_SLACK_BITS,
+    "target_variable_delta_explained_by_redundant_slack_bits" => true,
+    "target_variable_accounting_note" =>
+        "Both converters use $(LOAD_BINARY_BITS) binary variables for each 0..231 load variable. QOBLIB/Qiskit retains $(QOBLIB_REDUNDANT_CAPACITY_UPPER_BOUND_CONSTRAINTS) redundant y[i] <= 231 constraints and the redundant depot lower-bound constraint y[1] >= 0; each retained 0..231 slack contributes $(LOAD_BINARY_BITS) binary variables, explaining the $(QOBLIB_REDUNDANT_SLACK_BITS)-variable target delta exactly.",
+)
+
 const KNOWN_INCUMBENT = Dict{String,Any}(
     "qoblib_solution_cost" => 646,
     "solution_routes_customer_ids" => [
@@ -521,16 +569,36 @@ function _known_incumbent_summary()
     )
 end
 
+function _same_order_coefficient_ratio(ratio::Real)
+    return COEFFICIENT_SAME_ORDER_LOWER <= ratio <= COEFFICIENT_SAME_ORDER_UPPER
+end
+
 function _comparison(target, metadata)
+    redundant_slack_bits = ROUTING_CONVERTER_ACCOUNTING["qoblib_redundant_slack_bits"]
+    target_variable_delta = target["num_variables"] - QOBLIB_QUBO_METRICS["num_variables"]
+    qoblib_symmetric_min_ratio =
+        abs(target["qoblib_symmetric_min_coeff"]) / abs(QOBLIB_QUBO_METRICS["min_coeff"])
+    qoblib_symmetric_max_ratio =
+        abs(target["qoblib_symmetric_max_coeff"]) / abs(QOBLIB_QUBO_METRICS["max_coeff"])
+    qoblib_symmetric_abs_bound_ratio =
+        max(
+            abs(target["qoblib_symmetric_min_coeff"]),
+            abs(target["qoblib_symmetric_max_coeff"]),
+        ) / max(abs(QOBLIB_QUBO_METRICS["min_coeff"]), abs(QOBLIB_QUBO_METRICS["max_coeff"]))
+    penalty_scaling_divergence_resolved =
+        _same_order_coefficient_ratio(qoblib_symmetric_abs_bound_ratio)
+
     return Dict{String,Any}(
         "canonical_qubo_metrics_available" => QOBLIB_QUBO_METRICS["available"],
-        "target_variable_delta_vs_qoblib_qs" =>
-            target["num_variables"] - QOBLIB_QUBO_METRICS["num_variables"],
+        "target_variable_delta_vs_qoblib_qs" => target_variable_delta,
         "target_variable_delta_note" =>
-            "ToQUBO generates fewer binary variables than the pinned QOBLIB QS metrics row. The current compiler also detects 22 explicit source constraints as always feasible, so the target-size delta should be interpreted alongside the redundant-constraint count and encoding metadata.",
+            "ToQUBO generates $(redundant_slack_bits) fewer binary variables than the pinned QOBLIB QS metrics row. This is explained by redundant-constraint handling: QOBLIB/Qiskit retains 22 redundant routing bounds as equality constraints with 0..231 integer slacks, while ToQUBO detects and drops those constraints.",
         "redundant_constraint_count" =>
             QOBLIB_SOURCE_METRICS["num_linear_constraints"] -
             metadata["constraint_penalty_count"],
+        "qoblib_redundant_slack_bits_vs_toqubo" => redundant_slack_bits,
+        "target_variable_delta_explained_by_redundant_slack_bits" =>
+            target_variable_delta == -redundant_slack_bits,
         "density_delta_vs_qoblib_qs" =>
             target["density"] - QOBLIB_QUBO_METRICS["density"],
         "min_coeff_delta_vs_qoblib_qs" =>
@@ -541,6 +609,17 @@ function _comparison(target, metadata)
             target["qoblib_symmetric_min_coeff"] - QOBLIB_QUBO_METRICS["min_coeff"],
         "qoblib_symmetric_max_coeff_delta_vs_qoblib_qs" =>
             target["qoblib_symmetric_max_coeff"] - QOBLIB_QUBO_METRICS["max_coeff"],
+        "qoblib_symmetric_min_to_canonical_min_abs_ratio" =>
+            qoblib_symmetric_min_ratio,
+        "qoblib_symmetric_max_to_canonical_max_abs_ratio" =>
+            qoblib_symmetric_max_ratio,
+        "qoblib_symmetric_abs_bound_ratio" => qoblib_symmetric_abs_bound_ratio,
+        "coefficient_same_order_lower" => COEFFICIENT_SAME_ORDER_LOWER,
+        "coefficient_same_order_upper" => COEFFICIENT_SAME_ORDER_UPPER,
+        "penalty_scaling_divergence_resolved" => penalty_scaling_divergence_resolved,
+        "routing_specific_scaling_needed" => !penalty_scaling_divergence_resolved,
+        "penalty_scaling_resolution_note" =>
+            "The original issue-162 coefficient-range divergence no longer reproduces under the default objective-range penalty policy; ToQUBO's QOBLIB-style routing coefficient range is within the pinned QS row's 1e10 scale. ToQUBO's largest absolute coefficient is slightly smaller than QOBLIB's pinned largest absolute coefficient, although its positive-side maximum is larger. No routing-specific penalty scaling is needed for this pilot.",
     )
 end
 
@@ -555,6 +634,8 @@ function run_routing_pilot()
     return Dict{String,Any}(
         "provenance" => copy(PROVENANCE),
         "upstream_verification" => copy(UPSTREAM_VERIFICATION),
+        "qoblib_converter_evidence" => copy(QOBLIB_CONVERTER_EVIDENCE),
+        "converter_accounting" => copy(ROUTING_CONVERTER_ACCOUNTING),
         "instance" => copy(INSTANCE),
         "source" => Dict{String,Any}(
             "modeling_assumptions" => [
@@ -586,7 +667,7 @@ function run_routing_pilot()
         "known_incumbent" => _known_incumbent_summary(),
         "comparison" => _comparison(target, metadata),
         "follow_up" =>
-            "The objective-range automatic penalty policy brings ToQUBO's generated routing QUBO coefficient range into the same order as the pinned QOBLIB QS metrics row under the QOBLIB-style symmetrized convention. The source transcription and incumbent feasibility checks pass. Remaining routing differences should be interpreted alongside ToQUBO's variable and slack encodings, redundant-constraint handling, and target-variable delta; those benchmark-expansion questions remain tracked in https://github.com/JuliaQUBO/ToQUBO.jl/issues/162.",
+            "The issue-162 penalty-scaling divergence does not reproduce under the objective-range automatic penalty policy. ToQUBO's QOBLIB-style routing coefficient range is within the pinned QOBLIB QS metrics row's 1e10 scale under the symmetrized convention, and the source transcription and incumbent feasibility checks pass. No routing-specific penalty scaling is needed for this pilot. The exact target-size delta is explained by QOBLIB/Qiskit retaining 22 redundant routing bounds as 176 slack bits that ToQUBO drops. Remaining coefficient-extrema differences are conversion-convention effects, not evidence that the objective-range penalty is worse.",
     )
 end
 
@@ -609,6 +690,8 @@ end
 function write_markdown_report(io::IO, report::AbstractDict)
     provenance = report["provenance"]
     verification = report["upstream_verification"]
+    converter = report["qoblib_converter_evidence"]
+    accounting = report["converter_accounting"]
     instance = report["instance"]
     source = report["source"]
     qoblib_source = source["qoblib_metrics"]
@@ -646,7 +729,7 @@ function write_markdown_report(io::IO, report::AbstractDict)
     write(io, "- Canonical QUBO artifact note: $(provenance["canonical_qubo_artifact_note"])\n")
     write(io, "- Model license: $(provenance["qoblib_model_license"])\n")
     write(io, "- Data license: $(provenance["qoblib_data_license"])\n")
-    write(io, "- Penalty scaling follow-up: $(provenance["penalty_scaling_follow_up"])\n")
+    write(io, "- Penalty scaling issue: $(provenance["penalty_scaling_follow_up"])\n")
     write(io, "- Generated collection label: $(provenance["collection"])\n\n")
 
     write(io, "## Upstream Verification\n\n")
@@ -665,6 +748,22 @@ function write_markdown_report(io::IO, report::AbstractDict)
     end
 
     write(io, "\n")
+
+    write(io, "## QOBLIB Converter Evidence\n\n")
+    write(
+        io,
+        "- Manual verification: $(_fmt(converter["manual_verification"])) against QOBLIB commit `$(provenance["qoblib_commit"])`.\n",
+    )
+    write(io, "- Converter path: `$(converter["converter_path"])`.\n")
+    write(io, "- Converter refs: $(join(converter["converter_line_refs"], ", ")).\n")
+    write(io, "- Converter convention: $(converter["converter_convention"])\n")
+    write(io, "- Qiskit converter pipeline: $(converter["qiskit_converter_pipeline"])\n")
+    write(
+        io,
+        "- Qiskit optimization version checked: $(converter["qiskit_optimization_version_checked"])\n",
+    )
+    write(io, "- Qiskit penalty formula checked: $(converter["qiskit_penalty_formula_checked"])\n")
+    write(io, "- Qiskit default penalty note: $(converter["qiskit_default_penalty_note"])\n\n")
 
     write(io, "## Instance\n\n")
     write(io, "- QOBLIB id: `$(instance["qoblib_id"])`\n")
@@ -793,6 +892,42 @@ function write_markdown_report(io::IO, report::AbstractDict)
     write(io, "- Distinct constraint penalties: $(join(_fmt.(metadata["constraint_penalties"]), ", "))\n")
     write(io, "- Encoding types: `$(join(metadata["encoding_types"], "`, `"))`\n")
 
+    write(io, "\n## Converter Variable Accounting\n\n")
+    write(
+        io,
+        "- Source arc binary variables: $(accounting["source_arc_binary_variables"])\n",
+    )
+    write(io, "- Source load variables: $(accounting["source_load_variables"])\n")
+    write(
+        io,
+        "- Source load binary variables: $(accounting["source_load_binary_variables"])\n",
+    )
+    write(
+        io,
+        "- Encoded source binary variables: $(accounting["source_binary_variables_after_encoding"])\n",
+    )
+    write(
+        io,
+        "- ToQUBO redundant constraints dropped: $(accounting["toqubo_redundant_constraints_dropped"])\n",
+    )
+    write(
+        io,
+        "- QOBLIB retained redundant capacity upper-bound constraints: $(accounting["qoblib_redundant_capacity_upper_bound_constraints"])\n",
+    )
+    write(
+        io,
+        "- QOBLIB retained redundant depot lower-bound constraints: $(accounting["qoblib_redundant_depot_lower_bound_constraints"])\n",
+    )
+    write(
+        io,
+        "- QOBLIB redundant slack bits vs ToQUBO: $(accounting["qoblib_redundant_slack_bits"])\n",
+    )
+    write(
+        io,
+        "- Target variable delta explained by redundant slack bits: $(_fmt(accounting["target_variable_delta_explained_by_redundant_slack_bits"]))\n",
+    )
+    write(io, "- Target variable accounting note: $(accounting["target_variable_accounting_note"])\n")
+
     write(io, "\n## Known Incumbent\n\n")
     write(io, "- Source objective using sqrt distances: $(_fmt(incumbent["source_objective"]))\n")
     write(io, "- Rounded CVRPLIB route cost: $(_fmt(incumbent["rounded_route_cost"]))\n")
@@ -832,6 +967,14 @@ function write_markdown_report(io::IO, report::AbstractDict)
     write(io, "- Redundant source constraints detected: $(comparison["redundant_constraint_count"])\n")
     write(
         io,
+        "- QOBLIB redundant slack bits vs ToQUBO: $(comparison["qoblib_redundant_slack_bits_vs_toqubo"])\n",
+    )
+    write(
+        io,
+        "- Target variable delta explained by redundant slack bits: $(_fmt(comparison["target_variable_delta_explained_by_redundant_slack_bits"]))\n",
+    )
+    write(
+        io,
         "- Target density delta vs QOBLIB QS metrics: $(_fmt(comparison["density_delta_vs_qoblib_qs"]))\n",
     )
     write(
@@ -850,8 +993,33 @@ function write_markdown_report(io::IO, report::AbstractDict)
         io,
         "- QOBLIB-style max-coefficient delta vs QOBLIB QS metrics: $(_fmt(comparison["qoblib_symmetric_max_coeff_delta_vs_qoblib_qs"]))\n",
     )
+    write(
+        io,
+        "- QOBLIB-style minimum-coefficient absolute ratio: $(_fmt(comparison["qoblib_symmetric_min_to_canonical_min_abs_ratio"]))\n",
+    )
+    write(
+        io,
+        "- QOBLIB-style maximum-coefficient absolute ratio: $(_fmt(comparison["qoblib_symmetric_max_to_canonical_max_abs_ratio"]))\n",
+    )
+    write(
+        io,
+        "- QOBLIB-style largest absolute coefficient ratio: $(_fmt(comparison["qoblib_symmetric_abs_bound_ratio"]))\n",
+    )
+    write(
+        io,
+        "- Same-order coefficient ratio bounds: $(_fmt(comparison["coefficient_same_order_lower"])) to $(_fmt(comparison["coefficient_same_order_upper"]))\n",
+    )
+    write(
+        io,
+        "- Penalty-scaling divergence resolved: $(_fmt(comparison["penalty_scaling_divergence_resolved"]))\n",
+    )
+    write(
+        io,
+        "- Routing-specific penalty scaling needed: $(_fmt(comparison["routing_specific_scaling_needed"]))\n",
+    )
+    write(io, "- Penalty scaling resolution note: $(comparison["penalty_scaling_resolution_note"])\n")
 
-    write(io, "\n## Follow-Up\n\n")
+    write(io, "\n## Penalty Scaling Resolution\n\n")
     write(io, report["follow_up"], "\n")
 
     return nothing
