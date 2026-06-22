@@ -2,6 +2,10 @@
 
 ## v0.5.0 - 2026-06-22
 
+### Breaking changes
+
+- Use the objective-range policy as the default automatic penalty inference path; downstream checks that assert exact legacy maxgap-derived coefficients should request the legacy fallback policy or update their expectations.
+
 ### Added
 
 - Add QOBLib network and routing reformulation benchmark pilots with provenance, comparison metrics, and incumbent feasibility checks.
