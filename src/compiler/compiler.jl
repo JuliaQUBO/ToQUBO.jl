@@ -5,6 +5,7 @@ import MathOptInterface as MOI
 import MathOptInterface: empty!
 import PseudoBooleanOptimization as PBO
 
+import QUBOTools
 import QUBOTools: AbstractArchitecture, GenericArchitecture
 
 import ..Attributes
@@ -93,6 +94,7 @@ function reset!(model::Virtual.Model, ::AbstractArchitecture = GenericArchitectu
     Base.empty!(model.s)
     Base.empty!(model.η)
     Base.empty!(model.H)
+    model.qubo_backend_cache = nothing
 
     # Optimize-generated status
     MOI.set(model, Attributes.CompilationStatus(), nothing)
@@ -116,8 +118,6 @@ function Compiler.copy!(model::Virtual.Model{T}, arch::AbstractArchitecture) whe
     )
 
     _copy_qubo_objective!(model, variable_map)
-    _copy_qubo_hamiltonian!(model)
-    _output_qubo_objective!(model)
 
     model.compiler_settings[:qubo_fast_path] = true
 
@@ -148,82 +148,49 @@ function _copy_qubo_variables!(model::Virtual.Model{T}) where {T}
     return variable_map
 end
 
-function _qubo_term(x::VI)
-    return PBO.Term{VI}(VI[x])
+function _ordered_qubo_pair(x::VI, y::VI)
+    return x.value <= y.value ? (x, y) : (y, x)
 end
 
-function _qubo_term(x::VI, y::VI)
-    if x.value <= y.value
-        return PBO.Term{VI}(VI[x, y])
+function _add_or_drop!(terms::Dict{K,T}, key::K, value::T) where {K,T}
+    new_value = get(terms, key, zero(T)) + value
+
+    if iszero(new_value)
+        delete!(terms, key)
     else
-        return PBO.Term{VI}(VI[y, x])
-    end
-end
-
-function _add_qubo_affine_term!(f::PBO.PBF{VI,T}, variable_map, a::SAT{T}) where {T}
-    f[_qubo_term(variable_map[a.variable])] += a.coefficient
-
-    return nothing
-end
-
-function _add_qubo_quadratic_term!(f::PBO.PBF{VI,T}, variable_map, q::SQT{T}) where {T}
-    x = variable_map[q.variable_1]
-    y = variable_map[q.variable_2]
-    c = q.coefficient
-
-    if x == y
-        # MOI stores diagonal quadratic terms with doubled coefficients for
-        # pseudo-boolean variables because x^2 == x.
-        f[_qubo_term(x)] += c / 2
-    else
-        f[_qubo_term(x, y)] += c
+        terms[key] = new_value
     end
 
     return nothing
 end
 
-function _copy_qubo_function!(
-    f::PBO.PBF{VI,T},
-    variable_map,
-    vi::VI,
+function _qubo_backend_sense(sense::MOI.OptimizationSense)
+    return sense === MOI.MIN_SENSE ? :min : :max
+end
+
+function _empty_qubo_linear_terms(::Type{T}, variable_map::Dict{VI,VI}) where {T}
+    linear_terms = sizehint!(Dict{VI,T}(), length(variable_map))
+
+    for y in values(variable_map)
+        linear_terms[y] = zero(T)
+    end
+
+    return linear_terms
+end
+
+function _cache_qubo_backend!(
+    model::Virtual.Model{T},
+    linear_terms::Dict{VI,T},
+    quadratic_terms::Dict{Tuple{VI,VI},T},
+    offset::T,
 ) where {T}
-    f[_qubo_term(variable_map[vi])] += one(T)
-
-    return nothing
-end
-
-function _copy_qubo_function!(
-    f::PBO.PBF{VI,T},
-    variable_map,
-    obj::SAF{T},
-) where {T}
-    sizehint!(f, length(obj.terms) + 1)
-
-    for a in obj.terms
-        _add_qubo_affine_term!(f, variable_map, a)
-    end
-
-    f[nothing] += obj.constant
-
-    return nothing
-end
-
-function _copy_qubo_function!(
-    f::PBO.PBF{VI,T},
-    variable_map,
-    obj::SQF{T},
-) where {T}
-    sizehint!(f, length(obj.quadratic_terms) + length(obj.affine_terms) + 1)
-
-    for q in obj.quadratic_terms
-        _add_qubo_quadratic_term!(f, variable_map, q)
-    end
-
-    for a in obj.affine_terms
-        _add_qubo_affine_term!(f, variable_map, a)
-    end
-
-    f[nothing] += obj.constant
+    model.qubo_backend_cache = QUBOTools.Model{VI,T,Int}(
+        linear_terms,
+        quadratic_terms;
+        offset,
+        sense = _qubo_backend_sense(MOI.get(model.target_model, MOI.ObjectiveSense())),
+        domain = :bool,
+    )
 
     return nothing
 end
@@ -232,43 +199,105 @@ function _copy_qubo_objective!(model::Virtual.Model{T}, variable_map) where {T}
     F = MOI.get(model.source_model, MOI.ObjectiveFunctionType())
     f = MOI.get(model.source_model, MOI.ObjectiveFunction{F}())
 
-    _copy_qubo_function!(model.f, variable_map, f)
+    _copy_qubo_objective!(model, variable_map, f)
 
     return nothing
 end
 
-function _copy_qubo_hamiltonian!(model::Virtual.Model)
-    Base.copy!(model.H, model.f)
+function _copy_qubo_objective!(
+    model::Virtual.Model{T},
+    variable_map::Dict{VI,VI},
+    vi::VI,
+) where {T}
+    y = variable_map[vi]
+    affine_terms = SAT{T}[SAT{T}(one(T), y)]
+    linear_terms = _empty_qubo_linear_terms(T, variable_map)
+    quadratic_terms = Dict{Tuple{VI,VI},T}()
+
+    linear_terms[y] += one(T)
+
+    MOI.set(
+        model.target_model,
+        MOI.ObjectiveFunction{SQF{T}}(),
+        SQF{T}(SQT{T}[], affine_terms, zero(T)),
+    )
+    _cache_qubo_backend!(model, linear_terms, quadratic_terms, zero(T))
 
     return nothing
 end
 
-function _output_qubo_objective!(model::Virtual.Model{T}) where {T}
-    Q = SQT{T}[]
-    a = SAT{T}[]
-    b = zero(T)
+function _copy_qubo_objective!(
+    model::Virtual.Model{T},
+    variable_map::Dict{VI,VI},
+    obj::SAF{T},
+) where {T}
+    affine_terms = sizehint!(SAT{T}[], length(obj.terms))
+    linear_terms = _empty_qubo_linear_terms(T, variable_map)
+    quadratic_terms = Dict{Tuple{VI,VI},T}()
 
-    for (ω, c) in model.H
-        if isempty(ω)
-            b += c
-        elseif length(ω) == 1
-            x, = ω
+    for term in obj.terms
+        y = variable_map[term.variable]
+        c = term.coefficient
 
-            push!(a, SAT{T}(c, x))
-        elseif length(ω) == 2
-            x, y = ω
+        push!(affine_terms, SAT{T}(c, y))
+        _add_or_drop!(linear_terms, y, c)
+    end
 
-            push!(Q, SQT{T}(c, x, y))
+    MOI.set(
+        model.target_model,
+        MOI.ObjectiveFunction{SQF{T}}(),
+        SQF{T}(SQT{T}[], affine_terms, obj.constant),
+    )
+    _cache_qubo_backend!(model, linear_terms, quadratic_terms, obj.constant)
+
+    return nothing
+end
+
+function _copy_qubo_objective!(
+    model::Virtual.Model{T},
+    variable_map::Dict{VI,VI},
+    obj::SQF{T},
+) where {T}
+    quadratic_terms = sizehint!(SQT{T}[], length(obj.quadratic_terms))
+    affine_terms = sizehint!(SAT{T}[], length(obj.affine_terms))
+    backend_linear_terms = _empty_qubo_linear_terms(T, variable_map)
+    backend_quadratic_terms =
+        sizehint!(Dict{Tuple{VI,VI},T}(), length(obj.quadratic_terms))
+
+    for term in obj.quadratic_terms
+        x = variable_map[term.variable_1]
+        y = variable_map[term.variable_2]
+        c = term.coefficient
+
+        push!(quadratic_terms, SQT{T}(c, x, y))
+
+        if x == y
+            _add_or_drop!(backend_linear_terms, x, c / 2)
         else
-            compilation_error!(
-                model,
-                "Fatal: QUBO fast path produced a higher-order term";
-                status="Failure in QUBO fast path",
-            )
+            u, v = _ordered_qubo_pair(x, y)
+            _add_or_drop!(backend_quadratic_terms, (u, v), c)
         end
     end
 
-    MOI.set(model.target_model, MOI.ObjectiveFunction{SQF{T}}(), SQF{T}(Q, a, b))
+    for term in obj.affine_terms
+        y = variable_map[term.variable]
+        c = term.coefficient
+
+        push!(affine_terms, SAT{T}(c, y))
+        _add_or_drop!(backend_linear_terms, y, c)
+    end
+
+    MOI.set(
+        model.target_model,
+        MOI.ObjectiveFunction{SQF{T}}(),
+        SQF{T}(quadratic_terms, affine_terms, obj.constant),
+    )
+    _cache_qubo_backend!(
+        model,
+        backend_linear_terms,
+        backend_quadratic_terms,
+        obj.constant,
+    )
 
     return nothing
 end
