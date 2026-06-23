@@ -26,6 +26,10 @@ n \ge \log_{2} \left[1 + \frac{b - a}{4 \tau}\right]
 ```
 
 binary variables become necessary.
+
+When no explicit [`ToQUBO.Attributes.VariableEncodingBits`](@ref) is set, the
+compiler uses [`ToQUBO.Attributes.VariableEncodingATol`](@ref) with this formula.
+See [Representation Error](@ref).
 """
 struct Binary{T} <: IntervalVariableEncodingMethod end
 
