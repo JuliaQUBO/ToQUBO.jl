@@ -14,7 +14,8 @@ when a returned QUBOTools model needs embedded reformulation metadata.
 
 The `applied_penalties` section is a convenience view. Its entries duplicate
 the applied penalty coefficients also attached to the corresponding variable,
-constraint, and slack-variable metadata records.
+constraint, and slack-variable metadata records. Slack-variable penalties are
+keyed by the source constraint that generated the slack variable.
 """
 function reformulation_metadata end
 
