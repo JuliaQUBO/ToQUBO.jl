@@ -267,8 +267,8 @@ end
 
 function variable_ℝ!(model::Virtual.Model{T}, vi::VI, (a, b)::Tuple{A,B}) where {T,A<:Union{T,Nothing},B<:Union{T,Nothing}}
     if !isnothing(a) && !isnothing(b)
-        # Tolerance-based bit inference is documented in
-        # docs/src/booklet/4-encoding.md.
+        # Tolerance-based bit inference is documented in the Representation
+        # Error section of the encoding booklet.
         let e = Attributes.variable_encoding_method(model, vi)
             n = Attributes.variable_encoding_bits(model, vi)
             S = (a, b)
