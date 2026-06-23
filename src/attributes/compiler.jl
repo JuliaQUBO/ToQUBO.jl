@@ -742,6 +742,11 @@ end
     DefaultVariableEncodingATol()
 
 Fallback value for [`VariableEncodingATol`](@ref).
+
+This tolerance is used to infer the number of target binary variables for a
+bounded continuous variable when neither [`VariableEncodingBits`](@ref) nor
+[`DefaultVariableEncodingBits`](@ref) supplies an explicit bit count. See
+[Representation Error](@ref).
 """
 struct DefaultVariableEncodingATol <: CompilerAttribute end
 
@@ -765,6 +770,10 @@ end
 
 @doc raw"""
     DefaultVariableEncodingBits()
+
+Fallback value for [`VariableEncodingBits`](@ref). When set, this fixes the
+number of target binary variables used for bounded continuous variables that do
+not have their own [`VariableEncodingBits`](@ref) value.
 """
 struct DefaultVariableEncodingBits <: CompilerAttribute end
 
@@ -866,6 +875,11 @@ end
 
 @doc raw"""
     VariableEncodingATol()
+
+Set the tolerance used to infer the number of target binary variables for a
+bounded continuous variable when [`VariableEncodingBits`](@ref) is unset. The
+compiler falls back to [`DefaultVariableEncodingATol`](@ref) when this attribute
+is unset. See [Representation Error](@ref).
 """
 struct VariableEncodingATol <: CompilerVariableAttribute end
 
@@ -919,6 +933,10 @@ end
 
 @doc raw"""
     VariableEncodingBits()
+
+Set the number of target binary variables used to encode a bounded continuous
+variable. This explicit bit count takes precedence over
+[`VariableEncodingATol`](@ref).
 """
 struct VariableEncodingBits <: CompilerVariableAttribute end
 

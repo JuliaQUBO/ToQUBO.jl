@@ -68,6 +68,7 @@ ToQUBO.Encoding.encoding_points
 ```
 
 Let ``\set{x_{i}}_{i \in [k]}`` be the collection of ``k`` evenly spaced samples from the discretization of an interval ``[a, b] \subseteq \mathbb{R}``.
+Its interval length is ``L = \left|b - a\right|``.
 
 The representation error for a given point ``x`` with respect to ``\set{x_{i}}_{i \in [k]}`` is
 
@@ -79,18 +80,40 @@ Assuming that ``x`` behaves as a uniformly distributed random variable, the expe
 
 ```math
 \begin{align*}
-\mathbb{E}\left[{e_{k}(x)}\right] &= \frac{1}{b - a} \int_{a}^{b} e_{k}(x) ~\mathrm{d}x \\
-                              &= \frac{1}{4} \frac{b - a}{k - 1}
+\mathbb{E}\left[{e_{k}(x)}\right] &= \frac{1}{L} \int_{a}^{b} e_{k}(x) ~\mathrm{d}x \\
+                              &= \frac{1}{4} \frac{L}{k - 1}
 \end{align*}
 ```
 
 Thus, for encoding methods that rely on the regular division of an interval, it is possible to define the number of samples ``k`` necessary to limit the expected error according to an upper bound ``\tau``, that is,
 
 ```math
-\mathbb{E}\left[{e_{k}(x)}\right] \le \tau \implies k \ge 1 + \frac{b - a}{4 \tau}
+\mathbb{E}\left[{e_{k}(x)}\right] \le \tau \implies k \ge 1 + \frac{L}{4 \tau}
 ```
 
 This allows the compiler to automatically infer the number of bits to allocate for an encoded variable given the tolerance factor.
+For a bounded continuous variable, an explicit
+[`ToQUBO.Attributes.VariableEncodingBits`](@ref) value fixes the bit count
+directly. When no bit count is set, the compiler reads
+[`ToQUBO.Attributes.VariableEncodingATol`](@ref), falling back to
+[`ToQUBO.Attributes.DefaultVariableEncodingATol`](@ref), and calls
+[`ToQUBO.Encoding.encoding_bits`](@ref) for the selected encoding method and
+the variable bounds.
+
+For the default [`ToQUBO.Encoding.Binary`](@ref) method, ``k = 2^n`` evenly
+spaced values are represented by ``n`` target binary variables. Combining
+``k = 2^n`` with the tolerance bound gives
+
+```math
+n \ge \log_{2} \left(1 + \frac{L}{4 \tau}\right),
+```
+
+so the compiler uses
+``\left\lceil \log_{2} \left(1 + L / 4\tau\right) \right\rceil`` bits.
+Other continuous-variable encoding methods use the same tolerance and bounds
+inputs with their method-specific
+[`ToQUBO.Encoding.encoding_bits`](@ref) or
+[`ToQUBO.Encoding.encoding_points`](@ref) rule.
 
 ## Constraints
 

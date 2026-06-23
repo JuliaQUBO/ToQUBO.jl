@@ -183,6 +183,22 @@ Very small `ϵ` values or broad objective ranges can produce large penalties.
 Inspect the policy metadata before overriding the policy or pinning explicit
 penalties.
 
+### Continuous Variable Resolution
+
+Bounded continuous variables need a finite binary representation before the
+compiler can build the QUBO. Set
+[`ToQUBO.Attributes.VariableEncodingBits`](@ref) or
+[`ToQUBO.Attributes.DefaultVariableEncodingBits`](@ref) to choose that bit
+count explicitly. When the bit count is unset, ToQUBO derives it from the
+variable bounds and [`ToQUBO.Attributes.VariableEncodingATol`](@ref), falling
+back to [`ToQUBO.Attributes.DefaultVariableEncodingATol`](@ref).
+
+The tolerance rule is described in the booklet's [Representation Error](@ref)
+section. Smaller tolerances or wider bounds generally allocate more target
+binary variables. Slack variables generated from constraints use the analogous
+[`ToQUBO.Attributes.SlackVariableEncodingATol`](@ref) and
+[`ToQUBO.Attributes.SlackVariableEncodingBits`](@ref) settings.
+
 ### Constraint Penalty Methods
 
 Equality constraints are encoded with
