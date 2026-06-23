@@ -70,34 +70,11 @@ function quadratize!(model::Virtual.Model, arch::AbstractArchitecture)
         method = Attributes.quadratization_method(model)
         stable = Attributes.stable_quadratization(model)
 
-        quad = PBO.Quadratization(method; stable)
+        sign = MOI.get(model, MOI.ObjectiveSense()) === MOI.MAX_SENSE ? -1 : 1
+        quad = PBO.Quadratization(method; stable, sign)
 
-        if MOI.get(model, MOI.ObjectiveSense()) === MOI.MAX_SENSE
-            # NOTE: Here it is necessary to invert the sign of the
-            # Hamiltonian since PBO adopts the minimization sense
-            # convention.
-
-            # TODO: Add an in-place version of 'quadratize!' that 
-            # provides support for maximization problems.
-            
-            # IDEA: As an easy fix, just modify 'model.H' in-place.
-            # Support for this is expected to be provided by PBO soon.
-            for (ω, c) in model.H
-                model.H[ω] = -c
-            end
-
-            PBO.quadratize!(model.H, quad) do (n::Union{Integer,Nothing} = nothing)
-                return aux(model, n, arch)
-            end
-
-            # Take it back to the original state
-            for (ω, c) in model.H
-                model.H[ω] = -c
-            end
-        else # === MOI.MIN_SENSE || === MOI.FEASIBILITY
-            PBO.quadratize!(model.H, quad) do (n::Union{Integer,Nothing} = nothing)
-                return aux(model, n, arch)
-            end
+        PBO.quadratize!(model.H, quad) do (n::Union{Integer,Nothing} = nothing)
+            return aux(model, n, arch)
         end
     end
 
