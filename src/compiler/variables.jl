@@ -267,19 +267,8 @@ end
 
 function variable_ℝ!(model::Virtual.Model{T}, vi::VI, (a, b)::Tuple{A,B}) where {T,A<:Union{T,Nothing},B<:Union{T,Nothing}}
     if !isnothing(a) && !isnothing(b)
-        # TODO: Solve this bit-guessing magic??? (DONE)
-        # IDEA: 
-        #     Let x̂ ~ U[a, b], K = 2ᴺ, γ = [a, b]
-        #       𝔼[|xᵢ - x̂|] = ∫ᵧ |xᵢ - x̂| f(x̂) dx̂
-        #                   = 1 / |b - a| ∫ᵧ |xᵢ - x̂| dx̂
-        #                   = |b - a| / 4 (K - 1)
-        #
-        #     For 𝔼[|xᵢ - x̂|] ≤ τ we have
-        #       N ≥ log₂(1 + |b - a| / 4τ)
-        # 
-        # where τ is the (absolute) tolerance
-        # TODO: Add τ as parameter (DONE)
-        # TODO: Move this comment to the documentation
+        # Tolerance-based bit inference is documented in the Representation
+        # Error section of the encoding booklet.
         let e = Attributes.variable_encoding_method(model, vi)
             n = Attributes.variable_encoding_bits(model, vi)
             S = (a, b)

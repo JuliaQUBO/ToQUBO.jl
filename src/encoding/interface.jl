@@ -24,6 +24,14 @@ function encodes end
 
 @doc raw"""
     encoding_bits(e::VariableEncodingMethod, S::Tuple{T,T}, tol::T) where {T}
+
+Return the number of target binary variables selected by encoding method `e`
+for a bounded continuous interval `S` when no explicit variable bit count is
+set.
+
+The tolerance `tol` is the upper bound used by the method's representation
+error rule. See [Representation Error](@ref) for the derivation and compiler
+precedence between explicit bit counts and tolerance-based inference.
 """
 function encoding_bits end
 
@@ -36,6 +44,9 @@ abstract type SetVariableEncodingMethod <: VariableEncodingMethod end
 
 @doc raw"""
     encoding_points(e::SetVariableEncodingMethod, S::Tuple{T,T}, tol::T) where {T}
+
+Return the number of discretization points selected by a set encoding method
+for a bounded continuous interval `S` and tolerance `tol`.
 """
 function encoding_points end
 
