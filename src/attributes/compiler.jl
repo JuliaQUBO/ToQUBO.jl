@@ -1809,14 +1809,16 @@ compilation.
 This returns `nothing` when the constraint does not generate a slack-variable
 encoding penalty. Use [`SlackVariableEncodingPenaltyHint`](@ref) before
 compilation to pin a specific coefficient.
+
+Slack variables are generated from source constraints, so the applied penalty is
+owned by the source constraint index rather than by any generated target
+variable.
 """
 struct SlackVariableEncodingPenalty <: CompilerConstraintAttribute end
 
 MOI.is_set_by_optimize(::SlackVariableEncodingPenalty) = true
 
 function slack_variable_encoding_penalty(model::Optimizer, ci::CI)
-    # TODO
-    # return MOI.get(model, SlackVariableEncodingPenalty(), ci)
     return MOI.get(model, SlackVariableEncodingPenalty(), ci)
 end
 
@@ -1825,10 +1827,6 @@ function MOI.get(
     ::SlackVariableEncodingPenalty,
     ci::CI,
 )::Union{T,Nothing} where {T}
-    # TODO
-    # vi = Virtual.source(model.slack[ci])
-
-    # return MOI.get(model, VariableEncodingPenalty(), vi)
     return get(model.η, ci, nothing)
 end
 
@@ -1838,10 +1836,6 @@ function MOI.set(
     ci::CI,
     η::Any,
 )::Nothing where {T}
-    # TODO: This doesn't work since slack variables have no source!
-    # vi = Virtual.source(model.slack[ci])
-
-    # MOI.set(model, VariableEncodingPenalty(), vi, η)
     model.η[ci] = convert(T, η)
 
     return nothing

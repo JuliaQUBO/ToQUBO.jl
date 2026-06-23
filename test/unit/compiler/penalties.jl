@@ -303,6 +303,45 @@ function test_compiler_applied_penalty_metadata()
     return nothing
 end
 
+function test_compiler_slack_variable_encoding_penalty_is_constraint_keyed()
+    model, c = _constraint_penalty_test_model(; slack_encoding = Encoding.OneHot())
+    targets = MOI.get(model, Attributes.SlackVariableTargetVariables(), c)
+    original_penalty = MOI.get(model, Attributes.SlackVariableEncodingPenalty(), c)
+
+    @test !isempty(targets)
+    @test original_penalty == model.η[c]
+
+    MOI.set(model, Attributes.SlackVariableEncodingPenalty(), c, -11.0)
+
+    @test MOI.get(model, Attributes.SlackVariableEncodingPenalty(), c) == -11.0
+    @test model.η[c] == -11.0
+
+    metadata = ToQUBO.reformulation_metadata(model)
+    slack_entry = only(metadata["slack_variables"])
+    applied_slack_entry = only(metadata["applied_penalties"]["slack_variables"])
+
+    @test slack_entry["constraint"]["id"] == c.value
+    @test slack_entry["target_variables"] == [vi.value for vi in targets]
+    @test slack_entry["penalty"] == -11.0
+    @test applied_slack_entry["constraint"] == slack_entry["constraint"]
+    @test applied_slack_entry["penalty"] == -11.0
+
+    MOI.set(model, Attributes.SlackVariableEncodingPenalty(), c, nothing)
+
+    @test MOI.get(model, Attributes.SlackVariableEncodingPenalty(), c) === nothing
+    @test !haskey(model.η, c)
+
+    cleared_metadata = ToQUBO.reformulation_metadata(model)
+    cleared_slack_entry = only(cleared_metadata["slack_variables"])
+
+    @test cleared_slack_entry["constraint"] == slack_entry["constraint"]
+    @test cleared_slack_entry["target_variables"] == [vi.value for vi in targets]
+    @test cleared_slack_entry["penalty"] === nothing
+    @test isempty(cleared_metadata["applied_penalties"]["slack_variables"])
+
+    return nothing
+end
+
 function test_compiler_penalties()
     @testset "Penalty inference" begin
         test_compiler_penalty_default_policy()
@@ -311,6 +350,7 @@ function test_compiler_penalties()
         test_compiler_penalty_policy_fallback_metadata()
         test_compiler_penalty_scale_and_offset()
         test_compiler_applied_penalty_metadata()
+        test_compiler_slack_variable_encoding_penalty_is_constraint_keyed()
     end
 
     return nothing

@@ -240,9 +240,11 @@ constraint/slack ownership for generated target variables, penalty terms
 recorded by the compiler, and an `applied_penalties` section with the applied
 constraint, variable-encoding, and slack-variable penalty coefficients.
 `applied_penalties` is a convenience view of values also stored on the
-corresponding metadata records. This is enough to project a full QUBO state back
-to original variables. Exact auxiliary consistency checks and repair remain
-encoding-specific and are not guaranteed by this metadata contract.
+corresponding metadata records. Slack-variable penalty entries are keyed by the
+source constraint that generated the slack variable. This is enough to project a
+full QUBO state back to original variables. Exact auxiliary consistency checks
+and repair remain encoding-specific and are not guaranteed by this metadata
+contract.
 
 Full reformulation metadata is intentionally generated on request. Dense models
 can create one metadata record per source-to-target expansion term and per
