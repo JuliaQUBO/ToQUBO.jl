@@ -1,7 +1,7 @@
 name    = "ToQUBO"
 uuid    = "9a412ddf-83fa-43b6-9748-7843c851aa65"
 authors = ["pedromxavier <mail@pedro.ϵλ>", "pedroripper <pedroripper@psr-inc.com>", "joaquimg <joaquim@psr-inc.com>", "AndradeTiago <tiago.andrade@psr-inc.com>", "bernalde <dbernalneira@usra.edu>"]
-version = "0.5.0"
+version = "0.5.1"
 
 [deps]
 MathOptInterface          = "b8f27783-ece8-5eb3-8dc8-9495eed66fee"
@@ -19,7 +19,7 @@ ToQUBOJuMPExt = "JuMP"
 [compat]
 JuMP = "1"
 MathOptInterface = "1"
-PseudoBooleanOptimization = "0.2.6"
-QUBOTools = "0.11, 0.12, 0.13, 0.14"
+PseudoBooleanOptimization = "0.2.6, 0.3"
+QUBOTools = "0.11, 0.12, 0.13, 0.14, 0.15"
 TOML = "1.0.3"
 julia = "1.10"
