@@ -27,6 +27,7 @@ mutable struct Model{T,O} <: MOI.AbstractOptimizer
     s::Dict{CI,PBO.PBF{VI,T}} # Slack Penalty Functions
     η::Dict{CI,T}             # Slack Penalty Factors
     H::PBO.PBF{VI,T}          # Final Objective Function
+    qubo_backend_cache::Union{Nothing,QUBOTools.Model{VI,T,Int}}
 
     # Settings 
     compiler_settings::Dict{Symbol,Any}
@@ -76,6 +77,7 @@ mutable struct Model{T,O} <: MOI.AbstractOptimizer
             Dict{CI,PBO.PBF{VI,T}}(), # Slack Penalty Functions
             Dict{CI,T}(),             # Slack Penalty Factors
             PBO.PBF{VI,T}(),          # Final Objective Function
+            nothing,                  # QUBOTools backend cache
 
             # Settings 
             Dict{Symbol,Any}(),

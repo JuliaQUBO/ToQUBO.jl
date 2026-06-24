@@ -101,6 +101,46 @@ function test_wrapper_optimizer()
                 @test α ≈ α′
                 @test β ≈ β′
             end
+
+            let model = ToQUBO.Optimizer{Float64}()
+                function dense_data(backend)
+                    n, L, Q, α, β = QUBOTools.qubo(backend, :dense)
+
+                    return (; n, L = copy(L), Q = copy(Q), α, β)
+                end
+
+                x, _ = MOI.add_constrained_variable(model, MOI.ZeroOne())
+                y, _ = MOI.add_constrained_variable(model, MOI.ZeroOne())
+
+                obj = MOI.ScalarQuadraticFunction{Float64}(
+                    [MOI.ScalarQuadraticTerm(3.0, x, y)],
+                    [MOI.ScalarAffineTerm(2.0, x)],
+                    5.0,
+                )
+                MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+                MOI.set(model, MOI.ObjectiveFunction{typeof(obj)}(), obj)
+
+                MOI.optimize!(model)
+
+                backend = QUBOTools.backend(model)
+                cached_data = dense_data(model.qubo_backend_cache)
+                returned_data = dense_data(backend)
+
+                @test model.qubo_backend_cache !== nothing
+                @test returned_data == cached_data
+
+                backend.form.L.data[1] = 99.0
+                backend.form.Q.data[1, 2] = 88.0
+                QUBOTools.metadata(backend)["sentinel"] = "mutated"
+
+                fresh_backend = QUBOTools.backend(model)
+
+                @test dense_data(backend) != cached_data
+                @test dense_data(fresh_backend) == cached_data
+                @test dense_data(model.qubo_backend_cache) == cached_data
+                @test !haskey(QUBOTools.metadata(fresh_backend), "sentinel")
+                @test !haskey(QUBOTools.metadata(model.qubo_backend_cache), "sentinel")
+            end
         end
 
         @testset "Solver Name and Version" begin

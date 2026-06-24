@@ -23,6 +23,12 @@ function _compiled_uses_qubo_fast_path(model::ToQUBO.Optimizer)
     return get(model.compiler_settings, :qubo_fast_path, false) === true
 end
 
+function _dense_qubo_data(model)
+    n, L, Q, α, β = QUBOTools.qubo(model, :dense)
+
+    return (; n, L, Q, α, β)
+end
+
 function _set_objective!(model, sense, f)
     MOI.set(model, MOI.ObjectiveSense(), sense)
     MOI.set(model, MOI.ObjectiveFunction{typeof(f)}(), f)
@@ -69,6 +75,16 @@ function test_compiler_copy()
                 @test MOI.get(model, Attributes.CompiledObjectiveFunction()) == expected
                 @test MOI.get(model, Attributes.CompiledHamiltonian()) == expected
                 @test _target_objective_pbf(model) == expected
+
+                cached_backend = model.qubo_backend_cache
+                backend = QUBOTools.backend(model)
+                parsed_backend = QUBOTools.Model{Float64}(model.target_model)
+
+                @test cached_backend !== nothing
+                @test backend !== cached_backend
+                @test QUBOTools.variables(backend) == [x_target, y_target]
+                @test QUBOTools.variables(parsed_backend) == [x_target, y_target]
+                @test _dense_qubo_data(backend) == _dense_qubo_data(parsed_backend)
             end
         end
 
@@ -100,6 +116,7 @@ function test_compiler_copy()
                 @test MOI.get(model.target_model, MOI.ObjectiveSense()) == MOI.MAX_SENSE
                 @test MOI.get(model, Attributes.CompiledObjectiveFunction()) == expected
                 @test _target_objective_pbf(model) == expected
+                @test QUBOTools.sense(QUBOTools.backend(model)) === QUBOTools.Max
             end
 
             let model = ToQUBO.Optimizer{Float64}()
@@ -119,6 +136,40 @@ function test_compiler_copy()
                 @test MOI.get(model, Attributes.CompiledObjectiveFunction()) == expected
                 @test MOI.get(model, Attributes.VariableTargetVariables(), x) == VI[x_target]
                 @test MOI.get(model, Attributes.VariableTargetVariables(), y) == VI[y_target]
+            end
+        end
+
+        @testset "cached backend preserves zero-linear variables" begin
+            let model = ToQUBO.Optimizer{Float64}()
+                x, _ = MOI.add_constrained_variable(model, MOI.ZeroOne())
+                y, _ = MOI.add_constrained_variable(model, MOI.ZeroOne())
+                z, _ = MOI.add_constrained_variable(model, MOI.ZeroOne())
+                w, _ = MOI.add_constrained_variable(model, MOI.ZeroOne())
+
+                obj = MOI.ScalarAffineFunction{Float64}(
+                    [
+                        MOI.ScalarAffineTerm(2.0, x),
+                        MOI.ScalarAffineTerm(0.0, z),
+                        MOI.ScalarAffineTerm(1.0, w),
+                        MOI.ScalarAffineTerm(-1.0, w),
+                    ],
+                    3.0,
+                )
+                _set_objective!(model, MOI.MIN_SENSE, obj)
+
+                MOI.optimize!(model)
+
+                backend = QUBOTools.backend(model)
+                parsed_backend = QUBOTools.Model{Float64}(model.target_model)
+                target_variables = [
+                    only(MOI.get(model, Attributes.VariableTargetVariables(), vi)) for
+                    vi in (x, y, z, w)
+                ]
+
+                @test _compiled_uses_qubo_fast_path(model)
+                @test QUBOTools.variables(backend) == target_variables
+                @test QUBOTools.variables(parsed_backend) == target_variables
+                @test _dense_qubo_data(backend) == _dense_qubo_data(parsed_backend)
             end
         end
 
@@ -200,6 +251,20 @@ function test_compiler_copy()
                 @test isempty(model.slack)
                 @test isempty(ToQUBO.auxiliary_variables(model))
                 @test QUBOTools.backend(model) isa QUBOTools.Model
+
+                backend_data = _dense_qubo_data(QUBOTools.backend(model))
+
+                @test backend_data.n == n
+                @test backend_data.α == 1.0
+                @test backend_data.β == total^2
+
+                for i = 1:n
+                    @test backend_data.L[i] ≈ 4 * weights[i]^2 - 4 * total * weights[i]
+
+                    for j = (i + 1):n
+                        @test backend_data.Q[i, j] ≈ 8 * weights[i] * weights[j]
+                    end
+                end
             end
         end
 
