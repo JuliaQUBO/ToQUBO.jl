@@ -1,5 +1,28 @@
 # Release Notes
 
+## v0.5.1 - 2026-06-24
+
+### Breaking changes
+
+- No breaking changes.
+
+### Fixed
+
+- Preserve zero-linear QUBO variables in the dense QUBO fast-path backend cache.
+- Use PseudoBooleanOptimization's signed quadratization support for maximization models instead of flipping Hamiltonian coefficients in place.
+
+### Documentation
+
+- Clarify continuous-variable bit inference and slack-penalty provenance.
+- Stop executing PySA examples in the ToQUBO documentation build so downstream solver-wrapper compatibility does not block ToQUBO releases.
+
+### Maintenance
+
+- Allow PseudoBooleanOptimization 0.3 while retaining compatibility with 0.2.6.
+- Allow QUBOTools 0.15 while retaining compatibility with QUBOTools 0.11, 0.12, 0.13, and 0.14.
+- Allow the documentation environment to resolve with QUBOTools 0.15 and remove its direct PySA dependency.
+- Add release-process guardrails and release-note templates.
+
 ## v0.5.0 - 2026-06-22
 
 ### Breaking changes
