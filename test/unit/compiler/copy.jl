@@ -139,6 +139,40 @@ function test_compiler_copy()
             end
         end
 
+        @testset "cached backend preserves zero-linear variables" begin
+            let model = ToQUBO.Optimizer{Float64}()
+                x, _ = MOI.add_constrained_variable(model, MOI.ZeroOne())
+                y, _ = MOI.add_constrained_variable(model, MOI.ZeroOne())
+                z, _ = MOI.add_constrained_variable(model, MOI.ZeroOne())
+                w, _ = MOI.add_constrained_variable(model, MOI.ZeroOne())
+
+                obj = MOI.ScalarAffineFunction{Float64}(
+                    [
+                        MOI.ScalarAffineTerm(2.0, x),
+                        MOI.ScalarAffineTerm(0.0, z),
+                        MOI.ScalarAffineTerm(1.0, w),
+                        MOI.ScalarAffineTerm(-1.0, w),
+                    ],
+                    3.0,
+                )
+                _set_objective!(model, MOI.MIN_SENSE, obj)
+
+                MOI.optimize!(model)
+
+                backend = QUBOTools.backend(model)
+                parsed_backend = QUBOTools.Model{Float64}(model.target_model)
+                target_variables = [
+                    only(MOI.get(model, Attributes.VariableTargetVariables(), vi)) for
+                    vi in (x, y, z, w)
+                ]
+
+                @test _compiled_uses_qubo_fast_path(model)
+                @test QUBOTools.variables(backend) == target_variables
+                @test QUBOTools.variables(parsed_backend) == target_variables
+                @test _dense_qubo_data(backend) == _dense_qubo_data(parsed_backend)
+            end
+        end
+
         @testset "metadata and projection stay coherent for pass-through QUBO" begin
             let model = ToQUBO.Optimizer{Float64}()
                 x, _ = MOI.add_constrained_variable(model, MOI.ZeroOne())

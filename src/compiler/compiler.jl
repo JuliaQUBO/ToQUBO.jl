@@ -164,6 +164,12 @@ function _add_or_drop!(terms::Dict{K,T}, key::K, value::T) where {K,T}
     return nothing
 end
 
+function _add_qubo_linear!(terms::Dict{VI,T}, key::VI, value::T) where {T}
+    terms[key] = get(terms, key, zero(T)) + value
+
+    return nothing
+end
+
 function _qubo_backend_sense(sense::MOI.OptimizationSense)
     return sense === MOI.MIN_SENSE ? :min : :max
 end
@@ -240,7 +246,7 @@ function _copy_qubo_objective!(
         c = term.coefficient
 
         push!(affine_terms, SAT{T}(c, y))
-        _add_or_drop!(linear_terms, y, c)
+        _add_qubo_linear!(linear_terms, y, c)
     end
 
     MOI.set(
@@ -272,7 +278,7 @@ function _copy_qubo_objective!(
         push!(quadratic_terms, SQT{T}(c, x, y))
 
         if x == y
-            _add_or_drop!(backend_linear_terms, x, c / 2)
+            _add_qubo_linear!(backend_linear_terms, x, c / 2)
         else
             u, v = _ordered_qubo_pair(x, y)
             _add_or_drop!(backend_quadratic_terms, (u, v), c)
@@ -284,7 +290,7 @@ function _copy_qubo_objective!(
         c = term.coefficient
 
         push!(affine_terms, SAT{T}(c, y))
-        _add_or_drop!(backend_linear_terms, y, c)
+        _add_qubo_linear!(backend_linear_terms, y, c)
     end
 
     MOI.set(
