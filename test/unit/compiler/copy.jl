@@ -88,6 +88,48 @@ function test_compiler_copy()
             end
         end
 
+        @testset "cached backend sums duplicate and cancelling quadratic terms" begin
+            let model = ToQUBO.Optimizer{Float64}()
+                x, _ = MOI.add_constrained_variable(model, MOI.ZeroOne())
+                y, _ = MOI.add_constrained_variable(model, MOI.ZeroOne())
+                z, _ = MOI.add_constrained_variable(model, MOI.ZeroOne())
+
+                obj = MOI.ScalarQuadraticFunction{Float64}(
+                    [
+                        MOI.ScalarQuadraticTerm(4.0, x, y),
+                        MOI.ScalarQuadraticTerm(-4.0, y, x),
+                        MOI.ScalarQuadraticTerm(6.0, x, z),
+                        MOI.ScalarQuadraticTerm(2.0, z, x),
+                        MOI.ScalarQuadraticTerm(10.0, y, y),
+                        MOI.ScalarQuadraticTerm(-10.0, y, y),
+                    ],
+                    [
+                        MOI.ScalarAffineTerm(3.0, z),
+                        MOI.ScalarAffineTerm(-1.0, z),
+                    ],
+                    5.0,
+                )
+                _set_objective!(model, MOI.MIN_SENSE, obj)
+
+                MOI.optimize!(model)
+
+                x_target = only(MOI.get(model, Attributes.VariableTargetVariables(), x))
+                y_target = only(MOI.get(model, Attributes.VariableTargetVariables(), y))
+                z_target = only(MOI.get(model, Attributes.VariableTargetVariables(), z))
+                backend = QUBOTools.backend(model)
+                parsed_backend = QUBOTools.Model{Float64}(model.target_model)
+                backend_data = _dense_qubo_data(backend)
+
+                @test _compiled_uses_qubo_fast_path(model)
+                @test QUBOTools.variables(backend) == [x_target, y_target, z_target]
+                @test _dense_qubo_data(backend) == _dense_qubo_data(parsed_backend)
+                @test backend_data.L[y_target.value] == 0.0
+                @test backend_data.L[z_target.value] == 2.0
+                @test backend_data.Q[x_target.value, y_target.value] == 0.0
+                @test backend_data.Q[x_target.value, z_target.value] == 8.0
+            end
+        end
+
         @testset "affine and variable objectives are copied directly" begin
             let model = ToQUBO.Optimizer{Float64}()
                 x, _ = MOI.add_constrained_variable(model, MOI.ZeroOne())

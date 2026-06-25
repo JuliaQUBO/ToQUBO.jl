@@ -19,25 +19,17 @@ function test_compat()
         @test compat["julia"] == "1.10"
         @test occursin(r"(^|,\s*)0\.2\.6(\s*(,|$))", compat["PseudoBooleanOptimization"])
         @test occursin(r"(^|,\s*)0\.3(\s*(,|$))", compat["PseudoBooleanOptimization"])
-        @test occursin(r"(^|,\s*)0\.11(\s*(,|$))", compat["QUBOTools"])
-        @test occursin(r"(^|,\s*)0\.12(\s*(,|$))", compat["QUBOTools"])
-        @test occursin(r"(^|,\s*)0\.13(\s*(,|$))", compat["QUBOTools"])
-        @test occursin(r"(^|,\s*)0\.14(\s*(,|$))", compat["QUBOTools"])
-        @test occursin(r"(^|,\s*)0\.15(\s*(,|$))", compat["QUBOTools"])
+        @test compat["QUBOTools"] == "0.15"
+        @test compat["SparseArrays"] == "1"
         @test !haskey(docs_project["deps"], "PySA")
         @test !haskey(docs_compat, "PySA")
         @test occursin(r"(^|,\s*)0\.4(\s*(,|$))", docs_compat["QUBODrivers"])
         @test occursin(r"(^|,\s*)0\.6(\s*(,|$))", docs_compat["QUBODrivers"])
-        @test occursin(r"(^|,\s*)0\.12(\s*(,|$))", docs_compat["QUBOTools"])
-        @test occursin(r"(^|,\s*)0\.15(\s*(,|$))", docs_compat["QUBOTools"])
+        @test docs_compat["QUBOTools"] == "0.15"
         @test docs_compat["ToQUBO"] == _release_line_compat(VersionNumber(project["version"]))
         @test occursin(r"(^|,\s*)0\.2\.6(\s*(,|$))", test_compat["PseudoBooleanOptimization"])
         @test occursin(r"(^|,\s*)0\.3(\s*(,|$))", test_compat["PseudoBooleanOptimization"])
-        @test occursin(r"(^|,\s*)0\.11(\s*(,|$))", test_compat["QUBOTools"])
-        @test occursin(r"(^|,\s*)0\.12(\s*(,|$))", test_compat["QUBOTools"])
-        @test occursin(r"(^|,\s*)0\.13(\s*(,|$))", test_compat["QUBOTools"])
-        @test occursin(r"(^|,\s*)0\.14(\s*(,|$))", test_compat["QUBOTools"])
-        @test occursin(r"(^|,\s*)0\.15(\s*(,|$))", test_compat["QUBOTools"])
+        @test test_compat["QUBOTools"] == "0.15"
 
         ci = replace(
             read(joinpath(root, ".github", "workflows", "ci.yml"), String),

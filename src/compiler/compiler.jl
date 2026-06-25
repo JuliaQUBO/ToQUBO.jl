@@ -4,6 +4,7 @@ module Compiler
 import MathOptInterface as MOI
 import MathOptInterface: empty!
 import PseudoBooleanOptimization as PBO
+import SparseArrays
 
 import QUBOTools
 import QUBOTools: AbstractArchitecture, GenericArchitecture
@@ -148,55 +149,54 @@ function _copy_qubo_variables!(model::Virtual.Model{T}) where {T}
     return variable_map
 end
 
-function _ordered_qubo_pair(x::VI, y::VI)
-    return x.value <= y.value ? (x, y) : (y, x)
-end
-
-function _add_or_drop!(terms::Dict{K,T}, key::K, value::T) where {K,T}
-    new_value = get(terms, key, zero(T)) + value
-
-    if iszero(new_value)
-        delete!(terms, key)
-    else
-        terms[key] = new_value
-    end
-
-    return nothing
-end
-
-function _add_qubo_linear!(terms::Dict{VI,T}, key::VI, value::T) where {T}
-    terms[key] = get(terms, key, zero(T)) + value
-
-    return nothing
-end
-
 function _qubo_backend_sense(sense::MOI.OptimizationSense)
     return sense === MOI.MIN_SENSE ? :min : :max
 end
 
-function _empty_qubo_linear_terms(::Type{T}, variable_map::Dict{VI,VI}) where {T}
-    linear_terms = sizehint!(Dict{VI,T}(), length(variable_map))
-
-    for y in values(variable_map)
-        linear_terms[y] = zero(T)
-    end
-
-    return linear_terms
+function _target_variables(variable_map::Dict{VI,VI})
+    return collect(values(variable_map))
 end
 
 function _cache_qubo_backend!(
     model::Virtual.Model{T},
-    linear_terms::Dict{VI,T},
-    quadratic_terms::Dict{Tuple{VI,VI},T},
+    variable_map::Dict{VI,VI},
+    linear_indices::Vector{Int},
+    linear_values::Vector{T},
+    quadratic_rows::Vector{Int},
+    quadratic_cols::Vector{Int},
+    quadratic_values::Vector{T},
     offset::T,
 ) where {T}
-    model.qubo_backend_cache = QUBOTools.Model{VI,T,Int}(
-        linear_terms,
-        quadratic_terms;
-        offset,
+    target_variables = _target_variables(variable_map)
+    n = length(target_variables)
+
+    # Fast-path target variables are created from an empty QUBOModel with values
+    # 1:n, which matches QUBOTools.VariableMap's sorted ranks.
+    L = SparseArrays.sparsevec(linear_indices, linear_values, n)
+    Q = SparseArrays.sparse(quadratic_rows, quadratic_cols, quadratic_values, n, n)
+
+    SparseArrays.dropzeros!(L)
+    SparseArrays.dropzeros!(Q)
+
+    # Mirrors QUBOTools._build_sparse_forms until QUBOTools exposes a public
+    # COO/sparse constructor; copy tests guard parity with target_model parsing.
+    backend_variable_map = QUBOTools.VariableMap{VI}(target_variables)
+    backend_form = QUBOTools.Form{T}(
+        n,
+        QUBOTools.SparseLinearForm{T}(L),
+        QUBOTools.SparseQuadraticForm{T}(Q),
+        one(T),
+        offset;
         sense = _qubo_backend_sense(MOI.get(model.target_model, MOI.ObjectiveSense())),
         domain = :bool,
     )
+    model.qubo_backend_cache = QUBOTools.Model{VI,T,Int}(backend_variable_map, backend_form)
+
+    return nothing
+end
+
+function _set_target_qubo_objective!(model::Virtual.Model{T}, f::SQF{T}) where {T}
+    model.target_model.objective_function = f
 
     return nothing
 end
@@ -217,17 +217,20 @@ function _copy_qubo_objective!(
 ) where {T}
     y = variable_map[vi]
     affine_terms = SAT{T}[SAT{T}(one(T), y)]
-    linear_terms = _empty_qubo_linear_terms(T, variable_map)
-    quadratic_terms = Dict{Tuple{VI,VI},T}()
+    linear_indices = Int[y.value]
+    linear_values = T[one(T)]
 
-    linear_terms[y] += one(T)
-
-    MOI.set(
-        model.target_model,
-        MOI.ObjectiveFunction{SQF{T}}(),
-        SQF{T}(SQT{T}[], affine_terms, zero(T)),
+    _set_target_qubo_objective!(model, SQF{T}(SQT{T}[], affine_terms, zero(T)))
+    _cache_qubo_backend!(
+        model,
+        variable_map,
+        linear_indices,
+        linear_values,
+        Int[],
+        Int[],
+        T[],
+        zero(T),
     )
-    _cache_qubo_backend!(model, linear_terms, quadratic_terms, zero(T))
 
     return nothing
 end
@@ -238,23 +241,29 @@ function _copy_qubo_objective!(
     obj::SAF{T},
 ) where {T}
     affine_terms = sizehint!(SAT{T}[], length(obj.terms))
-    linear_terms = _empty_qubo_linear_terms(T, variable_map)
-    quadratic_terms = Dict{Tuple{VI,VI},T}()
+    linear_indices = sizehint!(Int[], length(obj.terms))
+    linear_values = sizehint!(T[], length(obj.terms))
 
     for term in obj.terms
         y = variable_map[term.variable]
         c = term.coefficient
 
         push!(affine_terms, SAT{T}(c, y))
-        _add_qubo_linear!(linear_terms, y, c)
+        push!(linear_indices, y.value)
+        push!(linear_values, c)
     end
 
-    MOI.set(
-        model.target_model,
-        MOI.ObjectiveFunction{SQF{T}}(),
-        SQF{T}(SQT{T}[], affine_terms, obj.constant),
+    _set_target_qubo_objective!(model, SQF{T}(SQT{T}[], affine_terms, obj.constant))
+    _cache_qubo_backend!(
+        model,
+        variable_map,
+        linear_indices,
+        linear_values,
+        Int[],
+        Int[],
+        T[],
+        obj.constant,
     )
-    _cache_qubo_backend!(model, linear_terms, quadratic_terms, obj.constant)
 
     return nothing
 end
@@ -266,9 +275,11 @@ function _copy_qubo_objective!(
 ) where {T}
     quadratic_terms = sizehint!(SQT{T}[], length(obj.quadratic_terms))
     affine_terms = sizehint!(SAT{T}[], length(obj.affine_terms))
-    backend_linear_terms = _empty_qubo_linear_terms(T, variable_map)
-    backend_quadratic_terms =
-        sizehint!(Dict{Tuple{VI,VI},T}(), length(obj.quadratic_terms))
+    linear_indices = sizehint!(Int[], length(obj.affine_terms))
+    linear_values = sizehint!(T[], length(obj.affine_terms))
+    quadratic_rows = sizehint!(Int[], length(obj.quadratic_terms))
+    quadratic_cols = sizehint!(Int[], length(obj.quadratic_terms))
+    quadratic_values = sizehint!(T[], length(obj.quadratic_terms))
 
     for term in obj.quadratic_terms
         x = variable_map[term.variable_1]
@@ -278,10 +289,21 @@ function _copy_qubo_objective!(
         push!(quadratic_terms, SQT{T}(c, x, y))
 
         if x == y
-            _add_qubo_linear!(backend_linear_terms, x, c / 2)
+            push!(linear_indices, x.value)
+            push!(linear_values, c / 2)
         else
-            u, v = _ordered_qubo_pair(x, y)
-            _add_or_drop!(backend_quadratic_terms, (u, v), c)
+            i = x.value
+            j = y.value
+
+            if i < j
+                push!(quadratic_rows, i)
+                push!(quadratic_cols, j)
+            else
+                push!(quadratic_rows, j)
+                push!(quadratic_cols, i)
+            end
+
+            push!(quadratic_values, c)
         end
     end
 
@@ -290,18 +312,22 @@ function _copy_qubo_objective!(
         c = term.coefficient
 
         push!(affine_terms, SAT{T}(c, y))
-        _add_qubo_linear!(backend_linear_terms, y, c)
+        push!(linear_indices, y.value)
+        push!(linear_values, c)
     end
 
-    MOI.set(
-        model.target_model,
-        MOI.ObjectiveFunction{SQF{T}}(),
+    _set_target_qubo_objective!(
+        model,
         SQF{T}(quadratic_terms, affine_terms, obj.constant),
     )
     _cache_qubo_backend!(
         model,
-        backend_linear_terms,
-        backend_quadratic_terms,
+        variable_map,
+        linear_indices,
+        linear_values,
+        quadratic_rows,
+        quadratic_cols,
+        quadratic_values,
         obj.constant,
     )
 
