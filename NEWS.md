@@ -1,6 +1,6 @@
 # Release Notes
 
-## Unreleased
+## v0.6.0 - 2026-06-25
 
 ### Breaking changes
 
