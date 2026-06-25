@@ -407,6 +407,33 @@ function test_compiler_copy()
             end
         end
 
+        @testset "fast-path target variables are contiguous 1:n" begin
+            let model = ToQUBO.Optimizer{Float64}()
+                n = 5
+                x = VI[]
+
+                for _ = 1:n
+                    vi, _ = MOI.add_constrained_variable(model, MOI.ZeroOne())
+                    push!(x, vi)
+                end
+
+                obj = MOI.ScalarQuadraticFunction{Float64}(
+                    [MOI.ScalarQuadraticTerm(2.0, x[1], x[3])],
+                    [MOI.ScalarAffineTerm(1.0, x[2])],
+                    0.0,
+                )
+                _set_objective!(model, MOI.MIN_SENSE, obj)
+
+                MOI.optimize!(model)
+
+                # The COO backend assembly indexes by target VariableIndex value,
+                # so the fast path requires target variables to have contiguous
+                # values 1:n. Guard that invariant directly.
+                @test _compiled_uses_qubo_fast_path(model)
+                @test QUBOTools.variables(QUBOTools.backend(model)) == [VI(i) for i = 1:n]
+            end
+        end
+
         @testset "constrained models use normal reformulation path" begin
             let model = ToQUBO.Optimizer{Float64}()
                 x, _ = MOI.add_constrained_variable(model, MOI.ZeroOne())
