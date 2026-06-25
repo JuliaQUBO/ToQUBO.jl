@@ -9,6 +9,7 @@ include("attributes/attributes.jl")
 include("reformulation.jl")
 include("feasibility.jl")
 include("qoblib_benchmark.jl")
+include("dense_npp_profile.jl")
 
 function test_unit()
     @testset "⊚ Unit Tests" verbose = true begin
@@ -23,6 +24,7 @@ function test_unit()
         test_reformulation_metadata()
         test_feasibility()
         test_qoblib_benchmark_pilot()
+        test_dense_npp_profile_benchmark()
     end
 
     return nothing
