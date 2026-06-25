@@ -27,7 +27,9 @@ function test_dense_npp_profile_benchmark()
         @test [row.phase for row in rows] ==
               ["model construction", "optimize!", "QUBOTools.backend"]
         @test all(row.summary.samples == 1 for row in rows)
-        @test all(row.summary.median_time >= 0.0 for row in rows)
+        @test all(
+            isfinite(row.summary.min_time) && isfinite(row.summary.median_time) for row in rows
+        )
         @test isfinite(rows[2].summary.median_compile_time)
     end
 

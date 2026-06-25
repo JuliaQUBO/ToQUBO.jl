@@ -6,6 +6,7 @@ module DenseNPPProfile
 import JuMP
 import MathOptInterface as MOI
 import QUBOTools
+import Statistics
 import ToQUBO
 import ToQUBO.Attributes
 
@@ -75,14 +76,6 @@ function build_dense_quadratic_model(n::Integer; mode::Symbol = :cached)
     return model
 end
 
-function _median(values::Vector{Float64})
-    sorted = sort(values)
-    n = length(sorted)
-    mid = n >>> 1
-
-    return isodd(n) ? sorted[mid + 1] : (sorted[mid] + sorted[mid + 1]) / 2
-end
-
 function _sample(time::Float64, bytes::Int64, gctime::Float64; compile_time::Float64 = NaN)
     return (
         time = time,
@@ -113,10 +106,10 @@ function _summary(samples::Vector{SAMPLE_TYPE})
     return (
         samples = length(samples),
         min_time = minimum(times),
-        median_time = _median(times),
-        median_bytes = _median(bytes),
-        median_gctime = _median(gctimes),
-        median_compile_time = isempty(compile_times) ? NaN : _median(compile_times),
+        median_time = Statistics.median(times),
+        median_bytes = Statistics.median(bytes),
+        median_gctime = Statistics.median(gctimes),
+        median_compile_time = isempty(compile_times) ? NaN : Statistics.median(compile_times),
     )
 end
 
