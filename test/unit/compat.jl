@@ -19,17 +19,18 @@ function test_compat()
         @test compat["julia"] == "1.10"
         @test occursin(r"(^|,\s*)0\.2\.6(\s*(,|$))", compat["PseudoBooleanOptimization"])
         @test occursin(r"(^|,\s*)0\.3(\s*(,|$))", compat["PseudoBooleanOptimization"])
-        @test compat["QUBOTools"] == "0.15"
-        @test compat["SparseArrays"] == "1"
+        @test compat["QUBOTools"] == "0.16"
+        @test !haskey(compat, "SparseArrays")
+        @test !haskey(project["deps"], "SparseArrays")
         @test !haskey(docs_project["deps"], "PySA")
         @test !haskey(docs_compat, "PySA")
         @test occursin(r"(^|,\s*)0\.4(\s*(,|$))", docs_compat["QUBODrivers"])
         @test occursin(r"(^|,\s*)0\.6(\s*(,|$))", docs_compat["QUBODrivers"])
-        @test docs_compat["QUBOTools"] == "0.15"
+        @test docs_compat["QUBOTools"] == "0.16"
         @test docs_compat["ToQUBO"] == _release_line_compat(VersionNumber(project["version"]))
         @test occursin(r"(^|,\s*)0\.2\.6(\s*(,|$))", test_compat["PseudoBooleanOptimization"])
         @test occursin(r"(^|,\s*)0\.3(\s*(,|$))", test_compat["PseudoBooleanOptimization"])
-        @test test_compat["QUBOTools"] == "0.15"
+        @test test_compat["QUBOTools"] == "0.16"
 
         ci = replace(
             read(joinpath(root, ".github", "workflows", "ci.yml"), String),

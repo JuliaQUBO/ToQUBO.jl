@@ -1,5 +1,20 @@
 # Release Notes
 
+## Unreleased
+
+### Breaking changes
+
+- Require QUBOTools 0.16; support for QUBOTools 0.15 and earlier is dropped. The QUBO fast-path backend now assembles models through the public QUBOTools v0.16 COO constructor, so older versions can no longer satisfy the dependency.
+
+### Maintenance
+
+- Replace the local mirror of `QUBOTools._build_sparse_forms` with the public `QUBOTools.Model` COO constructor for backend assembly, removing the dependency on QUBOTools normal-form internals (`Form`, `SparseLinearForm`, `SparseQuadraticForm`). Closes the cleanup tracked in JuliaQUBO/QUBOTools.jl#115.
+- Drop the now-unused `SparseArrays` dependency.
+
+### Tests
+
+- Add backend-equivalence coverage for sparse and dense TSP-like quadratic models and assert stable variable ordering and index mapping against the QUBOTools backend.
+
 ## v0.5.2 - 2026-06-25
 
 ### Breaking changes
