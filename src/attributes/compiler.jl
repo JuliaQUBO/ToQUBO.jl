@@ -62,6 +62,40 @@ MOI.supports(::Optimizer, ::A) where {A<:CompilerAttribute} = true
 
 _copy_or_nothing(x) = isnothing(x) ? nothing : copy(x)
 
+function _is_qubo_fast_path(model::Optimizer)
+    return get(model.compiler_settings, :qubo_fast_path, false) === true
+end
+
+function _compiled_qubo_objective_from_target(model::Optimizer{T}) where {T}
+    objective = MOI.get(
+        model.target_model,
+        MOI.ObjectiveFunction{MOI.ScalarQuadraticFunction{T}}(),
+    )
+    f = PBO.PBF{VI,T}()
+
+    for term in objective.quadratic_terms
+        x = term.variable_1
+        y = term.variable_2
+        c = term.coefficient
+
+        if x == y
+            f[x] += c / 2
+        elseif x.value <= y.value
+            f[VI[x, y]] += c
+        else
+            f[VI[y, x]] += c
+        end
+    end
+
+    for term in objective.affine_terms
+        f[term.variable] += term.coefficient
+    end
+
+    f[nothing] += objective.constant
+
+    return f
+end
+
 abstract type AutomaticPenaltyPolicy end
 
 @doc raw"""
@@ -137,6 +171,10 @@ function MOI.get(
     model::Optimizer{T},
     ::CompiledObjectiveFunction,
 )::PBO.PBF{VI,T} where {T}
+    if _is_qubo_fast_path(model)
+        return _compiled_qubo_objective_from_target(model)
+    end
+
     return copy(model.f)
 end
 
@@ -158,6 +196,10 @@ function MOI.get(
     model::Optimizer{T},
     ::CompiledHamiltonian,
 )::PBO.PBF{VI,T} where {T}
+    if _is_qubo_fast_path(model)
+        return _compiled_qubo_objective_from_target(model)
+    end
+
     return copy(model.H)
 end
 

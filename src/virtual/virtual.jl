@@ -3,6 +3,7 @@ module Virtual
 # Imports
 import MathOptInterface as MOI
 import PseudoBooleanOptimization as PBO 
+import QUBOTools
 
 import ..ToQUBO: QUBOModel, PreQUBOModel
 import ..Encoding: Encoding, VariableEncodingMethod, encode!

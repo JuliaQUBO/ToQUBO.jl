@@ -1,5 +1,59 @@
 # Release Notes
 
+## v0.6.0 - 2026-06-25
+
+### Breaking changes
+
+- Require QUBOTools 0.16; support for QUBOTools 0.15 and earlier is dropped. The QUBO fast-path backend now assembles models through the public QUBOTools v0.16 COO constructor, so older versions can no longer satisfy the dependency.
+
+### Maintenance
+
+- Replace the local mirror of `QUBOTools._build_sparse_forms` with the public `QUBOTools.Model` COO constructor for backend assembly, removing the dependency on QUBOTools normal-form internals (`Form`, `SparseLinearForm`, `SparseQuadraticForm`). Closes the cleanup tracked in JuliaQUBO/QUBOTools.jl#115.
+- Drop the now-unused `SparseArrays` dependency.
+
+### Tests
+
+- Add backend-equivalence coverage for sparse and dense TSP-like quadratic models and assert stable variable ordering and index mapping against the QUBOTools backend.
+
+## v0.5.2 - 2026-06-25
+
+### Breaking changes
+
+- No breaking changes.
+
+### Performance
+
+- Reduce NPP QUBO fast-path compiler overhead by accumulating backend linear and quadratic data directly into sparse-array constructor inputs, avoiding the large intermediate `Dict{Tuple{VI,VI},T}` cache build while still writing the target MOI `ScalarQuadraticFunction` and preserving the `QUBOTools.backend(model)` path.
+
+### Maintenance
+
+- Require QUBOTools 0.15, since the QUBO fast path now relies on its sparse normal-form APIs (`Form`, `SparseLinearForm`, `SparseQuadraticForm`); the previous 0.11–0.14 compatibility no longer applies.
+- Add a `SparseArrays` compatibility bound.
+- Add equivalence coverage for duplicate, reversed, and cancelling quadratic terms so the direct sparse summation path stays equivalent to parsing the target MOI model.
+
+## v0.5.1 - 2026-06-24
+
+### Breaking changes
+
+- No breaking changes.
+
+### Fixed
+
+- Preserve zero-linear QUBO variables in the dense QUBO fast-path backend cache.
+- Use PseudoBooleanOptimization's signed quadratization support for maximization models instead of flipping Hamiltonian coefficients in place.
+
+### Documentation
+
+- Clarify continuous-variable bit inference and slack-penalty provenance.
+- Stop executing PySA examples in the ToQUBO documentation build so downstream solver-wrapper compatibility does not block ToQUBO releases.
+
+### Maintenance
+
+- Allow PseudoBooleanOptimization 0.3 while retaining compatibility with 0.2.6.
+- Allow QUBOTools 0.15 while retaining compatibility with QUBOTools 0.11, 0.12, 0.13, and 0.14.
+- Allow the documentation environment to resolve with QUBOTools 0.15 and remove its direct PySA dependency.
+- Add release-process guardrails and release-note templates.
+
 ## v0.5.0 - 2026-06-22
 
 ### Breaking changes

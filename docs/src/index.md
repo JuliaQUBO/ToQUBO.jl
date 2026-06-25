@@ -34,7 +34,10 @@ solution_summary(model)
 
 #### Using PySA (Simulated Annealing)
 
-```@example
+PySA can be used in the same optimizer wrapper pattern when it is available in
+your project environment:
+
+```julia
 using JuMP
 using ToQUBO
 using PySA
