@@ -1,5 +1,21 @@
 # Release Notes
 
+## v0.5.2 - 2026-06-25
+
+### Breaking changes
+
+- No breaking changes.
+
+### Performance
+
+- Reduce NPP QUBO fast-path compiler overhead by accumulating backend linear and quadratic data directly into sparse-array constructor inputs, avoiding the large intermediate `Dict{Tuple{VI,VI},T}` cache build while still writing the target MOI `ScalarQuadraticFunction` and preserving the `QUBOTools.backend(model)` path.
+
+### Maintenance
+
+- Require QUBOTools 0.15, since the QUBO fast path now relies on its sparse normal-form APIs (`Form`, `SparseLinearForm`, `SparseQuadraticForm`); the previous 0.11–0.14 compatibility no longer applies.
+- Add a `SparseArrays` compatibility bound.
+- Add equivalence coverage for duplicate, reversed, and cancelling quadratic terms so the direct sparse summation path stays equivalent to parsing the target MOI model.
+
 ## v0.5.1 - 2026-06-24
 
 ### Breaking changes
