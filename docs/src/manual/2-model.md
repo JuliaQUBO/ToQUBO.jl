@@ -48,7 +48,9 @@ Integer variables within a bounded interval are encoded using binary expansions.
 
 ### Continuous Variables
 
-Continuous variables within a bounded interval are discretized and encoded.
+Continuous variables within a bounded interval are discretized and encoded. See
+[Continuous Variable Resolution](@ref) for the tolerance and bit-count
+settings that control this discretization.
 
 ```julia
 @variable(model, 0.0 <= w <= 1.0)

@@ -22,6 +22,10 @@ Given ``\tau > 0``, for the expected encoding error to be less than or equal to 
 ```math
 n \ge \frac{1}{2} \left[ 1 + \sqrt{3 + \frac{(b - a)}{2 \tau})} \right]
 ```
+
+When no explicit [`ToQUBO.Attributes.VariableEncodingBits`](@ref) is set, the
+compiler uses [`ToQUBO.Attributes.VariableEncodingATol`](@ref) with this formula.
+See [Representation Error](@ref).
 """
 struct Arithmetic{T} <: IntervalVariableEncodingMethod end
 
