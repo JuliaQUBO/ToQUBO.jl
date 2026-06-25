@@ -169,12 +169,17 @@ function _cache_qubo_backend!(
 ) where {T}
     target_variables = _target_variables(variable_map)
     n = length(target_variables)
+
+    # Fast-path target variables are created from an empty QUBOModel with values
+    # 1:n, which matches QUBOTools.VariableMap's sorted ranks.
     L = SparseArrays.sparsevec(linear_indices, linear_values, n)
     Q = SparseArrays.sparse(quadratic_rows, quadratic_cols, quadratic_values, n, n)
 
     SparseArrays.dropzeros!(L)
     SparseArrays.dropzeros!(Q)
 
+    # Mirrors QUBOTools._build_sparse_forms until QUBOTools exposes a public
+    # COO/sparse constructor; copy tests guard parity with target_model parsing.
     backend_variable_map = QUBOTools.VariableMap{VI}(target_variables)
     backend_form = QUBOTools.Form{T}(
         n,
