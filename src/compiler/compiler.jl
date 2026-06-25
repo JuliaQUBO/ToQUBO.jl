@@ -4,7 +4,6 @@ module Compiler
 import MathOptInterface as MOI
 import MathOptInterface: empty!
 import PseudoBooleanOptimization as PBO
-import SparseArrays
 
 import QUBOTools
 import QUBOTools: AbstractArchitecture, GenericArchitecture
@@ -153,8 +152,12 @@ function _qubo_backend_sense(sense::MOI.OptimizationSense)
     return sense === MOI.MIN_SENSE ? :min : :max
 end
 
+# Fast-path target variables are created from an empty QUBOModel with contiguous
+# values 1:n. Sorting by value makes position i correspond to the variable whose
+# value is i, which is the index used when accumulating the sparse coefficient
+# data below and the order QUBOTools' public constructor preserves.
 function _target_variables(variable_map::Dict{VI,VI})
-    return collect(values(variable_map))
+    return sort!(collect(values(variable_map)); by = y -> y.value)
 end
 
 function _cache_qubo_backend!(
@@ -167,30 +170,21 @@ function _cache_qubo_backend!(
     quadratic_values::Vector{T},
     offset::T,
 ) where {T}
-    target_variables = _target_variables(variable_map)
-    n = length(target_variables)
-
-    # Fast-path target variables are created from an empty QUBOModel with values
-    # 1:n, which matches QUBOTools.VariableMap's sorted ranks.
-    L = SparseArrays.sparsevec(linear_indices, linear_values, n)
-    Q = SparseArrays.sparse(quadratic_rows, quadratic_cols, quadratic_values, n, n)
-
-    SparseArrays.dropzeros!(L)
-    SparseArrays.dropzeros!(Q)
-
-    # Mirrors QUBOTools._build_sparse_forms until QUBOTools exposes a public
-    # COO/sparse constructor; copy tests guard parity with target_model parsing.
-    backend_variable_map = QUBOTools.VariableMap{VI}(target_variables)
-    backend_form = QUBOTools.Form{T}(
-        n,
-        QUBOTools.SparseLinearForm{T}(L),
-        QUBOTools.SparseQuadraticForm{T}(Q),
-        one(T),
-        offset;
+    # Build the cached backend through QUBOTools' public COO constructor
+    # (QUBOTools v0.16). It performs the strict upper-triangular split, duplicate
+    # summation, and zero dropping internally; the copy tests guard parity with
+    # parsing the target MOI model.
+    model.qubo_backend_cache = QUBOTools.Model{VI,T,Int}(
+        _target_variables(variable_map),
+        linear_indices,
+        linear_values,
+        quadratic_rows,
+        quadratic_cols,
+        quadratic_values;
+        offset,
         sense = _qubo_backend_sense(MOI.get(model.target_model, MOI.ObjectiveSense())),
         domain = :bool,
     )
-    model.qubo_backend_cache = QUBOTools.Model{VI,T,Int}(backend_variable_map, backend_form)
 
     return nothing
 end
