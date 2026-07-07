@@ -28,6 +28,9 @@ function test_docs()
         @test occursin("Attributes.ConstraintPenaltyScale()", settings_page)
         @test occursin("Attributes.SlackVariableEncodingPenaltyHint()", settings_page)
         @test occursin("ToQUBO-specific settings", settings_page)
+        @test occursin("DWave.Neal", settings_page)
+        @test occursin("Finite-run stochastic samplers", settings_page)
+        @test occursin("Ref(Attributes.ConstraintPenaltyScale())", settings_page)
     end
 
     return nothing
