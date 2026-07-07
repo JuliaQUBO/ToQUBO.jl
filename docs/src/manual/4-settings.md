@@ -133,6 +133,24 @@ while keeping explicit hints unset. If only one constraint needs adjustment,
 override that constraint's automatic scale or offset. Pin exact penalty values
 only when you have a known coefficient to apply.
 
+Finite-run stochastic samplers such as `DWave.Neal` may need stronger penalties
+than the default exact-penalty bound to return feasible samples at a useful
+rate. In that case, prefer targeted
+[`ToQUBO.Attributes.ConstraintPenaltyScale`](@ref) overrides for the source
+constraints that are violated most often, instead of increasing the global
+[`ToQUBO.Attributes.PenaltyScale`](@ref) or replacing automatic inference with
+fixed hints everywhere. For example, if equality constraints `c2`, `c3`, and
+`c4` need about a 400x larger automatic penalty under a sampler:
+
+```julia
+set_attribute.(c2, Ref(Attributes.ConstraintPenaltyScale()), 400.0)
+set_attribute.(c3, Ref(Attributes.ConstraintPenaltyScale()), 400.0)
+set_attribute.(c4, Ref(Attributes.ConstraintPenaltyScale()), 400.0)
+```
+
+This keeps the selected automatic policy and its metadata, while reshaping the
+penalty landscape only around the constraints that need more sampler pressure.
+
 ```@example penalty-settings
 using JuMP
 using QUBODrivers
