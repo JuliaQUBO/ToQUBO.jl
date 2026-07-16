@@ -215,7 +215,9 @@ The tolerance rule is described in the booklet's [Representation Error](@ref)
 section. Smaller tolerances or wider bounds generally allocate more target
 binary variables. Slack variables generated from constraints use the analogous
 [`ToQUBO.Attributes.SlackVariableEncodingATol`](@ref) and
-[`ToQUBO.Attributes.SlackVariableEncodingBits`](@ref) settings.
+[`ToQUBO.Attributes.SlackVariableEncodingBits`](@ref) settings. See
+[Constraint Reformulation](@ref) for how inequality constraints generate these
+slacks and where their finite resolution enters the penalty.
 
 ### Constraint Penalty Methods
 
