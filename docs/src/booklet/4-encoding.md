@@ -134,6 +134,11 @@ residual ``g(x)`` relative to the set bound. The default reformulations are:
 | `GreaterThan(l)` | ``g(x) = f(x) - l \geq 0`` | ``(g(x) - z)^2`` |
 | `Interval(l, u)` | ``l \leq f(x) \leq u`` | the sum of the `GreaterThan(l)` and `LessThan(u)` penalties |
 
+The `EqualTo` row shows the default
+[`ToQUBO.Attributes.QuadraticPenalty`](@ref) method. Its sign-definite shortcut
+and the optional [`ToQUBO.Attributes.LinearPenalty`](@ref) method are described
+below.
+
 The one-sided reformulations introduce a bounded nonnegative slack ``z`` so
 that feasible residuals can be brought to zero. If ``L_g`` and ``U_g`` are
 bounds on the residual, `LessThan` uses ``z \in [0, |L_g|]`` and

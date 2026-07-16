@@ -22,6 +22,7 @@ function test_constraint_reformulation_docs()
         for constraint_type in ("`EqualTo`", "`LessThan`", "`GreaterThan`", "`Interval`")
             @test occursin(constraint_type, booklet)
         end
+        @test occursin("The `EqualTo` row shows the default", booklet)
         @test occursin("SlackVariableEncodingBits", booklet)
         @test occursin("SlackVariableEncodingATol", booklet)
         @test occursin("[Constraint Reformulation](@ref)", settings)
