@@ -11,6 +11,7 @@ include("reformulation.jl")
 include("feasibility.jl")
 include("qoblib_benchmark.jl")
 include("dense_npp_profile.jl")
+include("slack_resolution_analysis.jl")
 
 function test_unit()
     @testset "⊚ Unit Tests" verbose = true begin
@@ -27,6 +28,7 @@ function test_unit()
         test_feasibility()
         test_qoblib_benchmark_pilot()
         test_dense_npp_profile_benchmark()
+        test_slack_resolution_analysis()
     end
 
     return nothing
