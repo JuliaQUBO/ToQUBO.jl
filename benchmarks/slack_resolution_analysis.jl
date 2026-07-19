@@ -208,7 +208,7 @@ function build_fixture(bits::Integer)
 
     JuMP.optimize!(model)
 
-    return model, capacity
+    return model, capacity, x
 end
 
 function _constraint_descriptor(constraint)
@@ -240,7 +240,7 @@ function _slack_grid(slack_entry)
 end
 
 function analyze_bits(bits::Integer)
-    model, capacity = build_fixture(bits)
+    model, capacity, x = build_fixture(bits)
     metadata = ToQUBO.reformulation_metadata(JuMP.unsafe_backend(model))
     slack = _entry_for_constraint(metadata["slack_variables"], capacity)
     encoding = _entry_for_constraint(metadata["constraint_encodings"], capacity)
@@ -251,17 +251,25 @@ function analyze_bits(bits::Integer)
     @assert length(grid) == 2^bits
     @assert all(isapprox(grid[i+1] - grid[i], spacing) for i = 1:(length(grid)-1))
 
-    feasible_residual = -0.4
-    infeasible_residual = 0.2
+    feasible_state = Dict(x[1] => 1.0, x[2] => 0.0)
+    infeasible_state = Dict(x[1] => 1.0, x[2] => 1.0)
+    feasible_value = variable -> feasible_state[variable]
+    infeasible_value = variable -> infeasible_state[variable]
+    rhs = JuMP.normalized_rhs(capacity)
+    feasible_residual = JuMP.value(feasible_value, capacity) - rhs
+    infeasible_residual = JuMP.value(infeasible_value, capacity) - rhs
     feasible_floor = minimum((feasible_residual + slack_value)^2 for slack_value in grid)
     infeasible_penalty =
         minimum((infeasible_residual + slack_value)^2 for slack_value in grid)
     contrast = infeasible_penalty - feasible_floor
-    objective_advantage = 1.0
+    objective = JuMP.objective_function(model)
+    feasible_objective = JuMP.value(feasible_value, objective)
+    infeasible_objective = JuMP.value(infeasible_value, objective)
+    objective_advantage = feasible_objective - infeasible_objective
     threshold = required_penalty(objective_advantage, feasible_floor, infeasible_penalty)
     inferred_penalty = Float64(encoding["penalty"])
-    feasible_energy = -1.0 + inferred_penalty * feasible_floor
-    infeasible_energy = -2.0 + inferred_penalty * infeasible_penalty
+    feasible_energy = feasible_objective + inferred_penalty * feasible_floor
+    infeasible_energy = infeasible_objective + inferred_penalty * infeasible_penalty
 
     return (
         bits = Int(bits),
@@ -271,6 +279,11 @@ function analyze_bits(bits::Integer)
         span,
         spacing,
         maximum_floor = maximum_squared_residual_floor(spacing),
+        feasible_residual,
+        infeasible_residual,
+        feasible_objective,
+        infeasible_objective,
+        objective_advantage,
         feasible_floor,
         infeasible_penalty,
         contrast,
@@ -425,6 +438,13 @@ function write_markdown_report(io::IO, report = run_analysis())
     )
     println(io)
     println(io, "## Canonical #205 compiler audit")
+    println(io)
+    println(
+        io,
+        "Unlike the executable public fixture, the canonical compiler-audit and Neal-sweep ",
+        "tables are pinned evidence inputs from the access-controlled model; this public ",
+        "script reports but cannot re-derive them.",
+    )
     println(io)
     println(
         io,

@@ -53,6 +53,8 @@ At one bit, the feasible floor exceeds the infeasible penalty, so no positive `r
 
 ## Canonical #205 compiler audit
 
+Unlike the executable public fixture, the canonical compiler-audit and Neal-sweep tables are pinned evidence inputs from the access-controlled model; this public script reports but cannot re-derive them.
+
 The canonical model has 36 source variables, all binary. ToQUBO reports `Discretize() == true`; every generated slack expansion has integral coefficients. The reported c2-c4 families (`level_select`, `logic`, and `logic_t1`) are equalities and generate no slack at all.
 
 | Constraint family | Source constraints | Encoded penalties | Generated slacks | Slack bits | Integral expansion |

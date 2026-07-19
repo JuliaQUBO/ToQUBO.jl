@@ -16,6 +16,11 @@ function test_slack_resolution_analysis()
         @test all(row.target_bits == row.bits for row in rows)
         @test all(row.grid_points == 2^row.bits for row in rows)
         @test all(row.feasible_floor <= row.maximum_floor + 1.0e-12 for row in rows)
+        @test all(row.feasible_residual ≈ -0.4 for row in rows)
+        @test all(row.infeasible_residual ≈ 0.2 for row in rows)
+        @test all(row.feasible_objective ≈ -1.0 for row in rows)
+        @test all(row.infeasible_objective ≈ -2.0 for row in rows)
+        @test all(row.objective_advantage ≈ 1.0 for row in rows)
 
         one_bit = rows[1]
         @test one_bit.feasible_floor ≈ 0.16
@@ -69,6 +74,7 @@ function test_slack_resolution_analysis()
         @test occursin("continuous-slack residual floor is absent model-wide", markdown)
         @test occursin("rho (p_I - p_F) > B", markdown)
         @test occursin("does not explain #205", markdown)
+        @test occursin("pinned evidence inputs", markdown)
     end
 
     return nothing
