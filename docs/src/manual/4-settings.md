@@ -54,12 +54,15 @@ where `s` is [`ToQUBO.Attributes.PenaltyScale`](@ref), `β` is
 [`ToQUBO.Attributes.PenaltyOffset`](@ref), `σ` is `1` for minimization models
 and `-1` for maximization models, `U - L` is the compiled pseudo-boolean
 objective range, and `ϵ` is the smallest positive value of the generated
-nonnegative penalty function. With the default scale `s = 1` and `β > 0`, any
-infeasible assignment is penalized by more than the largest possible objective
-improvement available within the compiled objective range. With custom scales,
-the same sufficient exactness condition is `s * (U - L + β) > U - L`; smaller
-scales can make the penalty a tuning heuristic rather than a certified exact
-penalty.
+nonnegative penalty function. When every feasible source assignment has a
+target representation with zero generated constraint penalty, the default
+scale `s = 1` and `β > 0` penalize any infeasible assignment by more than the
+largest possible objective improvement available within the compiled objective
+range. With custom scales, the same sufficient exactness condition is
+`s * (U - L + β) > U - L`; smaller scales can make the penalty a tuning
+heuristic rather than a certified exact penalty. A finite continuous-slack
+encoding can violate the zero-penalty premise; see
+[Slack Resolution and Penalty Contrast](@ref).
 
 The objective range is computed from interval bounds on the compiled PBF over
 encoded target binary variables. For normal finite JuMP/MOI models this bound
@@ -218,6 +221,95 @@ binary variables. Slack variables generated from constraints use the analogous
 [`ToQUBO.Attributes.SlackVariableEncodingBits`](@ref) settings. See
 [Constraint Reformulation](@ref) for how inequality constraints generate these
 slacks and where their finite resolution enters the penalty.
+
+### Slack Resolution and Penalty Contrast
+
+First check whether the constraint actually generates a slack. `EqualTo`
+constraints encode their residual directly and do not own an inequality slack.
+`LessThan`, `GreaterThan`, and the two sides of `Interval` can generate one,
+although a sign-definite shortcut or an always-feasible constraint can avoid
+it. After compilation, inspect:
+
+```julia
+metadata = ToQUBO.reformulation_metadata(JuMP.unsafe_backend(model))
+metadata["slack_variables"]
+```
+
+Those entries identify the source constraints that own generated slacks and
+expose their encoding and expansion terms.
+
+The [`ToQUBO.Attributes.Discretize`](@ref) setting determines which slack path
+is relevant:
+
+- `Discretize(true)` is the default. The compiler discretizes each constraint
+  residual and generates an integer slack, so those generated slacks do not
+  introduce the continuous-grid floor described below.
+- `Discretize(false)` preserves noninteger residual coefficients and generates
+  a continuous slack. Its finite binary encoding may not contain the exact
+  value needed to cancel a feasible residual.
+
+For the default binary encoding of a continuous slack on ``[0, S]`` with ``n``
+bits, the grid spacing is
+
+```math
+\Delta = \frac{S}{2^n - 1}.
+```
+
+If a feasible source assignment needs slack ``z^\star``, its smallest squared
+penalty is
+
+```math
+p_F = \min_k |z^\star - k\Delta|^2 \leq \frac{\Delta^2}{4}.
+```
+
+The floor is zero when ``z^\star`` lies on the grid, and grid alignment means
+that it need not decrease strictly at every added bit. Resolution alone also
+does not determine a safe penalty coefficient. For a minimization model, let
+an infeasible assignment have objective advantage ``B > 0`` and smallest
+penalty ``p_I``. A positive coefficient ``\rho`` prefers the feasible
+assignment only when
+
+```math
+\rho (p_I - p_F) > B.
+```
+
+When `p_I - p_F` is positive, this gives
+``\rho > B / (p_I - p_F)``. When ``p_I \leq p_F``, no positive `rho` can repair
+the ordering; increasing it can strengthen the wrong preference. Refining the
+slack encoding, changing the source model's tolerance, or choosing a different
+reformulation must first make the contrast positive.
+
+ToQUBO does not currently relax a residual to a tolerance band or rescale a
+constraint automatically from slack resolution; the checks above diagnose
+whether either policy could be valid for a particular continuous-slack model.
+
+Use this diagnostic sequence before changing penalties:
+
+1. Classify the violated source constraint and confirm slack ownership in the
+   reformulation metadata. Equality violations are not caused by slack
+   resolution.
+2. Check `Discretize()`. Under the default `true` path, investigate the
+   compiled integer penalty and solver behavior rather than applying a
+   continuous-resolution multiplier.
+3. Under `false`, inspect the slack expansion, estimate ``p_F`` and a relevant
+   ``p_I``, and establish positive contrast before increasing ``\rho``. Use
+   [`ToQUBO.Attributes.SlackVariableEncodingBits`](@ref) or
+   [`ToQUBO.Attributes.SlackVariableEncodingATol`](@ref) when finer resolution
+   is the appropriate tradeoff.
+4. Separate exact-model energy ordering from finite-run sampler behavior. If
+   the energy ordering is correct but a stochastic sampler still returns
+   violations, use targeted
+   [`ToQUBO.Attributes.ConstraintPenaltyScale`](@ref) tuning as described in
+   [Changing Penalty Values](@ref), and check whether violations move to other
+   constraint families.
+
+The [Slack-resolution penalty analysis](https://github.com/JuliaQUBO/ToQUBO.jl/blob/main/benchmarks/reports/slack_resolution_analysis.md)
+derives this condition with an executable public fixture. Its canonical #205
+audit found that the troublesome c2-c4 families were slack-free binary
+equalities and that the model's generated inequality slacks were integral under
+`Discretize(true)`. Their finite-run sampler behavior therefore supports the
+targeted constraint guidance above, not resolution-aware scaling as a remedy
+for #205.
 
 ### Constraint Penalty Methods
 
