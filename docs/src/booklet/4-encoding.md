@@ -172,16 +172,20 @@ tolerance used for bit-count inference. The selected encoding method comes from
 The required real-valued slack can fall between two values on the encoded grid.
 In that case ``g(x) \pm z`` cannot reach zero even though the original
 continuous inequality is feasible, leaving a positive squared-residual floor.
-Finer resolution reduces this representation error but consumes more target
+The floor can be zero when the required slack lands exactly on the grid, and
+grid alignment means it need not decrease strictly at every added bit. Finer
+resolution generally reduces the representation error but consumes more target
 binary variables and can change the effective penalty landscape. The bit-count
-relationship is derived in [Representation Error](@ref), and the user-facing
-settings are summarized under [Continuous Variable Resolution](@ref).
+relationship is derived in [Representation Error](@ref). The user-facing
+settings and the required feasible/infeasible penalty contrast are summarized
+under [Continuous Variable Resolution](@ref) and
+[Slack Resolution and Penalty Contrast](@ref).
 
 Sampling-feasibility behavior that motivated this documentation is tracked in
-[#205](https://github.com/JuliaQUBO/ToQUBO.jl/issues/205). The resolution and
-penalty interaction is being analyzed in
-[#208](https://github.com/JuliaQUBO/ToQUBO.jl/issues/208), while a possible
-slack-free alternative is tracked separately in
+[#205](https://github.com/JuliaQUBO/ToQUBO.jl/issues/205). The
+[issue #208 analysis](https://github.com/JuliaQUBO/ToQUBO.jl/blob/main/benchmarks/reports/slack_resolution_analysis.md)
+found that continuous-slack resolution does not explain that model's reported
+violations, while a possible slack-free alternative is tracked separately in
 [#207](https://github.com/JuliaQUBO/ToQUBO.jl/issues/207).
 
 Equality constraints use a squared residual penalty by default. The compiler
