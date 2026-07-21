@@ -25,6 +25,8 @@ function read_toml(parts...)
     return TOML.parsefile(project_file(parts...))
 end
 
+compat_entries(value::AbstractString) = Set(strip.(split(value, ',')))
+
 function release_section(news::String, version::VersionNumber)
     heading = "## v$(version) - "
     lines = split(news, '\n')
@@ -76,8 +78,11 @@ function main()
     )
     check!(
         failures,
-        get(test_compat, "QUBOTools", nothing) == project_compat["QUBOTools"],
-        "test/Project.toml QUBOTools compat must match Project.toml.",
+        issubset(
+            compat_entries(test_compat["QUBOTools"]),
+            compat_entries(project_compat["QUBOTools"]),
+        ),
+        "test/Project.toml QUBOTools compat must be supported by Project.toml.",
     )
 
     news = read(project_file("NEWS.md"), String)
