@@ -137,7 +137,8 @@ residual ``g(x)`` relative to the set bound. The default reformulations are:
 The `EqualTo` row shows the default
 [`ToQUBO.Attributes.QuadraticPenalty`](@ref) method. Its sign-definite shortcut
 and the optional [`ToQUBO.Attributes.LinearPenalty`](@ref) method are described
-below.
+below. Scalar inequalities can instead select the slack-free
+[`ToQUBO.Attributes.UnbalancedPenalty`](@ref) method.
 
 The one-sided reformulations introduce a bounded nonnegative slack ``z`` so
 that feasible residuals can be brought to zero. If ``L_g`` and ``U_g`` are
@@ -185,8 +186,9 @@ Sampling-feasibility behavior that motivated this documentation is tracked in
 [#205](https://github.com/JuliaQUBO/ToQUBO.jl/issues/205). The
 [issue #208 analysis](https://github.com/JuliaQUBO/ToQUBO.jl/blob/main/benchmarks/reports/slack_resolution_analysis.md)
 found that continuous-slack resolution does not explain that model's reported
-violations, while a possible slack-free alternative is tracked separately in
-[#207](https://github.com/JuliaQUBO/ToQUBO.jl/issues/207).
+violations. The slack-free method added for
+[#207](https://github.com/JuliaQUBO/ToQUBO.jl/issues/207) addresses the separate
+target-variable cost of generated inequality slacks.
 
 Equality constraints use a squared residual penalty by default. The compiler
 can also encode an equality constraint with a signed linear residual through
@@ -197,6 +199,16 @@ method: the sign and magnitude of ``\rho`` affect whether the residual
 discourages the intended violations, so `ToQUBO` requires an explicit
 [`ToQUBO.Attributes.ConstraintEncodingPenaltyHint`](@ref) instead of inferring
 ``\rho`` automatically.
+
+For a `LessThan` residual ``g(x) \leq 0``, `UnbalancedPenalty()` generates
+``\lambda_1 g(x) + \lambda_2 g(x)^2``; for `GreaterThan`, it negates the linear
+term. This quadratic approximation avoids the constraint slack variables for
+affine inequalities, but it is heuristic: feasible assignments can receive
+different nonzero energies. It therefore requires an explicit
+`ConstraintEncodingPenaltyHint`. Prefer it when target-variable savings justify
+tuning and validating the altered energy ordering; keep the default slack
+formulation when a representable feasible slack must give exactly zero penalty.
+Quadratic source inequalities can still require quadratization variables.
 
 When any reformulation creates terms above quadratic degree, the compiler marks
 the model for quadratization and reduces those terms before building the target

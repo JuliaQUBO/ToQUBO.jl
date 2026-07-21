@@ -30,6 +30,10 @@ function _is_quadratic_penalty(model::Virtual.Model, ci::CI)::Bool
     return Attributes.constraint_encoding_method(model, ci) isa Attributes.QuadraticPenalty
 end
 
+function _is_unbalanced_penalty(model::Virtual.Model, ci::CI)::Bool
+    return Attributes.constraint_encoding_method(model, ci) isa Attributes.UnbalancedPenalty
+end
+
 function _is_nonnegative(g::PBO.PBF{VI,T})::Bool where {T}
     l, _ = PBO.bounds(g)
 
@@ -43,11 +47,27 @@ function _is_nonpositive(g::PBO.PBF{VI,T})::Bool where {T}
 end
 
 function _equality_penalty(model::Virtual.Model, ci::CI, g::PBO.PBF)
-    if _is_quadratic_penalty(model, ci) && !_is_nonnegative(g)
+    method = Attributes.constraint_encoding_method(model, ci)
+
+    if method isa Attributes.UnbalancedPenalty
+        compilation_error("UnbalancedPenalty only supports inequality constraints")
+    elseif method isa Attributes.QuadraticPenalty && !_is_nonnegative(g)
         return g^2
     else
         return g
     end
+end
+
+function _unbalanced_penalty(model::Virtual.Model, ci::CI, g::PBO.PBF, ::LT)
+    method = Attributes.constraint_encoding_method(model, ci)::Attributes.UnbalancedPenalty
+
+    return method.linear * g + method.quadratic * g^2
+end
+
+function _unbalanced_penalty(model::Virtual.Model, ci::CI, g::PBO.PBF, ::GT)
+    method = Attributes.constraint_encoding_method(model, ci)::Attributes.UnbalancedPenalty
+
+    return -method.linear * g + method.quadratic * g^2
 end
 
 function _combine_penalties(lhs, rhs)
@@ -291,6 +311,10 @@ function constraint(
         )
     end
 
+    if _is_unbalanced_penalty(model, ci)
+        return _unbalanced_penalty(model, ci, g, s)
+    end
+
     if _is_nonnegative(g)
         return g
     end
@@ -405,6 +429,10 @@ function constraint(
             context,
             _constraint_message("Infeasible", f, ">=", s.lower),
         )
+    end
+
+    if _is_unbalanced_penalty(model, ci)
+        return _unbalanced_penalty(model, ci, g, s)
     end
 
     if _is_nonpositive(g)
@@ -581,6 +609,12 @@ function constraint(
         )
     end
 
+    if _is_unbalanced_penalty(model, ci)
+        MOI.set(model, Attributes.Quadratize(), true)
+
+        return _unbalanced_penalty(model, ci, g, s)
+    end
+
     if _is_nonnegative(g)
         return g
     end
@@ -695,6 +729,12 @@ function constraint(
             context,
             _constraint_message("Infeasible", f, ">=", s.lower),
         )
+    end
+
+    if _is_unbalanced_penalty(model, ci)
+        MOI.set(model, Attributes.Quadratize(), true)
+
+        return _unbalanced_penalty(model, ci, g, s)
     end
 
     if _is_nonpositive(g)

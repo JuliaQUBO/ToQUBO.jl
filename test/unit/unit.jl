@@ -13,6 +13,7 @@ include("qoblib_benchmark.jl")
 include("dense_npp_profile.jl")
 include("slack_resolution_analysis.jl")
 include("slack_resolution_docs.jl")
+include("unbalanced_penalty.jl")
 
 function test_unit()
     @testset "⊚ Unit Tests" verbose = true begin
@@ -31,6 +32,7 @@ function test_unit()
         test_dense_npp_profile_benchmark()
         test_slack_resolution_analysis()
         test_slack_resolution_docs()
+        test_unbalanced_penalty()
     end
 
     return nothing

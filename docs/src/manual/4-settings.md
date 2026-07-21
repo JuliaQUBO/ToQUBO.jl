@@ -355,6 +355,55 @@ For mixed models, keep the default method as
 [`ToQUBO.Attributes.ConstraintEncodingMethod`](@ref) only on the constraints
 that should use the linear residual.
 
+For scalar inequalities, [`ToQUBO.Attributes.UnbalancedPenalty`](@ref) removes
+the generated constraint slack. For a `LessThan` residual ``g(x) \leq 0`` it
+uses
+
+```math
+\lambda_1 g(x) + \lambda_2 g(x)^2,
+```
+
+and for a `GreaterThan` residual ``g(x) \geq 0`` it negates the linear term.
+The default ``\lambda_1 = 1`` and ``\lambda_2 = 1/2`` come from truncating an
+exponential barrier at quadratic order; pass two finite positive values to
+`UnbalancedPenalty(linear, quadratic)` to tune their ratio. The explicit
+`ConstraintEncodingPenaltyHint` supplies the overall scale and must have the
+appropriate sign for the model sense.
+
+```julia
+using JuMP
+using ToQUBO
+using ToQUBO: Attributes
+
+model = Model(ToQUBO.Optimizer)
+@variable(model, x[1:3], Bin)
+capacity = @constraint(model, 2x[1] + x[2] + x[3] <= 2)
+
+set_attribute(
+    capacity,
+    Attributes.ConstraintEncodingMethod(),
+    Attributes.UnbalancedPenalty(),
+)
+set_attribute(capacity, Attributes.ConstraintEncodingPenaltyHint(), 4.0)
+```
+
+Prefer this method when the target-variable budget is more important than an
+exact slack reformulation and you can tune and validate the resulting energy
+ordering on representative instances. Feasible assignments need not receive
+equal or zero penalty, so the method can change which feasible point is lowest
+in energy; automatic exact-penalty inference is therefore disabled. Keep the
+default `QuadraticPenalty()` slack formulation when exact zero penalty for a
+representable feasible slack and automatic penalty inference are required.
+Affine inequalities remain quadratic without new variables. A quadratic source
+inequality can still create higher-order terms and quadratization variables,
+and an `Interval` applies the unbalanced form to both bounds.
+
+The method follows the unbalanced penalization formulation of
+Montañez-Barrera et al.[^MontanezBarrera2024] An exact hinge such as
+``\max(0, g(x))^2`` is not generally a QUBO, while the real-coefficient
+approximation in Colucci et al.[^Colucci2023] still uses ``K`` auxiliary binary
+variables. Neither provides the no-new-variable affine QUBO used here.
+
 [^Mirkarimi2024PRR]:
     Puya Mirkarimi, Ishaan Shukla, David C. Hoyle, Ross Williams, and Nicholas
     Chancellor. **Quantum optimization with linear Ising penalty functions for
@@ -372,6 +421,18 @@ that should use the linear residual.
     Chancellor. **Quantum optimization with linear Ising penalty functions for
     customer data science [dataset]**. Durham University data and code archive
     (2024). [{doi}](https://doi.org/10.15128/r2fq977t82m)
+
+[^MontanezBarrera2024]:
+    J. A. Montañez-Barrera, Dennis Willsch, A. Maldonado-Romo, and Kristel
+    Michielsen. **Unbalanced penalization: a new approach to encode inequality
+    constraints of combinatorial problems for quantum optimization
+    algorithms**. _Quantum Science and Technology_ 9, 025022 (2024).
+    [{doi}](https://doi.org/10.1088/2058-9565/ad35e4)
+
+[^Colucci2023]:
+    Giuseppe Colucci, Stan van der Linde, and Frank Phillipson. **Power Network
+    Optimization: A Quantum Approach**. _IEEE Access_ 11, 98926–98938 (2023).
+    [{doi}](https://doi.org/10.1109/ACCESS.2023.3312997)
 
 ```@docs
 ToQUBO.Attributes.VariableEncodingBits
@@ -397,6 +458,7 @@ ToQUBO.Attributes.ConstraintPenaltyOffset
 ToQUBO.Attributes.ConstraintPenaltyScale
 ToQUBO.Attributes.QuadraticPenalty
 ToQUBO.Attributes.LinearPenalty
+ToQUBO.Attributes.UnbalancedPenalty
 ToQUBO.Attributes.DefaultConstraintEncodingMethod
 ToQUBO.Attributes.ConstraintEncodingMethod
 ToQUBO.Attributes.ConstraintEncodingPenaltyHint
