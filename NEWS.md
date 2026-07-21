@@ -1,5 +1,35 @@
 # Release Notes
 
+## v0.6.1 - 2026-07-21
+
+### Breaking changes
+
+- No breaking changes.
+
+### Added
+
+- Add `Attributes.UnbalancedPenalty(linear, quadratic)` as an opt-in, slack-free encoding for scalar `LessThan`, `GreaterThan`, and `Interval` constraints. The method preserves quadratization for quadratic source constraints and requires an explicit `ConstraintEncodingPenaltyHint` because it can change the energy ordering of feasible assignments.
+
+### Documentation
+
+- Explain scalar equality, inequality, interval, sign-definite, and quadratization reformulations, including when generated slack variables are introduced.
+- Clarify bounded continuous-variable bit inference, Neal finite-run penalty tuning, and the distinction between integral and continuous slack encodings.
+- Document the continuous-slack residual floor and the penalty-contrast condition required to separate feasible and infeasible assignments.
+
+### Analysis
+
+- Add reproducible dense NPP-like profiling that separates JuMP model construction, compilation, and backend extraction costs.
+- Add an executable slack-resolution analysis and generated report covering grid spacing, feasible residual floors, penalty contrast, and seeded sampler behavior.
+
+### Maintenance
+
+- Standardize CI caching and dependency-maintenance configuration, limit coverage processing to one canonical matrix job, and retain the complete Julia 1.10/current × Ubuntu/Windows test matrix.
+- Make compatibility and release checks robust to supported Dependabot range expansions.
+
+### Tests
+
+- Cover unbalanced-penalty orientation, interval behavior, quadratization, validation, unsupported equalities, and the new documentation and analysis contracts.
+
 ## v0.6.0 - 2026-06-25
 
 ### Breaking changes
