@@ -48,6 +48,54 @@ Ising penalties" ([doi:10.1088/1367-2630/ad7e4a](https://doi.org/10.1088/1367-26
 """
 struct LinearPenalty <: ConstraintPenaltyMethod end
 
+@doc raw"""
+    UnbalancedPenalty(linear = 1.0, quadratic = 0.5)
+
+Encode scalar inequality constraints without a slack variable using an
+unbalanced linear-plus-quadratic penalty.
+
+For a `LessThan` residual ``g(x) \leq 0``, the generated penalty is
+
+```math
+\lambda_1 g(x) + \lambda_2 g(x)^2,
+```
+
+and the linear term is negated for a `GreaterThan` residual
+``g(x) \geq 0``. Both coefficients must be finite and positive. The defaults
+come from the quadratic Taylor approximation of an exponential barrier.
+
+This method is heuristic: feasible points need not have equal or zero penalty,
+so it can change their energy ordering. It requires an explicit
+[`ConstraintEncodingPenaltyHint`](@ref) and is not supported for equality
+constraints. For affine inequalities it introduces no slack or quadratization
+variables; quadratic inequalities can still require quadratization.
+
+This formulation follows the unbalanced penalization method of Montañez-Barrera
+et al., "Unbalanced penalization: a new approach to encode inequality
+constraints of combinatorial problems for quantum optimization algorithms"
+([doi:10.1088/2058-9565/ad35e4](https://doi.org/10.1088/2058-9565/ad35e4)).
+"""
+struct UnbalancedPenalty{T<:Real} <: ConstraintPenaltyMethod
+    linear::T
+    quadratic::T
+
+    function UnbalancedPenalty{T}(linear::T, quadratic::T) where {T<:Real}
+        if !(isfinite(linear) && linear > zero(T))
+            throw(ArgumentError("linear coefficient must be finite and positive"))
+        elseif !(isfinite(quadratic) && quadratic > zero(T))
+            throw(ArgumentError("quadratic coefficient must be finite and positive"))
+        end
+
+        return new{T}(linear, quadratic)
+    end
+end
+
+function UnbalancedPenalty(linear::Real = 1.0, quadratic::Real = 0.5)
+    λ₁, λ₂ = promote(linear, quadratic)
+
+    return UnbalancedPenalty{typeof(λ₁)}(λ₁, λ₂)
+end
+
 function MOIU.map_indices(::Function, method::ConstraintPenaltyMethod)
     return method
 end
@@ -588,11 +636,12 @@ end
 @doc raw"""
     DefaultConstraintEncodingMethod()
 
-Fallback method used to reformulate equality constraints.
+Fallback method used to reformulate constraints.
 
 Available options are:
 - [`QuadraticPenalty`](@ref) (default)
 - [`LinearPenalty`](@ref)
+- [`UnbalancedPenalty`](@ref) (inequalities only)
 """
 struct DefaultConstraintEncodingMethod <: CompilerAttribute end
 
@@ -1221,8 +1270,9 @@ end
 Set a fixed penalty coefficient for a source constraint.
 
 When unset, ToQUBO infers the coefficient from the automatic penalty policy,
-unless the constraint uses [`LinearPenalty`](@ref). Linear penalties require an
-explicit hint because their sign and magnitude control whether the residual
+unless the constraint uses [`LinearPenalty`](@ref) for an equality or
+[`UnbalancedPenalty`](@ref) for an inequality. These heuristic methods require
+an explicit hint because their sign and magnitude control whether the residual
 discourages infeasible assignments.
 """
 struct ConstraintEncodingPenaltyHint <: CompilerConstraintAttribute end
@@ -1450,12 +1500,14 @@ end
 @doc raw"""
     ConstraintEncodingMethod()
 
-Sets the method used to reformulate an equality constraint.
+Sets the method used to reformulate a constraint.
 
 When unset, this falls back to [`DefaultConstraintEncodingMethod`](@ref).
-Inequality constraints keep the existing quadratic slack formulation.
 When set to [`LinearPenalty`](@ref), the constraint must also have an explicit
-[`ConstraintEncodingPenaltyHint`](@ref).
+[`ConstraintEncodingPenaltyHint`](@ref). Inequalities use the existing
+quadratic slack formulation unless set to [`UnbalancedPenalty`](@ref), which
+also requires an explicit hint. `UnbalancedPenalty` is not supported for
+equality constraints.
 """
 struct ConstraintEncodingMethod <: CompilerConstraintAttribute end
 

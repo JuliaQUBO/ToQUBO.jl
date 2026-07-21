@@ -3,6 +3,10 @@ function _uses_linear_equality_penalty(model::Virtual.Model, ci::CI)::Bool
            Attributes.constraint_encoding_method(model, ci) isa Attributes.LinearPenalty
 end
 
+function _uses_unbalanced_penalty(model::Virtual.Model, ci::CI)::Bool
+    return Attributes.constraint_encoding_method(model, ci) isa Attributes.UnbalancedPenalty
+end
+
 function _legacy_penalty_factor(sign, δ, ϵ, scale, offset)
     return scale * sign * (δ / ϵ + offset)
 end
@@ -208,6 +212,12 @@ function penalties!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
                     model,
                     "LinearPenalty requires an explicit ConstraintEncodingPenaltyHint";
                     status = "Missing linear constraint penalty hint",
+                )
+            elseif _uses_unbalanced_penalty(model, ci)
+                compilation_error!(
+                    model,
+                    "UnbalancedPenalty requires an explicit ConstraintEncodingPenaltyHint";
+                    status = "Missing unbalanced constraint penalty hint",
                 )
             end
 
