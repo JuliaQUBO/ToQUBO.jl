@@ -8,6 +8,9 @@
     <a href="https://arxiv.org/abs/2307.02577">
         <img src="https://img.shields.io/badge/arXiv-2307.02577-b31b1b.svg" alt="arXiv"/>
     </a>
+    <a href="https://doi.org/10.1080/10556788.2026.2702926">
+        <img src="https://img.shields.io/badge/DOI-10.1080%2F10556788.2026.2702926-blue.svg" alt="Journal article DOI"/>
+    </a>
     <a href="https://codecov.io/gh/JuliaQUBO/ToQUBO.jl">
         <img src="https://codecov.io/gh/JuliaQUBO/ToQUBO.jl/branch/main/graph/badge.svg" alt="Coverage"/>
     </a>
