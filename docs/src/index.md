@@ -77,7 +77,7 @@ For the broader `QUBO.jl` ecosystem paper, cite the published journal article:
 
 ```tex
 @article{xavier2026qubojl,
-  author       = {Pedro Maciel Xavier and Pedro Ripper and Tiago Andrade and Joaquim Dias Garcia and Nelson Maculan and David E. Bernal Neira},
+  author       = {Maciel Xavier, Pedro and Ripper, Pedro and Andrade, Tiago and Dias Garcia, Joaquim and Maculan, Nelson and Bernal Neira, David E.},
   title        = {{QUBO.jl: A Julia Ecosystem for Quadratic Unconstrained Binary Optimization}},
   journal      = {Optimization Methods and Software},
   year         = {2026},
