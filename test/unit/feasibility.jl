@@ -302,9 +302,13 @@ function test_feasibility_auto_report()
 
     @test get_attribute(model, Attributes.AutoFeasibilityReport()) === false
 
-    optimize!(model)
+    # Disabled by default: the solve must not warn, and must not auto-compute
+    # or cache a report.
+    @test_logs min_level = Logging.Warn optimize!(model)
 
-    # Default report requests are cached per solve.
+    @test !haskey(JuMP.unsafe_backend(model).moi_settings, :feasibility_report)
+
+    # Default report requests are cached per solve (lazily, on first call).
     report = ToQUBO.feasibility_report(model)
 
     @test ToQUBO.feasibility_report(model) === report
