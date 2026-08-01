@@ -27,6 +27,8 @@ end
 function MOI.optimize!(model::Optimizer)
     index_map = MOIU.identity_index_map(model.source_model)
 
+    _reset_feasibility_caches!(model)
+
     # De facto JuMP to QUBO Compilation
     let t = @elapsed ToQUBO.Compiler.compile!(model)
         MOI.set(model, Attributes.CompilationStatus(), MOI.LOCALLY_SOLVED)
@@ -36,6 +38,8 @@ function MOI.optimize!(model::Optimizer)
     if !isnothing(model.optimizer)
         MOI.optimize!(model.optimizer, model.target_model)
         MOI.set(model, MOI.RawStatusString(), MOI.get(model.optimizer, MOI.RawStatusString()))
+
+        _auto_feasibility_report!(model)
     else
         MOI.set(model, MOI.RawStatusString(), "Compilation complete without an internal solver")
     end
