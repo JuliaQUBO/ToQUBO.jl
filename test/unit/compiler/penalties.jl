@@ -80,10 +80,11 @@ function _variable_penalty_test_model(; scale = nothing, offset = nothing, polic
     return model, x
 end
 
-function _fractional_gap_penalty_test_model()
+function _fractional_gap_penalty_test_model(; policy = nothing)
     model = ToQUBO.Optimizer{Float64}()
     x = MOI.add_variable(model)
 
+    !isnothing(policy) && MOI.set(model, Attributes.PenaltyPolicy(), policy)
     MOI.set(model, Attributes.Discretize(), false)
     MOI.add_constraint(model, x, MOI.ZeroOne())
     MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
@@ -524,6 +525,47 @@ function test_compiler_penalty_heuristic_fallbacks()
     return nothing
 end
 
+function test_compiler_penalty_heuristic_slack_bucket()
+    # With a one-hot slack encoding, the slack-encoding penalty χ (one-hot
+    # exactly-one gadget) has smallest positive one-flip change γ = 1, and the
+    # objective one-flip bound is 1, so MOMC infers η = -(1 + 1)/1 = -2.0 for
+    # the slack bucket as well.
+    model, c = _constraint_penalty_test_model(;
+        slack_encoding = Encoding.OneHot(),
+        policy = Attributes.MOMCPenalty(),
+    )
+    metadata = MOI.get(model, Attributes.PenaltyPolicyMetadata())
+    slack_entry = only(metadata["inferred_penalties"]["slack_variables"])
+
+    @test MOI.get(model, Attributes.SlackVariableEncodingPenalty(), c) == -2.0
+    @test MOI.get(model, Attributes.ConstraintEncodingPenalty(), c) == -2.0
+    @test slack_entry["selected_policy"] == "MOMCPenalty"
+    @test slack_entry["penalty"] == -2.0
+    @test metadata["fallback_count"] == 0
+
+    return nothing
+end
+
+function test_compiler_penalty_heuristic_fractional_gap()
+    # Same fractional model as the default-policy test (ϵ = 0.5 via
+    # pbo_mingap): MaxCoefficient's bound is the single objective coefficient
+    # λ = 1, so ρ = (λ + 1)/ϵ = 4.0 — locking the (λ + β)/ϵ composition on
+    # the non-integer penalty path.
+    model, c = _fractional_gap_penalty_test_model(;
+        policy = Attributes.MaxCoefficientPenalty(),
+    )
+    metadata = MOI.get(model, Attributes.PenaltyPolicyMetadata())
+    inferred = only(metadata["inferred_penalties"]["constraints"])
+
+    @test MOI.get(model, Attributes.ConstraintEncodingPenalty(), c) == 4.0
+    @test inferred["epsilon"] == 0.5
+    @test inferred["epsilon_source"] == "pbo_mingap"
+    @test inferred["selected_policy"] == "MaxCoefficientPenalty"
+    @test metadata["fallback_count"] == 0
+
+    return nothing
+end
+
 function test_compiler_penalties()
     @testset "Penalty inference" begin
         test_compiler_penalty_default_policy()
@@ -536,6 +578,8 @@ function test_compiler_penalties()
         test_compiler_penalty_heuristic_policies()
         test_compiler_penalty_per_constraint_heuristics()
         test_compiler_penalty_heuristic_fallbacks()
+        test_compiler_penalty_heuristic_slack_bucket()
+        test_compiler_penalty_heuristic_fractional_gap()
     end
 
     return nothing
