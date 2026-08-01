@@ -294,6 +294,18 @@ function test_compiler_attributes()
             end
         end
 
+        @testset "Feasibility cache reset" begin
+            let model = ToQUBO.Optimizer{Float64}()
+                model.moi_settings[:feasibility_report] = :stale
+                model.moi_settings[:primal_feasibility] = Dict{Int,Bool}(1 => true)
+
+                ToQUBO.Compiler.reset!(model)
+
+                @test !haskey(model.moi_settings, :feasibility_report)
+                @test !haskey(model.moi_settings, :primal_feasibility)
+            end
+        end
+
         @testset "PenaltyPolicy" begin
             let model = ToQUBO.Optimizer{Float64}()
                 @test MOI.supports(model, Attributes.PenaltyPolicy())

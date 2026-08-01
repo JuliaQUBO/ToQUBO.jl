@@ -491,7 +491,10 @@ function MOI.get(
 ) where {T}
     result = attr.result_index
 
-    _check_result_index(model, result)
+    # MOI-conventional error for result-indexed attributes, matching
+    # `MOI.ObjectiveValue`/`MOI.VariablePrimal`; the kwarg-based analysis
+    # helpers keep their plain errors.
+    MOI.check_result_index_bounds(model, attr)
 
     values = _projected_result_values(model, result)
 

@@ -288,8 +288,11 @@ function test_feasibility_source_objective_value()
     @test ToQUBO.source_objective_value(model) ≈ 6.0
     @test !isapprox(objective_value(model), ToQUBO.source_objective_value(model))
 
-    @test_throws ErrorException ToQUBO.source_objective_value(model; result = 0)
-    @test_throws ErrorException ToQUBO.source_objective_value(model; result = n + 1)
+    @test_throws MOI.ResultIndexBoundsError ToQUBO.source_objective_value(model; result = 0)
+    @test_throws MOI.ResultIndexBoundsError ToQUBO.source_objective_value(
+        model;
+        result = n + 1,
+    )
 
     return nothing
 end
