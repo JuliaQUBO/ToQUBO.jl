@@ -315,6 +315,7 @@ ToQUBO.FeasibilityReport
 ToQUBO.violations
 ToQUBO.is_feasible
 ToQUBO.feasibility_report
+ToQUBO.source_objective_value
 ToQUBO.Attributes.CompilationTime
 ToQUBO.Attributes.CompilationStatus
 ToQUBO.Attributes.SourceModel
