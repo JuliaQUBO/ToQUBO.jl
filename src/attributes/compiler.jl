@@ -341,6 +341,96 @@ function warnings(model::Optimizer)::Bool
 end
 
 @doc raw"""
+    PrimalFeasibilityCheck()
+
+When enabled, `MOI.PrimalStatus` reports `MOI.INFEASIBLE_POINT` for sampled
+results whose projected source-variable values violate any source constraint,
+using the same measurement as `ToQUBO.violations`. Results that satisfy every
+source constraint keep the underlying sampler's status.
+
+Enabled by default. Disable to restore the sampler's raw status:
+
+```julia
+MOI.set(model, Attributes.PrimalFeasibilityCheck(), false)
+```
+"""
+struct PrimalFeasibilityCheck <: CompilerAttribute end
+
+_attribute_from_key(::Val{:primal_feasibility_check}) = PrimalFeasibilityCheck
+
+function MOI.get(model::Optimizer, ::PrimalFeasibilityCheck)::Bool
+    return get(model.compiler_settings, :primal_feasibility_check, true)
+end
+
+function MOI.set(model::Optimizer, ::PrimalFeasibilityCheck, flag::Bool)
+    model.compiler_settings[:primal_feasibility_check] = flag
+
+    return nothing
+end
+
+function MOI.set(model::Optimizer, ::PrimalFeasibilityCheck, ::Nothing)
+    delete!(model.compiler_settings, :primal_feasibility_check)
+
+    return nothing
+end
+
+function primal_feasibility_check(model::Optimizer)::Bool
+    return MOI.get(model, PrimalFeasibilityCheck())
+end
+
+@doc raw"""
+    AutoFeasibilityReport()
+
+When enabled, `MOI.optimize!` computes a `ToQUBO.FeasibilityReport` over every
+sampled result right after the solver returns, caches it for later
+`ToQUBO.feasibility_report` calls, and emits a warning (subject to
+[`Warnings`](@ref)) when any sampled result violates a source constraint.
+
+Disabled by default.
+"""
+struct AutoFeasibilityReport <: CompilerAttribute end
+
+_attribute_from_key(::Val{:auto_feasibility_report}) = AutoFeasibilityReport
+
+function MOI.get(model::Optimizer, ::AutoFeasibilityReport)::Bool
+    return get(model.compiler_settings, :auto_feasibility_report, false)
+end
+
+function MOI.set(model::Optimizer, ::AutoFeasibilityReport, flag::Bool)
+    model.compiler_settings[:auto_feasibility_report] = flag
+
+    return nothing
+end
+
+function MOI.set(model::Optimizer, ::AutoFeasibilityReport, ::Nothing)
+    delete!(model.compiler_settings, :auto_feasibility_report)
+
+    return nothing
+end
+
+function auto_feasibility_report(model::Optimizer)::Bool
+    return MOI.get(model, AutoFeasibilityReport())
+end
+
+@doc raw"""
+    SourceObjectiveValue(result_index::Integer = 1)
+
+Value of the source-model objective function evaluated at the projected
+source-variable values of sampled result `result_index`.
+
+Unlike `MOI.ObjectiveValue`, which reports the target QUBO energy including
+penalty terms introduced by the reformulation, this attribute is penalty-free:
+it evaluates the original objective on the decoded solution.
+"""
+struct SourceObjectiveValue <: CompilerAttribute
+    result_index::Int
+
+    SourceObjectiveValue(result_index::Integer = 1) = new(result_index)
+end
+
+MOI.is_set_by_optimize(::SourceObjectiveValue) = true
+
+@doc raw"""
     IgnoreFeasibleConstraints()
 
 When set, constraints whose encoded residual is provably always feasible are

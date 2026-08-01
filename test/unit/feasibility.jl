@@ -164,6 +164,21 @@ function test_feasibility_vector_measurements()
     return nothing
 end
 
+# Under-penalized knapsack-style model: with the deliberately weak penalty
+# hint, the best-energy sample (result 1) sets both variables and violates
+# the capacity constraint.
+function _under_penalized_model()
+    model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
+
+    @variable(model, x[1:2], Bin)
+    @objective(model, Max, 3x[1] + 3x[2])
+    c = @constraint(model, x[1] + x[2] <= 1)
+
+    set_attribute(c, Attributes.ConstraintEncodingPenaltyHint(), -0.1)
+
+    return model, x
+end
+
 function test_feasibility_public_api()
     model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
 
@@ -219,12 +234,111 @@ function test_feasibility_error_paths()
     return nothing
 end
 
+function test_feasibility_primal_status()
+    model, _ = _under_penalized_model()
+
+    optimize!(model)
+
+    # Result 1 violates the capacity constraint, so the default feasibility
+    # check downgrades the sampler's FEASIBLE_POINT.
+    @test !ToQUBO.is_feasible(model; result = 1)
+    @test primal_status(model) === MOI.INFEASIBLE_POINT
+
+    n = result_count(model)
+    feasible_index = findfirst(i -> ToQUBO.is_feasible(model; result = i), 1:n)
+
+    @test feasible_index !== nothing
+    @test primal_status(model; result = feasible_index) === MOI.FEASIBLE_POINT
+
+    # Dual status is untouched by the feasibility check.
+    @test dual_status(model) === MOI.NO_SOLUTION
+
+    # Disabling the check restores the sampler's raw status. Setting a JuMP
+    # model attribute marks the model dirty, so re-optimize before querying;
+    # ExactSampler keeps the results deterministic.
+    set_attribute(model, Attributes.PrimalFeasibilityCheck(), false)
+    optimize!(model)
+    @test primal_status(model) === MOI.FEASIBLE_POINT
+
+    set_attribute(model, Attributes.PrimalFeasibilityCheck(), true)
+    optimize!(model)
+    @test primal_status(model) === MOI.INFEASIBLE_POINT
+
+    return nothing
+end
+
+function test_feasibility_source_objective_value()
+    model, x = _under_penalized_model()
+
+    optimize!(model)
+
+    n = result_count(model)
+
+    for i in (1, n)
+        expected = 3 * value(x[1]; result = i) + 3 * value(x[2]; result = i)
+
+        @test ToQUBO.source_objective_value(model; result = i) ≈ expected
+    end
+
+    @test ToQUBO.source_objective_value(model) ≈
+          ToQUBO.source_objective_value(model; result = 1)
+
+    # Result 1 is infeasible, so the target energy carries an active penalty
+    # term and differs from the penalty-free source objective value.
+    @test ToQUBO.source_objective_value(model) ≈ 6.0
+    @test !isapprox(objective_value(model), ToQUBO.source_objective_value(model))
+
+    @test_throws ErrorException ToQUBO.source_objective_value(model; result = 0)
+    @test_throws ErrorException ToQUBO.source_objective_value(model; result = n + 1)
+
+    return nothing
+end
+
+function test_feasibility_auto_report()
+    model, _ = _under_penalized_model()
+
+    @test get_attribute(model, Attributes.AutoFeasibilityReport()) === false
+
+    optimize!(model)
+
+    # Default report requests are cached per solve.
+    report = ToQUBO.feasibility_report(model)
+
+    @test ToQUBO.feasibility_report(model) === report
+    @test ToQUBO.feasibility_report(model; atol = 1e-3) !== report
+
+    set_attribute(model, Attributes.AutoFeasibilityReport(), true)
+
+    @test_logs (:warn, r"violate source constraints") match_mode = :any optimize!(model)
+
+    # The auto-run report is cached, and re-optimizing invalidates it.
+    auto_report = ToQUBO.feasibility_report(model)
+
+    @test auto_report.feasible_count < auto_report.result_count
+
+    optimize!(model)
+
+    @test ToQUBO.feasibility_report(model) !== auto_report
+
+    # Warnings() silences the infeasibility warning without disabling the report.
+    set_attribute(model, Attributes.Warnings(), false)
+
+    @test_logs min_level = Logging.Warn optimize!(model)
+    @test ToQUBO.feasibility_report(model).feasible_count <
+          ToQUBO.feasibility_report(model).result_count
+
+    return nothing
+end
+
 function test_feasibility()
     @testset "→ Feasibility Analysis" verbose = true begin
         test_feasibility_scalar_measurements()
         test_feasibility_vector_measurements()
         test_feasibility_public_api()
         test_feasibility_error_paths()
+        test_feasibility_primal_status()
+        test_feasibility_source_objective_value()
+        test_feasibility_auto_report()
     end
 
     return nothing

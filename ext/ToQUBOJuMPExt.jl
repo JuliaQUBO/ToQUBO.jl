@@ -22,4 +22,8 @@ function ToQUBO.feasibility_report(model::JuMP.Model; kwargs...)
     return ToQUBO.feasibility_report(JuMP.unsafe_backend(model); kwargs...)
 end
 
+function ToQUBO.source_objective_value(model::JuMP.Model; kwargs...)
+    return ToQUBO.source_objective_value(JuMP.unsafe_backend(model); kwargs...)
+end
+
 end

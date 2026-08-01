@@ -6,6 +6,7 @@ const VI      = MOI.VariableIndex
 const CI{F,S} = MOI.ConstraintIndex{F,S}
 using QUBODrivers
 using LinearAlgebra
+using Logging
 using TOML
 
 using ToQUBO

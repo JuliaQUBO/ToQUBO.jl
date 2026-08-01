@@ -114,6 +114,54 @@ report = ToQUBO.feasibility_report(model; result = 1:result_count(model))
 report.feasible_count / report.result_count
 ```
 
+## Feasibility in Solve Results
+
+Samplers solve the *unconstrained* target model, so on their own they report
+`FEASIBLE_POINT` for every sample. By default, ToQUBO re-checks each queried
+result against the source constraints and reports `INFEASIBLE_POINT` for
+samples that violate them:
+
+```@example feasibility-results
+primal_status(model) # result 1 violates the capacity constraint
+```
+
+Set `Attributes.PrimalFeasibilityCheck()` to `false` to restore the sampler's
+raw status. Like any JuMP model modification, setting the attribute marks the
+model dirty, so re-optimize before querying results again:
+
+```@example feasibility-results
+set_attribute(model, Attributes.PrimalFeasibilityCheck(), false)
+optimize!(model)
+primal_status(model)
+```
+
+```@example feasibility-results
+set_attribute(model, Attributes.PrimalFeasibilityCheck(), true) # hide
+optimize!(model) # hide
+nothing # hide
+```
+
+`objective_value` reports the target QUBO energy, which includes the penalty
+terms introduced by the reformulation. `source_objective_value` evaluates the
+original objective function on the decoded solution instead, so the two differ
+exactly when a penalty is active:
+
+```@example feasibility-results
+(objective_value(model), ToQUBO.source_objective_value(model))
+```
+
+To check every sampling run automatically, enable
+`Attributes.AutoFeasibilityReport()`. After each solve, ToQUBO computes a
+[`ToQUBO.feasibility_report`](@ref) over all results, caches it for later
+`feasibility_report` calls, and warns when any sample is infeasible. The
+warning respects `Attributes.Warnings()`.
+
+```julia
+set_attribute(model, Attributes.AutoFeasibilityReport(), true)
+optimize!(model)
+# ┌ Warning: 1 of 16 sampled result(s) violate source constraints ...
+```
+
 Constraint violations are measured as follows:
 
 | Source constraint type | Violation measure |

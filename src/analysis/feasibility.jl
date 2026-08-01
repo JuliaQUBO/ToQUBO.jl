@@ -1,3 +1,8 @@
+# Default absolute tolerance shared by every feasibility measurement so that
+# `violations`, `is_feasible`, `feasibility_report`, and the automatic
+# `MOI.PrimalStatus` check agree on what counts as a violation.
+const _FEASIBILITY_ATOL = 1e-6
+
 @doc raw"""
     ConstraintViolation
 
@@ -54,7 +59,7 @@ struct FeasibilityReport
 end
 
 @doc raw"""
-    violations(model; result::Int = 1, atol::Real = 1e-6)
+    violations(model; result::Int = 1, atol::Real = _FEASIBILITY_ATOL)
 
 Return source constraints violated by sampled result `result`.
 
@@ -66,11 +71,11 @@ only when their activation value triggers the inner set; SOS1 constraints use
 the distance to the nearest one-nonzero vector under the ``\ell_1`` projection
 convention.
 """
-function violations(model; result::Integer = 1, atol::Real = 1e-6)
+function violations(model; result::Integer = 1, atol::Real = _FEASIBILITY_ATOL)
     return violations(_toqubo_model(model); result, atol)
 end
 
-function violations(model::Virtual.Model; result::Integer = 1, atol::Real = 1e-6)
+function violations(model::Virtual.Model; result::Integer = 1, atol::Real = _FEASIBILITY_ATOL)
     return filter(
         measurement -> measurement.violation > Float64(atol),
         _constraint_measurements(model, Int(result)),
@@ -78,28 +83,38 @@ function violations(model::Virtual.Model; result::Integer = 1, atol::Real = 1e-6
 end
 
 @doc raw"""
-    is_feasible(model; result::Int = 1, atol::Real = 1e-6)
+    is_feasible(model; result::Int = 1, atol::Real = _FEASIBILITY_ATOL)
 
 Return `true` if every source constraint is satisfied by sampled result
 `result` within absolute tolerance `atol`.
 """
-function is_feasible(model; result::Integer = 1, atol::Real = 1e-6)
+function is_feasible(model; result::Integer = 1, atol::Real = _FEASIBILITY_ATOL)
     return isempty(violations(model; result, atol))
 end
 
 @doc raw"""
-    feasibility_report(model; result = nothing, atol::Real = 1e-6)
+    feasibility_report(model; result = nothing, atol::Real = _FEASIBILITY_ATOL)
 
 Return a [`FeasibilityReport`](@ref) summarizing source-constraint feasibility.
 
 If `result` is `nothing`, all available solver results are summarized. Pass an
 integer or iterable of result indices to summarize selected samples.
 """
-function feasibility_report(model; result = nothing, atol::Real = 1e-6)
+function feasibility_report(model; result = nothing, atol::Real = _FEASIBILITY_ATOL)
     return feasibility_report(_toqubo_model(model); result, atol)
 end
 
-function feasibility_report(model::Virtual.Model; result = nothing, atol::Real = 1e-6)
+function feasibility_report(model::Virtual.Model; result = nothing, atol::Real = _FEASIBILITY_ATOL)
+    default_request = _is_default_report_request(result, atol)
+
+    if default_request
+        cached = get(model.moi_settings, :feasibility_report, nothing)
+
+        if cached isa FeasibilityReport
+            return cached
+        end
+    end
+
     results = [
         _feasibility_result(model, i, Float64(atol)) for i in _result_indices(model, result)
     ]
@@ -107,14 +122,23 @@ function feasibility_report(model::Virtual.Model; result = nothing, atol::Real =
     max_violation = isempty(results) ? 0.0 : maximum(r.max_violation for r in results)
     total_violation = sum(r.total_violation for r in results; init = 0.0)
 
-    return FeasibilityReport(
+    report = FeasibilityReport(
         length(results),
         count(r -> r.feasible, results),
         max_violation,
         total_violation,
         results,
     )
+
+    if default_request
+        model.moi_settings[:feasibility_report] = report
+    end
+
+    return report
 end
+
+_is_default_report_request(result, atol) =
+    result === nothing && Float64(atol) == _FEASIBILITY_ATOL
 
 function _toqubo_model(model::Virtual.Model)
     return model
@@ -420,4 +444,81 @@ end
 
 function _referenced_variable_values(f::MOI.AbstractFunction, values::AbstractDict{VI})
     return Dict{VI,Any}(vi => _projected_value(values, vi) for vi in _function_variables(f))
+end
+
+# Feasibility conclusions are cached per solve; `MOI.optimize!` and
+# `Compiler.reset!` clear these entries before results can change.
+function _reset_feasibility_caches!(model::Virtual.Model)
+    delete!(model.moi_settings, :feasibility_report)
+    delete!(model.moi_settings, :primal_feasibility)
+
+    return nothing
+end
+
+function _result_is_feasible(model::Virtual.Model, result::Integer)
+    cache = get!(model.moi_settings, :primal_feasibility, Dict{Int,Bool}())::Dict{Int,Bool}
+
+    return get!(cache, Int(result)) do
+        is_feasible(model; result, atol = _FEASIBILITY_ATOL)
+    end
+end
+
+function _auto_feasibility_report!(model::Virtual.Model)
+    MOI.get(model, Attributes.AutoFeasibilityReport()) || return nothing
+
+    isnothing(model.optimizer) && return nothing
+
+    _result_count(model) > 0 || return nothing
+
+    report = feasibility_report(model)
+
+    if report.feasible_count < report.result_count && Attributes.warnings(model)
+        infeasible_count = report.result_count - report.feasible_count
+
+        @warn(
+            "$(infeasible_count) of $(report.result_count) sampled result(s) violate source constraints " *
+            "(max violation ≈ $(report.max_violation)). Inspect `ToQUBO.feasibility_report(model)` or " *
+            "`ToQUBO.violations(model; result = i)`, and consider raising the affected constraint penalties.",
+        )
+    end
+
+    return nothing
+end
+
+function MOI.get(
+    model::Virtual.Model{T},
+    attr::Attributes.SourceObjectiveValue,
+) where {T}
+    result = attr.result_index
+
+    _check_result_index(model, result)
+
+    values = _projected_result_values(model, result)
+
+    F = MOI.get(model.source_model, MOI.ObjectiveFunctionType())
+    f = MOI.get(model.source_model, MOI.ObjectiveFunction{F}())
+
+    value = MOIU.eval_variables(model.source_model, f) do vi
+        return _projected_value(values, vi)
+    end
+
+    return convert(T, value)
+end
+
+@doc raw"""
+    source_objective_value(model; result::Integer = 1)
+
+Return the source-model objective function evaluated at the projected
+source-variable values of sampled result `result`.
+
+Unlike `objective_value`/`MOI.ObjectiveValue`, which report the target QUBO
+energy including penalty terms introduced by the reformulation, this value is
+penalty-free: it is the original objective at the decoded solution.
+"""
+function source_objective_value(model; result::Integer = 1)
+    return source_objective_value(_toqubo_model(model); result)
+end
+
+function source_objective_value(model::Virtual.Model; result::Integer = 1)
+    return MOI.get(model, Attributes.SourceObjectiveValue(Int(result)))
 end
