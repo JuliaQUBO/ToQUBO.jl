@@ -15,6 +15,22 @@ end
 _stall_patience(::Attributes.MultiplicativeUpdate) = nothing
 _stall_patience(strategy::Attributes.SubgradientUpdate) = strategy.patience
 
+# Whether the strategy can act on any of the violated constraints. The
+# multiplicative updater guards per item; the subgradient strategy only
+# drives AL-managed constraints, so a violated set without one cannot be
+# resolved by further iterations (satisfied-constraint dual decreases alone
+# are not worth burning the budget on recompiles).
+_reachable_violation(::Attributes.MultiplicativeUpdate, model, violated) = true
+
+function _reachable_violation(::Attributes.SubgradientUpdate, model, violated)
+    return any(
+        measurement ->
+            Attributes.constraint_encoding_method(model, measurement.constraint) isa
+            Attributes.AugmentedLagrangianPenalty,
+        violated,
+    )
+end
+
 function _apply_penalty_update!(
     model::Virtual.Model{T},
     strategy::Attributes.MultiplicativeUpdate,
@@ -65,18 +81,6 @@ function _apply_penalty_update!(
     stalled::Bool,
 ) where {T}
     violated_constraints = Set(measurement.constraint for measurement in violated)
-
-    # If no violated constraint is AL-managed, further multiplier updates
-    # cannot resolve the violations keeping the loop alive; break instead of
-    # burning the budget on recompiles (satisfied-constraint dual decreases
-    # alone are not worth an iteration).
-    any(
-        measurement ->
-            Attributes.constraint_encoding_method(model, measurement.constraint) isa
-            Attributes.AugmentedLagrangianPenalty,
-        violated,
-    ) || return false
-
     updated = false
 
     for measurement in measurements
@@ -141,6 +145,8 @@ function _refine_penalties!(model::Virtual.Model{T}) where {T}
             )
 
             isempty(violated) && break
+
+            _reachable_violation(strategy, model, violated) || break
 
             # Sampled binary problems have quantized violation norms, so a
             # stall is a run of `patience` iterations without improvement,
