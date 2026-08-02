@@ -300,17 +300,23 @@ get_attribute(model, Attributes.PenaltyUpdateCount())
 ```
 
 Escalation grows the QUBO's coefficient range, which physical samplers resolve
-with limited precision; a bounded-coefficient subgradient (augmented
-Lagrangian) strategy is tracked in
-[ToQUBO#233](https://github.com/JuliaQUBO/ToQUBO.jl/issues/233). Violations
-driven by variable encodings rather than constraint penalties have no
-per-constraint coefficient and are not escalated.
+with limited precision. For bounded coefficients, configure constraints with
+[`ToQUBO.Attributes.AugmentedLagrangianPenalty`](@ref) and select
+[`ToQUBO.Attributes.SubgradientUpdate`](@ref): the multiplier ``\lambda`` is
+then updated from each iteration's **signed** residual (method of
+multipliers), converging with ``\rho`` held fixed (Bertsekas 1982;
+Yonaga–Miyama–Ohzeki, [arXiv:2012.06119](https://arxiv.org/abs/2012.06119)
+run this iteration on a D-Wave annealer), and ``\rho`` escalates only after
+`patience` consecutive non-improving iterations. Violations driven by
+variable encodings rather than constraint penalties have no per-constraint
+coefficient and are not updated by either strategy.
 
 ```@docs
 ToQUBO.Attributes.MaxPenaltyUpdates
 ToQUBO.Attributes.PenaltyUpdateStrategy
 ToQUBO.Attributes.PenaltyUpdate
 ToQUBO.Attributes.MultiplicativeUpdate
+ToQUBO.Attributes.SubgradientUpdate
 ToQUBO.Attributes.PenaltyUpdateCount
 ```
 
@@ -612,6 +618,7 @@ ToQUBO.Attributes.ConstraintPenaltyScale
 ToQUBO.Attributes.QuadraticPenalty
 ToQUBO.Attributes.LinearPenalty
 ToQUBO.Attributes.UnbalancedPenalty
+ToQUBO.Attributes.AugmentedLagrangianPenalty
 ToQUBO.Attributes.DefaultConstraintEncodingMethod
 ToQUBO.Attributes.ConstraintEncodingMethod
 ToQUBO.Attributes.ConstraintEncodingPenaltyHint

@@ -34,6 +34,11 @@ function _is_unbalanced_penalty(model::Virtual.Model, ci::CI)::Bool
     return Attributes.constraint_encoding_method(model, ci) isa Attributes.UnbalancedPenalty
 end
 
+function _is_augmented_lagrangian(model::Virtual.Model, ci::CI)::Bool
+    return Attributes.constraint_encoding_method(model, ci) isa
+           Attributes.AugmentedLagrangianPenalty
+end
+
 function _is_nonnegative(g::PBO.PBF{VI,T})::Bool where {T}
     l, _ = PBO.bounds(g)
 
@@ -51,11 +56,29 @@ function _equality_penalty(model::Virtual.Model, ci::CI, g::PBO.PBF)
 
     if method isa Attributes.UnbalancedPenalty
         compilation_error("UnbalancedPenalty only supports inequality constraints")
+    elseif method isa Attributes.AugmentedLagrangianPenalty
+        # λ·ℓ + ρ·ℓ² — the multiplier term is signed, matching the signed
+        # equality residual the subgradient update measures.
+        return method.multiplier * g + method.rho * g^2
     elseif method isa Attributes.QuadraticPenalty && !_is_nonnegative(g)
         return g^2
     else
         return g
     end
+end
+
+function _augmented_lagrangian_penalty(model::Virtual.Model, ci::CI, g::PBO.PBF, ::LT)
+    method =
+        Attributes.constraint_encoding_method(model, ci)::Attributes.AugmentedLagrangianPenalty
+
+    return method.multiplier * g + method.rho * g^2
+end
+
+function _augmented_lagrangian_penalty(model::Virtual.Model, ci::CI, g::PBO.PBF, ::GT)
+    method =
+        Attributes.constraint_encoding_method(model, ci)::Attributes.AugmentedLagrangianPenalty
+
+    return -method.multiplier * g + method.rho * g^2
 end
 
 function _unbalanced_penalty(model::Virtual.Model, ci::CI, g::PBO.PBF, ::LT)
@@ -315,6 +338,10 @@ function constraint(
         return _unbalanced_penalty(model, ci, g, s)
     end
 
+    if _is_augmented_lagrangian(model, ci)
+        return _augmented_lagrangian_penalty(model, ci, g, s)
+    end
+
     if _is_nonnegative(g)
         return g
     end
@@ -433,6 +460,10 @@ function constraint(
 
     if _is_unbalanced_penalty(model, ci)
         return _unbalanced_penalty(model, ci, g, s)
+    end
+
+    if _is_augmented_lagrangian(model, ci)
+        return _augmented_lagrangian_penalty(model, ci, g, s)
     end
 
     if _is_nonpositive(g)

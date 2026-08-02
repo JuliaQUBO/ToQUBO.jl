@@ -8,19 +8,19 @@
 # coefficients do not alter slack bounds, so the target model's structure is
 # stable across iterations even though target indices are reassigned.
 
-function _best_sample_violations(model::Virtual.Model, atol::Real)
-    MOI.get(model, MOI.ResultCount()) > 0 || return nothing
-
-    return filter(
-        measurement -> measurement.violation > Float64(atol),
-        _constraint_measurements(model, 1),
-    )
+function _violation_norm(violated)
+    return sqrt(sum(measurement -> measurement.violation^2, violated; init = 0.0))
 end
+
+_stall_patience(::Attributes.MultiplicativeUpdate) = nothing
+_stall_patience(strategy::Attributes.SubgradientUpdate) = strategy.patience
 
 function _apply_penalty_update!(
     model::Virtual.Model{T},
     strategy::Attributes.MultiplicativeUpdate,
+    measurements,
     violated,
+    stalled::Bool,
 ) where {T}
     updated = false
 
@@ -57,20 +57,94 @@ function _apply_penalty_update!(
     return updated
 end
 
+function _apply_penalty_update!(
+    model::Virtual.Model{T},
+    strategy::Attributes.SubgradientUpdate,
+    measurements,
+    violated,
+    stalled::Bool,
+) where {T}
+    violated_constraints = Set(measurement.constraint for measurement in violated)
+    updated = false
+
+    for measurement in measurements
+        ci = measurement.constraint
+        method = Attributes.constraint_encoding_method(model, ci)
+
+        # The subgradient strategy drives augmented-Lagrangian constraints
+        # only; every satisfied or violated such constraint is updated from
+        # its signed residual (multipliers may also decrease).
+        method isa Attributes.AugmentedLagrangianPenalty || continue
+        measurement.raw_residual isa Real || continue
+
+        set = MOI.get(model.source_model, MOI.ConstraintSet(), ci)
+        r = Float64(measurement.raw_residual)
+        λ = method.multiplier
+        ρ = method.rho
+        η = something(strategy.step, ρ)
+
+        λ′ = if set isa MOI.EqualTo
+            λ + η * r
+        elseif set isa MOI.LessThan || set isa MOI.GreaterThan
+            # One-sided dual update: r > 0 iff violated for both senses.
+            max(zero(λ), λ + η * r)
+        else
+            continue
+        end
+
+        ρ′ = (stalled && ci in violated_constraints) ? ρ * strategy.escalation_factor : ρ
+
+        if λ′ != λ || ρ′ != ρ
+            MOI.set(
+                model,
+                Attributes.ConstraintEncodingMethod(),
+                ci,
+                Attributes.AugmentedLagrangianPenalty(λ′, ρ′),
+            )
+
+            updated = true
+        end
+    end
+
+    return updated
+end
+
 function _refine_penalties!(model::Virtual.Model{T}) where {T}
     budget = Attributes.max_penalty_updates(model)
     count = 0
 
     if budget > 0 && !isnothing(model.optimizer)
         strategy = Attributes.penalty_update_strategy(model)
+        patience = _stall_patience(strategy)
+        previous_norm = nothing
+        streak = 0
 
         while count < budget
-            violated = _best_sample_violations(model, _FEASIBILITY_ATOL)
+            MOI.get(model, MOI.ResultCount()) > 0 || break
 
-            (isnothing(violated) || isempty(violated)) && break
+            measurements = _constraint_measurements(model, 1)
+            violated = filter(
+                measurement -> measurement.violation > Float64(_FEASIBILITY_ATOL),
+                measurements,
+            )
 
-            _apply_penalty_update!(model, strategy, violated) || break
+            isempty(violated) && break
 
+            # Sampled binary problems have quantized violation norms, so a
+            # stall is a run of `patience` iterations without improvement,
+            # not a per-iteration ratio test.
+            norm = _violation_norm(violated)
+            improved =
+                isnothing(previous_norm) || norm < previous_norm - Float64(_FEASIBILITY_ATOL)
+            streak = improved ? 0 : streak + 1
+            stalled = !isnothing(patience) && streak >= patience
+
+            stalled && (streak = 0)
+
+            _apply_penalty_update!(model, strategy, measurements, violated, stalled) ||
+                break
+
+            previous_norm = norm
             count += 1
 
             Compiler.reset!(model)

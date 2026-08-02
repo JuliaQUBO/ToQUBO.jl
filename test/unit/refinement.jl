@@ -190,6 +190,255 @@ function test_refinement_smaller_factor()
     return nothing
 end
 
+# MAX 3x₁ + 2x₂ subject to x₁ + x₂ ≤ 1 under AugmentedLagrangianPenalty(0, 1):
+# the best sample (1,1) has H = 5 - λ - ρ and stays preferable to the feasible
+# best (H = 3) while λ < 1, so with step 0.4 the multiplier path is
+# 0 → 0.4 → 0.8 → 1.2 — three updates with ρ held fixed.
+function _refinement_subgradient_model(; step, updates = 10)
+    model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
+
+    @variable(model, x[1:2], Bin)
+    @objective(model, Max, 3x[1] + 2x[2])
+    c = @constraint(model, x[1] + x[2] <= 1)
+
+    set_attribute(
+        c,
+        Attributes.ConstraintEncodingMethod(),
+        Attributes.AugmentedLagrangianPenalty(0.0, 1.0),
+    )
+    set_attribute(model, Attributes.MaxPenaltyUpdates(), updates)
+    set_attribute(
+        model,
+        Attributes.PenaltyUpdateStrategy(),
+        Attributes.SubgradientUpdate(; step),
+    )
+
+    return model, x, c
+end
+
+function test_refinement_subgradient_inequality()
+    model, x, c = _refinement_subgradient_model(; step = 0.4)
+
+    optimize!(model)
+
+    backend = JuMP.unsafe_backend(model)
+    method = MOI.get(backend, Attributes.ConstraintEncodingMethod(), JuMP.index(c))
+
+    @test MOI.get(backend, Attributes.PenaltyUpdateCount()) == 3
+    @test method.multiplier ≈ 1.2
+    @test method.rho == 1.0 # bounded ρ: the multiplier does the work
+    @test primal_status(model) === MOI.FEASIBLE_POINT
+    @test objective_value(model) ≈ 3.0
+    @test MOI.get(backend, Attributes.ConstraintEncodingPenalty(), JuMP.index(c)) ≈ -1.0
+
+    return nothing
+end
+
+function test_refinement_subgradient_equality()
+    # Violated from above: MAX drives (1,1), residual h = +1, λ climbs by
+    # η = 0.75 to 2.25 (H(1,1) = 5 - λ crosses the feasible best 3 past λ = 2).
+    model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
+
+    @variable(model, x[1:2], Bin)
+    @objective(model, Max, 3x[1] + 3x[2])
+    c = @constraint(model, x[1] + x[2] == 1)
+
+    set_attribute(
+        c,
+        Attributes.ConstraintEncodingMethod(),
+        Attributes.AugmentedLagrangianPenalty(0.0, 1.0),
+    )
+    set_attribute(model, Attributes.MaxPenaltyUpdates(), 10)
+    set_attribute(
+        model,
+        Attributes.PenaltyUpdateStrategy(),
+        Attributes.SubgradientUpdate(; step = 0.75),
+    )
+
+    optimize!(model)
+
+    backend = JuMP.unsafe_backend(model)
+    method = MOI.get(backend, Attributes.ConstraintEncodingMethod(), JuMP.index(c))
+
+    @test MOI.get(backend, Attributes.PenaltyUpdateCount()) == 3
+    @test method.multiplier ≈ 2.25
+    @test method.rho == 1.0
+    @test primal_status(model) === MOI.FEASIBLE_POINT
+    @test objective_value(model) ≈ 3.0
+
+    # Violated from below: MIN drives (0,0), residual h = -1, the equality
+    # multiplier goes negative (-1.2 after two steps of η = 0.6).
+    model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
+
+    @variable(model, y[1:2], Bin)
+    @objective(model, Min, 2y[1] + 2y[2])
+    c = @constraint(model, y[1] + y[2] == 1)
+
+    set_attribute(
+        c,
+        Attributes.ConstraintEncodingMethod(),
+        Attributes.AugmentedLagrangianPenalty(0.0, 1.0),
+    )
+    set_attribute(model, Attributes.MaxPenaltyUpdates(), 10)
+    set_attribute(
+        model,
+        Attributes.PenaltyUpdateStrategy(),
+        Attributes.SubgradientUpdate(; step = 0.6),
+    )
+
+    optimize!(model)
+
+    backend = JuMP.unsafe_backend(model)
+    method = MOI.get(backend, Attributes.ConstraintEncodingMethod(), JuMP.index(c))
+
+    @test MOI.get(backend, Attributes.PenaltyUpdateCount()) == 2
+    @test method.multiplier ≈ -1.2
+    @test primal_status(model) === MOI.FEASIBLE_POINT
+    @test objective_value(model) ≈ 2.0
+
+    return nothing
+end
+
+function test_refinement_subgradient_stall_escalation()
+    # A tiny step cannot move λ meaningfully, so after `patience` (default 3)
+    # non-improving iterations ρ escalates ×10 once, which resolves the model
+    # on the fourth update.
+    model, x, c = _refinement_subgradient_model(; step = 0.001)
+
+    optimize!(model)
+
+    backend = JuMP.unsafe_backend(model)
+    method = MOI.get(backend, Attributes.ConstraintEncodingMethod(), JuMP.index(c))
+
+    @test MOI.get(backend, Attributes.PenaltyUpdateCount()) == 4
+    @test method.rho == 10.0 # escalated exactly once
+    @test primal_status(model) === MOI.FEASIBLE_POINT
+
+    return nothing
+end
+
+function test_refinement_subgradient_requires_al()
+    # Without AugmentedLagrangianPenalty constraints the strategy has nothing
+    # to update: the loop breaks immediately and the model stays infeasible.
+    model, _, c = _refinement_hinted_model(; updates = 5)
+
+    set_attribute(
+        model,
+        Attributes.PenaltyUpdateStrategy(),
+        Attributes.SubgradientUpdate(),
+    )
+
+    optimize!(model)
+
+    backend = JuMP.unsafe_backend(model)
+
+    @test MOI.get(backend, Attributes.PenaltyUpdateCount()) == 0
+    @test primal_status(model) === MOI.INFEASIBLE_POINT
+    @test MOI.get(backend, Attributes.ConstraintEncodingPenaltyHint(), JuMP.index(c)) ≈
+          -0.1
+
+    return nothing
+end
+
+function test_refinement_al_compiles_without_hint()
+    for (sense, applied) in ((:max, -1.0), (:min, 1.0))
+        model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
+
+        @variable(model, x[1:2], Bin)
+
+        if sense === :max
+            @objective(model, Max, x[1] + x[2])
+        else
+            @objective(model, Min, x[1] + x[2])
+        end
+
+        c = @constraint(model, x[1] + x[2] <= 1)
+
+        set_attribute(
+            c,
+            Attributes.ConstraintEncodingMethod(),
+            Attributes.AugmentedLagrangianPenalty(0.5, 2.0),
+        )
+
+        optimize!(model)
+
+        backend = JuMP.unsafe_backend(model)
+
+        # No hint required: the applied coefficient carries only the sense
+        # sign; λ and ρ live in the method.
+        @test MOI.get(backend, Attributes.ConstraintEncodingPenalty(), JuMP.index(c)) ==
+              applied
+    end
+
+    return nothing
+end
+
+function test_refinement_subgradient_multiplier_decrease()
+    # White-box: a satisfied inequality (negative residual) shrinks the
+    # multiplier toward zero and floors at zero.
+    model = ToQUBO.Optimizer{Float64}()
+    x = MOI.add_variable(model)
+    MOI.add_constraint(model, x, MOI.ZeroOne())
+    c = MOI.add_constraint(
+        model,
+        MOI.ScalarAffineFunction{Float64}(
+            [MOI.ScalarAffineTerm{Float64}(1.0, x)],
+            0.0,
+        ),
+        MOI.LessThan{Float64}(1.0),
+    )
+
+    strategy = Attributes.SubgradientUpdate(; step = 1.0)
+
+    satisfied(residual) = ToQUBO.ConstraintViolation(
+        c,
+        MOI.ScalarAffineFunction{Float64},
+        MOI.LessThan{Float64},
+        1.0 + residual,
+        residual,
+        0.0,
+        Dict{VI,Any}(),
+    )
+
+    MOI.set(
+        model,
+        Attributes.ConstraintEncodingMethod(),
+        c,
+        Attributes.AugmentedLagrangianPenalty(1.0, 1.0),
+    )
+    @test ToQUBO._apply_penalty_update!(model, strategy, [satisfied(-0.5)], [], false)
+    @test MOI.get(model, Attributes.ConstraintEncodingMethod(), c).multiplier ≈ 0.5
+
+    MOI.set(
+        model,
+        Attributes.ConstraintEncodingMethod(),
+        c,
+        Attributes.AugmentedLagrangianPenalty(0.2, 1.0),
+    )
+    @test ToQUBO._apply_penalty_update!(model, strategy, [satisfied(-0.5)], [], false)
+    @test MOI.get(model, Attributes.ConstraintEncodingMethod(), c).multiplier == 0.0
+
+    return nothing
+end
+
+function test_refinement_subgradient_validations()
+    @test_throws ArgumentError Attributes.SubgradientUpdate(; step = 0.0)
+    @test_throws ArgumentError Attributes.SubgradientUpdate(; step = -1.0)
+    @test_throws ArgumentError Attributes.SubgradientUpdate(; patience = 0)
+    @test_throws ArgumentError Attributes.SubgradientUpdate(; escalation_factor = 1.0)
+
+    @test_throws ArgumentError Attributes.AugmentedLagrangianPenalty(0.0, 0.0)
+    @test_throws ArgumentError Attributes.AugmentedLagrangianPenalty(0.0, -1.0)
+    @test_throws ArgumentError Attributes.AugmentedLagrangianPenalty(NaN, 1.0)
+
+    # Negative multipliers are legal (equality duals) and types promote.
+    method = Attributes.AugmentedLagrangianPenalty(-1, 2.0)
+    @test method.multiplier == -1.0
+    @test method.rho == 2.0
+
+    return nothing
+end
+
 function test_refinement()
     @testset "→ Penalty Refinement" verbose = true begin
         test_refinement_attributes()
@@ -199,6 +448,13 @@ function test_refinement()
         test_refinement_already_feasible()
         test_refinement_budget_exhaustion()
         test_refinement_smaller_factor()
+        test_refinement_subgradient_validations()
+        test_refinement_subgradient_inequality()
+        test_refinement_subgradient_equality()
+        test_refinement_subgradient_stall_escalation()
+        test_refinement_subgradient_requires_al()
+        test_refinement_al_compiles_without_hint()
+        test_refinement_subgradient_multiplier_decrease()
     end
 
     return nothing
