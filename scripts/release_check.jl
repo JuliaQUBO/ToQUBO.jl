@@ -195,6 +195,11 @@ function main()
         article_title !== nothing && occursin(article_title, citation_bib),
         "CITATION.bib must spell the article title exactly as CITATION.cff preferred-citation does.",
     )
+    check!(
+        failures,
+        occursin(article_doi, citation_bib),
+        "CITATION.bib must cite the published QUBO.jl article DOI $article_doi.",
+    )
 
     citation_start = "<!-- citation-policy:start -->"
     citation_end = "<!-- citation-policy:end -->"
