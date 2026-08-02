@@ -35,6 +35,9 @@ jobs:
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
+      - name: Check release and citation metadata
+        if: matrix.version == '1' && matrix.os == 'ubuntu-latest'
+        run: julia --project=. scripts/release_check.jl
       - uses: julia-actions/cache@v3
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
