@@ -105,4 +105,7 @@ include("reformulation.jl")
 # Post-sampling analysis
 include("analysis/feasibility.jl")
 
+# Iterative penalty refinement
+include("refinement.jl")
+
 end # module

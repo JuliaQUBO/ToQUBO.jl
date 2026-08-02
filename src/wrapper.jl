@@ -39,6 +39,7 @@ function MOI.optimize!(model::Optimizer)
         MOI.optimize!(model.optimizer, model.target_model)
         MOI.set(model, MOI.RawStatusString(), MOI.get(model.optimizer, MOI.RawStatusString()))
 
+        _refine_penalties!(model)
         _auto_feasibility_report!(model)
     else
         MOI.set(model, MOI.RawStatusString(), "Compilation complete without an internal solver")
