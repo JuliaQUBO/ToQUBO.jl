@@ -256,6 +256,46 @@ Very small `ϵ` values or broad objective ranges can produce large penalties.
 Inspect the policy metadata before overriding the policy or pinning explicit
 penalties.
 
+### Value-Set Variable Encoding
+
+Variables restricted to an explicit finite set of values — discrete component
+choices, tariff levels, or a non-uniform (for example, logarithmically spaced)
+grid for a continuous quantity — can be declared directly with
+[`ToQUBO.Attributes.VariableEncodingSet`](@ref) together with a set encoding
+method (`Encoding.OneHot` or `Encoding.DomainWall`):
+
+```@example value-set-encoding
+using JuMP
+using QUBODrivers
+using ToQUBO
+using ToQUBO: Attributes, Encoding
+
+model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
+
+@variable(model, x, Int)
+@objective(model, Min, x)
+
+set_attribute(x, Attributes.VariableEncodingMethod(), Encoding.OneHot())
+set_attribute(x, Attributes.VariableEncodingSet(), [-1.0, 1.0, 3.0])
+
+optimize!(model)
+
+value(x)
+```
+
+The set replaces the bounds-derived domain, so bounds are optional; when
+explicit bounds are present, every entry must respect them. Integer variables
+require integer-valued entries. Interval encoding methods (`Encoding.Binary`,
+`Encoding.Unary`, `Encoding.Arithmetic`, `Encoding.Bounded`) reject value sets
+with a compilation error — choose a set encoding for the variable instead.
+For continuous variables, pass the exact grid you want (for example
+`exp10.(range(-1, 2; length = 4))` for logarithmic spacing); decoded solutions
+always land on a grid point.
+
+```@docs
+ToQUBO.Attributes.VariableEncodingSet
+```
+
 ### Continuous Variable Resolution
 
 Bounded continuous variables need a finite binary representation before the
