@@ -160,21 +160,25 @@ If you think this list is incomplete, consider creating an [Issue](https://githu
 ## Citing ToQUBO.jl
 <!-- citation-policy:start -->
 For general use of `ToQUBO.jl` and the broader `QUBO.jl` ecosystem, cite the
-[published journal article](https://doi.org/10.1080/10556788.2026.2702926).
+[published journal article](https://doi.org/10.1080/10556788.2026.2702926). The
+earlier [arXiv preprint](https://arxiv.org/abs/2307.02577) remains available,
+but the journal article is the version of record.
 
 For a software citation, use the
 [Zenodo concept DOI](https://doi.org/10.5281/zenodo.21763525). The concept DOI
-is the evergreen identifier for the actively maintained archive. For
-exact-version reproducibility, cite the corresponding version DOI; the archive
-for `v0.6.1` is
+is the evergreen identifier for the actively maintained archive and is the DOI
+recorded in `CITATION.cff`. When reproducibility requires an exact release,
+cite the matching version DOI instead; the archive for `v0.6.1` is
 [10.5281/zenodo.21763526](https://doi.org/10.5281/zenodo.21763526).
 
-The corresponding BibTeX entries are:
+The BibTeX entries below pin that exact release. Replace the `@software` entry's
+`doi` and `url` with the concept DOI when an evergreen software citation is
+preferred:
 
 ```bibtex
 @article{xavier2026qubojl,
   author       = {Maciel Xavier, Pedro and Ripper, Pedro and Andrade, Tiago and Dias Garcia, Joaquim and Maculan, Nelson and Bernal Neira, David E.},
-  title        = {{QUBO.jl: A Julia Ecosystem for Quadratic Unconstrained Binary Optimization}},
+  title        = {{QUBO.jl: a Julia ecosystem for quadratic unconstrained binary optimization}},
   journal      = {Optimization Methods and Software},
   year         = {2026},
   pages        = {1--24},

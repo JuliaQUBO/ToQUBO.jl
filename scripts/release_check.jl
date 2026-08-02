@@ -70,6 +70,14 @@ function cff_version_doi(citation::String)
     return result === nothing ? nothing : only(result.captures)
 end
 
+function preferred_citation_title(citation::String)
+    parts = split(citation, "preferred-citation:"; limit = 2)
+    length(parts) == 2 || return nothing
+
+    result = match(r"(?m)^\s+title:\s*\"([^\"]+)\"\s*$", parts[2])
+    return result === nothing ? nothing : only(result.captures)
+end
+
 function bibtex_block(section::AbstractString)
     result = match(r"(?ms)```bibtex\s*\n(.*?)\n```", section)
     return result === nothing ? nothing : strip(only(result.captures))
@@ -181,6 +189,13 @@ function main()
         "CITATION.cff preferred citation must identify the published QUBO.jl article.",
     )
 
+    article_title = preferred_citation_title(citation)
+    check!(
+        failures,
+        article_title !== nothing && occursin(article_title, citation_bib),
+        "CITATION.bib must spell the article title exactly as CITATION.cff preferred-citation does.",
+    )
+
     citation_start = "<!-- citation-policy:start -->"
     citation_end = "<!-- citation-policy:end -->"
     readme_citation = marked_section(readme, citation_start, citation_end)
@@ -227,11 +242,6 @@ function main()
         failures,
         occursin("new version", lowercase(release_docs)) && occursin(concept_doi, release_docs),
         "Release documentation must say to create a new version under concept DOI $concept_doi.",
-    )
-    check!(
-        failures,
-        occursin("cffconvert --validate --infile CITATION.cff", release_docs),
-        "Release documentation must require CFF schema validation.",
     )
 
     if isempty(failures)

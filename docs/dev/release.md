@@ -17,7 +17,8 @@ Release changes live in this repository first. The checks here cover ToQUBO-spec
 5. Update `CITATION.cff` with the release version, date, and reserved version
    DOI. Keep the concept DOI unchanged. Update `CITATION.bib` and the marked
    citation section shared by `README.md` and `docs/src/index.md`.
-6. Validate the Citation File Format schema:
+6. Validate the Citation File Format schema. CI runs this same check on every
+   pull request, so run it locally only to get the answer before pushing:
 
 ```sh
 cffconvert --validate --infile CITATION.cff
@@ -84,6 +85,15 @@ The concept DOI is the evergreen software identifier. The DOI assigned to the
 new Zenodo version identifies only that exact archive. The historical concept
 DOI `10.5281/zenodo.6387591` covers releases through `v0.1.6`; preserve it as
 predecessor provenance, but do not publish new releases under it.
+
+Archiving is manual, so the legacy GitHub-Zenodo integration must stay switched
+off for this repository. The repository still carries the `release` webhook that
+integration installed. If the corresponding Zenodo-side toggle is ever
+re-enabled, tagging a release auto-deposits a new version under the historical
+concept DOI and the package ends up with two live concept records. Before
+tagging, confirm the repository is off in the Zenodo GitHub settings, and after
+publishing confirm that `10.5281/zenodo.6387591` still resolves to the `v0.1.6`
+record rather than the new release.
 
 After publishing:
 
