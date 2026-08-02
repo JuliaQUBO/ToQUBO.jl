@@ -172,6 +172,103 @@ be certified.
 """
 struct LegacyPenalty <: AutomaticPenaltyPolicy end
 
+@doc raw"""
+    UBPositivePenalty()
+
+Upper-bound heuristic for objectives with nonnegative coefficients (UB,
+Ayodele 2022, Eq. 12): the penalty magnitude is the sum of every non-constant
+objective coefficient, i.e. the non-constant contribution to the objective
+value at the all-ones point (a constant offset does not affect the bound,
+matching Eq. 12's QUBO-matrix formulation). If any
+non-constant coefficient is negative the bound is invalid and ToQUBO falls
+back to [`LegacyPenalty`](@ref) for that coefficient, recording the reason in
+reformulation metadata.
+
+Applied as ``\rho = s \sigma (\lambda + \beta) / \epsilon`` like every
+automatic policy, where ``s`` is the penalty scale, ``\sigma`` the sense sign,
+``\beta`` the penalty offset, and ``\epsilon`` the penalty function's positive
+gap.
+
+Reference: M. Ayodele, *Penalty Weights in QUBO Formulations: Permutation
+Problems* (EvoCOP 2022), [arXiv:2206.11040](https://arxiv.org/abs/2206.11040).
+"""
+struct UBPositivePenalty <: AutomaticPenaltyPolicy end
+
+@doc raw"""
+    MaxCoefficientPenalty()
+
+Maximum QUBO coefficient heuristic (MQC, Ayodele 2022, Eq. 13; after Lucas
+2014): the penalty magnitude is the largest non-constant objective
+coefficient. Falls back to [`LegacyPenalty`](@ref) when the objective has no
+non-constant term or its maximum coefficient is not strictly positive.
+
+References: M. Ayodele, [arXiv:2206.11040](https://arxiv.org/abs/2206.11040);
+A. Lucas, *Ising formulations of many NP problems*, Front. Phys. 2:5 (2014).
+"""
+struct MaxCoefficientPenalty <: AutomaticPenaltyPolicy end
+
+@doc raw"""
+    VLMPenalty()
+
+Verma–Lewis method (VLM, Verma & Lewis 2022; Ayodele 2022, Eqs. 14–15): the
+penalty magnitude is the largest possible one-flip change of the objective,
+``\lambda = \max_i \max(W^+_i, W^-_i)``, where for each variable ``i``
+
+```math
+W^+_i = c_{\{i\}} + \sum_{T \ni i,\, |T| \ge 2} \max(c_T, 0), \qquad
+W^-_i = -c_{\{i\}} - \sum_{T \ni i,\, |T| \ge 2} \min(c_T, 0),
+```
+
+with each monomial of the compiled pseudo-Boolean objective credited to every
+variable it contains (the degree-``\ge 2`` generalization of the quadratic
+row-sum form). Falls back to [`LegacyPenalty`](@ref) when the bound is not
+finite and strictly positive.
+
+References: A. Verma and M. Lewis, *Penalty and partitioning techniques to
+improve performance of QUBO solvers*, Discrete Optimization 44 (2022),
+[doi:10.1016/j.disopt.2020.100594](https://doi.org/10.1016/j.disopt.2020.100594);
+M. Ayodele, [arXiv:2206.11040](https://arxiv.org/abs/2206.11040).
+"""
+struct VLMPenalty <: AutomaticPenaltyPolicy end
+
+@doc raw"""
+    MOMCPenalty()
+
+Maximum change in objective over minimum change in constraint (MOMC, Ayodele
+2022, Eqs. 16–18), computed **per penalty function**: with ``\lambda_{VLM}``
+the [`VLMPenalty`](@ref) bound of the objective and ``\gamma`` the smallest
+*strictly positive* one-flip change of this coefficient's penalty function,
+the penalty magnitude is ``\lambda = \max(1, \lambda_{VLM} / \gamma)``. Falls
+back to [`LegacyPenalty`](@ref) when the objective bound is not finite and
+positive or the penalty function has no positive one-flip change.
+
+Unlike the aggregated single-matrix form of the reference, ToQUBO computes one
+coefficient per constraint, variable-encoding, and slack-encoding penalty
+function.
+
+Reference: M. Ayodele, [arXiv:2206.11040](https://arxiv.org/abs/2206.11040).
+"""
+struct MOMCPenalty <: AutomaticPenaltyPolicy end
+
+@doc raw"""
+    MOCPenalty()
+
+Maximum objective-to-constraint ratio (MOC, Ayodele 2022, Eq. 19), computed
+**per penalty function**: pairing the one-flip changes of the objective
+(``W^{c,\pm}_i``) with those of this coefficient's penalty function
+(``W^{g,\pm}_i``) per variable and flip direction, the penalty magnitude is
+
+```math
+\lambda = \max\left(1, \max_{i,\, W^{g}_i > 0} \left| W^{c}_i / W^{g}_i \right| \right).
+```
+
+Falls back to [`LegacyPenalty`](@ref) when the penalty function has no
+strictly positive one-flip change or the objective bound is not finite.
+
+Reference: M. Ayodele, [arXiv:2206.11040](https://arxiv.org/abs/2206.11040).
+"""
+struct MOCPenalty <: AutomaticPenaltyPolicy end
+
 function MOIU.map_indices(::Function, policy::AutomaticPenaltyPolicy)
     return policy
 end
@@ -339,6 +436,96 @@ end
 function warnings(model::Optimizer)::Bool
     return MOI.get(model, Warnings())
 end
+
+@doc raw"""
+    PrimalFeasibilityCheck()
+
+When enabled, `MOI.PrimalStatus` reports `MOI.INFEASIBLE_POINT` for sampled
+results whose projected source-variable values violate any source constraint,
+using the same measurement as `ToQUBO.violations`. Results that satisfy every
+source constraint keep the underlying sampler's status.
+
+Enabled by default. Disable to restore the sampler's raw status:
+
+```julia
+MOI.set(model, Attributes.PrimalFeasibilityCheck(), false)
+```
+"""
+struct PrimalFeasibilityCheck <: CompilerAttribute end
+
+_attribute_from_key(::Val{:primal_feasibility_check}) = PrimalFeasibilityCheck
+
+function MOI.get(model::Optimizer, ::PrimalFeasibilityCheck)::Bool
+    return get(model.compiler_settings, :primal_feasibility_check, true)
+end
+
+function MOI.set(model::Optimizer, ::PrimalFeasibilityCheck, flag::Bool)
+    model.compiler_settings[:primal_feasibility_check] = flag
+
+    return nothing
+end
+
+function MOI.set(model::Optimizer, ::PrimalFeasibilityCheck, ::Nothing)
+    delete!(model.compiler_settings, :primal_feasibility_check)
+
+    return nothing
+end
+
+function primal_feasibility_check(model::Optimizer)::Bool
+    return MOI.get(model, PrimalFeasibilityCheck())
+end
+
+@doc raw"""
+    AutoFeasibilityReport()
+
+When enabled, `MOI.optimize!` computes a `ToQUBO.FeasibilityReport` over every
+sampled result right after the solver returns, caches it for later
+`ToQUBO.feasibility_report` calls, and emits a warning (subject to
+[`Warnings`](@ref)) when any sampled result violates a source constraint.
+
+Disabled by default.
+"""
+struct AutoFeasibilityReport <: CompilerAttribute end
+
+_attribute_from_key(::Val{:auto_feasibility_report}) = AutoFeasibilityReport
+
+function MOI.get(model::Optimizer, ::AutoFeasibilityReport)::Bool
+    return get(model.compiler_settings, :auto_feasibility_report, false)
+end
+
+function MOI.set(model::Optimizer, ::AutoFeasibilityReport, flag::Bool)
+    model.compiler_settings[:auto_feasibility_report] = flag
+
+    return nothing
+end
+
+function MOI.set(model::Optimizer, ::AutoFeasibilityReport, ::Nothing)
+    delete!(model.compiler_settings, :auto_feasibility_report)
+
+    return nothing
+end
+
+function auto_feasibility_report(model::Optimizer)::Bool
+    return MOI.get(model, AutoFeasibilityReport())
+end
+
+@doc raw"""
+    SourceObjectiveValue(result_index::Integer = 1)
+
+Value of the source-model objective function evaluated at the projected
+source-variable values of sampled result `result_index`.
+
+Unlike `MOI.ObjectiveValue`, which reports the target QUBO energy including
+penalty terms introduced by the reformulation, this attribute is penalty-free:
+it evaluates the original objective on the decoded solution.
+"""
+struct SourceObjectiveValue <: CompilerAttribute
+    result_index::Int
+
+    SourceObjectiveValue(result_index::Integer = 1) = new(result_index)
+end
+
+MOI.is_set_by_optimize(::SourceObjectiveValue) = true
 
 @doc raw"""
     IgnoreFeasibleConstraints()

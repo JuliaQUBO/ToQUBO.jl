@@ -17,6 +17,18 @@ ToQUBO.Attributes.IgnoreFeasibleConstraints
 ToQUBO.Attributes.ErrorInfeasibleConstraints
 ```
 
+## Solve-Result Feasibility
+
+These attributes control how sampled results surface source-model feasibility
+and objective values; usage examples live in the
+[results manual](@ref "Feasibility in Solve Results").
+
+```@docs
+ToQUBO.Attributes.PrimalFeasibilityCheck
+ToQUBO.Attributes.AutoFeasibilityReport
+ToQUBO.Attributes.SourceObjectiveValue
+```
+
 ## Compiler Optimization
 
 ```@docs
@@ -103,11 +115,51 @@ positive for minimization models and negative for maximization models, so
 explicit hints should use the same sign as the coefficient you want the
 compiler to apply.
 
+### Literature Penalty Heuristics
+
+Besides the exactness-oriented default, ToQUBO offers the static
+penalty-weight heuristics evaluated by Ayodele
+([arXiv:2206.11040](https://arxiv.org/abs/2206.11040)), selectable through
+[`ToQUBO.Attributes.PenaltyPolicy`](@ref). They typically produce smaller,
+sampler-friendlier coefficients than the certified bound, at the price of not
+guaranteeing exactness. Each computes a bound `λ` on the compiled
+pseudo-Boolean objective and applies it with the same composition as the
+default policy, ``\rho = s \sigma (\lambda + \beta) / \epsilon``:
+
+| Policy | `λ` | Scope |
+|:--|:--|:--|
+| [`ToQUBO.Attributes.UBPositivePenalty`](@ref) | Sum of all non-constant objective coefficients (requires them nonnegative) | global |
+| [`ToQUBO.Attributes.MaxCoefficientPenalty`](@ref) | Largest non-constant objective coefficient | global |
+| [`ToQUBO.Attributes.VLMPenalty`](@ref) | Largest one-flip objective change (Verma–Lewis) | global |
+| [`ToQUBO.Attributes.MOMCPenalty`](@ref) | `max(1, VLM / γ)`, `γ` the smallest positive one-flip change of the penalty function | per penalty function |
+| [`ToQUBO.Attributes.MOCPenalty`](@ref) | `max(1, max abs one-flip objective/penalty ratio)` | per penalty function |
+
+The per-penalty-function policies (MOMC, MOC) infer one coefficient per
+constraint, variable-encoding, and slack-encoding penalty, so different
+constraints receive different weights. One-flip changes generalize the
+quadratic row-sum form of the reference to arbitrary degree by crediting each
+monomial to every variable it contains. When a policy's validity conditions do
+not hold (for example, a negative objective coefficient under
+`UBPositivePenalty`, or a penalty function without a positive one-flip
+change), ToQUBO falls back to [`ToQUBO.Attributes.LegacyPenalty`](@ref) for
+that coefficient and records the reason in
+[`ToQUBO.Attributes.PenaltyPolicyMetadata`](@ref).
+
+```@docs
+ToQUBO.Attributes.UBPositivePenalty
+ToQUBO.Attributes.MaxCoefficientPenalty
+ToQUBO.Attributes.VLMPenalty
+ToQUBO.Attributes.MOMCPenalty
+ToQUBO.Attributes.MOCPenalty
+```
+
 Use the controls according to how much of the model you want to change:
 
 - Use [`ToQUBO.Attributes.PenaltyPolicy`](@ref) to select the automatic
-  inference policy. Set it to [`ToQUBO.Attributes.LegacyPenalty`](@ref) only
-  when you need to reproduce the historical maxgap-based coefficients.
+  inference policy. Choose a literature heuristic above when the certified
+  bound is too conservative for your sampler, or set it to
+  [`ToQUBO.Attributes.LegacyPenalty`](@ref) only when you need to reproduce
+  the historical maxgap-based coefficients.
 - Use [`ToQUBO.Attributes.PenaltyScale`](@ref) and
   [`ToQUBO.Attributes.PenaltyOffset`](@ref) to change all automatically
   inferred penalties while preserving their policy-dependent objective and

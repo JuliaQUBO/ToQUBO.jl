@@ -102,6 +102,8 @@ function reset!(model::Virtual.Model, ::AbstractArchitecture = GenericArchitectu
     delete!(model.compiler_settings, :qubo_fast_path)
     delete!(model.compiler_settings, :penalty_policy_metadata)
     delete!(model.moi_settings, :raw_status_string)
+    delete!(model.moi_settings, :feasibility_report)
+    delete!(model.moi_settings, :primal_feasibility)
 
     return nothing
 end

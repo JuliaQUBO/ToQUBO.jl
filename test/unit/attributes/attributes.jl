@@ -250,6 +250,62 @@ function test_compiler_attributes()
             end
         end
 
+        @testset "PrimalFeasibilityCheck" begin
+            let model = ToQUBO.Optimizer{Float64}()
+                @test MOI.supports(model, Attributes.PrimalFeasibilityCheck())
+                @test MOI.get(model, Attributes.PrimalFeasibilityCheck()) === true
+                @test Attributes.primal_feasibility_check(model) === true
+
+                MOI.set(model, Attributes.PrimalFeasibilityCheck(), false)
+                @test MOI.get(model, Attributes.PrimalFeasibilityCheck()) === false
+
+                # User settings survive a compiler reset.
+                ToQUBO.Compiler.reset!(model)
+                @test MOI.get(model, Attributes.PrimalFeasibilityCheck()) === false
+
+                MOI.set(model, Attributes.PrimalFeasibilityCheck(), nothing)
+                @test MOI.get(model, Attributes.PrimalFeasibilityCheck()) === true
+            end
+        end
+
+        @testset "AutoFeasibilityReport" begin
+            let model = ToQUBO.Optimizer{Float64}()
+                @test MOI.supports(model, Attributes.AutoFeasibilityReport())
+                @test MOI.get(model, Attributes.AutoFeasibilityReport()) === false
+                @test Attributes.auto_feasibility_report(model) === false
+
+                MOI.set(model, Attributes.AutoFeasibilityReport(), true)
+                @test MOI.get(model, Attributes.AutoFeasibilityReport()) === true
+
+                ToQUBO.Compiler.reset!(model)
+                @test MOI.get(model, Attributes.AutoFeasibilityReport()) === true
+
+                MOI.set(model, Attributes.AutoFeasibilityReport(), nothing)
+                @test MOI.get(model, Attributes.AutoFeasibilityReport()) === false
+            end
+        end
+
+        @testset "SourceObjectiveValue" begin
+            let model = ToQUBO.Optimizer{Float64}()
+                @test MOI.supports(model, Attributes.SourceObjectiveValue())
+                @test Attributes.SourceObjectiveValue().result_index == 1
+                @test Attributes.SourceObjectiveValue(3).result_index == 3
+                @test MOI.is_set_by_optimize(Attributes.SourceObjectiveValue())
+            end
+        end
+
+        @testset "Feasibility cache reset" begin
+            let model = ToQUBO.Optimizer{Float64}()
+                model.moi_settings[:feasibility_report] = :stale
+                model.moi_settings[:primal_feasibility] = Dict{Int,Bool}(1 => true)
+
+                ToQUBO.Compiler.reset!(model)
+
+                @test !haskey(model.moi_settings, :feasibility_report)
+                @test !haskey(model.moi_settings, :primal_feasibility)
+            end
+        end
+
         @testset "PenaltyPolicy" begin
             let model = ToQUBO.Optimizer{Float64}()
                 @test MOI.supports(model, Attributes.PenaltyPolicy())
