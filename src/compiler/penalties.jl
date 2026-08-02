@@ -406,8 +406,20 @@ function penalties!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
             if _uses_augmented_lagrangian(model, ci)
                 # The augmented-Lagrangian coefficients (λ, ρ) live inside the
                 # method and are already baked into the penalty function; the
-                # applied coefficient carries only the sense sign.
+                # applied coefficient carries only the sense sign. Record the
+                # constraint so the metadata inventory stays complete.
                 MOI.set(model, Attributes.ConstraintEncodingPenalty(), ci, T(σ))
+
+                push!(
+                    context["inferred_penalties"]["constraints"],
+                    Dict{String,Any}(
+                        "kind" => "constraint",
+                        "id" => ci.value,
+                        "penalty" => T(σ),
+                        "automatic_policy" => context["policy"],
+                        "selected_policy" => "AugmentedLagrangianPenalty",
+                    ),
+                )
 
                 continue
             elseif _uses_linear_equality_penalty(model, ci)

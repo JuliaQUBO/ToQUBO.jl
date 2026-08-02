@@ -65,6 +65,18 @@ function _apply_penalty_update!(
     stalled::Bool,
 ) where {T}
     violated_constraints = Set(measurement.constraint for measurement in violated)
+
+    # If no violated constraint is AL-managed, further multiplier updates
+    # cannot resolve the violations keeping the loop alive; break instead of
+    # burning the budget on recompiles (satisfied-constraint dual decreases
+    # alone are not worth an iteration).
+    any(
+        measurement ->
+            Attributes.constraint_encoding_method(model, measurement.constraint) isa
+            Attributes.AugmentedLagrangianPenalty,
+        violated,
+    ) || return false
+
     updated = false
 
     for measurement in measurements

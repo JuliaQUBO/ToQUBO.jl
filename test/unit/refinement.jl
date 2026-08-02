@@ -390,7 +390,45 @@ function test_refinement_al_compiles_without_hint()
         # sign; λ and ρ live in the method.
         @test MOI.get(backend, Attributes.ConstraintEncodingPenalty(), JuMP.index(c)) ==
               applied
+
+        # AL constraints stay visible in the penalty metadata inventory.
+        metadata = MOI.get(backend, Attributes.PenaltyPolicyMetadata())
+        entry = only(metadata["inferred_penalties"]["constraints"])
+
+        @test entry["selected_policy"] == "AugmentedLagrangianPenalty"
+        @test entry["penalty"] == applied
+        @test entry["id"] == JuMP.index(c).value
     end
+
+    return nothing
+end
+
+function test_refinement_subgradient_unreachable_violation_break()
+    # The violated constraint is quadratic (not AL-managed); an additional
+    # satisfied AL constraint must not keep the loop alive, and its
+    # multiplier must stay untouched.
+    model, x, c = _refinement_hinted_model(; updates = 5)
+
+    al = @constraint(model, x[1] + x[2] >= 0)
+
+    set_attribute(
+        al,
+        Attributes.ConstraintEncodingMethod(),
+        Attributes.AugmentedLagrangianPenalty(1.0, 1.0),
+    )
+    set_attribute(
+        model,
+        Attributes.PenaltyUpdateStrategy(),
+        Attributes.SubgradientUpdate(),
+    )
+
+    optimize!(model)
+
+    backend = JuMP.unsafe_backend(model)
+    method = MOI.get(backend, Attributes.ConstraintEncodingMethod(), JuMP.index(al))
+
+    @test MOI.get(backend, Attributes.PenaltyUpdateCount()) == 0
+    @test method.multiplier == 1.0
 
     return nothing
 end
@@ -476,6 +514,7 @@ function test_refinement()
         test_refinement_subgradient_equality()
         test_refinement_subgradient_stall_escalation()
         test_refinement_subgradient_requires_al()
+        test_refinement_subgradient_unreachable_violation_break()
         test_refinement_al_compiles_without_hint()
         test_refinement_subgradient_multiplier_decrease()
     end
