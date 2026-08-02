@@ -177,7 +177,9 @@ struct LegacyPenalty <: AutomaticPenaltyPolicy end
 
 Upper-bound heuristic for objectives with nonnegative coefficients (UB,
 Ayodele 2022, Eq. 12): the penalty magnitude is the sum of every non-constant
-objective coefficient, i.e. the objective value at the all-ones point. If any
+objective coefficient, i.e. the non-constant contribution to the objective
+value at the all-ones point (a constant offset does not affect the bound,
+matching Eq. 12's QUBO-matrix formulation). If any
 non-constant coefficient is negative the bound is invalid and ToQUBO falls
 back to [`LegacyPenalty`](@ref) for that coefficient, recording the reason in
 reformulation metadata.

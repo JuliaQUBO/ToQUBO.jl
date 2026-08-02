@@ -525,6 +525,89 @@ function test_compiler_penalty_heuristic_fallbacks()
     return nothing
 end
 
+# MAX x₁coef·x₁ + 10x₂ + 20x₁x₂ subject to x₁ + x₂ ≤ 1: a quadratic,
+# asymmetric objective that locks the higher-degree monomial crediting of the
+# one-flip scan (each nonlinear monomial credits every variable it contains).
+function _quadratic_heuristic_model(policy; x1_coefficient = 1.0)
+    model = ToQUBO.Optimizer{Float64}()
+    x = [MOI.add_variable(model) for _ = 1:2]
+
+    for xi in x
+        MOI.add_constraint(model, xi, MOI.ZeroOne())
+    end
+
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
+    MOI.set(
+        model,
+        MOI.ObjectiveFunction{MOI.ScalarQuadraticFunction{Float64}}(),
+        MOI.ScalarQuadraticFunction{Float64}(
+            MOI.ScalarQuadraticTerm{Float64}[
+                MOI.ScalarQuadraticTerm{Float64}(20.0, x[1], x[2]),
+            ],
+            MOI.ScalarAffineTerm{Float64}[
+                MOI.ScalarAffineTerm{Float64}(x1_coefficient, x[1]),
+                MOI.ScalarAffineTerm{Float64}(10.0, x[2]),
+            ],
+            0.0,
+        ),
+    )
+
+    c = MOI.add_constraint(
+        model,
+        MOI.ScalarAffineFunction{Float64}(
+            MOI.ScalarAffineTerm{Float64}[
+                MOI.ScalarAffineTerm{Float64}(1.0, x[1]),
+                MOI.ScalarAffineTerm{Float64}(1.0, x[2]),
+            ],
+            0.0,
+        ),
+        MOI.LessThan{Float64}(1.0),
+    )
+
+    MOI.set(model, Attributes.PenaltyPolicy(), policy)
+
+    MOI.optimize!(model)
+
+    return model, c
+end
+
+function test_compiler_penalty_heuristic_quadratic_objective()
+    # Objective x₁ + 10x₂ + 20x₁x₂: coefficient sum 31, maximum coefficient
+    # 20; one-flip values credit the 20x₁x₂ monomial to both variables, so
+    # inc(x₁) = 21, inc(x₂) = 30 → VLM bound 30. The slack-augmented penalty
+    # has γ = 1 (MOMC = max(1, 30/1) = 30) and its largest absolute flip
+    # ratio is 10 (x₂ decrease pair 10/1; increase pairs 21/3 and 30/3).
+    # With σ = -1, scale = 1, offset = 1, ϵ = 1: ρ = -(λ + 1).
+    expected = [
+        (Attributes.UBPositivePenalty(), -32.0),
+        (Attributes.MaxCoefficientPenalty(), -21.0),
+        (Attributes.VLMPenalty(), -31.0),
+        (Attributes.MOMCPenalty(), -31.0),
+        (Attributes.MOCPenalty(), -11.0),
+    ]
+
+    for (policy, ρ) in expected
+        model, c = _quadratic_heuristic_model(policy)
+        metadata = MOI.get(model, Attributes.PenaltyPolicyMetadata())
+
+        @test MOI.get(model, Attributes.ConstraintEncodingPenalty(), c) == ρ
+        @test metadata["fallback_count"] == 0
+    end
+
+    # Asymmetric variant -x₁ + 10x₂ + 20x₁x₂: the negative linear term makes
+    # inc(x₁) = 19 while inc(x₂) = 30 stays, so any scan that credits the
+    # quadratic monomial to a single variable computes a different (wrong)
+    # VLM bound; the correct one is still 30.
+    model, c = _quadratic_heuristic_model(
+        Attributes.VLMPenalty();
+        x1_coefficient = -1.0,
+    )
+
+    @test MOI.get(model, Attributes.ConstraintEncodingPenalty(), c) == -31.0
+
+    return nothing
+end
+
 function test_compiler_penalty_heuristic_slack_bucket()
     # With a one-hot slack encoding, the slack-encoding penalty χ (one-hot
     # exactly-one gadget) has smallest positive one-flip change γ = 1, and the
@@ -578,6 +661,7 @@ function test_compiler_penalties()
         test_compiler_penalty_heuristic_policies()
         test_compiler_penalty_per_constraint_heuristics()
         test_compiler_penalty_heuristic_fallbacks()
+        test_compiler_penalty_heuristic_quadratic_objective()
         test_compiler_penalty_heuristic_slack_bucket()
         test_compiler_penalty_heuristic_fractional_gap()
     end
