@@ -17,6 +17,18 @@ ToQUBO.Attributes.IgnoreFeasibleConstraints
 ToQUBO.Attributes.ErrorInfeasibleConstraints
 ```
 
+## Solve-Result Feasibility
+
+These attributes control how sampled results surface source-model feasibility
+and objective values; usage examples live in the
+[results manual](@ref "Feasibility in Solve Results").
+
+```@docs
+ToQUBO.Attributes.PrimalFeasibilityCheck
+ToQUBO.Attributes.AutoFeasibilityReport
+ToQUBO.Attributes.SourceObjectiveValue
+```
+
 ## Compiler Optimization
 
 ```@docs

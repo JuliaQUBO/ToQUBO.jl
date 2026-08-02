@@ -121,7 +121,26 @@ function MOI.supports(::Virtual.Model, ::MOI.TerminationStatus)
     return true
 end
 
-function MOI.get(model::Virtual.Model, attr::Union{MOI.PrimalStatus, MOI.DualStatus})
+function MOI.get(model::Virtual.Model, attr::MOI.PrimalStatus)
+    if isnothing(model.optimizer)
+        return MOI.NO_SOLUTION
+    end
+
+    status = MOI.get(model.optimizer, attr)
+
+    if status === MOI.FEASIBLE_POINT && MOI.get(model, Attributes.PrimalFeasibilityCheck())
+        result = attr.result_index
+
+        if 1 <= result <= MOI.get(model, MOI.ResultCount()) &&
+           !_result_is_feasible(model, result)
+            return MOI.INFEASIBLE_POINT
+        end
+    end
+
+    return status
+end
+
+function MOI.get(model::Virtual.Model, attr::MOI.DualStatus)
     if !isnothing(model.optimizer)
         return MOI.get(model.optimizer, attr)
     else

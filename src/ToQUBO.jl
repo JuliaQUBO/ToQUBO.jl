@@ -6,6 +6,7 @@ export ConstraintViolation,
     violations,
     is_feasible,
     feasibility_report,
+    source_objective_value,
     qubo
 
 using MathOptInterface
