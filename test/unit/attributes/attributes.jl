@@ -484,6 +484,25 @@ end
 
 function test_encoding_attributes()
     @testset "→ Encoding Attributes" begin
+        @testset "VariableEncodingSet" begin
+            let model = ToQUBO.Optimizer{Float64}()
+                x = MOI.add_variable(model)
+
+                @test MOI.supports(model, Attributes.VariableEncodingSet(), VI)
+                @test MOI.get(model, Attributes.VariableEncodingSet(), x) === nothing
+                @test Attributes.variable_encoding_set(model, x) === nothing
+
+                MOI.set(model, Attributes.VariableEncodingSet(), x, [-1, 1, 3])
+                @test MOI.get(model, Attributes.VariableEncodingSet(), x) ==
+                      [-1.0, 1.0, 3.0]
+                @test MOI.get(model, Attributes.VariableEncodingSet(), x) isa
+                      Vector{Float64}
+
+                MOI.set(model, Attributes.VariableEncodingSet(), x, nothing)
+                @test MOI.get(model, Attributes.VariableEncodingSet(), x) === nothing
+            end
+        end
+
         @testset "DefaultVariableEncodingMethod" begin
             let model = ToQUBO.Optimizer{Float64}()
                 @test MOI.supports(model, Attributes.DefaultVariableEncodingMethod())

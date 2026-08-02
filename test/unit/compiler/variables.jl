@@ -123,6 +123,31 @@ function test_compiler_variables_value_set_continuous()
     return nothing
 end
 
+function test_compiler_variables_value_set_continuous_domain_wall()
+    model = ToQUBO.Virtual.Model{Float64}()
+    arch = ToQUBO.Compiler.GenericArchitecture()
+    x = MOI.add_variable(model.source_model)
+    γ = [0.1, 1.0, 10.0] # non-uniform grid through the wall encoding
+
+    MOI.set(model, Attributes.VariableEncodingMethod(), x, Encoding.DomainWall())
+    MOI.set(model, Attributes.VariableEncodingSet(), x, γ)
+
+    ToQUBO.Compiler.variables!(model, arch)
+
+    v = model.source[x]
+    y = ToQUBO.Virtual.target(v)
+    ξ = ToQUBO.Virtual.expansion(v)
+
+    @test ToQUBO.Virtual.encoding(v) isa Encoding.DomainWall
+    @test length(y) == 2
+    @test ξ(Dict{VI,Integer}(y[1] => 0, y[2] => 0))[nothing] ≈ 0.1
+    @test ξ(Dict{VI,Integer}(y[1] => 1, y[2] => 0))[nothing] ≈ 1.0
+    @test ξ(Dict{VI,Integer}(y[1] => 1, y[2] => 1))[nothing] ≈ 10.0
+    @test haskey(model.h, x)
+
+    return nothing
+end
+
 function _value_set_error_model(γ; method = Encoding.OneHot(), integer = true, bounds = nothing)
     model = ToQUBO.Virtual.Model{Float64}()
     x = MOI.add_variable(model.source_model)
@@ -139,8 +164,14 @@ end
 function test_compiler_variables_value_set_errors()
     arch = ToQUBO.Compiler.GenericArchitecture()
 
-    # Interval-only encoding methods reject value sets.
-    for method in (nothing, Encoding.Unary(), Encoding.Arithmetic())
+    # Interval-only encoding methods reject value sets, including the
+    # Bounded wrapper around an interval method.
+    for method in (
+        nothing,
+        Encoding.Unary(),
+        Encoding.Arithmetic(),
+        Encoding.Bounded(Encoding.Binary(), 2.0),
+    )
         model = _value_set_error_model([-1.0, 1.0, 3.0]; method)
 
         @test_throws ToQUBO.Compiler.CompilationError ToQUBO.Compiler.variables!(
@@ -233,6 +264,7 @@ function test_compiler_variables()
         test_compiler_variables_value_set_onehot()
         test_compiler_variables_value_set_domain_wall()
         test_compiler_variables_value_set_continuous()
+        test_compiler_variables_value_set_continuous_domain_wall()
         test_compiler_variables_value_set_errors()
         test_compiler_variables_value_set_solve()
     end
