@@ -80,10 +80,11 @@ function _variable_penalty_test_model(; scale = nothing, offset = nothing, polic
     return model, x
 end
 
-function _fractional_gap_penalty_test_model()
+function _fractional_gap_penalty_test_model(; policy = nothing)
     model = ToQUBO.Optimizer{Float64}()
     x = MOI.add_variable(model)
 
+    !isnothing(policy) && MOI.set(model, Attributes.PenaltyPolicy(), policy)
     MOI.set(model, Attributes.Discretize(), false)
     MOI.add_constraint(model, x, MOI.ZeroOne())
     MOI.set(model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
@@ -342,6 +343,312 @@ function test_compiler_slack_variable_encoding_penalty_is_constraint_keyed()
     return nothing
 end
 
+# MAX 3x₁ + x₂ subject to x₁ + x₂ ≤ 1 and 2x₁ + 2x₂ ≤ 3: the two constraint
+# penalty functions have different one-flip structure, so the per-penalty
+# policies (MOMC/MOC) must infer distinct coefficients.
+function _two_constraint_heuristic_model(policy)
+    model = ToQUBO.Optimizer{Float64}()
+    x = [MOI.add_variable(model) for _ = 1:2]
+
+    for xi in x
+        MOI.add_constraint(model, xi, MOI.ZeroOne())
+    end
+
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
+    MOI.set(
+        model,
+        MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
+        MOI.ScalarAffineFunction{Float64}(
+            MOI.ScalarAffineTerm{Float64}[
+                MOI.ScalarAffineTerm{Float64}(3.0, x[1]),
+                MOI.ScalarAffineTerm{Float64}(1.0, x[2]),
+            ],
+            0.0,
+        ),
+    )
+
+    c1 = MOI.add_constraint(
+        model,
+        MOI.ScalarAffineFunction{Float64}(
+            MOI.ScalarAffineTerm{Float64}[
+                MOI.ScalarAffineTerm{Float64}(1.0, x[1]),
+                MOI.ScalarAffineTerm{Float64}(1.0, x[2]),
+            ],
+            0.0,
+        ),
+        MOI.LessThan{Float64}(1.0),
+    )
+    c2 = MOI.add_constraint(
+        model,
+        MOI.ScalarAffineFunction{Float64}(
+            MOI.ScalarAffineTerm{Float64}[
+                MOI.ScalarAffineTerm{Float64}(2.0, x[1]),
+                MOI.ScalarAffineTerm{Float64}(2.0, x[2]),
+            ],
+            0.0,
+        ),
+        MOI.LessThan{Float64}(3.0),
+    )
+
+    MOI.set(model, Attributes.PenaltyPolicy(), policy)
+
+    MOI.optimize!(model)
+
+    return model, c1, c2
+end
+
+function test_compiler_penalty_heuristic_policies()
+    # MAX x₁ + x₂ s.t. x₁ + x₂ ≤ 1: objective coefficient sum 2, maximum
+    # coefficient 1, one-flip bound (VLM) 1; the slack-augmented penalty
+    # (x₁ + x₂ + s - 1)² has smallest positive one-flip change γ = 1. With
+    # σ = -1, scale = 1, offset = 1, ϵ = 1: ρ = -(λ + 1).
+    expected = [
+        (Attributes.UBPositivePenalty(), -3.0),
+        (Attributes.MaxCoefficientPenalty(), -2.0),
+        (Attributes.VLMPenalty(), -2.0),
+        (Attributes.MOMCPenalty(), -2.0),
+        (Attributes.MOCPenalty(), -2.0),
+    ]
+
+    for (policy, ρ) in expected
+        model, c = _constraint_penalty_test_model(; policy)
+        metadata = MOI.get(model, Attributes.PenaltyPolicyMetadata())
+        inferred = only(metadata["inferred_penalties"]["constraints"])
+        name = string(nameof(typeof(policy)))
+
+        @test MOI.get(model, Attributes.ConstraintEncodingPenalty(), c) == ρ
+        @test metadata["policy"] == name
+        @test metadata["fallback_count"] == 0
+        @test inferred["selected_policy"] == name
+        @test inferred["penalty"] == ρ
+    end
+
+    return nothing
+end
+
+function test_compiler_penalty_per_constraint_heuristics()
+    # Objective one-flip bound is 3 (from 3x₁). First constraint's penalty
+    # has γ = 1, the second's γ = 5 (slack bits 1 and 2 over range [0, 3]),
+    # so MOMC gives max(1, 3/1) = 3 and max(1, 3/5) = 1. MOC's largest
+    # absolute flip ratio is 3 (x₁ decrease pair 3/1) for the first
+    # constraint and 3/8 < 1 for the second.
+    for policy in (Attributes.MOMCPenalty(), Attributes.MOCPenalty())
+        model, c1, c2 = _two_constraint_heuristic_model(policy)
+        metadata = MOI.get(model, Attributes.PenaltyPolicyMetadata())
+
+        @test MOI.get(model, Attributes.ConstraintEncodingPenalty(), c1) == -4.0
+        @test MOI.get(model, Attributes.ConstraintEncodingPenalty(), c2) == -2.0
+        @test metadata["fallback_count"] == 0
+        @test length(metadata["inferred_penalties"]["constraints"]) == 2
+    end
+
+    return nothing
+end
+
+function test_compiler_penalty_heuristic_fallbacks()
+    # A negative objective coefficient invalidates the UB-positive bound; the
+    # coefficient falls back to LegacyPenalty (δ = maxgap = 2, ϵ = 1, β = 1).
+    model = ToQUBO.Optimizer{Float64}()
+    x = [MOI.add_variable(model) for _ = 1:2]
+
+    for xi in x
+        MOI.add_constraint(model, xi, MOI.ZeroOne())
+    end
+
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
+    MOI.set(
+        model,
+        MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
+        MOI.ScalarAffineFunction{Float64}(
+            MOI.ScalarAffineTerm{Float64}[
+                MOI.ScalarAffineTerm{Float64}(1.0, x[1]),
+                MOI.ScalarAffineTerm{Float64}(-1.0, x[2]),
+            ],
+            0.0,
+        ),
+    )
+
+    c = MOI.add_constraint(
+        model,
+        MOI.ScalarAffineFunction{Float64}(
+            MOI.ScalarAffineTerm{Float64}[
+                MOI.ScalarAffineTerm{Float64}(1.0, x[1]),
+                MOI.ScalarAffineTerm{Float64}(1.0, x[2]),
+            ],
+            0.0,
+        ),
+        MOI.LessThan{Float64}(1.0),
+    )
+
+    MOI.set(model, Attributes.PenaltyPolicy(), Attributes.UBPositivePenalty())
+    MOI.optimize!(model)
+
+    metadata = MOI.get(model, Attributes.PenaltyPolicyMetadata())
+    fallback = only(metadata["fallbacks"])
+    inferred = only(metadata["inferred_penalties"]["constraints"])
+
+    @test MOI.get(model, Attributes.ConstraintEncodingPenalty(), c) == -3.0
+    @test fallback["reason"] == "UBPositivePenalty requires nonnegative objective coefficients"
+    @test inferred["selected_policy"] == "LegacyPenalty"
+
+    # An empty (feasibility-style) objective invalidates the global bounds:
+    # MaxCoefficient and VLM fall back (δ = 0 → θ = 1), while MOC hits its
+    # literature floor λ = 1 without falling back (θ = (1 + 1)/1 = 2, positive
+    # since the model minimizes).
+    for (policy, θ, reason) in (
+        (
+            Attributes.MaxCoefficientPenalty(),
+            1.0,
+            "MaxCoefficientPenalty requires a non-constant objective",
+        ),
+        (
+            Attributes.VLMPenalty(),
+            1.0,
+            "Objective one-flip bound is not strictly positive",
+        ),
+        (Attributes.MOMCPenalty(), 1.0, "Objective one-flip bound is not strictly positive"),
+    )
+        var_model, xv = _variable_penalty_test_model(; policy)
+        var_metadata = MOI.get(var_model, Attributes.PenaltyPolicyMetadata())
+        var_fallback = only(var_metadata["fallbacks"])
+
+        @test MOI.get(var_model, Attributes.VariableEncodingPenalty(), xv) == θ
+        @test var_fallback["reason"] == reason
+    end
+
+    moc_model, xv = _variable_penalty_test_model(; policy = Attributes.MOCPenalty())
+    moc_metadata = MOI.get(moc_model, Attributes.PenaltyPolicyMetadata())
+
+    @test MOI.get(moc_model, Attributes.VariableEncodingPenalty(), xv) == 2.0
+    @test moc_metadata["fallback_count"] == 0
+
+    return nothing
+end
+
+# MAX x₁coef·x₁ + 10x₂ + 20x₁x₂ subject to x₁ + x₂ ≤ 1: a quadratic,
+# asymmetric objective that locks the higher-degree monomial crediting of the
+# one-flip scan (each nonlinear monomial credits every variable it contains).
+function _quadratic_heuristic_model(policy; x1_coefficient = 1.0)
+    model = ToQUBO.Optimizer{Float64}()
+    x = [MOI.add_variable(model) for _ = 1:2]
+
+    for xi in x
+        MOI.add_constraint(model, xi, MOI.ZeroOne())
+    end
+
+    MOI.set(model, MOI.ObjectiveSense(), MOI.MAX_SENSE)
+    MOI.set(
+        model,
+        MOI.ObjectiveFunction{MOI.ScalarQuadraticFunction{Float64}}(),
+        MOI.ScalarQuadraticFunction{Float64}(
+            MOI.ScalarQuadraticTerm{Float64}[
+                MOI.ScalarQuadraticTerm{Float64}(20.0, x[1], x[2]),
+            ],
+            MOI.ScalarAffineTerm{Float64}[
+                MOI.ScalarAffineTerm{Float64}(x1_coefficient, x[1]),
+                MOI.ScalarAffineTerm{Float64}(10.0, x[2]),
+            ],
+            0.0,
+        ),
+    )
+
+    c = MOI.add_constraint(
+        model,
+        MOI.ScalarAffineFunction{Float64}(
+            MOI.ScalarAffineTerm{Float64}[
+                MOI.ScalarAffineTerm{Float64}(1.0, x[1]),
+                MOI.ScalarAffineTerm{Float64}(1.0, x[2]),
+            ],
+            0.0,
+        ),
+        MOI.LessThan{Float64}(1.0),
+    )
+
+    MOI.set(model, Attributes.PenaltyPolicy(), policy)
+
+    MOI.optimize!(model)
+
+    return model, c
+end
+
+function test_compiler_penalty_heuristic_quadratic_objective()
+    # Objective x₁ + 10x₂ + 20x₁x₂: coefficient sum 31, maximum coefficient
+    # 20; one-flip values credit the 20x₁x₂ monomial to both variables, so
+    # inc(x₁) = 21, inc(x₂) = 30 → VLM bound 30. The slack-augmented penalty
+    # has γ = 1 (MOMC = max(1, 30/1) = 30) and its largest absolute flip
+    # ratio is 10 (x₂ decrease pair 10/1; increase pairs 21/3 and 30/3).
+    # With σ = -1, scale = 1, offset = 1, ϵ = 1: ρ = -(λ + 1).
+    expected = [
+        (Attributes.UBPositivePenalty(), -32.0),
+        (Attributes.MaxCoefficientPenalty(), -21.0),
+        (Attributes.VLMPenalty(), -31.0),
+        (Attributes.MOMCPenalty(), -31.0),
+        (Attributes.MOCPenalty(), -11.0),
+    ]
+
+    for (policy, ρ) in expected
+        model, c = _quadratic_heuristic_model(policy)
+        metadata = MOI.get(model, Attributes.PenaltyPolicyMetadata())
+
+        @test MOI.get(model, Attributes.ConstraintEncodingPenalty(), c) == ρ
+        @test metadata["fallback_count"] == 0
+    end
+
+    # Asymmetric variant -x₁ + 10x₂ + 20x₁x₂: the negative linear term makes
+    # inc(x₁) = 19 while inc(x₂) = 30 stays, so any scan that credits the
+    # quadratic monomial to a single variable computes a different (wrong)
+    # VLM bound; the correct one is still 30.
+    model, c = _quadratic_heuristic_model(
+        Attributes.VLMPenalty();
+        x1_coefficient = -1.0,
+    )
+
+    @test MOI.get(model, Attributes.ConstraintEncodingPenalty(), c) == -31.0
+
+    return nothing
+end
+
+function test_compiler_penalty_heuristic_slack_bucket()
+    # With a one-hot slack encoding, the slack-encoding penalty χ (one-hot
+    # exactly-one gadget) has smallest positive one-flip change γ = 1, and the
+    # objective one-flip bound is 1, so MOMC infers η = -(1 + 1)/1 = -2.0 for
+    # the slack bucket as well.
+    model, c = _constraint_penalty_test_model(;
+        slack_encoding = Encoding.OneHot(),
+        policy = Attributes.MOMCPenalty(),
+    )
+    metadata = MOI.get(model, Attributes.PenaltyPolicyMetadata())
+    slack_entry = only(metadata["inferred_penalties"]["slack_variables"])
+
+    @test MOI.get(model, Attributes.SlackVariableEncodingPenalty(), c) == -2.0
+    @test MOI.get(model, Attributes.ConstraintEncodingPenalty(), c) == -2.0
+    @test slack_entry["selected_policy"] == "MOMCPenalty"
+    @test slack_entry["penalty"] == -2.0
+    @test metadata["fallback_count"] == 0
+
+    return nothing
+end
+
+function test_compiler_penalty_heuristic_fractional_gap()
+    # Same fractional model as the default-policy test (ϵ = 0.5 via
+    # pbo_mingap): MaxCoefficient's bound is the single objective coefficient
+    # λ = 1, so ρ = (λ + 1)/ϵ = 4.0 — locking the (λ + β)/ϵ composition on
+    # the non-integer penalty path.
+    model, c = _fractional_gap_penalty_test_model(;
+        policy = Attributes.MaxCoefficientPenalty(),
+    )
+    metadata = MOI.get(model, Attributes.PenaltyPolicyMetadata())
+    inferred = only(metadata["inferred_penalties"]["constraints"])
+
+    @test MOI.get(model, Attributes.ConstraintEncodingPenalty(), c) == 4.0
+    @test inferred["epsilon"] == 0.5
+    @test inferred["epsilon_source"] == "pbo_mingap"
+    @test inferred["selected_policy"] == "MaxCoefficientPenalty"
+    @test metadata["fallback_count"] == 0
+
+    return nothing
+end
+
 function test_compiler_penalties()
     @testset "Penalty inference" begin
         test_compiler_penalty_default_policy()
@@ -351,6 +658,12 @@ function test_compiler_penalties()
         test_compiler_penalty_scale_and_offset()
         test_compiler_applied_penalty_metadata()
         test_compiler_slack_variable_encoding_penalty_is_constraint_keyed()
+        test_compiler_penalty_heuristic_policies()
+        test_compiler_penalty_per_constraint_heuristics()
+        test_compiler_penalty_heuristic_fallbacks()
+        test_compiler_penalty_heuristic_quadratic_objective()
+        test_compiler_penalty_heuristic_slack_bucket()
+        test_compiler_penalty_heuristic_fractional_gap()
     end
 
     return nothing

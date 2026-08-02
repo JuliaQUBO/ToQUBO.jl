@@ -172,6 +172,103 @@ be certified.
 """
 struct LegacyPenalty <: AutomaticPenaltyPolicy end
 
+@doc raw"""
+    UBPositivePenalty()
+
+Upper-bound heuristic for objectives with nonnegative coefficients (UB,
+Ayodele 2022, Eq. 12): the penalty magnitude is the sum of every non-constant
+objective coefficient, i.e. the non-constant contribution to the objective
+value at the all-ones point (a constant offset does not affect the bound,
+matching Eq. 12's QUBO-matrix formulation). If any
+non-constant coefficient is negative the bound is invalid and ToQUBO falls
+back to [`LegacyPenalty`](@ref) for that coefficient, recording the reason in
+reformulation metadata.
+
+Applied as ``\rho = s \sigma (\lambda + \beta) / \epsilon`` like every
+automatic policy, where ``s`` is the penalty scale, ``\sigma`` the sense sign,
+``\beta`` the penalty offset, and ``\epsilon`` the penalty function's positive
+gap.
+
+Reference: M. Ayodele, *Penalty Weights in QUBO Formulations: Permutation
+Problems* (EvoCOP 2022), [arXiv:2206.11040](https://arxiv.org/abs/2206.11040).
+"""
+struct UBPositivePenalty <: AutomaticPenaltyPolicy end
+
+@doc raw"""
+    MaxCoefficientPenalty()
+
+Maximum QUBO coefficient heuristic (MQC, Ayodele 2022, Eq. 13; after Lucas
+2014): the penalty magnitude is the largest non-constant objective
+coefficient. Falls back to [`LegacyPenalty`](@ref) when the objective has no
+non-constant term or its maximum coefficient is not strictly positive.
+
+References: M. Ayodele, [arXiv:2206.11040](https://arxiv.org/abs/2206.11040);
+A. Lucas, *Ising formulations of many NP problems*, Front. Phys. 2:5 (2014).
+"""
+struct MaxCoefficientPenalty <: AutomaticPenaltyPolicy end
+
+@doc raw"""
+    VLMPenalty()
+
+Verma–Lewis method (VLM, Verma & Lewis 2022; Ayodele 2022, Eqs. 14–15): the
+penalty magnitude is the largest possible one-flip change of the objective,
+``\lambda = \max_i \max(W^+_i, W^-_i)``, where for each variable ``i``
+
+```math
+W^+_i = c_{\{i\}} + \sum_{T \ni i,\, |T| \ge 2} \max(c_T, 0), \qquad
+W^-_i = -c_{\{i\}} - \sum_{T \ni i,\, |T| \ge 2} \min(c_T, 0),
+```
+
+with each monomial of the compiled pseudo-Boolean objective credited to every
+variable it contains (the degree-``\ge 2`` generalization of the quadratic
+row-sum form). Falls back to [`LegacyPenalty`](@ref) when the bound is not
+finite and strictly positive.
+
+References: A. Verma and M. Lewis, *Penalty and partitioning techniques to
+improve performance of QUBO solvers*, Discrete Optimization 44 (2022),
+[doi:10.1016/j.disopt.2020.100594](https://doi.org/10.1016/j.disopt.2020.100594);
+M. Ayodele, [arXiv:2206.11040](https://arxiv.org/abs/2206.11040).
+"""
+struct VLMPenalty <: AutomaticPenaltyPolicy end
+
+@doc raw"""
+    MOMCPenalty()
+
+Maximum change in objective over minimum change in constraint (MOMC, Ayodele
+2022, Eqs. 16–18), computed **per penalty function**: with ``\lambda_{VLM}``
+the [`VLMPenalty`](@ref) bound of the objective and ``\gamma`` the smallest
+*strictly positive* one-flip change of this coefficient's penalty function,
+the penalty magnitude is ``\lambda = \max(1, \lambda_{VLM} / \gamma)``. Falls
+back to [`LegacyPenalty`](@ref) when the objective bound is not finite and
+positive or the penalty function has no positive one-flip change.
+
+Unlike the aggregated single-matrix form of the reference, ToQUBO computes one
+coefficient per constraint, variable-encoding, and slack-encoding penalty
+function.
+
+Reference: M. Ayodele, [arXiv:2206.11040](https://arxiv.org/abs/2206.11040).
+"""
+struct MOMCPenalty <: AutomaticPenaltyPolicy end
+
+@doc raw"""
+    MOCPenalty()
+
+Maximum objective-to-constraint ratio (MOC, Ayodele 2022, Eq. 19), computed
+**per penalty function**: pairing the one-flip changes of the objective
+(``W^{c,\pm}_i``) with those of this coefficient's penalty function
+(``W^{g,\pm}_i``) per variable and flip direction, the penalty magnitude is
+
+```math
+\lambda = \max\left(1, \max_{i,\, W^{g}_i > 0} \left| W^{c}_i / W^{g}_i \right| \right).
+```
+
+Falls back to [`LegacyPenalty`](@ref) when the penalty function has no
+strictly positive one-flip change or the objective bound is not finite.
+
+Reference: M. Ayodele, [arXiv:2206.11040](https://arxiv.org/abs/2206.11040).
+"""
+struct MOCPenalty <: AutomaticPenaltyPolicy end
+
 function MOIU.map_indices(::Function, policy::AutomaticPenaltyPolicy)
     return policy
 end
