@@ -119,7 +119,77 @@ function variables!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
 end
 
 function variable_𝔹!(model::Virtual.Model{T}, i::Union{VI,CI}) where {T}
+    _reject_value_set!(model, i, "binary")
+
     return Encoding.encode!(model, i, Encoding.Mirror{T}())
+end
+
+function _reject_value_set!(model::Virtual.Model, i::Union{VI,CI}, kind::String)
+    if i isa VI && !isnothing(Attributes.variable_encoding_set(model, i))
+        compilation_error!(
+            model,
+            "Value sets are not supported for $(kind) variables; found one on variable '$(i)'";
+            status = "Value set on $(kind) variable",
+        )
+    end
+
+    return nothing
+end
+
+# Encodes a variable over an explicit finite value set through a set encoding
+# method (one-hot, domain-wall). The set replaces the bounds-derived domain;
+# explicit bounds, when present, must contain every entry.
+function variable_set!(
+    model::Virtual.Model{T},
+    vi::VI,
+    γ::Vector{T},
+    (a, b)::Tuple{A,B};
+    integer::Bool,
+) where {T,A<:Union{T,Nothing},B<:Union{T,Nothing}}
+    e = Attributes.variable_encoding_method(model, vi)
+
+    if !(e isa Encoding.SetVariableEncodingMethod)
+        compilation_error!(
+            model,
+            "Variable encoding method '$(nameof(typeof(e)))' does not support value sets; " *
+            "choose a set encoding such as 'Encoding.OneHot' or 'Encoding.DomainWall' " *
+            "for variable '$(vi)'";
+            status = "Value set requires a set encoding method",
+        )
+    elseif isempty(γ)
+        compilation_error!(
+            model,
+            "Value set for variable '$(vi)' is empty";
+            status = "Empty value set",
+        )
+    elseif !all(isfinite, γ)
+        compilation_error!(
+            model,
+            "Value set for variable '$(vi)' contains non-finite entries";
+            status = "Non-finite value set",
+        )
+    elseif !allunique(γ)
+        compilation_error!(
+            model,
+            "Value set for variable '$(vi)' contains duplicate entries";
+            status = "Duplicate value set entries",
+        )
+    elseif integer && !all(isinteger, γ)
+        compilation_error!(
+            model,
+            "Value set for integer variable '$(vi)' must contain only integer values";
+            status = "Non-integer value set entries",
+        )
+    elseif (!isnothing(a) && any(v -> v < a, γ)) || (!isnothing(b) && any(v -> v > b, γ))
+        compilation_error!(
+            model,
+            "Value set for variable '$(vi)' has entries outside its declared bounds " *
+            "[$(isnothing(a) ? "-∞" : a), $(isnothing(b) ? "+∞" : b)]";
+            status = "Value set outside variable bounds",
+        )
+    end
+
+    return Encoding.encode!(model, vi, e, γ)
 end
 
 function _sos1_variable_counts(model::Virtual.Model{T}) where {T}
@@ -199,6 +269,13 @@ function _sos1_domain_wall_variables!(
             xi -> xi in binary_variables && !haskey(model.source, xi) && counts[xi] == 1,
             x.variables,
         )
+            # This fast path encodes binary variables before the per-variable
+            # loop, so it must apply the same value-set rejection the loop
+            # would reach through `variable_𝔹!`.
+            for xi in x.variables
+                _reject_value_set!(model, xi, "binary")
+            end
+
             _encode_sos1_domain_wall!(model, ci, x.variables)
         end
     end
@@ -211,6 +288,8 @@ function variable_semiinteger!(
     vi::VI,
     S::Tuple{T,T},
 ) where {T}
+    _reject_value_set!(model, vi, "semi-integer")
+
     e = Attributes.variable_encoding_method(model, vi)
 
     MOI.set(model, Attributes.Quadratize(), true)
@@ -223,6 +302,8 @@ function variable_semicontinuous!(
     vi::VI,
     S::Tuple{T,T},
 ) where {T}
+    _reject_value_set!(model, vi, "semi-continuous")
+
     e = Attributes.variable_encoding_method(model, vi)
     n = Attributes.variable_encoding_bits(model, vi)
 
@@ -238,6 +319,12 @@ function variable_semicontinuous!(
 end
 
 function variable_ℤ!(model::Virtual.Model{T}, vi::VI, (a, b)::Tuple{A,B}) where {T,A<:Union{T,Nothing},B<:Union{T,Nothing}}
+    let γ = Attributes.variable_encoding_set(model, vi)
+        if !isnothing(γ)
+            return variable_set!(model, vi, γ, (a, b); integer = true)
+        end
+    end
+
     if !isnothing(a) && !isnothing(b)
         let e = Attributes.variable_encoding_method(model, vi)
             S = (a, b)
@@ -266,6 +353,12 @@ function variable_ℤ!(model::Virtual.Model{T}, ci::CI, (a, b)::Tuple{T,T}) wher
 end
 
 function variable_ℝ!(model::Virtual.Model{T}, vi::VI, (a, b)::Tuple{A,B}) where {T,A<:Union{T,Nothing},B<:Union{T,Nothing}}
+    let γ = Attributes.variable_encoding_set(model, vi)
+        if !isnothing(γ)
+            return variable_set!(model, vi, γ, (a, b); integer = false)
+        end
+    end
+
     if !isnothing(a) && !isnothing(b)
         # Tolerance-based bit inference is documented in the Representation
         # Error section of the encoding booklet.

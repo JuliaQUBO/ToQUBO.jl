@@ -1263,6 +1263,78 @@ function variable_encoding_bits(model::Optimizer, vi::VI)::Union{Integer,Nothing
 end
 
 @doc raw"""
+    VariableEncodingSet()
+
+Explicit finite value set for a variable, e.g. `[-1.0, 1.0, 3.0]` or a
+non-uniformly spaced grid such as `[0.1, 1.0, 10.0, 100.0]`. The variable is
+encoded over the set instead of the bounds-derived domain: every
+encoding-feasible target state decodes to a set member, while samples that
+violate the set encoding's penalty can decode outside the set — inspect
+sample feasibility or the penalty value when consuming raw sample sets.
+
+Requires the variable's [`VariableEncodingMethod`](@ref) to be a set encoding
+(`Encoding.OneHot` or `Encoding.DomainWall`); interval encodings such as
+`Encoding.Binary`, `Encoding.Unary`, `Encoding.Arithmetic`, and
+`Encoding.Bounded` reject value sets at compile time. Integer variables
+require integer-valued entries, and every entry must respect the variable's
+explicit bounds when such bounds are present. Bounds are otherwise optional:
+the set itself defines the domain.
+
+```julia
+set_attribute(x, ToQUBO.Attributes.VariableEncodingMethod(), ToQUBO.Encoding.OneHot())
+set_attribute(x, ToQUBO.Attributes.VariableEncodingSet(), [-1.0, 1.0, 3.0])
+```
+"""
+struct VariableEncodingSet <: CompilerVariableAttribute end
+
+_attribute_from_key(::Val{:variable_encoding_set}) = VariableEncodingSet
+
+function MOI.get(
+    model::Optimizer{T},
+    ::VariableEncodingSet,
+    vi::VI,
+)::Union{Vector{T},Nothing} where {T}
+    attr = :variable_encoding_set
+
+    if haskey(model.variable_settings, attr)
+        return get(model.variable_settings[attr], vi, nothing)
+    else
+        return nothing
+    end
+end
+
+function MOI.set(
+    model::Optimizer{T},
+    ::VariableEncodingSet,
+    vi::VI,
+    γ::AbstractVector,
+) where {T}
+    attr = :variable_encoding_set
+
+    if !haskey(model.variable_settings, attr)
+        model.variable_settings[attr] = Dict{VI,Any}()
+    end
+
+    model.variable_settings[attr][vi] = Vector{T}(γ)
+
+    return nothing
+end
+
+function MOI.set(model::Optimizer, ::VariableEncodingSet, vi::VI, ::Nothing)
+    attr = :variable_encoding_set
+
+    if haskey(model.variable_settings, attr)
+        delete!(model.variable_settings[attr], vi)
+    end
+
+    return nothing
+end
+
+function variable_encoding_set(model::Optimizer{T}, vi::VI)::Union{Vector{T},Nothing} where {T}
+    return MOI.get(model, VariableEncodingSet(), vi)
+end
+
+@doc raw"""
     VariableEncodingMethod()
 
 Available methods are:
