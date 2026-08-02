@@ -299,6 +299,10 @@ performed is queryable afterwards:
 get_attribute(model, Attributes.PenaltyUpdateCount())
 ```
 
+Each iteration fully recompiles the model;
+[`ToQUBO.Attributes.CompilationTime`](@ref) reports the **last** recompile
+only, so total refinement overhead scales with the iteration count.
+
 Escalation grows the QUBO's coefficient range, which physical samplers resolve
 with limited precision. For bounded coefficients, configure constraints with
 [`ToQUBO.Attributes.AugmentedLagrangianPenalty`](@ref) and select

@@ -171,6 +171,28 @@ function test_refinement_attributes()
     return nothing
 end
 
+function test_refinement_slack_escalation()
+    # Scale escalation also drives the constraint's slack-encoding penalty:
+    # with a one-hot slack, the final slack coefficient is the inferred
+    # η = 1.0·σ·(range + offset)/ϵ = -7.0 after the scale reaches 1.0,
+    # a hundredfold escalation from the initial 0.01-scaled value.
+    model, x, c = _refinement_scaled_model(:max; updates = 5)
+
+    set_attribute(c, Attributes.SlackVariableEncodingMethod(), Encoding.OneHot())
+
+    optimize!(model)
+
+    backend = JuMP.unsafe_backend(model)
+
+    @test MOI.get(backend, Attributes.PenaltyUpdateCount()) == 2
+    @test primal_status(model) === MOI.FEASIBLE_POINT
+    @test MOI.get(backend, Attributes.ConstraintPenaltyScale(), JuMP.index(c)) ≈ 1.0
+    @test MOI.get(backend, Attributes.SlackVariableEncodingPenalty(), JuMP.index(c)) ≈
+          -7.0
+
+    return nothing
+end
+
 function test_refinement_smaller_factor()
     # A smaller factor needs more iterations: violation wins while
     # 6 - 7·scale > 3, i.e. scale < 3/7, so doubling from 0.01 first crosses
@@ -447,6 +469,7 @@ function test_refinement()
         test_refinement_default_off()
         test_refinement_already_feasible()
         test_refinement_budget_exhaustion()
+        test_refinement_slack_escalation()
         test_refinement_smaller_factor()
         test_refinement_subgradient_validations()
         test_refinement_subgradient_inequality()
