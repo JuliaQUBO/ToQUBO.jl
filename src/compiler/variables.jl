@@ -269,6 +269,13 @@ function _sos1_domain_wall_variables!(
             xi -> xi in binary_variables && !haskey(model.source, xi) && counts[xi] == 1,
             x.variables,
         )
+            # This fast path encodes binary variables before the per-variable
+            # loop, so it must apply the same value-set rejection the loop
+            # would reach through `variable_𝔹!`.
+            for xi in x.variables
+                _reject_value_set!(model, xi, "binary")
+            end
+
             _encode_sos1_domain_wall!(model, ci, x.variables)
         end
     end

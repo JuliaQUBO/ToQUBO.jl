@@ -222,6 +222,32 @@ function test_compiler_variables_value_set_errors()
     return nothing
 end
 
+function test_compiler_variables_value_set_sos1_rejected()
+    # The SOS1 domain-wall fast path runs before the per-variable loop and
+    # must not bypass the binary-variable value-set rejection.
+    model = ToQUBO.Virtual.Model{Float64}()
+    arch = ToQUBO.Compiler.GenericArchitecture()
+    x = [MOI.add_variable(model.source_model) for _ = 1:2]
+
+    for xi in x
+        MOI.add_constraint(model.source_model, xi, MOI.ZeroOne())
+    end
+
+    MOI.add_constraint(
+        model.source_model,
+        MOI.VectorOfVariables(x),
+        MOI.SOS1{Float64}([1.0, 2.0]),
+    )
+    MOI.set(model, Attributes.VariableEncodingSet(), x[1], [-1.0, 3.0])
+
+    @test_throws ToQUBO.Compiler.CompilationError ToQUBO.Compiler.variables!(
+        model,
+        arch,
+    )
+
+    return nothing
+end
+
 function test_compiler_variables_value_set_solve()
     model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
 
@@ -266,6 +292,7 @@ function test_compiler_variables()
         test_compiler_variables_value_set_continuous()
         test_compiler_variables_value_set_continuous_domain_wall()
         test_compiler_variables_value_set_errors()
+        test_compiler_variables_value_set_sos1_rejected()
         test_compiler_variables_value_set_solve()
     end
 

@@ -1267,8 +1267,10 @@ end
 
 Explicit finite value set for a variable, e.g. `[-1.0, 1.0, 3.0]` or a
 non-uniformly spaced grid such as `[0.1, 1.0, 10.0, 100.0]`. The variable is
-encoded so that it can only assume values from the set, replacing the
-bounds-derived domain.
+encoded over the set instead of the bounds-derived domain: every
+encoding-feasible target state decodes to a set member, while samples that
+violate the set encoding's penalty can decode outside the set — inspect
+sample feasibility or the penalty value when consuming raw sample sets.
 
 Requires the variable's [`VariableEncodingMethod`](@ref) to be a set encoding
 (`Encoding.OneHot` or `Encoding.DomainWall`); interval encodings such as

@@ -289,8 +289,11 @@ require integer-valued entries. Interval encoding methods (`Encoding.Binary`,
 `Encoding.Unary`, `Encoding.Arithmetic`, `Encoding.Bounded`) reject value sets
 with a compilation error — choose a set encoding for the variable instead.
 For continuous variables, pass the exact grid you want (for example
-`exp10.(range(-1, 2; length = 4))` for logarithmic spacing); decoded solutions
-always land on a grid point.
+`exp10.(range(-1, 2; length = 4))` for logarithmic spacing). Encoding-feasible
+decoded states always land on a grid point; samples that violate the set
+encoding's penalty (for example, an all-zero or multi-hot one-hot state) can
+decode off-grid, so inspect sample feasibility or the penalty value as usual
+when working with raw sample sets.
 
 ```@docs
 ToQUBO.Attributes.VariableEncodingSet
