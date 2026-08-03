@@ -269,8 +269,59 @@ Reference: M. Ayodele, [arXiv:2206.11040](https://arxiv.org/abs/2206.11040).
 """
 struct MOCPenalty <: AutomaticPenaltyPolicy end
 
+@doc raw"""
+    PenaltyUpdate
+
+Abstract type for iterative penalty-update strategies used by the
+penalty-refinement loop enabled through [`MaxPenaltyUpdates`](@ref).
+"""
+abstract type PenaltyUpdate end
+
+@doc raw"""
+    MultiplicativeUpdate(factor::Real = 10.0)
+
+Multiplicative penalty escalation (the strategy of MQT QAO,
+arXiv:2406.12840): after each solve, every source constraint violated by the
+best sample has its penalty coefficient magnitude multiplied by `factor`.
+Hinted constraints have their [`ConstraintEncodingPenaltyHint`](@ref)
+multiplied directly (preserving its sign); automatically inferred constraints
+have their [`ConstraintPenaltyScale`](@ref) multiplied, which also escalates
+the constraint's slack-encoding penalty. `factor` must be finite and greater
+than one.
+
+Escalation raises the QUBO's coefficient range, which real samplers resolve
+with limited precision; for a bounded-coefficient alternative see the
+subgradient (augmented-Lagrangian) strategy tracked in ToQUBO#233.
+"""
+struct MultiplicativeUpdate <: PenaltyUpdate
+    factor::Float64
+
+    function MultiplicativeUpdate(factor::Real = 10.0)
+        # Validate the stored value: a finite `Real` can overflow to `Inf`
+        # when converted (e.g. `big"1e400"`), which would feed a non-finite
+        # coefficient into compilation.
+        f = Float64(factor)
+
+        isfinite(f) && f > 1 ||
+            throw(ArgumentError("Penalty update factor must be finite and greater than one"))
+
+        return new(f)
+    end
+end
+
 function MOIU.map_indices(::Function, policy::AutomaticPenaltyPolicy)
     return policy
+end
+
+function MOIU.map_indices(::Function, strategy::PenaltyUpdate)
+    return strategy
+end
+
+function MOIU.map_indices(
+    ::AbstractDict{T,T},
+    strategy::PenaltyUpdate,
+) where {T<:Union{MOI.VariableIndex,MOI.ConstraintIndex}}
+    return strategy
 end
 
 function MOIU.map_indices(
@@ -435,6 +486,94 @@ end
 
 function warnings(model::Optimizer)::Bool
     return MOI.get(model, Warnings())
+end
+
+@doc raw"""
+    MaxPenaltyUpdates()
+
+Maximum number of penalty-refinement iterations performed inside a single
+`MOI.optimize!` call. When greater than zero, after each solve the best
+sample is checked against the source constraints; while any is violated and
+the budget is not exhausted, penalties are updated according to
+[`PenaltyUpdateStrategy`](@ref), the model is recompiled, and the sampler is
+invoked again.
+
+Defaults to `0`, which disables refinement and preserves single-solve
+behavior exactly.
+"""
+struct MaxPenaltyUpdates <: CompilerAttribute end
+
+_attribute_from_key(::Val{:max_penalty_updates}) = MaxPenaltyUpdates
+
+function MOI.get(model::Optimizer, ::MaxPenaltyUpdates)::Int
+    return get(model.compiler_settings, :max_penalty_updates, 0)
+end
+
+function MOI.set(model::Optimizer, ::MaxPenaltyUpdates, n::Integer)
+    n >= 0 || throw(ArgumentError("Maximum number of penalty updates must be nonnegative"))
+
+    model.compiler_settings[:max_penalty_updates] = Int(n)
+
+    return nothing
+end
+
+function MOI.set(model::Optimizer, ::MaxPenaltyUpdates, ::Nothing)
+    delete!(model.compiler_settings, :max_penalty_updates)
+
+    return nothing
+end
+
+function max_penalty_updates(model::Optimizer)::Int
+    return MOI.get(model, MaxPenaltyUpdates())
+end
+
+@doc raw"""
+    PenaltyUpdateStrategy()
+
+The [`PenaltyUpdate`](@ref) strategy applied by the penalty-refinement loop
+(see [`MaxPenaltyUpdates`](@ref)). Defaults to [`MultiplicativeUpdate`](@ref)`()`.
+"""
+struct PenaltyUpdateStrategy <: CompilerAttribute end
+
+_attribute_from_key(::Val{:penalty_update_strategy}) = PenaltyUpdateStrategy
+
+function MOI.get(model::Optimizer, ::PenaltyUpdateStrategy)::PenaltyUpdate
+    return get(model.compiler_settings, :penalty_update_strategy, MultiplicativeUpdate())
+end
+
+function MOI.set(model::Optimizer, ::PenaltyUpdateStrategy, strategy::PenaltyUpdate)
+    model.compiler_settings[:penalty_update_strategy] = strategy
+
+    return nothing
+end
+
+function MOI.set(model::Optimizer, ::PenaltyUpdateStrategy, ::Nothing)
+    delete!(model.compiler_settings, :penalty_update_strategy)
+
+    return nothing
+end
+
+function penalty_update_strategy(model::Optimizer)::PenaltyUpdate
+    return MOI.get(model, PenaltyUpdateStrategy())
+end
+
+@doc raw"""
+    PenaltyUpdateCount()
+
+Number of penalty-refinement iterations performed by the last
+`MOI.optimize!` call, or `nothing` before any solve. Zero means the loop was
+disabled, the first solve was already feasible, or no result was available.
+"""
+struct PenaltyUpdateCount <: CompilerAttribute end
+
+MOI.is_set_by_optimize(::PenaltyUpdateCount) = true
+
+function MOI.get(model::Optimizer, ::PenaltyUpdateCount)::Union{Int,Nothing}
+    return get(model.compiler_settings, :penalty_update_count, nothing)
+end
+
+function penalty_update_count(model::Optimizer)::Union{Int,Nothing}
+    return MOI.get(model, PenaltyUpdateCount())
 end
 
 @doc raw"""
