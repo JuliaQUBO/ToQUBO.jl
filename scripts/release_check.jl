@@ -78,6 +78,16 @@ function preferred_citation_title(citation::String)
     return result === nothing ? nothing : only(result.captures)
 end
 
+function bibtex_entry(bib::AbstractString, entry_type::AbstractString)
+    result = match(Regex("(?ms)^@$(entry_type)\\{.*?^\\}"), bib)
+    return result === nothing ? nothing : result.match
+end
+
+function bibtex_field(entry::AbstractString, field::AbstractString)
+    result = match(Regex("(?m)^\\s*$(field)\\s*=\\s*\\{(.*)\\},?\\s*\$"), entry)
+    return result === nothing ? nothing : strip(only(result.captures))
+end
+
 function bibtex_block(section::AbstractString)
     result = match(r"(?ms)```bibtex\s*\n(.*?)\n```", section)
     return result === nothing ? nothing : strip(only(result.captures))
@@ -195,10 +205,31 @@ function main()
         article_title !== nothing && occursin(article_title, citation_bib),
         "CITATION.bib must spell the article title exactly as CITATION.cff preferred-citation does.",
     )
+
+    article_entry = bibtex_entry(citation_bib, "article")
+    software_entry = bibtex_entry(citation_bib, "software")
+
+    for (entry, label, doi) in (
+        (article_entry, "@article", article_doi),
+        (software_entry, "@software", version_doi),
+    )
+        check!(
+            failures,
+            entry !== nothing && doi !== nothing && bibtex_field(entry, "doi") == doi,
+            "The CITATION.bib $label entry must set doi = {$doi}.",
+        )
+        check!(
+            failures,
+            entry !== nothing && doi !== nothing &&
+                bibtex_field(entry, "url") == "https://doi.org/$doi",
+            "The CITATION.bib $label entry must set url = {https://doi.org/$doi}.",
+        )
+    end
+
     check!(
         failures,
-        occursin(article_doi, citation_bib),
-        "CITATION.bib must cite the published QUBO.jl article DOI $article_doi.",
+        software_entry !== nothing && occursin(concept_doi, software_entry),
+        "The CITATION.bib @software entry must name the evergreen concept DOI $concept_doi.",
     )
 
     citation_start = "<!-- citation-policy:start -->"
