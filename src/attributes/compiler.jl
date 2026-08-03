@@ -96,6 +96,55 @@ function UnbalancedPenalty(linear::Real = 1.0, quadratic::Real = 0.5)
     return UnbalancedPenalty{typeof(λ₁)}(λ₁, λ₂)
 end
 
+@doc raw"""
+    AugmentedLagrangianPenalty(multiplier::Real = 0.0, rho::Real = 1.0)
+
+Composite penalty ``\lambda \ell + \rho \ell^2`` over the constraint residual
+``\ell``, the augmented-Lagrangian (method-of-multipliers) shape. Supports
+equality and inequality constraints; inequalities are handled slack-free with
+the linear term oriented against the infeasible direction, i.e. *iterated
+unbalanced penalization* (the exact one-sided Rockafellar term is not
+expressible in a QUBO without slacks). `multiplier` (``\lambda``) may take any
+finite value — it is the dual estimate the subgradient refinement strategy
+updates, starting from zero — while `rho` (``\rho``) must be finite and
+strictly positive.
+
+Unlike [`UnbalancedPenalty`](@ref), constraints using this method need no
+[`ConstraintEncodingPenaltyHint`](@ref): the compiler applies the
+sense sign directly and the coefficients live in the method itself.
+
+Both coefficients are converted to the model's coefficient type when the
+penalty is built, so a method built from wider numbers (for example
+`BigFloat`) works on a `Float64` model; a value that is not representable as
+a finite (and, for `rho`, positive) coefficient raises a compilation error
+rather than becoming `Inf` or `0`.
+
+References: M. R. Hestenes (1969); M. J. D. Powell (1969); D. P. Bertsekas,
+*Constrained Optimization and Lagrange Multiplier Methods* (1982);
+K. Yonaga, M. J. Miyama, M. Ohzeki,
+[arXiv:2012.06119](https://arxiv.org/abs/2012.06119).
+"""
+struct AugmentedLagrangianPenalty{T<:Real} <: ConstraintPenaltyMethod
+    multiplier::T
+    rho::T
+
+    function AugmentedLagrangianPenalty{T}(multiplier::T, rho::T) where {T<:Real}
+        if !isfinite(multiplier)
+            throw(ArgumentError("multiplier must be finite"))
+        elseif !(isfinite(rho) && rho > zero(T))
+            throw(ArgumentError("rho must be finite and positive"))
+        end
+
+        return new{T}(multiplier, rho)
+    end
+end
+
+function AugmentedLagrangianPenalty(multiplier::Real = 0.0, rho::Real = 1.0)
+    λ, ρ = promote(multiplier, rho)
+
+    return AugmentedLagrangianPenalty{typeof(λ)}(λ, ρ)
+end
+
 function MOIU.map_indices(::Function, method::ConstraintPenaltyMethod)
     return method
 end
@@ -290,8 +339,8 @@ the constraint's slack-encoding penalty. `factor` must be finite and greater
 than one.
 
 Escalation raises the QUBO's coefficient range, which real samplers resolve
-with limited precision; for a bounded-coefficient alternative see the
-subgradient (augmented-Lagrangian) strategy tracked in ToQUBO#233.
+with limited precision; for a bounded-coefficient alternative see
+[`SubgradientUpdate`](@ref).
 """
 struct MultiplicativeUpdate <: PenaltyUpdate
     factor::Float64
@@ -306,6 +355,56 @@ struct MultiplicativeUpdate <: PenaltyUpdate
             throw(ArgumentError("Penalty update factor must be finite and greater than one"))
 
         return new(f)
+    end
+end
+
+@doc raw"""
+    SubgradientUpdate(; step = nothing, patience = 3, escalation_factor = 10.0)
+
+Method-of-multipliers penalty refinement for constraints using
+[`AugmentedLagrangianPenalty`](@ref). After each solve, every such
+constraint's multiplier is updated from the best sample's **signed** residual
+``r``: equalities take ``\lambda \gets \lambda + \eta r``, inequalities the
+one-sided ``\lambda \gets \max(0, \lambda + \eta r)`` (``r > 0`` when
+violated). The step ``\eta`` defaults to the constraint's own ``\rho``, the
+classical choice. Multiplier updates converge with **bounded** ``\rho``
+(Bertsekas 1982), keeping the QUBO's coefficient range stable across
+iterations — the advantage over [`MultiplicativeUpdate`](@ref) on samplers
+with limited coefficient precision.
+
+Safeguard: violated constraints' ``\rho`` is escalated by
+`escalation_factor` only after `patience` consecutive iterations without a
+decrease in the violation norm, then the counter resets. This adapts the
+classical escalate-only-when-progress-stalls rule (Bertsekas; Conn–Gould–
+Toint's BCL) to sampled binary problems, whose violation norms are quantized
+and typically sit unchanged until a constraint flips feasible — a ratio test
+on consecutive norms would misfire there on every iteration. Constraints not
+using `AugmentedLagrangianPenalty`, and constraint sets other than scalar
+`EqualTo`/`LessThan`/`GreaterThan`, are left untouched by this strategy.
+"""
+struct SubgradientUpdate <: PenaltyUpdate
+    step::Union{Float64,Nothing}
+    patience::Int
+    escalation_factor::Float64
+
+    function SubgradientUpdate(;
+        step::Union{Real,Nothing} = nothing,
+        patience::Integer = 3,
+        escalation_factor::Real = 10.0,
+    )
+        # Validate the stored values: a finite `Real` can overflow to `Inf`
+        # or underflow to `0.0` when narrowed to `Float64`, which would make
+        # refinement error mid-loop or silently stop updating.
+        η = isnothing(step) ? nothing : Float64(step)
+        τ = Float64(escalation_factor)
+
+        isnothing(η) || (isfinite(η) && η > 0) ||
+            throw(ArgumentError("step must be finite and positive"))
+        patience >= 1 || throw(ArgumentError("patience must be at least one"))
+        isfinite(τ) && τ > 1 ||
+            throw(ArgumentError("escalation factor must be finite and greater than one"))
+
+        return new(η, Int(patience), τ)
     end
 end
 

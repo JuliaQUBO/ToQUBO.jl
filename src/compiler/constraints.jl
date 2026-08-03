@@ -34,6 +34,11 @@ function _is_unbalanced_penalty(model::Virtual.Model, ci::CI)::Bool
     return Attributes.constraint_encoding_method(model, ci) isa Attributes.UnbalancedPenalty
 end
 
+function _is_augmented_lagrangian(model::Virtual.Model, ci::CI)::Bool
+    return Attributes.constraint_encoding_method(model, ci) isa
+           Attributes.AugmentedLagrangianPenalty
+end
+
 function _is_nonnegative(g::PBO.PBF{VI,T})::Bool where {T}
     l, _ = PBO.bounds(g)
 
@@ -46,11 +51,44 @@ function _is_nonpositive(g::PBO.PBF{VI,T})::Bool where {T}
     return u <= zero(T)
 end
 
+# Coefficients carried by a constraint encoding method are converted to the
+# model's coefficient type before entering the pseudo-Boolean function: a
+# method parameterized on a wider type (for example `BigFloat` coefficients on
+# a `Float64` model) would otherwise build a malformed PBF. The conversion can
+# overflow or underflow, so the converted value is validated here.
+function _method_coefficient(
+    model::Virtual.Model{T},
+    ci::CI,
+    value,
+    name::AbstractString;
+    positive::Bool = false,
+) where {T}
+    c = convert(T, value)
+
+    if !isfinite(c) || (positive && !(c > zero(T)))
+        compilation_error!(
+            model,
+            "The $(name) coefficient of constraint '$(ci)' is not representable as a " *
+            "finite $(positive ? "positive " : "")$(T) value; got $(value)";
+            status = "Non-representable penalty coefficient",
+        )
+    end
+
+    return c
+end
+
 function _equality_penalty(model::Virtual.Model, ci::CI, g::PBO.PBF)
     method = Attributes.constraint_encoding_method(model, ci)
 
     if method isa Attributes.UnbalancedPenalty
         compilation_error("UnbalancedPenalty only supports inequality constraints")
+    elseif method isa Attributes.AugmentedLagrangianPenalty
+        # λ·ℓ + ρ·ℓ² — the multiplier term is signed, matching the signed
+        # equality residual the subgradient update measures.
+        λ = _method_coefficient(model, ci, method.multiplier, "multiplier")
+        ρ = _method_coefficient(model, ci, method.rho, "rho"; positive = true)
+
+        return λ * g + ρ * g^2
     elseif method isa Attributes.QuadraticPenalty && !_is_nonnegative(g)
         return g^2
     else
@@ -58,16 +96,38 @@ function _equality_penalty(model::Virtual.Model, ci::CI, g::PBO.PBF)
     end
 end
 
+function _augmented_lagrangian_penalty(model::Virtual.Model, ci::CI, g::PBO.PBF, ::LT)
+    method =
+        Attributes.constraint_encoding_method(model, ci)::Attributes.AugmentedLagrangianPenalty
+    λ = _method_coefficient(model, ci, method.multiplier, "multiplier")
+    ρ = _method_coefficient(model, ci, method.rho, "rho"; positive = true)
+
+    return λ * g + ρ * g^2
+end
+
+function _augmented_lagrangian_penalty(model::Virtual.Model, ci::CI, g::PBO.PBF, ::GT)
+    method =
+        Attributes.constraint_encoding_method(model, ci)::Attributes.AugmentedLagrangianPenalty
+    λ = _method_coefficient(model, ci, method.multiplier, "multiplier")
+    ρ = _method_coefficient(model, ci, method.rho, "rho"; positive = true)
+
+    return -λ * g + ρ * g^2
+end
+
 function _unbalanced_penalty(model::Virtual.Model, ci::CI, g::PBO.PBF, ::LT)
     method = Attributes.constraint_encoding_method(model, ci)::Attributes.UnbalancedPenalty
+    λ₁ = _method_coefficient(model, ci, method.linear, "linear"; positive = true)
+    λ₂ = _method_coefficient(model, ci, method.quadratic, "quadratic"; positive = true)
 
-    return method.linear * g + method.quadratic * g^2
+    return λ₁ * g + λ₂ * g^2
 end
 
 function _unbalanced_penalty(model::Virtual.Model, ci::CI, g::PBO.PBF, ::GT)
     method = Attributes.constraint_encoding_method(model, ci)::Attributes.UnbalancedPenalty
+    λ₁ = _method_coefficient(model, ci, method.linear, "linear"; positive = true)
+    λ₂ = _method_coefficient(model, ci, method.quadratic, "quadratic"; positive = true)
 
-    return -method.linear * g + method.quadratic * g^2
+    return -λ₁ * g + λ₂ * g^2
 end
 
 function _combine_penalties(lhs, rhs)
@@ -315,6 +375,10 @@ function constraint(
         return _unbalanced_penalty(model, ci, g, s)
     end
 
+    if _is_augmented_lagrangian(model, ci)
+        return _augmented_lagrangian_penalty(model, ci, g, s)
+    end
+
     if _is_nonnegative(g)
         return g
     end
@@ -433,6 +497,10 @@ function constraint(
 
     if _is_unbalanced_penalty(model, ci)
         return _unbalanced_penalty(model, ci, g, s)
+    end
+
+    if _is_augmented_lagrangian(model, ci)
+        return _augmented_lagrangian_penalty(model, ci, g, s)
     end
 
     if _is_nonpositive(g)

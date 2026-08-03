@@ -7,6 +7,11 @@ function _uses_unbalanced_penalty(model::Virtual.Model, ci::CI)::Bool
     return Attributes.constraint_encoding_method(model, ci) isa Attributes.UnbalancedPenalty
 end
 
+function _uses_augmented_lagrangian(model::Virtual.Model, ci::CI)::Bool
+    return Attributes.constraint_encoding_method(model, ci) isa
+           Attributes.AugmentedLagrangianPenalty
+end
+
 function _legacy_penalty_factor(sign, δ, ϵ, scale, offset)
     return scale * sign * (δ / ϵ + offset)
 end
@@ -398,7 +403,26 @@ function penalties!(model::Virtual.Model{T}, ::AbstractArchitecture) where {T}
         ρ = Attributes.constraint_encoding_penalty_hint(model, ci)
 
         if isnothing(ρ)
-            if _uses_linear_equality_penalty(model, ci)
+            if _uses_augmented_lagrangian(model, ci)
+                # The augmented-Lagrangian coefficients (λ, ρ) live inside the
+                # method and are already baked into the penalty function; the
+                # applied coefficient carries only the sense sign. Record the
+                # constraint so the metadata inventory stays complete.
+                MOI.set(model, Attributes.ConstraintEncodingPenalty(), ci, T(σ))
+
+                push!(
+                    context["inferred_penalties"]["constraints"],
+                    Dict{String,Any}(
+                        "kind" => "constraint",
+                        "id" => ci.value,
+                        "penalty" => T(σ),
+                        "automatic_policy" => context["policy"],
+                        "selected_policy" => "AugmentedLagrangianPenalty",
+                    ),
+                )
+
+                continue
+            elseif _uses_linear_equality_penalty(model, ci)
                 compilation_error!(
                     model,
                     "LinearPenalty requires an explicit ConstraintEncodingPenaltyHint";
