@@ -113,6 +113,12 @@ Unlike [`UnbalancedPenalty`](@ref), constraints using this method need no
 [`ConstraintEncodingPenaltyHint`](@ref): the compiler applies the
 sense sign directly and the coefficients live in the method itself.
 
+Both coefficients are converted to the model's coefficient type when the
+penalty is built, so a method built from wider numbers (for example
+`BigFloat`) works on a `Float64` model; a value that is not representable as
+a finite (and, for `rho`, positive) coefficient raises a compilation error
+rather than becoming `Inf` or `0`.
+
 References: M. R. Hestenes (1969); M. J. D. Powell (1969); D. P. Bertsekas,
 *Constrained Optimization and Lagrange Multiplier Methods* (1982);
 K. Yonaga, M. J. Miyama, M. Ohzeki,

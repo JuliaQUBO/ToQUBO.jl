@@ -94,6 +94,25 @@ function test_unbalanced_penalty()
             @test _issue_207_value(penalty, target, (1, 1)) == 1.5
         end
 
+        @testset "wider coefficient types convert to the model's" begin
+            # A BigFloat-parameterized method on a Float64 model previously
+            # built a malformed PBF; it now converts and matches the defaults.
+            set = MOI.LessThan{Float64}(1.0)
+            model, arch, x, f, ci = _issue_207_affine_constraint(set)
+            MOI.set(
+                model,
+                Attributes.ConstraintEncodingMethod(),
+                ci,
+                Attributes.UnbalancedPenalty(big"1.0", big"0.5"),
+            )
+            penalty = ToQUBO.Compiler.constraint(model, ci, f, set, arch)
+            target = [_target_var(model, xi) for xi in x]
+
+            @test _issue_207_value(penalty, target, (0, 0)) == -0.5
+            @test _issue_207_value(penalty, target, (1, 0)) == 0.0
+            @test _issue_207_value(penalty, target, (1, 1)) == 1.5
+        end
+
         @testset "greater-than and interval orientation" begin
             set = MOI.GreaterThan{Float64}(1.0)
             model, arch, x, f, ci = _issue_207_affine_constraint(set)

@@ -538,6 +538,46 @@ function test_refinement_subgradient_unreachable_violation_break()
     return nothing
 end
 
+function test_refinement_al_coefficient_conversion()
+    function solve_with(method)
+        model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
+
+        @variable(model, x[1:2], Bin)
+        @objective(model, Max, 3x[1] + 2x[2])
+        c = @constraint(model, x[1] + x[2] <= 1)
+
+        set_attribute(c, Attributes.ConstraintEncodingMethod(), method)
+        optimize!(model)
+
+        return objective_value(model)
+    end
+
+    # A method parameterized on a wider type than the model's coefficients
+    # (BigFloat method, Float64 model) converts instead of building a
+    # malformed pseudo-Boolean function, and matches the Float64 method.
+    @test solve_with(Attributes.AugmentedLagrangianPenalty(big"0.5", big"1.0")) ≈
+          solve_with(Attributes.AugmentedLagrangianPenalty(0.5, 1.0))
+
+    # Values that cannot be represented in the model's numeric type are
+    # rejected instead of silently becoming `Inf` or `0.0`.
+    for method in (
+        Attributes.AugmentedLagrangianPenalty(big"1e400", big"1.0"),
+        Attributes.AugmentedLagrangianPenalty(big"0.0", big"1e-400"),
+    )
+        model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
+
+        @variable(model, x[1:2], Bin)
+        @objective(model, Max, 3x[1] + 2x[2])
+        c = @constraint(model, x[1] + x[2] <= 1)
+
+        set_attribute(c, Attributes.ConstraintEncodingMethod(), method)
+
+        @test_throws ToQUBO.Compiler.CompilationError optimize!(model)
+    end
+
+    return nothing
+end
+
 function test_refinement_subgradient_multiplier_decrease()
     # White-box: a satisfied inequality (negative residual) shrinks the
     # multiplier toward zero and floors at zero.
@@ -642,6 +682,7 @@ function test_refinement()
         test_refinement_subgradient_requires_al()
         test_refinement_subgradient_unreachable_violation_break()
         test_refinement_al_compiles_without_hint()
+        test_refinement_al_coefficient_conversion()
         test_refinement_subgradient_multiplier_decrease()
     end
 
