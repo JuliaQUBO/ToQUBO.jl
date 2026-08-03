@@ -297,10 +297,15 @@ struct MultiplicativeUpdate <: PenaltyUpdate
     factor::Float64
 
     function MultiplicativeUpdate(factor::Real = 10.0)
-        isfinite(factor) && factor > 1 ||
+        # Validate the stored value: a finite `Real` can overflow to `Inf`
+        # when converted (e.g. `big"1e400"`), which would feed a non-finite
+        # coefficient into compilation.
+        f = Float64(factor)
+
+        isfinite(f) && f > 1 ||
             throw(ArgumentError("Penalty update factor must be finite and greater than one"))
 
-        return new(Float64(factor))
+        return new(f)
     end
 end
 
