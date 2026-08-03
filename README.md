@@ -23,8 +23,8 @@
     <a href="https://JuliaQUBO.github.io/ToQUBO.jl/dev">
         <img src="https://img.shields.io/badge/docs-dev-blue.svg" alt="Docs">
     </a>
-    <a href="https://zenodo.org/badge/latestdoi/430697061">
-        <img src="https://zenodo.org/badge/430697061.svg" alt="DOI">
+    <a href="https://doi.org/10.5281/zenodo.21763525">
+        <img src="https://zenodo.org/badge/DOI/10.5281/zenodo.21763525.svg" alt="ToQUBO.jl Zenodo DOI">
     </a>
 </div>
 
@@ -158,19 +158,53 @@ Engineering*, vol. 53, pp. 3433-3438. Elsevier, 2024.
 If you think this list is incomplete, consider creating an [Issue](https://github.com/JuliaQUBO/ToQUBO.jl/issues) or opening a [Pull Request](https://github.com/JuliaQUBO/ToQUBO.jl/pulls).
 
 ## Citing ToQUBO.jl
-If you use `ToQUBO.jl` in your work, we kindly ask you to include the following citation:
-```tex
-@software{toqubo:2023,
-  author       = {Pedro Maciel Xavier and Pedro Ripper and Tiago Andrade and Joaquim Dias Garcia and David E. Bernal Neira},
+<!-- citation-policy:start -->
+For general use of `ToQUBO.jl` and the broader `QUBO.jl` ecosystem, cite the
+[published journal article](https://doi.org/10.1080/10556788.2026.2702926). The
+earlier [arXiv preprint](https://arxiv.org/abs/2307.02577) remains available,
+but the journal article is the version of record.
+
+For a software citation, use the
+[Zenodo concept DOI](https://doi.org/10.5281/zenodo.21763525). The concept DOI
+is the evergreen identifier for the actively maintained archive and is the DOI
+recorded in `CITATION.cff`. When reproducibility requires an exact release,
+cite the matching version DOI instead; the archive for `v0.6.1` is
+[10.5281/zenodo.21763526](https://doi.org/10.5281/zenodo.21763526).
+
+The BibTeX entries below pin that exact release. Replace the `@software` entry's
+`doi` and `url` with the concept DOI when an evergreen software citation is
+preferred:
+
+```bibtex
+@article{xavier2026qubojl,
+  author       = {Maciel Xavier, Pedro and Ripper, Pedro and Andrade, Tiago and Dias Garcia, Joaquim and Maculan, Nelson and Bernal Neira, David E.},
+  title        = {{QUBO.jl: a Julia ecosystem for quadratic unconstrained binary optimization}},
+  journal      = {Optimization Methods and Software},
+  year         = {2026},
+  pages        = {1--24},
+  doi          = {10.1080/10556788.2026.2702926},
+  url          = {https://doi.org/10.1080/10556788.2026.2702926}
+}
+
+@software{toqubo:2026,
+  author       = {Maciel Xavier, Pedro and Ripper, Pedro and Andrade, Tiago and Dias Garcia, Joaquim and Bernal Neira, David E.},
   title        = {{ToQUBO.jl}},
-  month        = {feb},
-  year         = {2023},
+  year         = {2026},
   publisher    = {Zenodo},
-  version      = {v0.1.5},
-  doi          = {10.5281/zenodo.7644291},
-  url          = {https://doi.org/10.5281/zenodo.7644291}
+  version      = {v0.6.1},
+  doi          = {10.5281/zenodo.21763526},
+  url          = {https://doi.org/10.5281/zenodo.21763526},
+  note         = {Evergreen concept DOI: 10.5281/zenodo.21763525}
 }
 ```
+
+The [historical concept DOI](https://doi.org/10.5281/zenodo.6387591) covers
+releases through `v0.1.6` and remains part of the project's provenance; it is
+not the identifier for current releases. Machine-readable metadata is in
+[`CITATION.cff`](https://github.com/JuliaQUBO/ToQUBO.jl/blob/main/CITATION.cff),
+with BibTeX in
+[`CITATION.bib`](https://github.com/JuliaQUBO/ToQUBO.jl/blob/main/CITATION.bib).
+<!-- citation-policy:end -->
 
 ---
 

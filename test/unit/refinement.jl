@@ -1,3 +1,66 @@
+# Probe sampler for the `ResultCount == 0` stop condition: returns a
+# constraint-violating all-ones sample for the first `nonempty` calls and an
+# empty sample set afterwards, counting invocations so the loop's solve count
+# can be asserted exactly.
+module RefinementProbeSampler
+
+import QUBOTools
+import QUBODrivers
+import QUBODrivers: MOI, Sample, SampleSet
+
+const CALLS = Ref(0)
+const NONEMPTY = Ref(0)
+
+QUBODrivers.@setup Optimizer begin
+    name    = "Refinement Probe Sampler"
+    version = v"1.0.0"
+end
+
+function reset!(; nonempty::Integer)
+    CALLS[] = 0
+    NONEMPTY[] = nonempty
+
+    return nothing
+end
+
+function QUBODrivers.sample(sampler::Optimizer{T}) where {T}
+    CALLS[] += 1
+
+    n, L, Q, α, β = QUBOTools.qubo(sampler, :dict; sense = :min)
+
+    samples = if CALLS[] <= NONEMPTY[]
+        ψ = ones(Int, n)
+
+        [Sample{T}(ψ, QUBOTools.value(ψ, L, Q, α, β))]
+    else
+        Sample{T,Int}[]
+    end
+
+    return SampleSet{T}(
+        samples,
+        Dict{String,Any}("origin" => "Refinement Probe Sampler");
+        sense  = :min,
+        domain = :bool,
+    )
+end
+
+end
+
+function _refinement_probe_model(; nonempty)
+    RefinementProbeSampler.reset!(; nonempty)
+
+    model = Model(() -> ToQUBO.Optimizer(RefinementProbeSampler.Optimizer))
+
+    @variable(model, x[1:2], Bin)
+    @objective(model, Max, 3x[1] + 3x[2])
+    c = @constraint(model, x[1] + x[2] <= 1)
+
+    set_attribute(c, Attributes.ConstraintEncodingPenaltyHint(), -0.1)
+    set_attribute(model, Attributes.MaxPenaltyUpdates(), 5)
+
+    return model, c
+end
+
 # Under-penalized fixture from the feasibility tests: with the weak hint the
 # best sample sets both variables and violates the capacity constraint.
 function _refinement_hinted_model(; updates = nothing)
@@ -164,9 +227,51 @@ function test_refinement_attributes()
         @test_throws ArgumentError Attributes.MultiplicativeUpdate(1.0)
         @test_throws ArgumentError Attributes.MultiplicativeUpdate(Inf)
 
+        # A finite `Real` that overflows `Float64` storage must be rejected
+        # by the converted value, not accepted as an infinite factor.
+        @test_throws ArgumentError Attributes.MultiplicativeUpdate(big"1e400")
+        @test Attributes.MultiplicativeUpdate(big"2.5").factor == 2.5
+
         @test MOI.get(model, Attributes.PenaltyUpdateCount()) === nothing
         @test MOI.is_set_by_optimize(Attributes.PenaltyUpdateCount())
     end
+
+    return nothing
+end
+
+function test_refinement_zero_result_stop()
+    # An empty result set on the first solve stops the loop at its
+    # `ResultCount == 0` guard: no measurement, no update, no re-solve.
+    model, c = _refinement_probe_model(; nonempty = 0)
+
+    optimize!(model)
+
+    backend = JuMP.unsafe_backend(model)
+
+    @test result_count(model) == 0
+    @test MOI.get(backend, Attributes.PenaltyUpdateCount()) == 0
+    @test RefinementProbeSampler.CALLS[] == 1
+    @test MOI.get(backend, Attributes.ConstraintEncodingPenaltyHint(), JuMP.index(c)) ≈
+          -0.1
+
+    return nothing
+end
+
+function test_refinement_zero_result_mid_loop_stop()
+    # The first solve violates the constraint (one update fires), the second
+    # returns no results: the loop stops mid-flight instead of exhausting its
+    # budget, and the escalated hint reflects exactly one update.
+    model, c = _refinement_probe_model(; nonempty = 1)
+
+    optimize!(model)
+
+    backend = JuMP.unsafe_backend(model)
+
+    @test result_count(model) == 0
+    @test MOI.get(backend, Attributes.PenaltyUpdateCount()) == 1
+    @test RefinementProbeSampler.CALLS[] == 2
+    @test MOI.get(backend, Attributes.ConstraintEncodingPenaltyHint(), JuMP.index(c)) ≈
+          -1.0
 
     return nothing
 end
@@ -507,6 +612,8 @@ function test_refinement()
         test_refinement_default_off()
         test_refinement_already_feasible()
         test_refinement_budget_exhaustion()
+        test_refinement_zero_result_stop()
+        test_refinement_zero_result_mid_loop_stop()
         test_refinement_slack_escalation()
         test_refinement_smaller_factor()
         test_refinement_subgradient_validations()
