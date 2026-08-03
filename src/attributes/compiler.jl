@@ -386,17 +386,19 @@ struct SubgradientUpdate <: PenaltyUpdate
         patience::Integer = 3,
         escalation_factor::Real = 10.0,
     )
-        isnothing(step) || (isfinite(step) && step > 0) ||
+        # Validate the stored values: a finite `Real` can overflow to `Inf`
+        # or underflow to `0.0` when narrowed to `Float64`, which would make
+        # refinement error mid-loop or silently stop updating.
+        η = isnothing(step) ? nothing : Float64(step)
+        τ = Float64(escalation_factor)
+
+        isnothing(η) || (isfinite(η) && η > 0) ||
             throw(ArgumentError("step must be finite and positive"))
         patience >= 1 || throw(ArgumentError("patience must be at least one"))
-        isfinite(escalation_factor) && escalation_factor > 1 ||
+        isfinite(τ) && τ > 1 ||
             throw(ArgumentError("escalation factor must be finite and greater than one"))
 
-        return new(
-            isnothing(step) ? nothing : Float64(step),
-            Int(patience),
-            Float64(escalation_factor),
-        )
+        return new(η, Int(patience), τ)
     end
 end
 

@@ -137,7 +137,8 @@ makedocs(;
             "Getting Started"   => "manual/1-start.md",
             "Running a Model"   => "manual/2-model.md",
             "Gathering Results" => "manual/3-results.md",
-            "Compiler Settings" => "manual/4-settings.md"
+            "Compiler Settings" => "manual/4-settings.md",
+            "Penalty Refinement" => "manual/5-refinement.md"
         ],
         "Examples" => "examples.md",
         hide("examples/knapsack.md"),

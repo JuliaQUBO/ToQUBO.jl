@@ -592,6 +592,25 @@ function test_refinement_subgradient_validations()
     @test_throws ArgumentError Attributes.SubgradientUpdate(; patience = 0)
     @test_throws ArgumentError Attributes.SubgradientUpdate(; escalation_factor = 1.0)
 
+    # Finite `Real` inputs that overflow or underflow `Float64` storage must
+    # be rejected by the converted value, not stored as `Inf`/`0.0`.
+    @test_throws ArgumentError Attributes.SubgradientUpdate(; step = big"1e400")
+    @test_throws ArgumentError Attributes.SubgradientUpdate(; step = big"1e-400")
+    @test_throws ArgumentError Attributes.SubgradientUpdate(;
+        escalation_factor = big"1e400",
+    )
+
+    # Values that convert cleanly are still accepted and stored exactly.
+    let strategy = Attributes.SubgradientUpdate(;
+            step = big"0.25",
+            escalation_factor = big"2.5",
+        )
+        @test strategy.step == 0.25
+        @test strategy.escalation_factor == 2.5
+    end
+
+    @test isnothing(Attributes.SubgradientUpdate().step)
+
     @test_throws ArgumentError Attributes.AugmentedLagrangianPenalty(0.0, 0.0)
     @test_throws ArgumentError Attributes.AugmentedLagrangianPenalty(0.0, -1.0)
     @test_throws ArgumentError Attributes.AugmentedLagrangianPenalty(NaN, 1.0)
