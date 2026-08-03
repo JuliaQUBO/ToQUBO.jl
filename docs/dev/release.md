@@ -87,13 +87,14 @@ DOI `10.5281/zenodo.6387591` covers releases through `v0.1.6`; preserve it as
 predecessor provenance, but do not publish new releases under it.
 
 Archiving is manual, so the legacy GitHub-Zenodo integration must stay switched
-off for this repository. The repository still carries the `release` webhook that
-integration installed. If the corresponding Zenodo-side toggle is ever
-re-enabled, tagging a release auto-deposits a new version under the historical
-concept DOI and the package ends up with two live concept records. Before
-tagging, confirm the repository is off in the Zenodo GitHub settings, and after
-publishing confirm that `10.5281/zenodo.6387591` still resolves to the `v0.1.6`
-record rather than the new release.
+off for this repository. Its `release` webhook was removed on 2026-08-03; GitHub
+had recorded no deliveries from it, and no automatic deposit was ever made for
+`v0.6.1`. Toggling the repository back on in Zenodo's GitHub settings recreates
+that webhook, and tagging a release would then auto-deposit a new version under
+the historical concept DOI, leaving the package with two live concept records.
+Before tagging, confirm the repository is still off in the Zenodo GitHub
+settings, and after publishing confirm that `10.5281/zenodo.6387591` still
+resolves to the `v0.1.6` record rather than the new release.
 
 After publishing:
 
