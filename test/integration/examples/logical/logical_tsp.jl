@@ -93,6 +93,9 @@ function test_logical_tsp()
             [0 1 0 0; 1 0 0 0; 0 0 0 1; 0 0 1 0],
             [0 0 1 0; 0 1 0 0; 1 0 0 0; 0 0 0 1],
         ])
+        # Each rotation also has an optimal tour in the reverse direction.
+        union!(x̄, [reverse(tour; dims = 2) for tour in x̄])
+        @test length(x̄) == 8
         ȳ = 10
 
         # Model

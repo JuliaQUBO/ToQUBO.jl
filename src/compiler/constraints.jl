@@ -1,3 +1,27 @@
+# Normalize an integral constraint residual by its exact positive coefficient GCD,
+# preserving its zeros and sign independently of term iteration order. Use
+# arbitrary-precision integers for the GCD so large integral floating-point
+# coefficients cannot overflow a machine integer. Fractional residuals retain
+# PBO's approximate discretization.
+function _discretize!(g::PBO.PBF{VI,T}) where {T}
+    if !_is_integer_valued(g)
+        return PBO.discretize!(g)
+    end
+
+    divisor = BigInt(0)
+
+    for coefficient in values(g)
+        divisor = gcd(divisor, BigInt(coefficient))
+    end
+
+    if !iszero(divisor)
+        scale = T(divisor)
+        map!(coefficient -> coefficient / scale, g)
+    end
+
+    return g
+end
+
 function constraints!(model::Virtual.Model, arch::AbstractArchitecture)
     for (F, S) in MOI.get(model, MOI.ListOfConstraintTypesPresent())
         constraints!(model, F, S, arch)
@@ -277,7 +301,7 @@ function constraint(
     g = _parse(model, f, s, arch)
 
     if Attributes.discretize(model)
-        PBO.discretize!(g)
+        _discretize!(g)
     end
 
     # Bounds & Slack Variable 
@@ -350,7 +374,7 @@ function constraint(
     g = _parse(model, f, s, arch)
 
     if Attributes.discretize(model)
-        PBO.discretize!(g)
+        _discretize!(g)
     end
 
     # Bounds & Slack Variable 
@@ -474,7 +498,7 @@ function constraint(
     g = _parse(model, f, s, arch)
 
     if Attributes.discretize(model)
-        PBO.discretize!(g)
+        _discretize!(g)
     end
 
     # Bounds & Slack Variable 
@@ -571,7 +595,7 @@ function constraint(
     g = _parse(model, f, s, arch)
 
     if Attributes.discretize(model)
-        PBO.discretize!(g)
+        _discretize!(g)
     end
 
     # Bounds & Slack Variable 
@@ -656,7 +680,7 @@ function constraint(
     g = _parse(model, f, s, arch)
 
     if Attributes.discretize(model)
-        PBO.discretize!(g)
+        _discretize!(g)
     end
 
     # Bounds & Slack Variable 
@@ -778,7 +802,7 @@ function constraint(
     g = _parse(model, f, s, arch)
 
     if Attributes.discretize(model)
-        PBO.discretize!(g)
+        _discretize!(g)
     end
 
     # Bounds & Slack Variable 
