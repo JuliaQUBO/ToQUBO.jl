@@ -336,9 +336,11 @@ expose their encoding and expansion terms.
 The [`ToQUBO.Attributes.Discretize`](@ref) setting determines which slack path
 is relevant:
 
-- `Discretize(true)` is the default. The compiler discretizes each constraint
-  residual and generates an integer slack, so those generated slacks do not
-  introduce the continuous-grid floor described below.
+- `Discretize(true)` is the default. Integer-valued constraint residuals are
+  divided by their exact positive coefficient GCD, preserving feasibility
+  independently of term ordering. Noninteger residuals use approximate
+  discretization. The compiler generates integer slacks on this path, so those
+  slacks do not introduce the continuous-grid floor described below.
 - `Discretize(false)` preserves noninteger residual coefficients and generates
   a continuous slack. Its finite binary encoding may not contain the exact
   value needed to cancel a feasible residual.
