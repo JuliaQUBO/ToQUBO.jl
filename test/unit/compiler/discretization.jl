@@ -70,4 +70,3 @@ function test_compiler_integer_discretization()
 
     return nothing
 end
-
