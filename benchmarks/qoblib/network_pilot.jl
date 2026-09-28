@@ -648,7 +648,7 @@ function _scaling_diagnostics(target::AbstractDict, penalty_diagnostics::Abstrac
         "largest_penalty_times_expanded_residual_coefficient_squared" =>
             penalty_diagnostics["largest_expanded_residual_scale"],
         "assessment" =>
-            "The source transcription and incumbent checks pass. QOBLIB's network05 QS metrics are reproduced by Qiskit's default converter with a uniform penalty of 1000001.0. ToQUBO's objective-range exact-penalty policy now infers the same uniform applied penalty for all network constraints. The remaining coefficient gap is driven by residual expansion and encoding differences, with arc-linking dominating after the 1000000 source coefficient is expanded into the QUBO.",
+            "The source transcription and incumbent checks pass. With exact integer residual normalization, ToQUBO's objective-range exact-penalty policy uses the same uniform penalty of 1000001.0 as Qiskit's default converter. The variable count, density, and QOBLIB-style symmetric coefficient extrema match the pinned network05 QS metrics. Native upper-triangular coefficient extrema use a different matrix convention.",
     )
 end
 
@@ -707,7 +707,7 @@ function _comparison(target)
         "target_variable_delta_vs_qoblib_qs" =>
             target["num_variables"] - QOBLIB_QUBO_METRICS["num_variables"],
         "target_variable_delta_note" =>
-            "ToQUBO generates 21 more binary variables than the pinned QOBLIB QS metrics row. Reformulation metadata attributes 20 bits to the explicit bounded integer max-load variable z and reports one additional auxiliary variable under ToQUBO's current constraint encodings.",
+            "Exact integer residual normalization removes order-dependent scaling. ToQUBO matches the pinned QOBLIB QS variable count, including 20 bits for the explicit bounded integer max-load variable z and 2000 auxiliary bits for the 100 slack variables.",
         "density_delta_vs_qoblib_qs" =>
             target["density"] - QOBLIB_QUBO_METRICS["density"],
         "min_coeff_delta_vs_qoblib_qs" =>
@@ -771,7 +771,7 @@ function run_network_pilot()
         "known_incumbent" => _known_incumbent_summary(),
         "comparison" => _comparison(target),
         "follow_up" =>
-            "The objective-range exact-penalty policy tightens ToQUBO's applied network penalties from many family-dependent values up to about 5.23e14 down to the Qiskit/QOBLib-compatible uniform value 1000001.0. The source transcription and incumbent feasibility checks pass, and the local QOBLIB converter reproduces the pinned QS metrics row. The remaining coefficient-range gap is no longer caused by oversized applied penalties; it should be interpreted alongside ToQUBO's variable/slack encodings, residual expansion coefficients, and the target-variable delta before expanding the network benchmark class.",
+            "Exact integer residual normalization removes the spurious coefficient scaling and extra slack bits caused by an order-dependent approximate GCD. Combined with the objective-range exact-penalty policy, the generated variable count, density, and symmetric coefficient extrema match the pinned network05 QS metrics. The source transcription and incumbent feasibility checks pass. The pinned QOBLIB tree does not include the QS artifact, so metrics agreement does not establish coefficient-by-coefficient equivalence; retain that distinction when expanding the network benchmark class.",
     )
 end
 

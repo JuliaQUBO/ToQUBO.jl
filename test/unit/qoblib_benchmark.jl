@@ -314,18 +314,18 @@ function test_qoblib_benchmark_pilot()
         @test source["qoblib_metrics"]["density"] == 0.03351104341203351
 
         target = report["toqubo"]["target"]
-        @test target["num_variables"] == 3661
-        @test target["num_terms"] == 350272
-        @test target["num_quadratic_terms"] == 346611
-        @test isapprox(target["density"], 0.05225373626178544; rtol = 1e-14)
-        @test isapprox(target["min_coeff"], -1.418426307690889e24; rtol = 1e-14)
-        @test isapprox(target["max_coeff"], 1.821469821468e24; rtol = 1e-14)
-        @test isapprox(target["objective_offset"], 6.113365033359323e20; rtol = 1e-14)
+        @test target["num_variables"] == 3640
+        @test target["num_terms"] == 349290
+        @test target["num_quadratic_terms"] == 345650
+        @test isapprox(target["density"], 0.05271012974940467; rtol = 1e-14)
+        @test isapprox(target["min_coeff"], -9.51426951426e17; rtol = 1e-14)
+        @test isapprox(target["max_coeff"], 4.988217335092347e18; rtol = 1e-14)
+        @test isapprox(target["objective_offset"], 1.211601215600004e16; rtol = 1e-14)
 
         metadata = report["toqubo"]["metadata"]
         @test metadata["source_variable_count"] == 101
         @test metadata["target_variable_count"] == target["num_variables"]
-        @test metadata["auxiliary_variable_count"] == 2021
+        @test metadata["auxiliary_variable_count"] == 2000
         @test metadata["slack_variable_count"] == 100
         @test metadata["constraint_penalty_count"] == 130
         @test metadata["constraint_penalties"] == [1_000_001.0]
@@ -383,12 +383,12 @@ function test_qoblib_benchmark_pilot()
         )
         @test isapprox(
             scaling_diagnostics["qoblib_symmetric_to_canonical_abs_ratio"],
-            402440.34324785223;
+            1.0;
             rtol = 1e-14,
         )
         @test isapprox(
             scaling_diagnostics["qoblib_symmetric_min_to_canonical_min_abs_ratio"],
-            1.4908409999999998e6;
+            1.0;
             rtol = 1e-14,
         )
         @test occursin(
@@ -398,14 +398,14 @@ function test_qoblib_benchmark_pilot()
 
         comparison = report["comparison"]
         @test comparison["canonical_qubo_metrics_available"] === true
-        @test comparison["target_variable_delta_vs_qoblib_qs"] == 21
+        @test comparison["target_variable_delta_vs_qoblib_qs"] == 0
         @test occursin(
             "explicit bounded integer max-load variable z",
             comparison["target_variable_delta_note"],
         )
         @test isapprox(
             comparison["density_delta_vs_qoblib_qs"],
-            -0.0004563934876192291;
+            0.0;
             rtol = 1e-14,
         )
 
@@ -450,7 +450,7 @@ function test_qoblib_benchmark_pilot()
         @test occursin("Largest expanded residual scale family: arc-linking", markdown)
         @test occursin("QOBLIB-style minimum-coefficient absolute ratio", markdown)
         @test occursin("Flow-balance constraints: 20", markdown)
-        @test occursin("remaining coefficient-range gap is no longer caused", markdown)
+        @test occursin("metrics agreement does not establish coefficient-by-coefficient equivalence", markdown)
         @test occursin("QOBLIB solution artifact consistency check: pass", markdown)
         @test markdown == _normalized_file(report_path)
 
