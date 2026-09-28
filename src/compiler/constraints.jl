@@ -1,12 +1,8 @@
-"""
-    _discretize!(g::PBO.PBF)
-
-Normalize an integral constraint residual by its exact positive coefficient GCD,
-preserving its zeros and sign independently of term iteration order. Use
-arbitrary-precision integers for the GCD so large integral floating-point
-coefficients cannot overflow a machine integer. Fractional residuals retain
-PBO's approximate discretization.
-"""
+# Normalize an integral constraint residual by its exact positive coefficient GCD,
+# preserving its zeros and sign independently of term iteration order. Use
+# arbitrary-precision integers for the GCD so large integral floating-point
+# coefficients cannot overflow a machine integer. Fractional residuals retain
+# PBO's approximate discretization.
 function _discretize!(g::PBO.PBF{VI,T}) where {T}
     if !_is_integer_valued(g)
         return PBO.discretize!(g)
