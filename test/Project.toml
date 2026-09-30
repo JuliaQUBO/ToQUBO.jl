@@ -12,7 +12,7 @@ TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [compat]
-DisjunctiveProgramming = "0.5, 0.6"
+DisjunctiveProgramming = "0.5, 0.6, 0.7"
 JuMP = "1"
 LinearAlgebra = "1.10"
 Logging = "1.10"
