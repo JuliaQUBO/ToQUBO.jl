@@ -1,0 +1,23 @@
+name: Validate Dependabot Policy
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    name: Dependabot policy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: '3.x'
+      - run: python -m pip install pyyaml
+      - name: Lint changed workflows with validated queue compatibility
+        run: python .github/scripts/lint_workflows.py --image rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667 .github/workflows/dependabot-automerge.yml .github/workflows/validate-dependabot-automerge.yml .github/workflows/doccleanup.yml .github/workflows/documentation.yml
+      - name: Test publication queue validation
+        run: python -m unittest discover -s .github/tests -p test_lint_workflows.py
+      - name: Test merge gates and publication reconciliation
+        run: python -m unittest discover -s .github/tests -p test_dependabot_automerge.py
