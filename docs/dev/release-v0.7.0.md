@@ -51,7 +51,10 @@ only docs self-compat to 0.7 and introduces no production decomposition dependen
 - Real reserved version DOI: **10.5281/zenodo.23226920** for **v0.7.0**.
 - At this preparation snapshot, the draft is **unpublished**, with no files.
   The inherited v0.6.1 archive was removed from this draft; the published v0.6.1 record was left unchanged.
-- MIT license, creators, package UUID, repository, article DOI and predecessor
+- At this snapshot, the inherited draft/citation metadata said MIT; the actual
+  source `LICENSE` specifies MPL-2.0. This discrepancy was discovered during
+  archival verification and must be corrected in the unpublished draft before
+  publishing (see below). Creators, package UUID, repository, article DOI and predecessor
   concept DOI **10.5281/zenodo.6387591** are preserved.
 - **2026-10-07 is the preparation's planned release date.** If publication occurs
   on another date, synchronize NEWS, CITATION.cff and the draft publication date
@@ -77,6 +80,17 @@ main-push checks pass. Record that exact SHA in the release run and invoke
 Registrator on that commit, rather than the original release-preparation merge.
 If `main` advances again, keep this explicit target or re-audit and record the
 additional changes before choosing a later commit.
+
+## Post-tag license metadata correction
+
+The published `v0.7.0` tag remains pinned to
+`0d2df215272da8e0e3880ca38c6056091d1a2559`. Its source `LICENSE` specifies
+**MPL-2.0**, although its `CITATION.cff` and the inherited Zenodo draft metadata
+said MIT. Correct maintained `CITATION.cff` and draft 23226920 to MPL-2.0;
+disclose the immutable tagged citation discrepancy in the archive description
+and GitHub release notes. This is a metadata correction, not a source relicensing.
+Do not retarget the tag, repeat registration, create another Zenodo version, or
+change the published v0.6.1 archive as part of this correction.
 
 ## Next authorized stages
 

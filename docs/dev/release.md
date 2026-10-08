@@ -78,8 +78,15 @@ gh release view vX.Y.Z
 
 After the GitHub release exists, upload its official source archive to the
 reserved Zenodo version. Confirm the tag, package UUID
-`9a412ddf-83fa-43b6-9748-7843c851aa65`, MIT license, creators, repository URL,
+`9a412ddf-83fa-43b6-9748-7843c851aa65`, MPL-2.0 source license, creators, repository URL,
 and release relationship before publishing the deposit.
+
+Use the tagged `LICENSE` as the source-license authority. The v0.7.0 tag's
+`CITATION.cff` incorrectly says MIT; its source `LICENSE` specifies MPL-2.0.
+Archive v0.7.0 under MPL-2.0 and disclose that citation-metadata discrepancy
+in the record and release notes. Correct maintained citation metadata without
+changing the source license, retargeting the published tag, or creating a second
+archive version.
 
 The concept DOI is the evergreen software identifier. The DOI assigned to the
 new Zenodo version identifies only that exact archive. The historical concept

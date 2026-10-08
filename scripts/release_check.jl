@@ -156,6 +156,7 @@ function main()
     end
 
     citation = read(project_file("CITATION.cff"), String)
+    source_license = read(project_file("LICENSE"), String)
     citation_bib = strip(read(project_file("CITATION.bib"), String))
     readme = read(project_file("README.md"), String)
     docs_index = read(project_file("docs", "src", "index.md"), String)
@@ -172,6 +173,12 @@ function main()
         failures,
         quoted_cff_value(citation, "version") == string(version),
         "CITATION.cff version must match Project.toml version $version.",
+    )
+    check!(
+        failures,
+        occursin("The ToQUBO Julia module is licensed under the MPL version 2.0:", source_license) &&
+            occursin(r"(?m)^license:\s*(?:MPL-2\.0|\"MPL-2\.0\")\s*$", citation),
+        "CITATION.cff license must match the MPL-2.0 source LICENSE.",
     )
     check!(
         failures,
