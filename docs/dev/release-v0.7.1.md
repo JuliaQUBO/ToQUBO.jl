@@ -2,7 +2,7 @@
 
 This compatible patch contains the ordinary recompilation fix from [PR #252](https://github.com/JuliaQUBO/ToQUBO.jl/pull/252) and citation/archive license correction from [PR #251](https://github.com/JuliaQUBO/ToQUBO.jl/pull/251). The audited interval is `v0.7.0` (`0d2df215272da8e0e3880ca38c6056091d1a2559`) through main `0f8bd8234cbf188081b5946494abd46a0d34c63a`, followed by this release metadata. No API, default, runtime dependency or compatibility bound changes are introduced. The existing docs self-compat `ToQUBO = "0.7"` stays correct.
 
-Compilation regenerates encodings, slack, quadratization auxiliaries, target coefficients and mappings, and invalidates old child results and feasibility caches. Source data, optimizer settings and persistent/refined penalty attributes survive. Later solves start from refined settings unless the caller explicitly replaces those attributes.
+Compilation regenerates encodings, slack, quadratization auxiliaries, target coefficients and mappings, and invalidates old child results and feasibility caches. Source data, optimizer settings and persistent/refined penalty attributes survive. Within the same ToQUBO backend, later solves start from refined settings unless the caller explicitly replaces those attributes. For a cached JuMP model, read the live refined hint with `MOI.get(JuMP.unsafe_backend(model), ToQUBO.Attributes.ConstraintEncodingPenaltyHint(), JuMP.index(c))`. JuMP's `get_attribute(c, ...)` reads its cached user-set hint; resetting or re-attaching the cached optimizer copies those cached values back to the backend. This existing JuMP cache behavior is unchanged by the patch.
 
 ## Publication
 
@@ -12,7 +12,7 @@ The unpublished [new-version draft 23247522](https://zenodo.org/deposit/23247522
 
 ## Downstream adoption
 
-After normal installation, verify at least four ordinary solves of the unchanged weak-penalty binary/slack fixture without caller resets: three compiled bits each time, complete decoding, source objective 11, compiled objective 10.9 and source `INFEASIBLE_POINT`. Also verify public feasibility/refinement behavior and persistence of refined penalties.
+After normal installation, verify at least four ordinary solves of the unchanged weak-penalty binary/slack fixture without caller resets: three compiled bits each time, complete decoding, source objective 11, compiled objective 10.9 and source `INFEASIBLE_POINT`. Also verify public feasibility/refinement behavior and persistence of refined penalties across ordinary solves on the same backend, using the live MOI readback above. Check explicit reset separately: cached user attributes may be reapplied and refinement may run again.
 
 The next separately scoped QUBODecomposition adoption PR must:
 

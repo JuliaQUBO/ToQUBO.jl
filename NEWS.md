@@ -13,7 +13,7 @@
 ### Maintenance
 
 - Align citation and archive license metadata with the MPL-2.0 source license, and enforce the license match in release preflight. The v0.7.0 tag and its historical metadata remain unchanged.
-- Synchronize the v0.7.1 software citation with reserved version DOI `10.5281/zenodo.23247522` under existing concept DOI `10.5281/zenodo.21763525`. Keep manual archiving and the legacy GitHub-Zenodo integration disabled.
+- Synchronize the v0.7.1 software citation with reserved version DOI `10.5281/zenodo.23247522` under existing concept DOI `10.5281/zenodo.21763525`. Archiving remains manual; the legacy GitHub-Zenodo integration stays disabled.
 
 ### Tests
 
