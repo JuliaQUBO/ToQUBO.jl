@@ -47,15 +47,24 @@ class FakeGitHub:
         self.snapshot = make_snapshot()
         self.writes = []
         self.runs = {"doccleanup.yml": [], "docs.yml": []}
-        self.protection = {"protected": True, "protection": {"required_status_checks": {
-            "strict": True, "contexts": list(automation.PROTECTED_CHECKS),
+        self.protection = {"protected": True, "commit": {"sha": "main-head"},
+                           "protection": {"enabled": True, "required_status_checks": {
+            "contexts": list(automation.PROTECTED_CHECKS),
+            "checks": [{"context": name, "app_id": 15368}
+                       for name in automation.PROTECTED_CHECKS],
+            "enforcement_level": "non_admins",
         }}}
+        self.comparison_status = "ahead"
+        self.comparison_paths = []
         self.reads = 0
         self.move_head_before_merge = False
 
     def api(self, path):
         if path == "branches/main":
             return copy.deepcopy(self.protection)
+        if path.startswith("compare/"):
+            self.comparison_paths.append(path)
+            return {"status": self.comparison_status}
         assert path == "pulls/72", path
         self.reads += 1
         if self.move_head_before_merge and self.reads == 2:
@@ -103,8 +112,8 @@ class MultiplePullsGitHub(FakeGitHub):
         self.fail_merge = set()
 
     def api(self, path):
-        if path == "branches/main":
-            return copy.deepcopy(self.protection)
+        if path == "branches/main" or path.startswith("compare/"):
+            return super().api(path)
         return copy.deepcopy(self.pulls[int(path.split("/")[-1])])
 
     def pages(self, path, key=None):
@@ -130,6 +139,22 @@ class MultiplePullsGitHub(FakeGitHub):
 
 
 class MergeGateTests(unittest.TestCase):
+    def test_actual_branch_summary_merges_without_a_strict_field(self):
+        github = FakeGitHub()
+        self.assertNotIn("strict", github.protection["protection"]["required_status_checks"])
+        self.assertEqual(automation.merge_green_pulls(github), [])
+        self.assertEqual(github.writes, [("merge", "verified-head")])
+
+    def test_main_must_be_an_ancestor_of_the_verified_head(self):
+        for status in ("ahead", "identical", "behind", "diverged", "unknown", None):
+            with self.subTest(status=status):
+                github = FakeGitHub()
+                github.comparison_status = status
+                self.assertEqual(automation.merge_green_pulls(github), [])
+                expected = [("merge", "verified-head")] if status in {"ahead", "identical"} else []
+                self.assertEqual(github.writes, expected)
+                self.assertEqual(github.comparison_paths, ["compare/main-head...verified-head"])
+
     def test_green_bot_merges_exact_head(self):
         github = FakeGitHub()
         automation.merge_green_pulls(github)
@@ -344,12 +369,16 @@ class WorkflowTests(unittest.TestCase):
                 self.assertNotIn("--force", json.dumps(workflow))
 
     def test_missing_or_weakened_branch_protection_blocks_writes(self):
-        for broken in ("unprotected", "non-strict", "missing-check"):
+        for broken in ("unprotected", "disabled", "unenforced", "unknown-enforcement", "missing-check"):
             github = FakeGitHub()
             if broken == "unprotected":
                 github.protection["protected"] = False
-            elif broken == "non-strict":
-                github.protection["protection"]["required_status_checks"]["strict"] = False
+            elif broken == "disabled":
+                github.protection["protection"]["enabled"] = False
+            elif broken in {"unenforced", "unknown-enforcement"}:
+                github.protection["protection"]["required_status_checks"]["enforcement_level"] = (
+                    "off" if broken == "unenforced" else None
+                )
             else:
                 github.protection["protection"]["required_status_checks"]["contexts"] = []
             errors = automation.merge_green_pulls(github)
