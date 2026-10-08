@@ -1,10 +1,23 @@
 # Release Notes
 
-## Unreleased
+## v0.7.1 - 2026-10-08
+
+### Breaking changes
+
+- No breaking changes. Public APIs, defaults and dependency compatibility remain on the 0.7 line.
 
 ### Fixed
 
 - Rebuild generated encodings, slack, auxiliary variables and target coefficients on every compilation, so ordinary repeated solves and changed encoding settings match a fresh compilation. Invalidate prior child results and feasibility caches before recompiling, including when compilation fails, while preserving source data, optimizer settings and penalty attributes updated by refinement.
+
+### Maintenance
+
+- Align citation and archive license metadata with the MPL-2.0 source license, and enforce the license match in release preflight. The v0.7.0 tag and its historical metadata remain unchanged.
+- Synchronize the v0.7.1 software citation with reserved version DOI `10.5281/zenodo.23247522` under existing concept DOI `10.5281/zenodo.21763525`. Keep manual archiving and the legacy GitHub-Zenodo integration disabled.
+
+### Tests
+
+- Cover four ordinary solves without caller resets; fresh-compilation equivalence across changed coefficients, encodings and mappings; invalidated child results and feasibility caches after failed compilation; and persistence of settings updated by refinement.
 
 ## v0.7.0 - 2026-10-08
 

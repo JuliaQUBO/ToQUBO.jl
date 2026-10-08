@@ -168,9 +168,9 @@ For a software citation, use the
 [Zenodo concept DOI](https://doi.org/10.5281/zenodo.21763525). The concept DOI
 is the evergreen identifier for the actively maintained archive and is the DOI
 recorded in `CITATION.cff`. When reproducibility requires an exact release,
-cite the matching version DOI instead. The DOI reserved for `v0.7.0` is
-[10.5281/zenodo.23226920](https://doi.org/10.5281/zenodo.23226920).
-This version DOI resolves once the Zenodo archive of the matching `v0.7.0`
+cite the matching version DOI instead. The DOI reserved for `v0.7.1` is
+[10.5281/zenodo.23247522](https://doi.org/10.5281/zenodo.23247522).
+This version DOI resolves once the Zenodo archive of the matching `v0.7.1`
 GitHub release is published. During release preparation it is reserved but unpublished.
 
 The BibTeX entries below pin that exact release. Replace the `@software` entry's
@@ -193,9 +193,9 @@ preferred:
   title        = {{ToQUBO.jl}},
   year         = {2026},
   publisher    = {Zenodo},
-  version      = {v0.7.0},
-  doi          = {10.5281/zenodo.23226920},
-  url          = {https://doi.org/10.5281/zenodo.23226920},
+  version      = {v0.7.1},
+  doi          = {10.5281/zenodo.23247522},
+  url          = {https://doi.org/10.5281/zenodo.23247522},
   note         = {Evergreen concept DOI: 10.5281/zenodo.21763525}
 }
 ```
