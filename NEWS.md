@@ -1,6 +1,6 @@
 # Release Notes
 
-## v0.7.0 - 2026-10-07
+## v0.7.0 - 2026-10-08
 
 ### Breaking changes
 
@@ -26,7 +26,7 @@
 
 ### Maintenance
 
-- Keep Julia 1.10, QUBOTools 0.16, and PseudoBooleanOptimization 0.2.6/0.3 compatibility. Add explicit Julia 1.10 stdlib bounds for Random and the test environment; allow DisjunctiveProgramming 0.7 in documentation while retaining 0.5/0.6.
+- Keep Julia 1.10, QUBOTools 0.16, and PseudoBooleanOptimization 0.2.6/0.3 compatibility. Add explicit Julia 1.10 stdlib bounds for Random and the test environment; allow DisjunctiveProgramming 0.7 in documentation and tests while retaining 0.5/0.6.
 - Validate citation schema and synchronized release/citation metadata in CI. Update GitHub Actions dependencies, lint workflows, and add guarded Dependabot merge automation and serialized documentation publishing while retaining Julia 1.10/current on Ubuntu and Windows.
 
 ### Tests
