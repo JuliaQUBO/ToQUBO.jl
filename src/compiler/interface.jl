@@ -86,6 +86,11 @@ function quadratize! end
 @doc raw"""
     reset!(model::Virtual.Model, arch::AbstractArchitecture)
 
+Discard generated target variables, mappings, applied penalties, backend caches
+and compilation/feasibility status, and empty the attached child optimizer and
+its results. Preserve the source model and persistent compiler, variable,
+constraint and optimizer settings, including penalties updated by refinement.
+Compilation invokes this reset before rebuilding generated state.
 """
 function reset! end
 
