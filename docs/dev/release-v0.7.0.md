@@ -16,8 +16,14 @@ now report `INFEASIBLE_POINT`. Set `Attributes.PrimalFeasibilityCheck()` to
 This follows the repository's pre-1.0 minor-version precedent for changed defaults
 (v0.5.0) and dependency compatibility (v0.6.0).
 
-The audited source interval is tag `v0.6.1` through main
-`b3129618bd489fea9b6d7c83861ee3f9b4d25f77`. [NEWS.md](../../NEWS.md)
+The initial audited source interval is tag `v0.6.1` through main
+`b3129618bd489fea9b6d7c83861ee3f9b4d25f77`. Before publication, the merged
+release preparation at `a31dbe359294dfb5b4db71423dd384b50e2a94c6` also includes
+[#243](https://github.com/JuliaQUBO/ToQUBO.jl/pull/243), allowing
+DisjunctiveProgramming 0.7 in tests, and
+[#249](https://github.com/JuliaQUBO/ToQUBO.jl/pull/249), correcting the
+Dependabot protection/ancestry guard. Neither changes runtime compiler source.
+[NEWS.md](../../NEWS.md)
 records the complete user-visible delta, including:
 
 - [#228](https://github.com/JuliaQUBO/ToQUBO.jl/pull/228): source-feasibility
@@ -35,7 +41,7 @@ records the complete user-visible delta, including:
 The Julia floor stays **1.10**; QUBOTools **0.16** and
 PseudoBooleanOptimization **0.2.6 or 0.3** remain supported. Explicit stdlib
 bounds do not raise that Julia floor. Documentation accepts
-DisjunctiveProgramming 0.5/0.6/0.7; tests retain 0.5/0.6. The release PR changes
+DisjunctiveProgramming 0.5/0.6/0.7; tests accept the same range. The release PR changes
 only docs self-compat to 0.7 and introduces no production decomposition dependency.
 
 ## Archive reservation snapshot: 2026-10-07 preparation
@@ -58,6 +64,19 @@ The version DOI resolves once its matching archive is published. As of this
 preparation snapshot, no top-level concept, release tag, GitHub release or Zenodo
 publication was created.
 Keep the legacy GitHub-Zenodo integration disabled.
+
+## Registration metadata: 2026-10-08
+
+The release date in NEWS and CITATION.cff is **2026-10-08**, verified in
+America/New_York and synchronized with the existing unpublished Zenodo draft.
+This supersedes the October 7 planned date above. If registration is deferred
+to another date, repeat the reviewed synchronization before registration.
+The registration target is the merge commit of
+[#250](https://github.com/JuliaQUBO/ToQUBO.jl/pull/250) on `main`, after its
+main-push checks pass. Record that exact SHA in the release run and invoke
+Registrator on that commit, rather than the original release-preparation merge.
+If `main` advances again, keep this explicit target or re-audit and record the
+additional changes before choosing a later commit.
 
 ## Next authorized stages
 
