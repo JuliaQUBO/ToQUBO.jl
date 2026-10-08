@@ -24,7 +24,7 @@ abstract: >-
   into quadratic unconstrained binary optimization models.
 repository-code: "https://github.com/JuliaQUBO/ToQUBO.jl"
 url: "https://juliaqubo.github.io/ToQUBO.jl/"
-license: MIT
+license: MPL-2.0
 version: "0.7.0"
 date-released: 2026-10-08
 doi: "10.5281/zenodo.21763525"
