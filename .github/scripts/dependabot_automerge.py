@@ -107,10 +107,18 @@ def merge_green_pull(github, candidate):
         print(f"PR #{number}: head changed or merge gates are not satisfied")
         return
     branch = github.api("branches/main")
-    checks = (branch.get("protection") or {}).get("required_status_checks") or {}
-    if (branch.get("protected") is not True or checks.get("strict") is not True
+    protection = branch.get("protection") or {}
+    checks = protection.get("required_status_checks") or {}
+    if (branch.get("protected") is not True or protection.get("enabled") is not True
+            or checks.get("enforcement_level") not in {"non_admins", "everyone"}
             or not PROTECTED_CHECKS <= set(checks.get("contexts") or [])):
-        raise RuntimeError("main must enforce the documented strict CI checks before automatic merges")
+        raise RuntimeError("main must enforce the documented CI checks before automatic merges")
+    # The public branch summary does not expose strict. Check ancestry directly;
+    # GitHub's existing strict rule still enforces updates atomically at merge time.
+    comparison = github.api(f"compare/{branch['commit']['sha']}...{head}")
+    if comparison.get("status") not in {"ahead", "identical"}:
+        print(f"PR #{number}: update its branch to main and wait for new CI")
+        return
     github.merge(fresh)
     merged = github.api(f"pulls/{number}")
     if not merged["merged"]:
