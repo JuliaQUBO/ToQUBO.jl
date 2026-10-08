@@ -38,21 +38,25 @@ bounds do not raise that Julia floor. Documentation accepts
 DisjunctiveProgramming 0.5/0.6/0.7; tests retain 0.5/0.6. The release PR changes
 only docs self-compat to 0.7 and introduces no production decomposition dependency.
 
-## Unpublished archive reservation
+## Archive reservation snapshot: 2026-10-07 preparation
 
 - Existing successor concept DOI: **10.5281/zenodo.21763525**.
 - New-version draft: [23226920](https://zenodo.org/deposit/23226920).
 - Real reserved version DOI: **10.5281/zenodo.23226920** for **v0.7.0**.
-- Draft remains **unpublished**, with no files. The inherited v0.6.1 archive was
-  removed from this draft; the published v0.6.1 record was left unchanged.
+- At this preparation snapshot, the draft is **unpublished**, with no files.
+  The inherited v0.6.1 archive was removed from this draft; the published v0.6.1 record was left unchanged.
 - MIT license, creators, package UUID, repository, article DOI and predecessor
   concept DOI **10.5281/zenodo.6387591** are preserved.
 - **2026-10-07 is the preparation's planned release date.** If publication occurs
   on another date, synchronize NEWS, CITATION.cff and the draft publication date
-  before publication. Revalidate the citation schema and release preflight.
+  before the release commit is registered. Make any necessary repository-date
+  correction in a reviewed metadata commit, then revalidate the citation schema
+  and release preflight on the final registration target. The Zenodo
+  `publication_date` must match the tagged `CITATION.cff` date.
 
-The reserved DOI may not resolve until publication. No top-level concept,
-release tag, GitHub release or Zenodo publication was created by preparation.
+The version DOI resolves once its matching archive is published. As of this
+preparation snapshot, no top-level concept, release tag, GitHub release or Zenodo
+publication was created.
 Keep the legacy GitHub-Zenodo integration disabled.
 
 ## Next authorized stages
@@ -60,16 +64,20 @@ Keep the legacy GitHub-Zenodo integration disabled.
 1. Human review, then separately authorized merge of the draft release PR after
    its current-head checks and applicable review gates pass.
 2. Separately invoke the Julia release workflow documented in
-   [release.md](release.md). Register the verified merge commit with release notes
-   that include the breaking default change, observe General and TagBot, and
-   verify the tag targets the green release commit. Use a fresh project and fresh
+   [release.md](release.md). Before registration, complete the date synchronization
+   and validation above; if a follow-up metadata commit is needed, use that
+   verified green default-branch commit as the registration target. Register with
+   release notes that include the breaking default change, observe General and
+   TagBot, and verify the tag targets the green release commit. Use a fresh project and fresh
    depot with normal `Pkg.add("ToQUBO")`, import the package, assert version 0.7.0
    and verify `Attributes.MaxPenaltyUpdates` and `Attributes.PrimalFeasibilityCheck`
    and their behavior. A development checkout or explicit-version override does
    not establish normal installation availability.
 3. Upload the matching official GitHub source archive to draft 23226920; verify
-   version, UUID, license, creators, relationships and archive checksums before
-   the separately authorized Zenodo publication. Verify the concept/version DOI
+   version, UUID, license, creators, relationships and archive checksums. Replace
+   the temporary preparation description with the official-release archival
+   description used for v0.6.1, identifying v0.7.0, before the separately
+   authorized Zenodo publication. Verify the concept/version DOI
    resolution, predecessor record, and public archive after publication.
 4. Implement downstream acceptance rows 17–20 using the actual released minimum
    ToQUBO version. The standalone serial implementation is pinned at

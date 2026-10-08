@@ -170,8 +170,8 @@ is the evergreen identifier for the actively maintained archive and is the DOI
 recorded in `CITATION.cff`. When reproducibility requires an exact release,
 cite the matching version DOI instead. The DOI reserved for `v0.7.0` is
 [10.5281/zenodo.23226920](https://doi.org/10.5281/zenodo.23226920).
-Its Zenodo deposit remains unpublished until the matching GitHub release archive
-has been uploaded and verified; the reserved DOI may not resolve before publication.
+This version DOI resolves once the Zenodo archive of the matching `v0.7.0`
+GitHub release is published. During release preparation it is reserved but unpublished.
 
 The BibTeX entries below pin that exact release. Replace the `@software` entry's
 `doi` and `url` with the concept DOI when an evergreen software citation is
