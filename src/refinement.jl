@@ -165,8 +165,6 @@ function _refine_penalties!(model::Virtual.Model{T}) where {T}
             previous_norm = norm
             count += 1
 
-            Compiler.reset!(model)
-
             let t = @elapsed Compiler.compile!(model)
                 MOI.set(model, Attributes.CompilationStatus(), MOI.LOCALLY_SOLVED)
                 MOI.set(model, Attributes.CompilationTime(), t)
