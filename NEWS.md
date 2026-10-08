@@ -1,5 +1,38 @@
 # Release Notes
 
+## v0.7.0 - 2026-10-07
+
+### Breaking changes
+
+- Enable `Attributes.PrimalFeasibilityCheck()` by default: `MOI.PrimalStatus` now reports `INFEASIBLE_POINT` for samples whose decoded values violate source constraints, using the shared absolute tolerance `1e-6`. Set this attribute to `false` and re-optimize to restore the child sampler's raw status. `MOI.ObjectiveValue` continues to report the penalized target QUBO energy.
+
+### Added
+
+- Add `source_objective_value(model; result)` and `Attributes.SourceObjectiveValue(result_index)` to evaluate the original objective on decoded source values without reformulation penalties. Add opt-in `Attributes.AutoFeasibilityReport()` to cache a report over all results and warn about source-infeasible samples; invalidate feasibility caches on recompilation and repeated solves.
+- Add opt-in iterative penalty refinement through `Attributes.MaxPenaltyUpdates()`, `PenaltyUpdateStrategy()`, and `PenaltyUpdateCount()`. The default update budget is zero, preserving a single child solve. `MultiplicativeUpdate(factor = 10.0)` escalates violated constraints' hints or inferred scales, preserves objective-sense signs, recompiles before each new child solve, and stops on feasibility, update-budget exhaustion, empty results, or violations without an updatable constraint penalty. The update budget does not impose a whole-refinement time limit; `CompilationTime()` reports the last compilation only. Refinement writes updated hints, scales, and method multipliers back to the model; later solves start from those settings unless the user explicitly resets the attributes.
+- Add `AugmentedLagrangianPenalty(multiplier, rho)` and `SubgradientUpdate(; step, patience, escalation_factor)` for signed multiplier updates on scalar equalities and one-sided updates on scalar inequalities. Inequalities use slack-free iterated unbalanced penalization, which can change feasible energy ordering; this is not an exact one-sided augmented-Lagrangian term or a general convergence guarantee. The strategy updates only supported constraints using this method and escalates `rho` after stalled progress.
+- Add opt-in static automatic penalty policies `UBPositivePenalty`, `MaxCoefficientPenalty`, `VLMPenalty`, `MOMCPenalty`, and `MOCPenalty`, with per-constraint, variable-encoding and slack-encoding coefficients, shared objective scans, and recorded fallback reasons. `ObjectiveRangePenalty()` remains the default; unsupported or uncertifiable heuristic cases fall back to `LegacyPenalty()`. Heuristics do not guarantee source feasibility.
+- Add `Attributes.VariableEncodingSet()` for explicit finite values of integer or continuous variables encoded with `Encoding.OneHot` or `Encoding.DomainWall`. Validate nonempty, finite, unique values against declared bounds and integer domains; reject unsupported encoding methods and binary, semi-variable, and SOS1 fast-path uses. Encoding-violating raw samples can decode outside the selected set; source feasibility alone does not certify finite-set membership when the set is narrower than the declared source domain.
+
+### Fixed
+
+- Normalize integral constraint residuals by an exact positive arbitrary-precision integer GCD before penalty and integer-slack construction, avoiding term-order-dependent approximate normalization across Julia versions. Preserve zero residuals, sign and roots; fractional residuals retain approximate discretization. This can change compiled target coefficients and slack-variable counts for affected integral constraints.
+- Convert coefficients carried by constraint penalty methods to the model's numeric type and reject nonfinite or nonpositive converted values where required. Validate narrowed refinement factors and steps, including overflow and underflow.
+
+### Documentation
+
+- Document source-feasibility result semantics, penalty-free source objectives, static penalty policies, finite value sets, and iterative refinement with its limits.
+- Cite the published QUBO.jl article and prepare the reserved version DOI `10.5281/zenodo.23226920` under successor concept DOI `10.5281/zenodo.21763525`, preserving predecessor provenance. The version DOI resolves once the matching release archive is published on Zenodo; keep the legacy GitHub-Zenodo integration disabled.
+
+### Maintenance
+
+- Keep Julia 1.10, QUBOTools 0.16, and PseudoBooleanOptimization 0.2.6/0.3 compatibility. Add explicit Julia 1.10 stdlib bounds for Random and the test environment; allow DisjunctiveProgramming 0.7 in documentation while retaining 0.5/0.6.
+- Validate citation schema and synchronized release/citation metadata in CI. Update GitHub Actions dependencies, lint workflows, and add guarded Dependabot merge automation and serialized documentation publishing while retaining Julia 1.10/current on Ubuntu and Windows.
+
+### Tests
+
+- Cover source-feasibility statuses and opt-out, source objectives, feasibility cache/report behavior, refinement escalation and stopping, signed subgradient updates and coefficient conversion, finite-set encoding/rejections, static penalty heuristics and fallback metadata, and exact integer normalization across coefficient orders and numeric types.
+
 ## v0.6.1 - 2026-07-21
 
 ### Breaking changes
