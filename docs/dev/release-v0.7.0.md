@@ -71,8 +71,12 @@ The release date in NEWS and CITATION.cff is **2026-10-08**, verified in
 America/New_York and synchronized with the existing unpublished Zenodo draft.
 This supersedes the October 7 planned date above. If registration is deferred
 to another date, repeat the reviewed synchronization before registration.
-The registration target must be the final green default-branch commit containing
-this correction, rather than the original release-preparation merge.
+The registration target is the merge commit of
+[#250](https://github.com/JuliaQUBO/ToQUBO.jl/pull/250) on `main`, after its
+main-push checks pass. Record that exact SHA in the release run and invoke
+Registrator on that commit, rather than the original release-preparation merge.
+If `main` advances again, keep this explicit target or re-audit and record the
+additional changes before choosing a later commit.
 
 ## Next authorized stages
 
