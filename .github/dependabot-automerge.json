@@ -1,0 +1,29 @@
+{
+  "repository": "JuliaQUBO/ToQUBO.jl",
+  "required_checks": [
+    "Julia 1.10 - ubuntu-latest - x64 - pull_request",
+    "Julia 1.10 - windows-latest - x64 - pull_request",
+    "Julia 1 - ubuntu-latest - x64 - pull_request",
+    "Julia 1 - windows-latest - x64 - pull_request",
+    "Dependabot policy",
+    "build"
+  ],
+  "protected_checks": [
+    "Julia 1 - windows-latest - x64 - pull_request",
+    "Julia 1 - ubuntu-latest - x64 - pull_request",
+    "Julia 1.10 - windows-latest - x64 - pull_request",
+    "Julia 1.10 - ubuntu-latest - x64 - pull_request"
+  ],
+  "publication": [
+    {
+      "workflow": "doccleanup.yml",
+      "input": "pr_number",
+      "title": "Doc Preview Cleanup"
+    },
+    {
+      "workflow": "documentation.yml",
+      "input": "dependabot_pr",
+      "title": "Dependabot documentation"
+    }
+  ]
+}

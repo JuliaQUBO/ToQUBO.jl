@@ -1,29 +1,56 @@
 name: Doc Preview Cleanup
+run-name: "${{ format('Doc Preview Cleanup PR #{0}', github.event.pull_request.number || inputs.pr_number) }}"
 
 on:
   pull_request:
     types: [closed]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Closed PR whose preview should be removed
+        type: string
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: read
+
+# Acquire the same queue as docs.yml before checking out gh-pages.
+concurrency:
+  group: documentation-publishing
+  cancel-in-progress: false
+  queue: max
 
 jobs:
   doc-preview-cleanup:
     runs-on: ubuntu-latest
     steps:
+      - name: Verify PR is closed
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PRNUM: ${{ github.event.pull_request.number || inputs.pr_number }}
+        run: |
+          if [[ ! "$PRNUM" =~ ^[1-9][0-9]*$ ]]; then
+            echo "A positive PR number is required"
+            exit 1
+          fi
+          pr_state=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PRNUM" --jq '.state')
+          test "$pr_state" = closed
       - name: Checkout gh-pages branch
         uses: actions/checkout@v7.0.1
         with:
           ref: gh-pages
 
-      - name: Delete preview and history
+      - name: Delete preview
         run: |
-            git config user.name "Documenter.jl"
-            git config user.email "documenter@juliadocs.github.io"
-            git rm -rf "previews/PR$PRNUM"
-            git commit -m "delete preview"
-            git branch gh-pages-new $(echo "delete history" | git commit-tree HEAD^{tree})
+          git config user.name "Documenter.jl"
+          git config user.email "documenter@juliadocs.github.io"
+          git rm -r --ignore-unmatch -- "previews/PR$PRNUM"
+          if git diff --cached --quiet; then
+            echo "No preview to delete for PR$PRNUM"
+          else
+            git commit -m "delete preview PR$PRNUM"
+            git push origin HEAD:gh-pages
+          fi
         env:
-            PRNUM: ${{ github.event.number }}
-
-      - name: Push changes
-        run: |
-            git push --force origin gh-pages-new:gh-pages
-# Workflow copied from https://github.com/CliMA/TimeMachine.jl
+            PRNUM: ${{ github.event.pull_request.number || inputs.pr_number }}
