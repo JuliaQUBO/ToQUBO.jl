@@ -1,5 +1,11 @@
 # Release Notes
 
+## Unreleased
+
+### Fixed
+
+- Rebuild generated encodings, slack, auxiliary variables and target coefficients on every compilation, so ordinary repeated solves and changed encoding settings match a fresh compilation. Invalidate prior child results and feasibility caches before recompiling, including when compilation fails, while preserving source data, optimizer settings and penalty attributes updated by refinement.
+
 ## v0.7.0 - 2026-10-08
 
 ### Breaking changes

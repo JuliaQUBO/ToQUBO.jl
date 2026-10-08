@@ -16,11 +16,6 @@ function MOI.empty!(model::Optimizer)
 
     Compiler.reset!(model)
 
-    # Underlying Optimizer
-    if !isnothing(model.optimizer)
-        MOI.empty!(model.optimizer)
-    end
-
     return nothing
 end
 

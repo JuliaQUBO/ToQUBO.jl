@@ -43,13 +43,16 @@ function compile!(model::Virtual.Model)
 end
 
 function compile!(model::Virtual.Model{T}, arch::AbstractArchitecture) where {T}
-    delete!(model.compiler_settings, :qubo_fast_path)
-
     if is_qubo(model.source_model)
         Compiler.copy!(model, arch)
 
         return nothing
     end
+
+    # Encodings, slack, auxiliaries and applied penalties belong to this
+    # compilation. Keep source data and user settings (including refined
+    # penalties), but rebuild all generated state just as the QUBO copy does.
+    reset!(model, arch)
 
     # Compiler Settings
     setup!(model, arch)
@@ -105,6 +108,13 @@ function reset!(model::Virtual.Model, ::AbstractArchitecture = GenericArchitectu
     delete!(model.moi_settings, :raw_status_string)
     delete!(model.moi_settings, :feasibility_report)
     delete!(model.moi_settings, :primal_feasibility)
+
+    # Previous samples use the discarded target indices. Invalidate them even
+    # if the next compilation fails before it can copy a new target to the child.
+    # MOI.empty! preserves optimizer attributes.
+    if !isnothing(model.optimizer)
+        MOI.empty!(model.optimizer)
+    end
 
     return nothing
 end
