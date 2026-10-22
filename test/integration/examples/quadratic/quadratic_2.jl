@@ -39,7 +39,7 @@ function test_quadratic_2()
 
     @test value.(x) ≈ x̄
 
-    @test termination_status(model) === MOI.LOCALLY_SOLVED
+    @test termination_status(model) === _exact_sampler_termination_status()
     @test get_attribute(model, Attributes.CompilationStatus()) === MOI.LOCALLY_SOLVED
 
     return nothing

@@ -24,6 +24,10 @@ function MOIU.map_indices(::Function, quad::PBO.QuadratizationMethod)
     return quad
 end
 
+function _exact_sampler_termination_status()
+    return pkgversion(QUBODrivers) >= v"0.6.6" ? MOI.OPTIMAL : MOI.LOCALLY_SOLVED
+end
+
 include("unit/unit.jl")
 include("integration/integration.jl")
 
