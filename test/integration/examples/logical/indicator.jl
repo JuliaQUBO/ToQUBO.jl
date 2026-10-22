@@ -91,7 +91,7 @@ function test_indicator_disjunctive_programming_linear()
         @test n > 0
         @test size(Q) == (n, n)
         @test length(L) == n
-        @test termination_status(model) === MOI.LOCALLY_SOLVED
+        @test termination_status(model) === _exact_sampler_termination_status()
         @test get_attribute(model, Attributes.CompilationStatus()) === MOI.LOCALLY_SOLVED
 
         x̂ = value(x)
@@ -158,7 +158,7 @@ function test_indicator_disjunctive_programming_manual_example()
         @test size(Q) == (n, n)
         @test length(L) == n
         @test result_count(model) > 0
-        @test termination_status(model) === MOI.LOCALLY_SOLVED
+        @test termination_status(model) === _exact_sampler_termination_status()
         @test primal_status(model) === MOI.FEASIBLE_POINT
         @test get_attribute(model, Attributes.CompilationStatus()) === MOI.LOCALLY_SOLVED
         @test value.(x) ≈ [-1.0, -1.0]
