@@ -637,14 +637,37 @@ function MOI.get(
         return _projected_value(values, vi)
     end
 
-    return convert(T, value)
+    if !(value isa AbstractVector) && !Attributes._has_custom_objective_scalarization(model)
+        return convert(T, value)
+    end
+
+    comp_vals = value isa AbstractVector ? value : (value,)
+    isempty(comp_vals) && return zero(T)
+
+    target_sense = MOI.get(model, MOI.ObjectiveSense()) === MOI.MAX_SENSE ?
+        MOI.MAX_SENSE : MOI.MIN_SENSE
+    total = zero(T)
+
+    for (i, val_i) in enumerate(comp_vals)
+        w_i = Attributes.objective_weight(model, i)
+        s_i = Attributes.objective_sense(model, i)
+        rel_sign = s_i === target_sense ? one(T) : -one(T)
+        total += (rel_sign * w_i) * convert(T, val_i)
+    end
+
+    return total
 end
 
 @doc raw"""
     source_objective_value(model; result::Integer = 1)
+    source_objective_value(model, objective_index::Integer; result::Integer = 1)
 
 Return the source-model objective function evaluated at the projected
 source-variable values of sampled result `result`.
+
+When `objective_index` is omitted, returns the scalar (or scalarized)
+penalty-free source objective value. When `objective_index` is provided, returns
+the unweighted value of the `objective_index`-th objective component.
 
 Unlike `objective_value`/`MOI.ObjectiveValue`, which report the target QUBO
 energy including penalty terms introduced by the reformulation, this value is
@@ -656,4 +679,38 @@ end
 
 function source_objective_value(model::Virtual.Model; result::Integer = 1)
     return MOI.get(model, Attributes.SourceObjectiveValue(Int(result)))
+end
+
+function source_objective_value(
+    model,
+    objective_index::Integer;
+    result::Integer = 1,
+)
+    return source_objective_value(_toqubo_model(model), objective_index; result)
+end
+
+function source_objective_value(
+    model::Virtual.Model,
+    objective_index::Integer;
+    result::Integer = 1,
+)
+    return MOI.get(
+        model,
+        Attributes.ObjectiveFunctionValue(Int(objective_index), Int(result)),
+    )
+end
+
+@doc raw"""
+    source_objective_values(model; result::Integer = 1)
+
+Return the vector of unweighted component source-objective values on sampled
+result `result`, evaluated by applying each compiled component pseudo-boolean
+function to the sampled target state.
+"""
+function source_objective_values(model; result::Integer = 1)
+    return source_objective_values(_toqubo_model(model); result)
+end
+
+function source_objective_values(model::Virtual.Model; result::Integer = 1)
+    return MOI.get(model, Attributes.ObjectiveFunctionValues(Int(result)))
 end

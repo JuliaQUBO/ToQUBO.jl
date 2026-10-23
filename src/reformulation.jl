@@ -315,6 +315,31 @@ function _constraint_encoding_entries(model::Virtual.Model)
     return entries
 end
 
+function _objective_entries(model::Virtual.Model{T}) where {T}
+    components = Attributes._compiled_objective_components(model)
+    entries = Dict{String,Any}[]
+    target_sense = MOI.get(model.target_model, MOI.ObjectiveSense())
+
+    for (i, f_i) in enumerate(components)
+        w_i = Attributes.objective_weight(model, i)
+        s_i = Attributes.objective_sense(model, i)
+        rel_sign = s_i === target_sense ? 1 : -1
+
+        push!(
+            entries,
+            Dict{String,Any}(
+                "index" => i,
+                "weight" => w_i,
+                "sense" => _sense_metadata(s_i),
+                "relative_sign" => rel_sign,
+                "terms" => _pbf_terms(f_i),
+            ),
+        )
+    end
+
+    return entries
+end
+
 function _applied_penalty_metadata(model::Virtual.Model)
     constraints = Dict{String,Any}[]
 
@@ -370,6 +395,7 @@ function reformulation_metadata(model::Virtual.Model)
         ),
         "source" => _source_metadata(model),
         "target" => _target_metadata(model),
+        "objectives" => _objective_entries(model),
         "original_variables" => _original_variable_entries(model),
         "target_variables" => target_variables,
         "auxiliary_variables" => _auxiliary_variable_entries(target_variables),
@@ -471,6 +497,10 @@ function _state_value(state::AbstractDict, id::Integer)
     else
         error("QUBO state is missing target variable id $id")
     end
+end
+
+function _state_value(state::Function, vi::VI)
+    return state(vi)
 end
 
 function _state_value(state, vi::VI)

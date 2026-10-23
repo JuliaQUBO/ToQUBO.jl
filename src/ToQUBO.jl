@@ -7,6 +7,7 @@ export ConstraintViolation,
     is_feasible,
     feasibility_report,
     source_objective_value,
+    source_objective_values,
     qubo
 
 using MathOptInterface
@@ -70,6 +71,9 @@ const SAF{T} = MOI.ScalarAffineFunction{T}
 const SQF{T} = MOI.ScalarQuadraticFunction{T}
 const SAT{T} = MOI.ScalarAffineTerm{T}
 const SQT{T} = MOI.ScalarQuadraticTerm{T}
+const VOV    = MOI.VectorOfVariables
+const VAF{T} = MOI.VectorAffineFunction{T}
+const VQF{T} = MOI.VectorQuadraticFunction{T}
 
 const EQ{T} = MOI.EqualTo{T}
 const LT{T} = MOI.LessThan{T}
@@ -93,8 +97,8 @@ include("wrapper.jl")
 
 # Attributes
 include("attributes/model.jl")
-include("attributes/solver.jl")
 include("attributes/compiler.jl")
+include("attributes/solver.jl")
 
 # Compiler
 include("compiler/compiler.jl")

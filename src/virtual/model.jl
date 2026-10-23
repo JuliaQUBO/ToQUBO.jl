@@ -19,8 +19,9 @@ mutable struct Model{T,O} <: MOI.AbstractOptimizer
     slack::Dict{CI,Variable{T}}
 
     # PBO/PBF IR
-    f::PBO.PBF{VI,T}          # Objective Function
-    g::Dict{CI,PBO.PBF{VI,T}} # Constraint Penalty Functions
+    f::PBO.PBF{VI,T}                  # Objective Function
+    f_components::Vector{PBO.PBF{VI,T}} # Component Objective Functions
+    g::Dict{CI,PBO.PBF{VI,T}}         # Constraint Penalty Functions
     ρ::Dict{CI,T}             # Constraint Penalty Factors
     h::Dict{VI,PBO.PBF{VI,T}} # Variable Penalty Functions
     θ::Dict{VI,T}             # Variable Penalty Factors
@@ -70,6 +71,7 @@ mutable struct Model{T,O} <: MOI.AbstractOptimizer
 
             # PBO/PBF IR 
             PBO.PBF{VI,T}(),          # Objective Function
+            Vector{PBO.PBF{VI,T}}(),  # Component Objective Functions
             Dict{CI,PBO.PBF{VI,T}}(), # Constraint Penalty Functions
             Dict{CI,T}(),             # Constraint Penalty Factors
             Dict{VI,PBO.PBF{VI,T}}(), # Variable Penalty Functions
