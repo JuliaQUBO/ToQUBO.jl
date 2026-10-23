@@ -23,7 +23,7 @@ MOIU.@model(
         INDICATOR_GT_ZERO,
         INDICATOR_Interval_ZERO,
     ),
-    (VI,),                       # untyped scalar functions
+    (VI, SNF),                   # untyped scalar functions
     (SAF, SQF),                  #   typed scalar functions
     (MOI.VectorOfVariables,),    # untyped vector functions
     (                            #   typed vector functions
@@ -32,6 +32,18 @@ MOIU.@model(
     ),
     false,                       # is optimizer?
 )
+
+MOI.supports_constraint(
+    ::PreQUBOModel{T},
+    ::Type{MOI.ScalarNonlinearFunction},
+    ::Type{MOI.Integer},
+) where {T} = false
+
+MOI.supports_constraint(
+    ::PreQUBOModel{T},
+    ::Type{MOI.ScalarNonlinearFunction},
+    ::Type{MOI.ZeroOne},
+) where {T} = false
 
 # `MOIU.@model` declares vector constraint support as a cross-product. Keep
 # support queries aligned with the compiler methods, which are pair-specific.

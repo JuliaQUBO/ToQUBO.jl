@@ -163,6 +163,76 @@ function _eval_source_function_rational(
     return total
 end
 
+_snf_has_exact_rational_literals(::VI) = true
+_snf_has_exact_rational_literals(x) = !isnothing(_exact_rational(x))
+
+function _snf_has_exact_rational_literals(f::SAF)
+    isnothing(_exact_rational(f.constant)) && return false
+    return all(t -> !isnothing(_exact_rational(t.coefficient)), f.terms)
+end
+
+function _snf_has_exact_rational_literals(f::SQF)
+    isnothing(_exact_rational(f.constant)) && return false
+    all(t -> !isnothing(_exact_rational(t.coefficient)), f.affine_terms) || return false
+
+    for t in f.quadratic_terms
+        cq = _exact_rational(t.coefficient)
+        isnothing(cq) && return false
+
+        if t.variable_1 === t.variable_2
+            half_q = _exact_rational(t.coefficient / 2)
+            (isnothing(half_q) || half_q != cq // 2) && return false
+        end
+    end
+
+    return true
+end
+
+function _snf_has_exact_rational_literals(f::SNF)
+    return all(_snf_has_exact_rational_literals, f.args)
+end
+
+function _polynomial_function_exact_rational(f::SNF)
+    _snf_has_exact_rational_literals(f) || return nothing
+
+    try
+        return QUBODrivers.polynomial_function(f, Rational{BigInt})
+    catch
+        return nothing
+    end
+end
+
+function _eval_source_function_rational(
+    f::SNF,
+    cand_q::Dict{VI,Rational{BigInt}},
+)::Union{Rational{BigInt},Nothing}
+    vars = VI[]
+    _collect_snf_variables!(vars, f)
+
+    for vi in vars
+        haskey(cand_q, vi) || return nothing
+    end
+
+    spf = _polynomial_function_exact_rational(f)
+    isnothing(spf) && return nothing
+
+    total = zero(Rational{BigInt})
+
+    for term in MP.terms(spf.polynomial)
+        term_val = MP.coefficient(term)
+
+        for (vi, exp) in zip(spf.variables, MP.exponents(term))
+            exp == 0 && continue
+            haskey(cand_q, vi) || return nothing
+            term_val *= cand_q[vi]^exp
+        end
+
+        total += term_val
+    end
+
+    return total
+end
+
 function _eval_source_function_rational(
     f::MOI.VectorOfVariables,
     cand_q::Dict{VI,Rational{BigInt}},
@@ -686,7 +756,7 @@ end
 
 function _is_exact_scalar_discretization(
     model::Virtual.Model{T},
-    f::Union{SAF{T},SQF{T}},
+    f::Union{SAF{T},SQF{T},SNF},
     s::Union{EQ{T},LT{T},GT{T}},
     arch::AbstractArchitecture,
 )::Bool where {T}
@@ -726,7 +796,7 @@ function _check_exact_discretizations(
     !Attributes.discretize(model) && return true, nothing
 
     for (F, S) in MOI.get(model.source_model, MOI.ListOfConstraintTypesPresent())
-        F <: Union{SAF{T},SQF{T}} || continue
+        F <: Union{SAF{T},SQF{T},SNF} || continue
         for ci in MOI.get(model.source_model, MOI.ListOfConstraintIndices{F,S}())
             f = MOI.get(model.source_model, MOI.ConstraintFunction(), ci)
             s = MOI.get(model.source_model, MOI.ConstraintSet(), ci)
@@ -788,7 +858,7 @@ function _lift_constraint_slacks!(
                 else
                     return false, "Unsupported SOS1 slack variable encoding for incumbent lifting"
                 end
-            elseif f isa Union{SAF{T},SQF{T}} && s isa LT{T}
+            elseif f isa Union{SAF{T},SQF{T},SNF} && s isa LT{T}
                 length(slack_vars) == 1 ||
                     return false, "Unexpected slack variable count on constraint $(ci.value)"
                 g_pre = _parse(model, f, s, arch)
@@ -798,7 +868,7 @@ function _lift_constraint_slacks!(
                     return false, "Failed to evaluate constraint $(ci.value) residual"
                 ok, reason = _lift_encoded_variable!(y_inc, only(slack_vars), -r_q; is_slack = true)
                 ok || return false, reason
-            elseif f isa Union{SAF{T},SQF{T}} && s isa GT{T}
+            elseif f isa Union{SAF{T},SQF{T},SNF} && s isa GT{T}
                 length(slack_vars) == 1 ||
                     return false, "Unexpected slack variable count on constraint $(ci.value)"
                 g_pre = _parse(model, f, s, arch)
@@ -808,7 +878,7 @@ function _lift_constraint_slacks!(
                     return false, "Failed to evaluate constraint $(ci.value) residual"
                 ok, reason = _lift_encoded_variable!(y_inc, only(slack_vars), r_q; is_slack = true)
                 ok || return false, reason
-            elseif f isa Union{SAF{T},SQF{T}} && s isa MOI.Interval{T}
+            elseif f isa Union{SAF{T},SQF{T},SNF} && s isa MOI.Interval{T}
                 idx = 1
                 s_lt = LT{T}(s.upper)
                 g_lt = _parse(model, f, s_lt, arch)
@@ -1131,6 +1201,46 @@ function _parse_function_exact_rational(
 end
 
 function _parse_function_exact_rational(
+    model::Virtual.Model{T},
+    f::SNF,
+)::Union{PBO.PBF{VI,Rational{BigInt}},Nothing} where {T}
+    vars = VI[]
+    _collect_snf_variables!(vars, f)
+
+    for vi in vars
+        haskey(model.source, vi) || return nothing
+        isnothing(_pbf_to_rational(Virtual.expansion(model.source[vi]))) && return nothing
+    end
+
+    spf = _polynomial_function_exact_rational(f)
+    isnothing(spf) && return nothing
+
+    g = PBO.PBF{VI,Rational{BigInt}}()
+
+    for term in MP.terms(spf.polynomial)
+        c = MP.coefficient(term)
+        iszero(c) && continue
+
+        term_pbf = PBO.PBF{VI,Rational{BigInt}}(c)
+
+        for (vi, exp) in zip(spf.variables, MP.exponents(term))
+            exp == 0 && continue
+            haskey(model.source, vi) || return nothing
+            ξ_q = _pbf_to_rational(Virtual.expansion(model.source[vi]))
+            isnothing(ξ_q) && return nothing
+            factor = exp == 1 ? ξ_q : ξ_q^exp
+            term_pbf = term_pbf * factor
+        end
+
+        for (ω, d) in term_pbf
+            g[ω] += d
+        end
+    end
+
+    return g
+end
+
+function _parse_function_exact_rational(
     ::Virtual.Model,
     ::MOI.AbstractFunction,
 )
@@ -1139,7 +1249,7 @@ end
 
 function _parse_set_exact_rational(
     model::Virtual.Model{T},
-    f::Union{SAF{T},SQF{T}},
+    f::Union{SAF{T},SQF{T},SNF},
     s::EQ{T},
 )::Union{PBO.PBF{VI,Rational{BigInt}},Nothing} where {T}
     g = _parse_function_exact_rational(model, f)
@@ -1151,7 +1261,7 @@ end
 
 function _parse_set_exact_rational(
     model::Virtual.Model{T},
-    f::Union{SAF{T},SQF{T}},
+    f::Union{SAF{T},SQF{T},SNF},
     s::LT{T},
 )::Union{PBO.PBF{VI,Rational{BigInt}},Nothing} where {T}
     g = _parse_function_exact_rational(model, f)
@@ -1163,7 +1273,7 @@ end
 
 function _parse_set_exact_rational(
     model::Virtual.Model{T},
-    f::Union{SAF{T},SQF{T}},
+    f::Union{SAF{T},SQF{T},SNF},
     s::GT{T},
 )::Union{PBO.PBF{VI,Rational{BigInt}},Nothing} where {T}
     g = _parse_function_exact_rational(model, f)
@@ -1391,7 +1501,7 @@ end
 
 function _certify_scalar_inequality_piece_rational(
     model::Virtual.Model{T},
-    f::Union{SAF{T},SQF{T}},
+    f::Union{SAF{T},SQF{T},SNF},
     s::Union{LT{T},GT{T}},
     slack_var::Union{Virtual.Variable{T},Nothing},
     arch::AbstractArchitecture,
@@ -1467,7 +1577,7 @@ function _certify_constraint_penalty_rational(
     f = MOI.get(model.source_model, MOI.ConstraintFunction(), ci)
     s = MOI.get(model.source_model, MOI.ConstraintSet(), ci)
 
-    if f isa Union{SAF{T},SQF{T}} && s isa EQ{T}
+    if f isa Union{SAF{T},SQF{T},SNF} && s isa EQ{T}
         r_raw_q = _parse_set_exact_rational(model, f, s)
         isnothing(r_raw_q) &&
             return nothing, "Constraint $(id) residual could not be parsed in exact arithmetic"
@@ -1481,7 +1591,7 @@ function _certify_constraint_penalty_rational(
             "Constraint $(id) residual was rounded in floating-point arithmetic or discretization and does not preserve the exact constraint zero set"
         end
 
-        if f isa SQF{T} && !_is_nonnegative(g_disc) &&
+        if f isa Union{SQF{T},SNF} && !_is_nonnegative(g_disc) &&
            !isnothing(_boolean_logic_gadget_penalty(model, f, g_disc))
             vars = sort!(
                 collect(union(PBO.variables(p_q), PBO.variables(r_raw_q)));
@@ -1537,7 +1647,7 @@ function _certify_constraint_penalty_rational(
                 return nothing, "Constraint $(id) positive gap could not be certified"
             return min_pos_q, nothing
         end
-    elseif f isa Union{SAF{T},SQF{T}} && s isa Union{LT{T},GT{T}}
+    elseif f isa Union{SAF{T},SQF{T},SNF} && s isa Union{LT{T},GT{T}}
         slack_vars = [v for v in model.variables if Virtual.source(v) == ci]
         length(slack_vars) <= 1 ||
             return nothing, "Unexpected slack variable count on constraint $(id)"
@@ -1550,7 +1660,7 @@ function _certify_constraint_penalty_rational(
             "Constraint $(id) inequality penalty polynomial was rounded in floating-point arithmetic"
         end
         return min_pos_q, nothing
-    elseif f isa Union{SAF{T},SQF{T}} && s isa MOI.Interval{T}
+    elseif f isa Union{SAF{T},SQF{T},SNF} && s isa MOI.Interval{T}
         slack_vars = [v for v in model.variables if Virtual.source(v) == ci]
         idx = 1
         g_total_q = PBO.PBF{VI,Rational{BigInt}}()
@@ -2064,25 +2174,25 @@ function _verify_omitted_constraint_satisfied_rational(
     f::MOI.AbstractFunction,
     s::MOI.AbstractSet,
 )::Tuple{Bool,Union{String,Nothing}} where {T}
-    if f isa Union{SAF{T},SQF{T}} && s isa EQ{T}
+    if f isa Union{SAF{T},SQF{T},SNF} && s isa EQ{T}
         r_raw_q = _parse_set_exact_rational(model, f, s)
         bounds_q = isnothing(r_raw_q) ? nothing : _pbf_bounds_rational(r_raw_q)
         if !isnothing(bounds_q) && bounds_q == (0 // 1, 0 // 1)
             return true, nothing
         end
-    elseif f isa Union{SAF{T},SQF{T}} && s isa LT{T}
+    elseif f isa Union{SAF{T},SQF{T},SNF} && s isa LT{T}
         r_raw_q = _parse_set_exact_rational(model, f, s)
         bounds_q = isnothing(r_raw_q) ? nothing : _pbf_bounds_rational(r_raw_q)
         if !isnothing(bounds_q) && bounds_q[2] <= 0
             return true, nothing
         end
-    elseif f isa Union{SAF{T},SQF{T}} && s isa GT{T}
+    elseif f isa Union{SAF{T},SQF{T},SNF} && s isa GT{T}
         r_raw_q = _parse_set_exact_rational(model, f, s)
         bounds_q = isnothing(r_raw_q) ? nothing : _pbf_bounds_rational(r_raw_q)
         if !isnothing(bounds_q) && bounds_q[1] >= 0
             return true, nothing
         end
-    elseif f isa Union{SAF{T},SQF{T}} && s isa MOI.Interval{T}
+    elseif f isa Union{SAF{T},SQF{T},SNF} && s isa MOI.Interval{T}
         r_lt_q = _parse_set_exact_rational(model, f, LT{T}(s.upper))
         b_lt_q = isnothing(r_lt_q) ? nothing : _pbf_bounds_rational(r_lt_q)
         r_gt_q = _parse_set_exact_rational(model, f, GT{T}(s.lower))

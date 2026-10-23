@@ -547,6 +547,13 @@ function _function_variables(f::MOI.ScalarQuadraticFunction)
     return _sort_variables(variables)
 end
 
+function _function_variables(f::MOI.ScalarNonlinearFunction)
+    variables = VI[]
+    Compiler._collect_snf_variables!(variables, f)
+
+    return _sort_variables(variables)
+end
+
 function _function_variables(f::MOI.VectorOfVariables)
     return _sort_variables(f.variables)
 end

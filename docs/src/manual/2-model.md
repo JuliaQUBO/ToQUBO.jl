@@ -61,18 +61,19 @@ settings that control this discretization.
 
 ## Defining Constraints
 
-ToQUBO.jl supports linear and quadratic constraints, which are reformulated as penalty terms in the QUBO objective function.
+ToQUBO.jl supports linear, quadratic, and higher-order polynomial constraints, which are reformulated as penalty terms in the QUBO objective function.
 Equality constraints use a quadratic residual penalty by default. A signed
 linear residual can be selected with `Attributes.LinearPenalty()`, but it
 requires an explicit `Attributes.ConstraintEncodingPenaltyHint()` because the
 compiler cannot infer a safe coefficient for that form automatically. See
 [Constraint Penalty Methods](@ref) for the settings and an example.
 
-The optimizer accepts scalar affine and scalar quadratic constraints with
-`<=`, `>=`, and `==` bounds. It also accepts `SOS1` constraints and MOI
-indicator constraints whose inner scalar constraint is affine or quadratic and
-uses an `EqualTo`, `LessThan`, `GreaterThan`, or `Interval` bound set.
-Indicator constraints may activate on either zero or one.
+The optimizer accepts scalar affine, scalar quadratic, and polynomial
+`MOI.ScalarNonlinearFunction` constraints with `<=`, `>=`, `==`, and interval
+bounds. It also accepts `SOS1` constraints and MOI indicator constraints whose
+inner scalar constraint is affine or quadratic and uses an `EqualTo`,
+`LessThan`, `GreaterThan`, or `Interval` bound set. Indicator constraints may
+activate on either zero or one.
 
 ### Linear Constraints
 
@@ -98,6 +99,28 @@ Indicator constraints may activate on either zero or one.
 
 # Greater than or equal
 @constraint(model, y[1] * y[2] + y[3] >= 1)
+```
+
+### Higher-Order Polynomial Constraints
+
+Higher-degree polynomial expressions (which JuMP represents using
+`MOI.ScalarNonlinearFunction`) are expanded into pseudo-Boolean penalty terms.
+Whenever a compiled constraint penalty exceeds degree 2, ToQUBO.jl automatically
+enables `Attributes.Quadratize()` to quadratize the resulting pseudo-Boolean
+function with auxiliary binary variables.
+
+Supported nonlinear operators in polynomial expressions are `+`, `-`, `*`,
+division `/` by a nonzero constant, and exponentiation `^` by a nonnegative
+integer literal. Non-polynomial operators (such as `sin`, `cos`, `exp`, `log`,
+`sqrt`, variable division, or fractional/negative powers) are rejected during
+compilation with a descriptive error.
+
+```julia
+# Cubic equality constraint
+@constraint(model, y[1] * y[2] * y[3] == 1)
+
+# Cubic inequality constraint
+@constraint(model, y[1] * y[2] * y[3] + y[1] <= 1)
 ```
 
 ### SOS1 Constraints
@@ -205,7 +228,7 @@ packages.
 
 ## Defining the Objective Function
 
-The objective function can be linear or quadratic. ToQUBO.jl supports both minimization and maximization.
+The objective function can be linear, quadratic, or a higher-order polynomial (`MOI.ScalarNonlinearFunction` using `+`, `-`, `*`, constant `/`, and nonnegative integer `^`). ToQUBO.jl supports both minimization and maximization, and automatically enables `Attributes.Quadratize()` when the expanded pseudo-Boolean objective has degree greater than 2.
 
 ```julia
 # Linear objective
@@ -213,6 +236,9 @@ The objective function can be linear or quadratic. ToQUBO.jl supports both minim
 
 # Quadratic objective
 @objective(model, Min, y[1]*y[2] + y[2]*y[3] + y[1])
+
+# Higher-order polynomial (HUBO/PUBO) objective
+@objective(model, Min, 4*y[1]*y[2]*y[3] - y[1] - y[2] - y[3])
 ```
 
 ## Running the Optimization

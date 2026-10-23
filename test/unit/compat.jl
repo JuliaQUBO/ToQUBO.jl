@@ -22,6 +22,8 @@ function test_compat()
         @test occursin(r"(^|,\s*)0\.2\.6(\s*(,|$))", compat["PseudoBooleanOptimization"])
         @test occursin(r"(^|,\s*)0\.3(\s*(,|$))", compat["PseudoBooleanOptimization"])
         @test "0.16" in _compat_entries(compat["QUBOTools"])
+        @test compat["QUBODrivers"] == "0.6.7"
+        @test compat["MultivariatePolynomials"] == "0.5"
         @test !haskey(compat, "SparseArrays")
         @test !haskey(project["deps"], "SparseArrays")
         @test !haskey(docs_project["deps"], "PySA")
@@ -33,6 +35,7 @@ function test_compat()
         @test occursin(r"(^|,\s*)0\.2\.6(\s*(,|$))", test_compat["PseudoBooleanOptimization"])
         @test occursin(r"(^|,\s*)0\.3(\s*(,|$))", test_compat["PseudoBooleanOptimization"])
         @test "0.16" in _compat_entries(test_compat["QUBOTools"])
+        @test test_compat["QUBODrivers"] == "0.6.7"
 
         ci = replace(
             read(joinpath(root, ".github", "workflows", "ci.yml"), String),
