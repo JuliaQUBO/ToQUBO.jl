@@ -2,6 +2,7 @@ module Attributes
 
 import MathOptInterface as MOI
 const MOIU = MOI.Utilities
+const MOIB = MOI.Bridges
 const VI   = MOI.VariableIndex
 const CI   = MOI.ConstraintIndex
 
@@ -2644,6 +2645,222 @@ function MOI.set(
     delete!(model.η, ci)
 
     return nothing
+end
+
+@doc raw"""
+    SoftConstraint()
+
+Boolean constraint attribute marking a source constraint as soft for
+feasibility analysis and iterative penalty refinement.
+
+Soft constraints still have their residuals and violation magnitudes measured
+and reported by [`ToQUBO.violations`](@ref) and
+[`ToQUBO.feasibility_report`](@ref), but violating a soft constraint does not
+make a sampled result hard-infeasible in [`ToQUBO.is_feasible`](@ref),
+`FeasibilityResult.feasible`, `MOI.PrimalStatus`, or
+[`AutoFeasibilityReport`](@ref), and does not trigger iterative penalty
+escalation under [`MaxPenaltyUpdates`](@ref).
+
+Marking a constraint with `SoftConstraint()` does not remove its compiled
+penalty term from the target QUBO or reduce its initial automatically inferred
+penalty coefficient. Pair `SoftConstraint()` with
+[`ConstraintPenaltyScale`](@ref), [`ConstraintPenaltyOffset`](@ref), or an
+explicit [`ConstraintEncodingPenaltyHint`](@ref) to set a bounded preference
+weight.
+
+Defaults to `false` (hard constraint). Pass `nothing` to reset to the default.
+"""
+struct SoftConstraint <: CompilerConstraintAttribute end
+
+_attribute_from_key(::Val{:soft_constraint}) = SoftConstraint
+
+function soft_constraint(model::Optimizer, ci::CI)::Bool
+    return MOI.get(model, SoftConstraint(), ci)
+end
+
+function MOI.get(
+    model::Optimizer,
+    ::SoftConstraint,
+    ci::CI,
+)::Bool
+    attr = :soft_constraint
+
+    if !haskey(model.constraint_settings, attr) ||
+       !haskey(model.constraint_settings[attr], ci)
+        return false
+    else
+        return model.constraint_settings[attr][ci]::Bool
+    end
+end
+
+function MOI.set(
+    model::Optimizer,
+    ::SoftConstraint,
+    ci::CI,
+    flag::Bool,
+)::Nothing
+    attr = :soft_constraint
+
+    if !haskey(model.constraint_settings, attr)
+        model.constraint_settings[attr] = Dict{CI,Any}()
+    end
+
+    model.constraint_settings[attr][ci] = flag
+
+    delete!(model.moi_settings, :feasibility_report)
+    delete!(model.moi_settings, :primal_feasibility)
+
+    return nothing
+end
+
+function MOI.set(
+    model::Optimizer,
+    ::SoftConstraint,
+    ci::CI,
+    ::Nothing,
+)::Nothing
+    attr = :soft_constraint
+
+    if haskey(model.constraint_settings, attr)
+        delete!(model.constraint_settings[attr], ci)
+    end
+
+    delete!(model.moi_settings, :feasibility_report)
+    delete!(model.moi_settings, :primal_feasibility)
+
+    return nothing
+end
+
+function MOI.set(
+    ::Optimizer,
+    ::SoftConstraint,
+    ::CI,
+    value::Any,
+)
+    throw(
+        ArgumentError(
+            "`SoftConstraint` value must be a `Bool` or `nothing`; got $(repr(value))",
+        ),
+    )
+end
+
+function MOI.get(
+    uf::MOIU.UniversalFallback,
+    attr::SoftConstraint,
+    ci::CI,
+)::Bool
+    if !MOI.is_valid(uf, ci)
+        throw(MOI.InvalidIndex(ci))
+    end
+
+    conattr = get(uf.conattr, attr, nothing)
+    conattr === nothing && return false
+    val = get(conattr, ci, nothing)
+
+    return val === nothing ? false : Bool(val)
+end
+
+function MOI.set(
+    uf::MOIU.UniversalFallback,
+    attr::SoftConstraint,
+    ci::CI,
+    flag::Bool,
+)::Nothing
+    if !MOI.is_valid(uf, ci)
+        throw(MOI.InvalidIndex(ci))
+    end
+
+    conattr = get!(uf.conattr, attr) do
+        return Dict{CI,Any}()
+    end
+    conattr[ci] = flag
+
+    return nothing
+end
+
+function MOI.set(
+    uf::MOIU.UniversalFallback,
+    attr::SoftConstraint,
+    ci::CI,
+    ::Nothing,
+)::Nothing
+    if !MOI.is_valid(uf, ci)
+        throw(MOI.InvalidIndex(ci))
+    end
+
+    conattr = get(uf.conattr, attr, nothing)
+    if conattr !== nothing
+        delete!(conattr, ci)
+        if isempty(conattr)
+            delete!(uf.conattr, attr)
+        end
+    end
+
+    return nothing
+end
+
+function MOI.set(
+    ::MOIU.UniversalFallback,
+    ::SoftConstraint,
+    ::CI,
+    value::Any,
+)
+    throw(
+        ArgumentError(
+            "`SoftConstraint` value must be a `Bool` or `nothing`; got $(repr(value))",
+        ),
+    )
+end
+
+function MOI.supports(
+    model::MOI.ModelLike,
+    attr::SoftConstraint,
+    ::Type{BT},
+) where {BT<:MOIB.Constraint.AbstractBridge}
+    return all(
+        MOI.supports(model, attr, MOI.ConstraintIndex{F,S}) for
+        (F, S) in MOIB.added_constraint_types(BT)
+    )
+end
+
+function MOI.set(
+    model::MOI.ModelLike,
+    attr::SoftConstraint,
+    bridge::MOIB.Constraint.AbstractBridge,
+    value,
+)
+    if !(value isa Bool || value === nothing)
+        throw(
+            ArgumentError(
+                "`SoftConstraint` value must be a `Bool` or `nothing`; got $(repr(value))",
+            ),
+        )
+    end
+
+    for (F, S) in MOIB.added_constraint_types(typeof(bridge))
+        for ci in MOI.get(bridge, MOI.ListOfConstraintIndices{F,S}())
+            MOI.set(model, attr, ci, value)
+        end
+    end
+
+    return nothing
+end
+
+function MOI.get(
+    model::MOI.ModelLike,
+    attr::SoftConstraint,
+    bridge::MOIB.Constraint.AbstractBridge,
+)::Bool
+    found = false
+
+    for (F, S) in MOIB.added_constraint_types(typeof(bridge))
+        for ci in MOI.get(bridge, MOI.ListOfConstraintIndices{F,S}())
+            found = true
+            MOI.get(model, attr, ci) || return false
+        end
+    end
+
+    return found
 end
 
 end # module Attributes

@@ -89,7 +89,7 @@ function test_reformulation_metadata()
             metadata["auxiliary_variables"],
         )
         @test any(
-            entry -> entry["constraint"]["id"] == c.value,
+            entry -> entry["constraint"]["id"] == c.value && entry["soft"] === false,
             metadata["constraint_encodings"],
         )
         @test any(

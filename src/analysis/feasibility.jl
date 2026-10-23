@@ -12,8 +12,10 @@ A measured source-constraint residual for one sampled result.
 `set_type` identify the constraint family, `value` is the original constraint
 function evaluated on the projected source-variable values, `raw_residual` is
 the set-specific residual before applying tolerances, `violation` is the
-nonnegative distance to the set, and `variable_values` contains the projected
-values for variables referenced by the constraint function.
+nonnegative distance to the set, `variable_values` contains the projected
+values for variables referenced by the constraint function, and `soft`
+indicates whether the constraint was marked with
+[`Attributes.SoftConstraint`](@ref).
 """
 struct ConstraintViolation
     constraint::MOI.ConstraintIndex
@@ -23,6 +25,28 @@ struct ConstraintViolation
     raw_residual::Any
     violation::Float64
     variable_values::Dict{VI,Any}
+    soft::Bool
+end
+
+function ConstraintViolation(
+    constraint::MOI.ConstraintIndex,
+    function_type::DataType,
+    set_type::DataType,
+    value,
+    raw_residual,
+    violation::Real,
+    variable_values::Dict{VI,Any},
+)
+    return ConstraintViolation(
+        constraint,
+        function_type,
+        set_type,
+        value,
+        raw_residual,
+        Float64(violation),
+        variable_values,
+        false,
+    )
 end
 
 const ConstraintTypeSummary = NamedTuple{
@@ -34,6 +58,12 @@ const ConstraintTypeSummary = NamedTuple{
     FeasibilityResult
 
 Summary of source-constraint feasibility for one sampled result.
+
+`feasible`, `violation_count`, `max_violation`, `total_violation`, and
+`by_constraint_type` summarize hard source constraints (`soft == false`).
+`soft_violation_count`, `soft_max_violation`, `soft_total_violation`, and
+`soft_by_constraint_type` summarize constraints marked with
+[`Attributes.SoftConstraint`](@ref).
 """
 struct FeasibilityResult
     result::Int
@@ -42,6 +72,32 @@ struct FeasibilityResult
     max_violation::Float64
     total_violation::Float64
     by_constraint_type::Dict{String,ConstraintTypeSummary}
+    soft_violation_count::Int
+    soft_max_violation::Float64
+    soft_total_violation::Float64
+    soft_by_constraint_type::Dict{String,ConstraintTypeSummary}
+end
+
+function FeasibilityResult(
+    result::Integer,
+    feasible::Bool,
+    violation_count::Integer,
+    max_violation::Real,
+    total_violation::Real,
+    by_constraint_type::Dict{String,ConstraintTypeSummary},
+)
+    return FeasibilityResult(
+        Int(result),
+        feasible,
+        Int(violation_count),
+        Float64(max_violation),
+        Float64(total_violation),
+        by_constraint_type,
+        0,
+        0.0,
+        0.0,
+        Dict{String,ConstraintTypeSummary}(),
+    )
 end
 
 @doc raw"""
@@ -49,17 +105,49 @@ end
 
 Per-result source-constraint feasibility summary returned by
 [`feasibility_report`](@ref).
+
+`feasible_count`, `max_violation`, and `total_violation` summarize hard source
+constraints across the selected results, while `soft_violation_count`,
+`soft_max_violation`, and `soft_total_violation` summarize constraints marked
+with [`Attributes.SoftConstraint`](@ref).
 """
 struct FeasibilityReport
     result_count::Int
     feasible_count::Int
     max_violation::Float64
     total_violation::Float64
+    soft_violation_count::Int
+    soft_max_violation::Float64
+    soft_total_violation::Float64
     results::Vector{FeasibilityResult}
 end
 
+function FeasibilityReport(
+    result_count::Integer,
+    feasible_count::Integer,
+    max_violation::Real,
+    total_violation::Real,
+    results::Vector{FeasibilityResult},
+)
+    soft_violation_count = sum(r.soft_violation_count for r in results; init = 0)
+    soft_max_violation =
+        isempty(results) ? 0.0 : maximum(r.soft_max_violation for r in results)
+    soft_total_violation = sum(r.soft_total_violation for r in results; init = 0.0)
+
+    return FeasibilityReport(
+        Int(result_count),
+        Int(feasible_count),
+        Float64(max_violation),
+        Float64(total_violation),
+        soft_violation_count,
+        soft_max_violation,
+        soft_total_violation,
+        results,
+    )
+end
+
 @doc raw"""
-    violations(model; result::Int = 1, atol::Real = _FEASIBILITY_ATOL)
+    violations(model; result::Int = 1, atol::Real = _FEASIBILITY_ATOL, include_soft::Bool = true)
 
 Return source constraints violated by sampled result `result`.
 
@@ -70,14 +158,31 @@ and measured against its MOI set. Scalar sets use
 only when their activation value triggers the inner set; SOS1 constraints use
 the distance to the nearest one-nonzero vector under the ``\ell_1`` projection
 convention.
+
+Violated constraints marked with [`Attributes.SoftConstraint`](@ref) have
+`measurement.soft == true` and are included by default (`include_soft = true`).
+Pass `include_soft = false` to return only hard-constraint violations.
 """
-function violations(model; result::Integer = 1, atol::Real = _FEASIBILITY_ATOL)
-    return violations(_toqubo_model(model); result, atol)
+function violations(
+    model;
+    result::Integer = 1,
+    atol::Real = _FEASIBILITY_ATOL,
+    include_soft::Bool = true,
+)
+    return violations(_toqubo_model(model); result, atol, include_soft)
 end
 
-function violations(model::Virtual.Model; result::Integer = 1, atol::Real = _FEASIBILITY_ATOL)
+function violations(
+    model::Virtual.Model;
+    result::Integer = 1,
+    atol::Real = _FEASIBILITY_ATOL,
+    include_soft::Bool = true,
+)
+    tol = Float64(atol)
+
     return filter(
-        measurement -> measurement.violation > Float64(atol),
+        measurement ->
+            (include_soft || !measurement.soft) && measurement.violation > tol,
         _constraint_measurements(model, Int(result)),
     )
 end
@@ -85,11 +190,12 @@ end
 @doc raw"""
     is_feasible(model; result::Int = 1, atol::Real = _FEASIBILITY_ATOL)
 
-Return `true` if every source constraint is satisfied by sampled result
-`result` within absolute tolerance `atol`.
+Return `true` if every hard source constraint (those not marked with
+[`Attributes.SoftConstraint`](@ref)) is satisfied by sampled result `result`
+within absolute tolerance `atol`.
 """
 function is_feasible(model; result::Integer = 1, atol::Real = _FEASIBILITY_ATOL)
-    return isempty(violations(model; result, atol))
+    return isempty(violations(model; result, atol, include_soft = false))
 end
 
 @doc raw"""
@@ -121,12 +227,19 @@ function feasibility_report(model::Virtual.Model; result = nothing, atol::Real =
 
     max_violation = isempty(results) ? 0.0 : maximum(r.max_violation for r in results)
     total_violation = sum(r.total_violation for r in results; init = 0.0)
+    soft_violation_count = sum(r.soft_violation_count for r in results; init = 0)
+    soft_max_violation =
+        isempty(results) ? 0.0 : maximum(r.soft_max_violation for r in results)
+    soft_total_violation = sum(r.soft_total_violation for r in results; init = 0.0)
 
     report = FeasibilityReport(
         length(results),
         count(r -> r.feasible, results),
         max_violation,
         total_violation,
+        soft_violation_count,
+        soft_max_violation,
+        soft_total_violation,
         results,
     )
 
@@ -239,8 +352,12 @@ function _constraint_measurements(model::Virtual.Model, result::Int)
         for ci in MOI.get(model.source_model, MOI.ListOfConstraintIndices{F,S}())
             f = MOI.get(model.source_model, MOI.ConstraintFunction(), ci)
             s = MOI.get(model.source_model, MOI.ConstraintSet(), ci)
+            soft = Attributes.soft_constraint(model, ci)
 
-            push!(measurements, _constraint_violation(model.source_model, ci, f, s, values))
+            push!(
+                measurements,
+                _constraint_violation(model.source_model, ci, f, s, values; soft),
+            )
         end
     end
 
@@ -258,9 +375,18 @@ end
 
 function _feasibility_result(model::Virtual.Model, result::Int, atol::Float64)
     measurements = _constraint_measurements(model, result)
-    max_violation = isempty(measurements) ? 0.0 : maximum(m.violation for m in measurements)
-    total_violation = sum(m.violation for m in measurements; init = 0.0)
-    violation_count = count(m -> m.violation > atol, measurements)
+    hard_measurements = filter(m -> !m.soft, measurements)
+    soft_measurements = filter(m -> m.soft, measurements)
+
+    max_violation =
+        isempty(hard_measurements) ? 0.0 : maximum(m.violation for m in hard_measurements)
+    total_violation = sum(m.violation for m in hard_measurements; init = 0.0)
+    violation_count = count(m -> m.violation > atol, hard_measurements)
+
+    soft_max_violation =
+        isempty(soft_measurements) ? 0.0 : maximum(m.violation for m in soft_measurements)
+    soft_total_violation = sum(m.violation for m in soft_measurements; init = 0.0)
+    soft_violation_count = count(m -> m.violation > atol, soft_measurements)
 
     return FeasibilityResult(
         result,
@@ -268,7 +394,11 @@ function _feasibility_result(model::Virtual.Model, result::Int, atol::Float64)
         violation_count,
         max_violation,
         total_violation,
-        _summarize_by_constraint_type(measurements, atol),
+        _summarize_by_constraint_type(hard_measurements, atol),
+        soft_violation_count,
+        soft_max_violation,
+        soft_total_violation,
+        _summarize_by_constraint_type(soft_measurements, atol),
     )
 end
 
@@ -308,7 +438,8 @@ function _constraint_violation(
     ci::MOI.ConstraintIndex{F,S},
     f::F,
     set::S,
-    values::AbstractDict{VI},
+    values::AbstractDict{VI};
+    soft::Bool = false,
 ) where {F,S}
     value = MOIU.eval_variables(source_model, f) do vi
         return _projected_value(values, vi)
@@ -324,6 +455,7 @@ function _constraint_violation(
         raw_residual,
         Float64(violation),
         _referenced_variable_values(f, values),
+        soft,
     )
 end
 

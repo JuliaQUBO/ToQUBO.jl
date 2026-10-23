@@ -172,10 +172,44 @@ Constraint violations are measured as follows:
 
 Each `ConstraintViolation` includes the source constraint index, function type,
 set type, evaluated source-function value, raw residual, nonnegative violation
-magnitude, and projected values for variables referenced by that constraint.
+magnitude, projected values for variables referenced by that constraint, and
+whether the constraint was marked with
+[`ToQUBO.Attributes.SoftConstraint`](@ref) (`soft::Bool`).
 For encoded integer variables, the projected source values are the compiler's
 decoded values for the sampled binary state; continuous discretizations report
 the decoded grid value.
+
+### Soft Constraints and Penalized Preferences
+
+Constraints that represent soft preferences rather than hard feasibility
+requirements can be marked with [`ToQUBO.Attributes.SoftConstraint`](@ref):
+
+```julia
+set_attribute(preference, Attributes.SoftConstraint(), true)
+set_attribute(preference, Attributes.ConstraintEncodingPenaltyHint(), -0.5)
+```
+
+Marking a constraint with `SoftConstraint()` does not remove its compiled
+penalty term from the QUBO Hamiltonian or reduce its initial automatically
+inferred penalty coefficient. To give a soft constraint a bounded preference
+weight instead of an exact-penalty coefficient, pair `SoftConstraint()` with
+[`ToQUBO.Attributes.ConstraintPenaltyScale`](@ref),
+[`ToQUBO.Attributes.ConstraintPenaltyOffset`](@ref), or an explicit
+[`ToQUBO.Attributes.ConstraintEncodingPenaltyHint`](@ref).
+
+Soft constraints still have their residuals and violation magnitudes measured:
+- `ToQUBO.violations(model; result = i)` includes violated soft constraints by
+  default with `v.soft == true` (pass `include_soft = false` to filter to hard
+  constraints only).
+- `ToQUBO.is_feasible`, `FeasibilityResult.feasible`, `primal_status`,
+  `Attributes.AutoFeasibilityReport()`, and iterative penalty refinement under
+  `Attributes.MaxPenaltyUpdates()` reflect hard constraints only.
+- `FeasibilityResult` exposes `soft_violation_count`, `soft_max_violation`,
+  `soft_total_violation`, and `soft_by_constraint_type` alongside the
+  hard-constraint fields (`violation_count`, `max_violation`,
+  `total_violation`, `by_constraint_type`), and `FeasibilityReport` exposes
+  `soft_violation_count`, `soft_max_violation`, and `soft_total_violation`
+  across the summarized results.
 
 ## Objective Value
 

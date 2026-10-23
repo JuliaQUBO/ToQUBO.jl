@@ -337,6 +337,130 @@ function test_feasibility_auto_report()
     return nothing
 end
 
+function test_feasibility_soft_constraints()
+    # Hard + soft constraint model: hard constraint x[1] + x[2] <= 1 is enforced
+    # by default exact penalty; soft preference x[1] + x[2] >= 2 is given a weak
+    # penalty hint so result 1 satisfies the hard constraint (x[1] + x[2] == 1)
+    # while violating the soft preference by 1.0.
+    model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
+
+    @variable(model, x[1:2], Bin)
+    @objective(model, Max, 3x[1] + 2x[2])
+    c_hard = @constraint(model, x[1] + x[2] <= 1)
+    c_soft = @constraint(model, x[1] + x[2] >= 2)
+
+    @test get_attribute(c_hard, Attributes.SoftConstraint()) === false
+    @test get_attribute(c_soft, Attributes.SoftConstraint()) === false
+
+    set_attribute(c_soft, Attributes.ConstraintEncodingPenaltyHint(), -0.1)
+    set_attribute(c_soft, Attributes.SoftConstraint(), true)
+    set_attribute(model, Attributes.AutoFeasibilityReport(), true)
+
+    @test get_attribute(c_soft, Attributes.SoftConstraint()) === true
+
+    # Because only the soft constraint is violated in the hard-feasible results,
+    # result 1 is feasible and primal_status is FEASIBLE_POINT.
+    optimize!(model)
+
+    @test ToQUBO.is_feasible(model; result = 1)
+    @test primal_status(model; result = 1) === MOI.FEASIBLE_POINT
+
+    all_violated = ToQUBO.violations(model; result = 1)
+    hard_violated = ToQUBO.violations(model; result = 1, include_soft = false)
+
+    @test isempty(hard_violated)
+    @test length(all_violated) == 1
+    soft_v = only(all_violated)
+    @test soft_v.soft === true
+    @test soft_v.raw_residual ≈ 1.0
+    @test soft_v.violation ≈ 1.0
+    @test soft_v.value ≈ 1.0
+
+    report = ToQUBO.feasibility_report(model)
+    r1 = first(report.results)
+
+    @test r1.feasible === true
+    @test r1.violation_count == 0
+    @test r1.max_violation == 0.0
+    @test r1.total_violation == 0.0
+    @test r1.soft_violation_count == 1
+    @test r1.soft_max_violation ≈ 1.0
+    @test r1.soft_total_violation ≈ 1.0
+    @test haskey(r1.by_constraint_type, "$(MOI.ScalarAffineFunction{Float64}) in $(MOI.LessThan{Float64})")
+    @test haskey(r1.soft_by_constraint_type, "$(MOI.ScalarAffineFunction{Float64}) in $(MOI.GreaterThan{Float64})")
+    @test r1.soft_by_constraint_type["$(MOI.ScalarAffineFunction{Float64}) in $(MOI.GreaterThan{Float64})"].violation_count == 1
+
+    @test report.soft_violation_count >= 1
+    @test report.soft_max_violation >= 1.0
+    @test report.soft_total_violation >= 1.0
+
+    # When every constraint in an under-penalized model is marked soft, no hard
+    # constraint is violated anywhere, so AutoFeasibilityReport emits no warning
+    # and every result is hard-feasible.
+    soft_only_model, _ = _under_penalized_model()
+    for (F, S) in list_of_constraint_types(soft_only_model)
+        F == VariableRef && continue
+        for cref in all_constraints(soft_only_model, F, S)
+            set_attribute(cref, Attributes.SoftConstraint(), true)
+        end
+    end
+    set_attribute(soft_only_model, Attributes.AutoFeasibilityReport(), true)
+
+    @test_logs min_level = Logging.Warn optimize!(soft_only_model)
+
+    soft_only_report = ToQUBO.feasibility_report(soft_only_model)
+    @test soft_only_report.feasible_count == soft_only_report.result_count
+    @test soft_only_report.max_violation == 0.0
+    @test soft_only_report.total_violation == 0.0
+    @test soft_only_report.soft_violation_count == 2
+    @test soft_only_report.soft_max_violation ≈ 1.0
+    @test soft_only_report.soft_total_violation ≈ 2.0
+    @test ToQUBO.is_feasible(soft_only_model; result = 1)
+    @test primal_status(soft_only_model; result = 1) === MOI.FEASIBLE_POINT
+
+    # Bridged interval constraint marked soft propagates to both split bounds.
+    bridged_model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
+    @variable(bridged_model, y[1:2], Bin)
+    @objective(bridged_model, Max, 5y[1] + 5y[2])
+    c_interval = @constraint(bridged_model, 0.0 <= y[1] + y[2] <= 1.0)
+    set_attribute(c_interval, Attributes.SoftConstraint(), true)
+    @test get_attribute(c_interval, Attributes.SoftConstraint()) === true
+    set_attribute(bridged_model, Attributes.PenaltyScale(), 0.01)
+
+    optimize!(bridged_model)
+    @test get_attribute(c_interval, Attributes.SoftConstraint()) === true
+    @test ToQUBO.is_feasible(bridged_model; result = 1)
+    @test isempty(ToQUBO.violations(bridged_model; result = 1, include_soft = false))
+    @test !isempty(ToQUBO.violations(bridged_model; result = 1, include_soft = true))
+    @test all(v -> v.soft, ToQUBO.violations(bridged_model; result = 1))
+
+    # Emptying a JuMP model and rebuilding with a hard constraint at the same
+    # constraint index must not leak the previous soft flag into the backend.
+    reuse_model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
+    @variable(reuse_model, u[1:2], Bin)
+    @objective(reuse_model, Max, 3u[1] + 3u[2])
+    c_reuse_soft = @constraint(reuse_model, u[1] + u[2] <= 1)
+    set_attribute(c_reuse_soft, Attributes.ConstraintEncodingPenaltyHint(), -0.1)
+    set_attribute(c_reuse_soft, Attributes.SoftConstraint(), true)
+    optimize!(reuse_model)
+    @test ToQUBO.is_feasible(reuse_model; result = 1)
+    @test primal_status(reuse_model; result = 1) === MOI.FEASIBLE_POINT
+
+    empty!(reuse_model)
+    @variable(reuse_model, v[1:2], Bin)
+    @objective(reuse_model, Max, 3v[1] + 3v[2])
+    c_reuse_hard = @constraint(reuse_model, v[1] + v[2] <= 1)
+    set_attribute(c_reuse_hard, Attributes.ConstraintEncodingPenaltyHint(), -0.1)
+    @test get_attribute(c_reuse_hard, Attributes.SoftConstraint()) === false
+    optimize!(reuse_model)
+    @test get_attribute(c_reuse_hard, Attributes.SoftConstraint()) === false
+    @test !ToQUBO.is_feasible(reuse_model; result = 1)
+    @test primal_status(reuse_model; result = 1) === MOI.INFEASIBLE_POINT
+    @test only(ToQUBO.violations(reuse_model; result = 1)).soft === false
+
+    return nothing
+end
+
 function test_feasibility()
     @testset "→ Feasibility Analysis" verbose = true begin
         test_feasibility_scalar_measurements()
@@ -346,6 +470,7 @@ function test_feasibility()
         test_feasibility_primal_status()
         test_feasibility_source_objective_value()
         test_feasibility_auto_report()
+        test_feasibility_soft_constraints()
     end
 
     return nothing

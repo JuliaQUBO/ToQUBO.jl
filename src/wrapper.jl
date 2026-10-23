@@ -12,7 +12,9 @@ function MOI.is_empty(model::Optimizer)
 end
 
 function MOI.empty!(model::Optimizer)
+    MOI.empty!(model.bridge_model)
     MOI.empty!(model.source_model)
+    delete!(model.constraint_settings, :soft_constraint)
 
     Compiler.reset!(model)
 
@@ -54,16 +56,44 @@ function _copy_constraints!(::Type{F}, ::Type{S}, source, target, index_map) whe
     return nothing
 end
 
+function _set_copied_constraint_attribute!(
+    model::Optimizer,
+    bridge_model::MOIB.AbstractBridgeOptimizer,
+    attr::MOI.AbstractConstraintAttribute,
+    ci::MOI.ConstraintIndex,
+    value,
+)
+    if MOIB.is_bridged(bridge_model, ci)
+        br = MOIB.bridge(bridge_model, ci)
+        for (BF, BS) in MOIB.added_constraint_types(typeof(br))
+            for bci in MOI.get(br, MOI.ListOfConstraintIndices{BF,BS}())
+                _set_copied_constraint_attribute!(model, bridge_model, attr, bci, value)
+            end
+        end
+    else
+        MOI.set(model, attr, ci, value)
+    end
+
+    return nothing
+end
+
 function _copy_constraint_attributes(
     ::Type{F},
     ::Type{S},
     source,
     target,
+    bridge_model,
     index_map,
 ) where {F,S}
     for attr in MOI.get(source, MOI.ListOfConstraintAttributesSet{F,S}())
         for ci in MOI.get(source, MOI.ListOfConstraintIndices{F,S}())
-            MOI.set(target, attr, index_map[ci], MOI.get(source, attr, ci))
+            _set_copied_constraint_attribute!(
+                target,
+                bridge_model,
+                attr,
+                index_map[ci],
+                MOI.get(source, attr, ci),
+            )
         end
     end
 
@@ -121,7 +151,7 @@ function MOI.copy_to(model::Optimizer{T}, source::MOI.ModelLike) where {T}
     end
 
     for (F, S) in constraint_types
-        _copy_constraint_attributes(F, S, source, model, index_map)
+        _copy_constraint_attributes(F, S, source, model, bridge_model, index_map)
     end
 
     remapped_incumbent = false

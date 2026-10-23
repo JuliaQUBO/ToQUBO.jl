@@ -68,18 +68,39 @@ function MOI.set(
 end
 
 function MOI.get(model::Virtual.Model, ::MOI.ListOfVariableAttributesSet)
-    list = MOI.get(model.source_model, MOI.ListOfVariableAttributesSet())
+    list = MOI.AbstractVariableAttribute[
+        a for a in MOI.get(model.source_model, MOI.ListOfVariableAttributesSet())
+    ]
 
     if !isnothing(model.optimizer)
-        append!(list, MOI.get(model.optimizer, MOI.ListOfVariableAttributesSet()))
+        for a in MOI.get(model.optimizer, MOI.ListOfVariableAttributesSet())
+            a in list || push!(list, a)
+        end
     end
 
-    for (key, val) in keys(model.variable_settings)
+    for (key, val) in model.variable_settings
         isempty(val) && continue
 
-        attr = Attributes._attribute_from_key(key)::MOI.AbstractVariableAttribute
+        attr = Attributes._attribute_from_key(Val(key))()::MOI.AbstractVariableAttribute
+        attr in list || push!(list, attr)
+    end
 
-        push!(list, attr)
+    return list
+end
+
+function MOI.get(
+    model::Virtual.Model,
+    attr::MOI.ListOfConstraintAttributesSet{F,S},
+) where {F,S}
+    list = MOI.AbstractConstraintAttribute[
+        a for a in MOI.get(model.source_model, attr)
+    ]
+
+    for (key, val) in model.constraint_settings
+        any(ci -> ci isa MOI.ConstraintIndex{F,S}, keys(val)) || continue
+
+        con_attr = Attributes._attribute_from_key(Val(key))()::MOI.AbstractConstraintAttribute
+        con_attr in list || push!(list, con_attr)
     end
 
     return list
