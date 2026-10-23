@@ -229,6 +229,31 @@ Get the objective value for a specific solution:
 obj_i = objective_value(model, result = i)
 ```
 
+### Multi-Objective Scalarization and Per-Objective Values
+
+When a model defines a vector objective (`@objective(model, Min, [f1, f2])`),
+ToQUBO scalarizes the components into the target QUBO using per-objective
+weights ([`ToQUBO.Attributes.ObjectiveWeights`](@ref) /
+[`ToQUBO.Attributes.ObjectiveWeight`](@ref)) and per-objective optimization
+senses ([`ToQUBO.Attributes.ObjectiveSenses`](@ref) /
+[`ToQUBO.Attributes.ObjectiveSense`](@ref)). After solving, query each
+component's unweighted value on any sampled result via
+[`ToQUBO.source_objective_values`](@ref),
+[`ToQUBO.Attributes.ObjectiveFunctionValues`](@ref), or
+[`ToQUBO.Attributes.ObjectiveFunctionValue`](@ref), while
+[`ToQUBO.source_objective_value`](@ref) (with no component index) reports the
+scalarized penalty-free source objective:
+
+```julia
+set_attribute(model, Attributes.ObjectiveWeights(), [2.0, 0.5])
+set_attribute(model, Attributes.ObjectiveSenses(), [MOI.MIN_SENSE, MOI.MAX_SENSE])
+optimize!(model)
+
+component_values = ToQUBO.source_objective_values(model; result = 1)
+first_component  = ToQUBO.source_objective_value(model, 1; result = 1)
+scalarized_value = ToQUBO.source_objective_value(model; result = 1)
+```
+
 ## Compilation Information
 
 ToQUBO.jl provides attributes to inspect the compilation process:
@@ -350,11 +375,13 @@ ToQUBO.violations
 ToQUBO.is_feasible
 ToQUBO.feasibility_report
 ToQUBO.source_objective_value
+ToQUBO.source_objective_values
 ToQUBO.Attributes.CompilationTime
 ToQUBO.Attributes.CompilationStatus
 ToQUBO.Attributes.SourceModel
 ToQUBO.Attributes.TargetModel
 ToQUBO.Attributes.CompiledObjectiveFunction
+ToQUBO.Attributes.CompiledObjectiveFunctions
 ToQUBO.Attributes.CompiledHamiltonian
 ToQUBO.Attributes.VariableTargetVariables
 ToQUBO.Attributes.VariableEncodingFunction

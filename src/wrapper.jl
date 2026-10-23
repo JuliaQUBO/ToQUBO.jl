@@ -156,7 +156,13 @@ function MOI.copy_to(model::Optimizer{T}, source::MOI.ModelLike) where {T}
 
     remapped_incumbent = false
     remapped_policy = false
-    for attr in MOI.get(source, MOI.ListOfOptimizerAttributesSet())
+    source_opt_attrs = MOI.get(source, MOI.ListOfOptimizerAttributesSet())
+    for attr in source_opt_attrs
+        if attr isa Attributes.ObjectiveWeights || attr isa Attributes.ObjectiveSenses
+            MOI.set(model, attr, MOI.get(source, attr))
+        end
+    end
+    for attr in source_opt_attrs
         if attr isa Attributes.PenaltyIncumbent
             MOI.set(
                 model,
@@ -171,6 +177,8 @@ function MOI.copy_to(model::Optimizer{T}, source::MOI.ModelLike) where {T}
                 MOIU.map_indices(index_map, attr, MOI.get(source, attr)),
             )
             remapped_policy = true
+        elseif attr isa Attributes.ObjectiveWeight || attr isa Attributes.ObjectiveSense
+            MOI.set(model, attr, MOI.get(source, attr))
         end
     end
 

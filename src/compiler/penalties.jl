@@ -1173,12 +1173,130 @@ function _parse_set_exact_rational(
     return g
 end
 
+function _parse_objective_exact_rational(
+    model::Virtual.Model{T},
+    f_obj::MOI.AbstractScalarFunction,
+)::Union{PBO.PBF{VI,Rational{BigInt}},Nothing} where {T}
+    if !Attributes._has_custom_objective_scalarization(model)
+        return _parse_function_exact_rational(model, f_obj)
+    end
+
+    f_q = _parse_function_exact_rational(model, f_obj)
+    isnothing(f_q) && return nothing
+
+    w_q = _exact_rational(Attributes.objective_weight(model, 1))
+    isnothing(w_q) && return nothing
+
+    target_sense = MOI.get(model.target_model, MOI.ObjectiveSense())
+    s_1 = Attributes.objective_sense(model, 1)
+    rel_sign_q = s_1 === target_sense ? one(Rational{BigInt}) : -one(Rational{BigInt})
+    scale_q = rel_sign_q * w_q
+
+    total_q = PBO.PBF{VI,Rational{BigInt}}()
+    iszero(scale_q) && return total_q
+
+    for (ω, c) in f_q
+        total_q[ω] += scale_q * c
+    end
+
+    return total_q
+end
+
+function _parse_objective_exact_rational(
+    model::Virtual.Model{T},
+    f_obj::MOI.AbstractVectorFunction,
+)::Union{PBO.PBF{VI,Rational{BigInt}},Nothing} where {T}
+    total_q = PBO.PBF{VI,Rational{BigInt}}()
+    target_sense = MOI.get(model.target_model, MOI.ObjectiveSense())
+
+    for (i, f_i) in enumerate(MOI.Utilities.eachscalar(f_obj))
+        f_i_q = _parse_function_exact_rational(model, f_i)
+        isnothing(f_i_q) && return nothing
+
+        w_q = _exact_rational(Attributes.objective_weight(model, i))
+        isnothing(w_q) && return nothing
+
+        s_i = Attributes.objective_sense(model, i)
+        rel_sign_q = s_i === target_sense ? one(Rational{BigInt}) : -one(Rational{BigInt})
+        scale_q = rel_sign_q * w_q
+
+        iszero(scale_q) && continue
+
+        for (ω, c) in f_i_q
+            total_q[ω] += scale_q * c
+        end
+    end
+
+    return total_q
+end
+
+function _parse_objective_exact_rational(
+    ::Virtual.Model,
+    ::MOI.AbstractFunction,
+)
+    return nothing
+end
+
+function _eval_source_objective_rational(
+    model::Virtual.Model{T},
+    f_obj::MOI.AbstractScalarFunction,
+    cand_q::Dict{VI,Rational{BigInt}},
+)::Union{Rational{BigInt},Nothing} where {T}
+    val_q = _eval_source_function_rational(f_obj, cand_q)
+    isnothing(val_q) && return nothing
+
+    if !Attributes._has_custom_objective_scalarization(model)
+        return val_q
+    end
+
+    w_q = _exact_rational(Attributes.objective_weight(model, 1))
+    isnothing(w_q) && return nothing
+
+    target_sense = MOI.get(model.target_model, MOI.ObjectiveSense())
+    s_1 = Attributes.objective_sense(model, 1)
+    rel_sign_q = s_1 === target_sense ? one(Rational{BigInt}) : -one(Rational{BigInt})
+
+    return (rel_sign_q * w_q) * val_q
+end
+
+function _eval_source_objective_rational(
+    model::Virtual.Model{T},
+    f_obj::MOI.AbstractVectorFunction,
+    cand_q::Dict{VI,Rational{BigInt}},
+)::Union{Rational{BigInt},Nothing} where {T}
+    vals_q = _eval_source_function_rational(f_obj, cand_q)
+    isnothing(vals_q) && return nothing
+
+    total_q = zero(Rational{BigInt})
+    target_sense = MOI.get(model.target_model, MOI.ObjectiveSense())
+
+    for (i, val_q) in enumerate(vals_q)
+        w_q = _exact_rational(Attributes.objective_weight(model, i))
+        isnothing(w_q) && return nothing
+
+        s_i = Attributes.objective_sense(model, i)
+        rel_sign_q = s_i === target_sense ? one(Rational{BigInt}) : -one(Rational{BigInt})
+
+        total_q += (rel_sign_q * w_q) * val_q
+    end
+
+    return total_q
+end
+
+function _eval_source_objective_rational(
+    ::Virtual.Model,
+    ::MOI.AbstractFunction,
+    ::Dict{VI,Rational{BigInt}},
+)
+    return nothing
+end
+
 function _verify_objective_exact_rational(
     model::Virtual.Model{T},
 )::Tuple{Bool,Union{String,Nothing}} where {T}
     F_obj = MOI.get(model.source_model, MOI.ObjectiveFunctionType())
     f_obj = MOI.get(model.source_model, MOI.ObjectiveFunction{F_obj}())
-    f_exact_q = _parse_function_exact_rational(model, f_obj)
+    f_exact_q = _parse_objective_exact_rational(model, f_obj)
 
     if isnothing(f_exact_q) || !_pbf_matches_exact_rational(model.f, f_exact_q)
         return false,
@@ -2267,7 +2385,7 @@ function _objective_range_and_incumbent_metadata(
 
     F_obj = MOI.get(model.source_model, MOI.ObjectiveFunctionType())
     f_obj = MOI.get(model.source_model, MOI.ObjectiveFunction{F_obj}())
-    v_source_q = _eval_source_function_rational(f_obj, cand_q)
+    v_source_q = _eval_source_objective_rational(model, f_obj, cand_q)
     v_compiled_q = _eval_pbf_rational(model.f, y_inc)
 
     if isnothing(v_source_q) || isnothing(v_compiled_q) || v_source_q != v_compiled_q

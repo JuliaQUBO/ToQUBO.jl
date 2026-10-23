@@ -183,3 +183,117 @@ function parse!(
 
     return nothing
 end
+
+function parse!(
+    model::Virtual.Model{T},
+    fs::Vector{PBO.PBF{VI,T}},
+    f::Union{VI,SAF{T},SQF{T}},
+    arch::AbstractArchitecture,
+) where {T}
+    resize!(fs, 1)
+    fs[1] = PBO.PBF{VI,T}()
+
+    parse!(model, fs[1], f, arch)
+
+    return nothing
+end
+
+function parse!(
+    model::Virtual.Model{T},
+    fs::Vector{PBO.PBF{VI,T}},
+    f::VOV,
+    arch::AbstractArchitecture,
+) where {T}
+    n = length(f.variables)
+    resize!(fs, n)
+
+    for (i, vi) in enumerate(f.variables)
+        fs[i] = PBO.PBF{VI,T}()
+        parse!(model, fs[i], vi, arch)
+    end
+
+    return nothing
+end
+
+function parse!(
+    model::Virtual.Model{T},
+    fs::Vector{PBO.PBF{VI,T}},
+    f::VAF{T},
+    ::AbstractArchitecture,
+) where {T}
+    n = length(f.constants)
+    resize!(fs, n)
+
+    for i = 1:n
+        g = PBO.PBF{VI,T}()
+        g[nothing] += f.constants[i]
+        fs[i] = g
+    end
+
+    for term in f.terms
+        i = term.output_index
+        a = term.scalar_term
+        c = a.coefficient
+        v = model.source[a.variable]
+        g = fs[i]
+
+        for (ω, d) in Virtual.expansion(v)
+            g[ω] += c * d
+        end
+    end
+
+    return nothing
+end
+
+function parse!(
+    model::Virtual.Model{T},
+    fs::Vector{PBO.PBF{VI,T}},
+    f::VQF{T},
+    ::AbstractArchitecture,
+) where {T}
+    n = length(f.constants)
+    resize!(fs, n)
+
+    for i = 1:n
+        g = PBO.PBF{VI,T}()
+        g[nothing] += f.constants[i]
+        fs[i] = g
+    end
+
+    for term in f.quadratic_terms
+        i = term.output_index
+        q = term.scalar_term
+        c = q.coefficient
+        xi = q.variable_1
+        xj = q.variable_2
+        vi = model.source[xi]
+        vj = model.source[xj]
+        g = fs[i]
+
+        if xi === xj
+            c /= 2
+        end
+
+        for (ωi, di) in Virtual.expansion(vi)
+            for (ωj, dj) in Virtual.expansion(vj)
+                ωij = PBO.varmul(ωi, ωj)::PBO.Term{VI}
+
+                g[ωij] += c * di * dj
+            end
+        end
+    end
+
+    for term in f.affine_terms
+        i = term.output_index
+        a = term.scalar_term
+        c = a.coefficient
+        v = model.source[a.variable]
+        g = fs[i]
+
+        for (ω, d) in Virtual.expansion(v)
+            g[ω] += c * d
+        end
+    end
+
+    return nothing
+end

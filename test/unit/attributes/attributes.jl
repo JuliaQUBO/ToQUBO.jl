@@ -285,12 +285,113 @@ function test_compiler_attributes()
             end
         end
 
-        @testset "SourceObjectiveValue" begin
+        @testset "SourceObjectiveValue and Vector Objective Attributes" begin
             let model = ToQUBO.Optimizer{Float64}()
                 @test MOI.supports(model, Attributes.SourceObjectiveValue())
                 @test Attributes.SourceObjectiveValue().result_index == 1
                 @test Attributes.SourceObjectiveValue(3).result_index == 3
                 @test MOI.is_set_by_optimize(Attributes.SourceObjectiveValue())
+
+                @test MOI.supports(model, Attributes.SourceObjectiveValues())
+                @test Attributes.SourceObjectiveValues().result_index == 1
+                @test Attributes.SourceObjectiveValues(2).result_index == 2
+                @test MOI.is_set_by_optimize(Attributes.SourceObjectiveValues())
+
+                @test MOI.supports(model, Attributes.ObjectiveFunctionValues())
+                @test Attributes.ObjectiveFunctionValues().result_index == 1
+                @test Attributes.ObjectiveFunctionValues(4).result_index == 4
+                @test MOI.is_set_by_optimize(Attributes.ObjectiveFunctionValues())
+
+                @test MOI.supports(model, Attributes.ObjectiveFunctionValue(1))
+                @test Attributes.ObjectiveFunctionValue(2).objective_index == 2
+                @test Attributes.ObjectiveFunctionValue(2).result_index == 1
+                @test Attributes.ObjectiveFunctionValue(2, 5).result_index == 5
+                @test MOI.is_set_by_optimize(Attributes.ObjectiveFunctionValue(1))
+                @test_throws ArgumentError Attributes.ObjectiveFunctionValue(0)
+
+                @test MOI.supports(model, Attributes.CompiledObjectiveFunctions())
+                @test MOI.is_set_by_optimize(Attributes.CompiledObjectiveFunctions())
+                @test MOI.get(model, Attributes.CompiledObjectiveFunctions()) ==
+                      PBO.PBF{VI,Float64}[]
+                @test Attributes.compiled_objective_functions(model) ==
+                      PBO.PBF{VI,Float64}[]
+                pbf_sample = PBO.PBF{VI,Float64}(VI(1) => 2.0)
+                @test MOIU.map_indices(
+                    vi -> VI(vi.value + 100),
+                    Attributes.CompiledObjectiveFunctions(),
+                    [pbf_sample],
+                ) == [pbf_sample]
+
+                @test MOI.supports(model, Attributes.ObjectiveWeights())
+                @test MOI.supports(model, Attributes.ObjectiveWeight(1))
+                @test MOI.get(model, Attributes.ObjectiveWeights()) === nothing
+                @test Attributes.objective_weights(model) === nothing
+                @test MOI.get(model, Attributes.ObjectiveWeight(1)) === nothing
+                @test Attributes.objective_weight(model, 1) == 1.0
+
+                MOI.set(model, Attributes.ObjectiveWeights(), [2, 3.5])
+                @test MOI.get(model, Attributes.ObjectiveWeights()) == [2.0, 3.5]
+                @test MOI.get(model, Attributes.ObjectiveWeight(1)) == 2.0
+                @test MOI.get(model, Attributes.ObjectiveWeight(2)) == 3.5
+                @test MOI.get(model, Attributes.ObjectiveWeight(3)) === nothing
+
+                MOI.set(model, Attributes.ObjectiveWeight(2), 7.0)
+                @test MOI.get(model, Attributes.ObjectiveWeights()) == [2.0, 7.0]
+                @test Attributes.objective_weight(model, 2) == 7.0
+
+                # Setting ObjectiveWeights clears per-index ObjectiveWeight overrides
+                MOI.set(model, Attributes.ObjectiveWeights(), (4.0, 5.0))
+                @test MOI.get(model, Attributes.ObjectiveWeights()) == [4.0, 5.0]
+                @test MOI.get(model, Attributes.ObjectiveWeight(2)) == 5.0
+
+                MOI.set(model, Attributes.ObjectiveWeights(), nothing)
+                @test MOI.get(model, Attributes.ObjectiveWeights()) === nothing
+                @test MOI.get(model, Attributes.ObjectiveWeight(2)) === nothing
+
+                @test_throws ArgumentError Attributes.ObjectiveWeight(0)
+                @test_throws ArgumentError Attributes.ObjectiveWeight(true)
+                @test_throws ArgumentError MOI.set(model, Attributes.ObjectiveWeights(), [NaN])
+                @test_throws ArgumentError MOI.set(model, Attributes.ObjectiveWeights(), [Inf])
+                @test_throws ArgumentError MOI.set(model, Attributes.ObjectiveWeights(), [true])
+                @test_throws ArgumentError MOI.set(model, Attributes.ObjectiveWeights(), 1.0)
+                @test_throws ArgumentError MOI.set(model, Attributes.ObjectiveWeight(1), NaN)
+
+                @test MOI.supports(model, Attributes.ObjectiveSenses())
+                @test MOI.supports(model, Attributes.ObjectiveSense(1))
+                @test MOI.get(model, Attributes.ObjectiveSenses()) === nothing
+                @test Attributes.objective_senses(model) === nothing
+                @test MOI.get(model, Attributes.ObjectiveSense(1)) === nothing
+                @test Attributes.objective_sense(model, 1) == MOI.MIN_SENSE
+
+                MOI.set(model, Attributes.ObjectiveSenses(), [:min, :max])
+                @test MOI.get(model, Attributes.ObjectiveSenses()) ==
+                      [MOI.MIN_SENSE, MOI.MAX_SENSE]
+                @test MOI.get(model, Attributes.ObjectiveSense(2)) == MOI.MAX_SENSE
+
+                MOI.set(model, Attributes.ObjectiveSense(1), QUBOTools.Max)
+                @test MOI.get(model, Attributes.ObjectiveSenses()) ==
+                      [MOI.MAX_SENSE, MOI.MAX_SENSE]
+
+                MOI.set(model, Attributes.ObjectiveSenses(), (MOI.MIN_SENSE, MOI.MIN_SENSE))
+                @test MOI.get(model, Attributes.ObjectiveSenses()) ==
+                      [MOI.MIN_SENSE, MOI.MIN_SENSE]
+
+                MOI.set(model, Attributes.ObjectiveSenses(), nothing)
+                @test MOI.get(model, Attributes.ObjectiveSenses()) === nothing
+                @test MOI.get(model, Attributes.ObjectiveSense(1)) === nothing
+
+                @test_throws ArgumentError Attributes.ObjectiveSense(0)
+                @test_throws ArgumentError Attributes.ObjectiveSense(false)
+                @test_throws ArgumentError MOI.set(
+                    model,
+                    Attributes.ObjectiveSenses(),
+                    [MOI.FEASIBILITY_SENSE],
+                )
+                @test_throws ArgumentError MOI.set(
+                    model,
+                    Attributes.ObjectiveSense(1),
+                    :invalid,
+                )
             end
         end
 

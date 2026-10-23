@@ -5,6 +5,7 @@ include("quadratization.jl")
 include("error.jl")
 include("analysis.jl")
 include("variables.jl")
+include("objective.jl")
 include("penalties.jl")
 
 function test_compiler()
@@ -16,6 +17,7 @@ function test_compiler()
         test_compiler_error()
         test_compiler_analysis()
         test_compiler_variables()
+        test_compiler_objective()
         test_compiler_penalties()
     end
 

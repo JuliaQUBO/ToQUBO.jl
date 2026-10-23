@@ -574,6 +574,44 @@ function compiled_objective_function(model::Optimizer)
     return MOI.get(model, CompiledObjectiveFunction())
 end
 
+function _compiled_objective_components(model::Optimizer{T})::Vector{PBO.PBF{VI,T}} where {T}
+    if _is_qubo_fast_path(model)
+        return PBO.PBF{VI,T}[_compiled_qubo_objective_from_target(model)]
+    end
+
+    return model.f_components
+end
+
+@doc raw"""
+    CompiledObjectiveFunctions()
+
+Return the vector of pseudo-boolean component objectives parsed from the source
+model in their original unweighted, un-flipped form, before scalarization and
+penalty terms are added.
+
+For a scalar source objective, the returned vector has length `1` after
+compilation. For a vector source objective, the returned vector has one entry
+per objective component.
+"""
+struct CompiledObjectiveFunctions <: CompilerAttribute end
+
+MOI.is_set_by_optimize(::CompiledObjectiveFunctions) = true
+
+function MOIU.map_indices(::Any, ::CompiledObjectiveFunctions, fs::AbstractVector)
+    return fs
+end
+
+function MOI.get(
+    model::Optimizer{T},
+    ::CompiledObjectiveFunctions,
+)::Vector{PBO.PBF{VI,T}} where {T}
+    return PBO.PBF{VI,T}[copy(f_i) for f_i in _compiled_objective_components(model)]
+end
+
+function compiled_objective_functions(model::Optimizer)
+    return MOI.get(model, CompiledObjectiveFunctions())
+end
+
 @doc raw"""
     CompiledHamiltonian()
 
@@ -850,6 +888,13 @@ end
 Value of the source-model objective function evaluated at the projected
 source-variable values of sampled result `result_index`.
 
+For vector objectives (or when [`ObjectiveWeights`](@ref) /
+[`ObjectiveSenses`](@ref) are configured), this returns the scalarized
+penalty-free source objective using the configured per-objective weights and
+relative sense signs. Use [`ObjectiveFunctionValues`](@ref),
+[`SourceObjectiveValues`](@ref), or [`ToQUBO.source_objective_values`](@ref) to
+retrieve the vector of unweighted component objective values.
+
 Unlike `MOI.ObjectiveValue`, which reports the target QUBO energy including
 penalty terms introduced by the reformulation, this attribute is penalty-free:
 it evaluates the original objective on the decoded solution.
@@ -857,10 +902,490 @@ it evaluates the original objective on the decoded solution.
 struct SourceObjectiveValue <: CompilerAttribute
     result_index::Int
 
-    SourceObjectiveValue(result_index::Integer = 1) = new(result_index)
+    SourceObjectiveValue(result_index::Integer = 1) = new(Int(result_index))
 end
 
 MOI.is_set_by_optimize(::SourceObjectiveValue) = true
+
+@doc raw"""
+    ObjectiveFunctionValues(result_index::Integer = 1)
+
+Vector of component source-objective values on sampled result `result_index`,
+evaluated by applying each compiled component pseudo-boolean function in
+[`CompiledObjectiveFunctions`](@ref) to the sampled target state (without
+penalty terms, per-objective weights, or sense sign flips).
+"""
+struct ObjectiveFunctionValues <: CompilerAttribute
+    result_index::Int
+
+    ObjectiveFunctionValues(result_index::Integer = 1) = new(Int(result_index))
+end
+
+MOI.is_set_by_optimize(::ObjectiveFunctionValues) = true
+
+function objective_function_values(model::Optimizer, result_index::Integer = 1)
+    return MOI.get(model, ObjectiveFunctionValues(result_index))
+end
+
+@doc raw"""
+    ObjectiveFunctionValue(objective_index::Integer, result_index::Integer = 1)
+
+Value of the `objective_index`-th component source objective on sampled result
+`result_index`, evaluated by applying that component's compiled pseudo-boolean
+function to the sampled target state (without penalty terms, per-objective
+weights, or sense sign flips).
+"""
+struct ObjectiveFunctionValue <: CompilerAttribute
+    objective_index::Int
+    result_index::Int
+
+    function ObjectiveFunctionValue(
+        objective_index::Integer,
+        result_index::Integer = 1,
+    )
+        objective_index >= 1 ||
+            throw(ArgumentError("Objective index must be positive; got $objective_index"))
+
+        return new(Int(objective_index), Int(result_index))
+    end
+end
+
+MOI.is_set_by_optimize(::ObjectiveFunctionValue) = true
+
+function objective_function_value(
+    model::Optimizer,
+    objective_index::Integer,
+    result_index::Integer = 1,
+)
+    return MOI.get(model, ObjectiveFunctionValue(objective_index, result_index))
+end
+
+@doc raw"""
+    SourceObjectiveValues(result_index::Integer = 1)
+
+Vector of unweighted component source-objective values on sampled result
+`result_index`. Equivalent to [`ObjectiveFunctionValues`](@ref).
+"""
+struct SourceObjectiveValues <: CompilerAttribute
+    result_index::Int
+
+    SourceObjectiveValues(result_index::Integer = 1) = new(Int(result_index))
+end
+
+MOI.is_set_by_optimize(::SourceObjectiveValues) = true
+
+function _validate_objective_weight(w)
+    if !(w isa Real) || w isa Bool || !isfinite(w)
+        throw(
+            ArgumentError(
+                "Objective weight must be a finite real number; got $(repr(w))",
+            ),
+        )
+    end
+
+    return w
+end
+
+function _validate_objective_weight(::Type{T}, w)::T where {T}
+    _validate_objective_weight(w)
+
+    wt = try
+        convert(T, w)
+    catch
+        throw(
+            ArgumentError(
+                "Objective weight $(repr(w)) cannot be converted to coefficient type $T",
+            ),
+        )
+    end
+
+    isfinite(wt) ||
+        throw(
+            ArgumentError(
+                "Objective weight must be finite in coefficient type $T; got $(repr(w))",
+            ),
+        )
+
+    return wt
+end
+
+function _normalize_objective_sense(sense)::MOI.OptimizationSense
+    if sense === MOI.MIN_SENSE || sense === :min || sense === QUBOTools.Min
+        return MOI.MIN_SENSE
+    elseif sense === MOI.MAX_SENSE || sense === :max || sense === QUBOTools.Max
+        return MOI.MAX_SENSE
+    else
+        throw(
+            ArgumentError(
+                "Objective sense must be `MOI.MIN_SENSE`, `MOI.MAX_SENSE`, `:min`, or `:max`; got $(repr(sense))",
+            ),
+        )
+    end
+end
+
+function _has_custom_objective_scalarization(model::Optimizer)::Bool
+    has_weights = haskey(model.compiler_settings, :objective_weights)
+    weight_dict = get(model.compiler_settings, :objective_weight, nothing)
+    has_weight_overrides = !isnothing(weight_dict) && !isempty(weight_dict)
+    has_senses = haskey(model.compiler_settings, :objective_senses)
+    sense_dict = get(model.compiler_settings, :objective_sense, nothing)
+    has_sense_overrides = !isnothing(sense_dict) && !isempty(sense_dict)
+
+    return has_weights || has_weight_overrides || has_senses || has_sense_overrides
+end
+
+@doc raw"""
+    ObjectiveWeights()
+
+Set or retrieve per-objective scalarization weights for vector (or scalar)
+objectives.
+
+Pass a vector or tuple of finite real numbers matching the number of objective
+components, or `nothing` to reset to unit weights (`1`). Individual component
+weights can also be set or overridden with [`ObjectiveWeight`](@ref). Setting
+`ObjectiveWeights()` clears any previous per-index [`ObjectiveWeight`](@ref)
+overrides.
+"""
+struct ObjectiveWeights <: CompilerAttribute end
+
+_attribute_from_key(::Val{:objective_weights}) = ObjectiveWeights
+
+function MOI.get(model::Optimizer{T}, ::ObjectiveWeights)::Union{Vector{T},Nothing} where {T}
+    base = get(model.compiler_settings, :objective_weights, nothing)
+    isnothing(base) && return nothing
+
+    weights = copy(base::Vector{T})
+    overrides = get(model.compiler_settings, :objective_weight, nothing)
+    if !isnothing(overrides)
+        for (idx, w) in overrides::Dict{Int,T}
+            if 1 <= idx <= length(weights)
+                weights[idx] = w
+            end
+        end
+    end
+
+    return weights
+end
+
+function MOI.set(
+    model::Optimizer{T},
+    ::ObjectiveWeights,
+    weights::Union{AbstractVector,Tuple},
+) where {T}
+    converted = Vector{T}(undef, length(weights))
+    for (i, w) in enumerate(weights)
+        converted[i] = _validate_objective_weight(T, w)
+    end
+
+    model.compiler_settings[:objective_weights] = converted
+    delete!(model.compiler_settings, :objective_weight)
+
+    return nothing
+end
+
+function MOI.set(model::Optimizer, ::ObjectiveWeights, ::Nothing)
+    delete!(model.compiler_settings, :objective_weights)
+    delete!(model.compiler_settings, :objective_weight)
+
+    return nothing
+end
+
+function MOI.set(::Optimizer, ::ObjectiveWeights, value::Any)
+    throw(
+        ArgumentError(
+            "`ObjectiveWeights` must be a vector or tuple of finite real numbers, or `nothing`; got $(repr(value))",
+        ),
+    )
+end
+
+function MOI.set(
+    uf::MOIU.UniversalFallback,
+    attr::ObjectiveWeights,
+    value,
+)
+    if !(value === nothing || value isa Union{AbstractVector,Tuple})
+        throw(
+            ArgumentError(
+                "`ObjectiveWeights` must be a vector or tuple of finite real numbers, or `nothing`; got $(repr(value))",
+            ),
+        )
+    end
+    if value !== nothing
+        for w in value
+            _validate_objective_weight(w)
+        end
+    end
+
+    for k in collect(keys(uf.optattr))
+        if k isa ObjectiveWeight
+            delete!(uf.optattr, k)
+        end
+    end
+
+    if value === nothing
+        delete!(uf.optattr, attr)
+    else
+        uf.optattr[attr] = value
+    end
+
+    return nothing
+end
+
+function objective_weights(model::Optimizer)
+    return MOI.get(model, ObjectiveWeights())
+end
+
+@doc raw"""
+    ObjectiveWeight(index::Integer)
+
+Set or retrieve the scalarization weight for the `index`-th objective component
+(1-based). Pass `nothing` to clear the override for `index`.
+"""
+struct ObjectiveWeight <: CompilerAttribute
+    index::Int
+
+    function ObjectiveWeight(index::Integer)
+        if index isa Bool || index < 1
+            throw(
+                ArgumentError(
+                    "Objective component index must be a positive integer; got $(repr(index))",
+                ),
+            )
+        end
+
+        return new(Int(index))
+    end
+end
+
+function MOI.get(
+    model::Optimizer{T},
+    attr::ObjectiveWeight,
+)::Union{T,Nothing} where {T}
+    overrides = get(model.compiler_settings, :objective_weight, nothing)
+    if !isnothing(overrides) && haskey(overrides, attr.index)
+        return (overrides::Dict{Int,T})[attr.index]
+    end
+
+    base = get(model.compiler_settings, :objective_weights, nothing)
+    if !isnothing(base) && 1 <= attr.index <= length(base::Vector{T})
+        return (base::Vector{T})[attr.index]
+    end
+
+    return nothing
+end
+
+function MOI.set(
+    model::Optimizer{T},
+    attr::ObjectiveWeight,
+    weight::Any,
+) where {T}
+    wt = _validate_objective_weight(T, weight)
+    overrides = get!(model.compiler_settings, :objective_weight) do
+        return Dict{Int,T}()
+    end::Dict{Int,T}
+    overrides[attr.index] = wt
+
+    return nothing
+end
+
+function MOI.set(model::Optimizer, attr::ObjectiveWeight, ::Nothing)
+    overrides = get(model.compiler_settings, :objective_weight, nothing)
+    if !isnothing(overrides)
+        delete!(overrides, attr.index)
+        if isempty(overrides)
+            delete!(model.compiler_settings, :objective_weight)
+        end
+    end
+
+    return nothing
+end
+
+function objective_weight(model::Optimizer{T}, index::Integer)::T where {T}
+    w = MOI.get(model, ObjectiveWeight(index))
+    return isnothing(w) ? one(T) : w
+end
+
+@doc raw"""
+    ObjectiveSenses()
+
+Set or retrieve per-objective optimization senses (`MOI.MIN_SENSE` / `:min` or
+`MOI.MAX_SENSE` / `:max`) for vector (or scalar) objectives.
+
+When unset (`nothing`), each objective component uses the model's optimization
+sense (`MOI.MAX_SENSE` when `MOI.ObjectiveSense()` is `MOI.MAX_SENSE`, and
+`MOI.MIN_SENSE` otherwise). A component whose sense differs from the target
+model's optimization sense has its sign flipped during scalarization. Setting
+`ObjectiveSenses()` clears any previous per-index [`ObjectiveSense`](@ref)
+overrides.
+"""
+struct ObjectiveSenses <: CompilerAttribute end
+
+_attribute_from_key(::Val{:objective_senses}) = ObjectiveSenses
+
+function MOI.get(
+    model::Optimizer,
+    ::ObjectiveSenses,
+)::Union{Vector{MOI.OptimizationSense},Nothing}
+    base = get(model.compiler_settings, :objective_senses, nothing)
+    isnothing(base) && return nothing
+
+    senses = copy(base::Vector{MOI.OptimizationSense})
+    overrides = get(model.compiler_settings, :objective_sense, nothing)
+    if !isnothing(overrides)
+        for (idx, s) in overrides::Dict{Int,MOI.OptimizationSense}
+            if 1 <= idx <= length(senses)
+                senses[idx] = s
+            end
+        end
+    end
+
+    return senses
+end
+
+function MOI.set(
+    model::Optimizer,
+    ::ObjectiveSenses,
+    senses::Union{AbstractVector,Tuple},
+)
+    converted = Vector{MOI.OptimizationSense}(undef, length(senses))
+    for (i, s) in enumerate(senses)
+        converted[i] = _normalize_objective_sense(s)
+    end
+
+    model.compiler_settings[:objective_senses] = converted
+    delete!(model.compiler_settings, :objective_sense)
+
+    return nothing
+end
+
+function MOI.set(model::Optimizer, ::ObjectiveSenses, ::Nothing)
+    delete!(model.compiler_settings, :objective_senses)
+    delete!(model.compiler_settings, :objective_sense)
+
+    return nothing
+end
+
+function MOI.set(::Optimizer, ::ObjectiveSenses, value::Any)
+    throw(
+        ArgumentError(
+            "`ObjectiveSenses` must be a vector or tuple of optimization senses, or `nothing`; got $(repr(value))",
+        ),
+    )
+end
+
+function MOI.set(
+    uf::MOIU.UniversalFallback,
+    attr::ObjectiveSenses,
+    value,
+)
+    if !(value === nothing || value isa Union{AbstractVector,Tuple})
+        throw(
+            ArgumentError(
+                "`ObjectiveSenses` must be a vector or tuple of optimization senses, or `nothing`; got $(repr(value))",
+            ),
+        )
+    end
+    if value !== nothing
+        for s in value
+            _normalize_objective_sense(s)
+        end
+    end
+
+    for k in collect(keys(uf.optattr))
+        if k isa ObjectiveSense
+            delete!(uf.optattr, k)
+        end
+    end
+
+    if value === nothing
+        delete!(uf.optattr, attr)
+    else
+        uf.optattr[attr] = value
+    end
+
+    return nothing
+end
+
+function objective_senses(model::Optimizer)
+    return MOI.get(model, ObjectiveSenses())
+end
+
+@doc raw"""
+    ObjectiveSense(index::Integer)
+
+Set or retrieve the optimization sense (`MOI.MIN_SENSE` / `:min` or
+`MOI.MAX_SENSE` / `:max`) for the `index`-th objective component (1-based).
+Pass `nothing` to clear the override for `index`.
+"""
+struct ObjectiveSense <: CompilerAttribute
+    index::Int
+
+    function ObjectiveSense(index::Integer)
+        if index isa Bool || index < 1
+            throw(
+                ArgumentError(
+                    "Objective component index must be a positive integer; got $(repr(index))",
+                ),
+            )
+        end
+
+        return new(Int(index))
+    end
+end
+
+function MOI.get(
+    model::Optimizer,
+    attr::ObjectiveSense,
+)::Union{MOI.OptimizationSense,Nothing}
+    overrides = get(model.compiler_settings, :objective_sense, nothing)
+    if !isnothing(overrides) && haskey(overrides, attr.index)
+        return (overrides::Dict{Int,MOI.OptimizationSense})[attr.index]
+    end
+
+    base = get(model.compiler_settings, :objective_senses, nothing)
+    if !isnothing(base) &&
+       1 <= attr.index <= length(base::Vector{MOI.OptimizationSense})
+        return (base::Vector{MOI.OptimizationSense})[attr.index]
+    end
+
+    return nothing
+end
+
+function MOI.set(
+    model::Optimizer,
+    attr::ObjectiveSense,
+    sense::Any,
+)
+    s = _normalize_objective_sense(sense)
+    overrides = get!(model.compiler_settings, :objective_sense) do
+        return Dict{Int,MOI.OptimizationSense}()
+    end::Dict{Int,MOI.OptimizationSense}
+    overrides[attr.index] = s
+
+    return nothing
+end
+
+function MOI.set(model::Optimizer, attr::ObjectiveSense, ::Nothing)
+    overrides = get(model.compiler_settings, :objective_sense, nothing)
+    if !isnothing(overrides)
+        delete!(overrides, attr.index)
+        if isempty(overrides)
+            delete!(model.compiler_settings, :objective_sense)
+        end
+    end
+
+    return nothing
+end
+
+function objective_sense(model::Optimizer, index::Integer)::MOI.OptimizationSense
+    s = MOI.get(model, ObjectiveSense(index))
+    if !isnothing(s)
+        return s
+    end
+
+    return MOI.get(model, MOI.ObjectiveSense()) === MOI.MAX_SENSE ? MOI.MAX_SENSE :
+           MOI.MIN_SENSE
+end
 
 @doc raw"""
     IgnoreFeasibleConstraints()

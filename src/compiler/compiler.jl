@@ -19,6 +19,9 @@ const SAT{T}  = MOI.ScalarAffineTerm{T}
 const SAF{T}  = MOI.ScalarAffineFunction{T}
 const SQT{T}  = MOI.ScalarQuadraticTerm{T}
 const SQF{T}  = MOI.ScalarQuadraticFunction{T}
+const VOV     = MOI.VectorOfVariables
+const VAF{T}  = MOI.VectorAffineFunction{T}
+const VQF{T}  = MOI.VectorQuadraticFunction{T}
 const EQ{T}   = MOI.EqualTo{T}
 const LT{T}   = MOI.LessThan{T}
 const GT{T}   = MOI.GreaterThan{T}
@@ -43,7 +46,7 @@ function compile!(model::Virtual.Model)
 end
 
 function compile!(model::Virtual.Model{T}, arch::AbstractArchitecture) where {T}
-    if is_qubo(model.source_model)
+    if is_qubo(model.source_model) && !Attributes._has_custom_objective_scalarization(model)
         Compiler.copy!(model, arch)
 
         return nothing
@@ -90,6 +93,7 @@ function reset!(model::Virtual.Model, ::AbstractArchitecture = GenericArchitectu
 
     # PBF/IR
     Base.empty!(model.f)
+    Base.empty!(model.f_components)
     Base.empty!(model.g)
     Base.empty!(model.h)
     Base.empty!(model.ρ)

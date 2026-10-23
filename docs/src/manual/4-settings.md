@@ -39,6 +39,13 @@ compiled preference weight.
 ToQUBO.Attributes.PrimalFeasibilityCheck
 ToQUBO.Attributes.AutoFeasibilityReport
 ToQUBO.Attributes.SourceObjectiveValue
+ToQUBO.Attributes.SourceObjectiveValues
+ToQUBO.Attributes.ObjectiveFunctionValues
+ToQUBO.Attributes.ObjectiveFunctionValue
+ToQUBO.Attributes.ObjectiveWeights
+ToQUBO.Attributes.ObjectiveWeight
+ToQUBO.Attributes.ObjectiveSenses
+ToQUBO.Attributes.ObjectiveSense
 ToQUBO.Attributes.SoftConstraint
 ```
 

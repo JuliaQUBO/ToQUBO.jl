@@ -174,6 +174,58 @@ function MOI.get(model::Virtual.Model{T}, ov::MOI.ObjectiveValue) where {T}
     end
 end
 
+function _target_sample_state(model::Virtual.Model{T}, result_index::Int) where {T}
+    vp = MOI.VariablePrimal(result_index)
+
+    return Dict{VI,T}(
+        y => MOI.get(model.optimizer, vp, y) for
+        y in MOI.get(model.target_model, MOI.ListOfVariableIndices())
+    )
+end
+
+function MOI.get(
+    model::Virtual.Model{T},
+    attr::Attributes.ObjectiveFunctionValues,
+)::Vector{T} where {T}
+    MOI.check_result_index_bounds(model, attr)
+
+    components = Attributes._compiled_objective_components(model)
+    isempty(components) && return T[]
+
+    state = _target_sample_state(model, attr.result_index)
+
+    return T[_evaluate_pbf(f_i, state) for f_i in components]
+end
+
+function MOI.get(
+    model::Virtual.Model{T},
+    attr::Attributes.ObjectiveFunctionValue,
+)::T where {T}
+    MOI.check_result_index_bounds(model, attr)
+
+    components = Attributes._compiled_objective_components(model)
+    1 <= attr.objective_index <= length(components) ||
+        throw(BoundsError(components, attr.objective_index))
+
+    state = _target_sample_state(model, attr.result_index)
+
+    return _evaluate_pbf(components[attr.objective_index], state)
+end
+
+function MOI.get(
+    model::Virtual.Model{T},
+    attr::Attributes.SourceObjectiveValues,
+)::Vector{T} where {T}
+    MOI.check_result_index_bounds(model, attr)
+
+    components = Attributes._compiled_objective_components(model)
+    isempty(components) && return T[]
+
+    state = _target_sample_state(model, attr.result_index)
+
+    return T[_evaluate_pbf(f_i, state) for f_i in components]
+end
+
 function MOI.get(model::Virtual.Model{T}, vp::MOI.VariablePrimalStart, x::VI) where {T}
     return MOI.get(model.source_model, vp, x)
 end
