@@ -315,6 +315,12 @@ function test_compiler_attributes()
                       PBO.PBF{VI,Float64}[]
                 @test Attributes.compiled_objective_functions(model) ==
                       PBO.PBF{VI,Float64}[]
+                pbf_sample = PBO.PBF{VI,Float64}(VI(1) => 2.0)
+                @test MOIU.map_indices(
+                    vi -> VI(vi.value + 100),
+                    Attributes.CompiledObjectiveFunctions(),
+                    [pbf_sample],
+                ) == [pbf_sample]
 
                 @test MOI.supports(model, Attributes.ObjectiveWeights())
                 @test MOI.supports(model, Attributes.ObjectiveWeight(1))

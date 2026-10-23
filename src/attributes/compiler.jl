@@ -597,6 +597,10 @@ struct CompiledObjectiveFunctions <: CompilerAttribute end
 
 MOI.is_set_by_optimize(::CompiledObjectiveFunctions) = true
 
+function MOIU.map_indices(::Any, ::CompiledObjectiveFunctions, fs::AbstractVector)
+    return fs
+end
+
 function MOI.get(
     model::Optimizer{T},
     ::CompiledObjectiveFunctions,
@@ -970,7 +974,7 @@ end
 
 MOI.is_set_by_optimize(::SourceObjectiveValues) = true
 
-function _validate_objective_weight(::Type{T}, w)::T where {T}
+function _validate_objective_weight(w)
     if !(w isa Real) || w isa Bool || !isfinite(w)
         throw(
             ArgumentError(
@@ -978,6 +982,12 @@ function _validate_objective_weight(::Type{T}, w)::T where {T}
             ),
         )
     end
+
+    return w
+end
+
+function _validate_objective_weight(::Type{T}, w)::T where {T}
+    _validate_objective_weight(w)
 
     wt = try
         convert(T, w)
@@ -1102,7 +1112,7 @@ function MOI.set(
     end
     if value !== nothing
         for w in value
-            _validate_objective_weight(Float64, w)
+            _validate_objective_weight(w)
         end
     end
 

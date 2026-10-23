@@ -23,7 +23,9 @@ function test_compiler_objective()
                 optimize!(model)
 
                 backend = JuMP.unsafe_backend(model)
-                comp_pbfs = MOI.get(backend, Attributes.CompiledObjectiveFunctions())
+                comp_pbfs = get_attribute(model, Attributes.CompiledObjectiveFunctions())
+                @test comp_pbfs == MOI.get(model, Attributes.CompiledObjectiveFunctions())
+                @test comp_pbfs == MOI.get(backend, Attributes.CompiledObjectiveFunctions())
                 @test length(comp_pbfs) == 2
 
                 rel_1 = model_sense === MOI.MIN_SENSE ? 1.0 : -1.0
@@ -250,9 +252,30 @@ function test_compiler_objective()
                 MOI.optimize!(model)
                 @test MOI.get(model, Attributes.CompilationStatus()) == MOI.LOCALLY_SOLVED
             end
+
+            # JuMP CompiledObjectiveFunctions with encoded integer variable and BigFloat cached weights
+            let jm = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
+                @variable(jm, 0 <= z <= 2, Int)
+                @objective(jm, Min, [z, z^2])
+                optimize!(jm)
+
+                raw = MOI.get(JuMP.unsafe_backend(jm), Attributes.CompiledObjectiveFunctions())
+                @test get_attribute(jm, Attributes.CompiledObjectiveFunctions()) == raw
+                @test MOI.get(jm, Attributes.CompiledObjectiveFunctions()) == raw
+                @test length(raw) == 2
+            end
+
+            let jm = GenericModel{BigFloat}(() -> ToQUBO.Optimizer{BigFloat}())
+                @variable(jm, z, Bin)
+                @objective(jm, Min, z)
+                set_attribute(jm, Attributes.ObjectiveWeights(), [big"1e400"])
+                optimize!(jm)
+                @test MOI.get(JuMP.unsafe_backend(jm), Attributes.CompilationStatus()) ==
+                      MOI.LOCALLY_SOLVED
+                @test Attributes.objective_weight(JuMP.unsafe_backend(jm), 1) == big"1e400"
+            end
         end
     end
 
     return nothing
 end
-
