@@ -1183,6 +1183,273 @@ function test_compiler_incumbent_rejections_and_fallbacks()
     )
     @test prec_meta["objective_bounds"]["tightened"] === false
 
+    # 6. Zero-set rounding in Float64 when squaring g^2:
+    # For 100000001*x1 - 100000000*x2 = 0, (1, 1) violates the source constraint by 1,
+    # but in Float64 (100000001*x1 - 100000000*x2)^2 loses the +1 in 100000001.0^2 and
+    # evaluates to 0.0 at (1, 1). Incumbent tightening and sufficient_bound certification
+    # must both be declined.
+    zeroset_model = ToQUBO.Optimizer{Float64}()
+    xz = [MOI.add_variable(zeroset_model) for _ = 1:2]
+    for xi in xz
+        MOI.add_constraint(zeroset_model, xi, MOI.ZeroOne())
+    end
+    MOI.set(zeroset_model, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+    MOI.set(
+        zeroset_model,
+        MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
+        MOI.ScalarAffineFunction{Float64}(
+            [MOI.ScalarAffineTerm(-100.0, xz[1]), MOI.ScalarAffineTerm(1.0, xz[2])],
+            100.0,
+        ),
+    )
+    MOI.add_constraint(
+        zeroset_model,
+        MOI.ScalarAffineFunction{Float64}(
+            [
+                MOI.ScalarAffineTerm(100000001.0, xz[1]),
+                MOI.ScalarAffineTerm(-100000000.0, xz[2]),
+            ],
+            0.0,
+        ),
+        MOI.EqualTo{Float64}(0.0),
+    )
+    MOI.set(zeroset_model, Attributes.PenaltyIncumbent(), (0, 0))
+    MOI.optimize!(zeroset_model)
+    zeroset_meta = MOI.get(zeroset_model, Attributes.PenaltyPolicyMetadata())
+    @test zeroset_meta["incumbent"]["status"] == "rejected"
+    @test occursin("rounded in floating-point arithmetic", zeroset_meta["incumbent"]["reason"])
+    @test zeroset_meta["sufficient_bound"]["certified"] === false
+    @test zeroset_meta["sufficient_bound"]["tightened"] === false
+
+    # 7. >10-variable constraint penalty rounded in Float64 when squaring g^2:
+    # 7383546712*x1 - 7383546711*x2 + sum(x3:x11) = 0 loses precision in Float64 when squared,
+    # making model.g take negative value -8192 at (1, 1, 0, ..., 0). Both incumbent tightening
+    # and sufficient_bound certification must reject it.
+    n11_bad = ToQUBO.Optimizer{Float64}()
+    x11_bad = [MOI.add_variable(n11_bad) for _ = 1:11]
+    for xi in x11_bad
+        MOI.add_constraint(n11_bad, xi, MOI.ZeroOne())
+    end
+    MOI.set(n11_bad, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+    MOI.set(
+        n11_bad,
+        MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
+        MOI.ScalarAffineFunction{Float64}(
+            [
+                [MOI.ScalarAffineTerm(-100.0, x11_bad[1]), MOI.ScalarAffineTerm(1.0, x11_bad[2])]
+                [MOI.ScalarAffineTerm(1000.0, x11_bad[i]) for i = 3:11]
+            ],
+            100.0,
+        ),
+    )
+    MOI.add_constraint(
+        n11_bad,
+        MOI.ScalarAffineFunction{Float64}(
+            [
+                [
+                    MOI.ScalarAffineTerm(7383546712.0, x11_bad[1]),
+                    MOI.ScalarAffineTerm(-7383546711.0, x11_bad[2]),
+                ]
+                [MOI.ScalarAffineTerm(1.0, x11_bad[i]) for i = 3:11]
+            ],
+            0.0,
+        ),
+        MOI.EqualTo{Float64}(0.0),
+    )
+    MOI.set(n11_bad, Attributes.PenaltyIncumbent(), Tuple(zeros(Int, 11)))
+    MOI.optimize!(n11_bad)
+    n11_bad_meta = MOI.get(n11_bad, Attributes.PenaltyPolicyMetadata())
+    @test n11_bad_meta["incumbent"]["status"] == "rejected"
+    @test occursin("rounded in floating-point arithmetic", n11_bad_meta["incumbent"]["reason"])
+    @test n11_bad_meta["sufficient_bound"]["certified"] === false
+    @test n11_bad_meta["sufficient_bound"]["tightened"] === false
+
+    # Conversely, an exact 11-variable binary equality 2*x1 - x2 + sum(x3:x11) = 0 whose square
+    # has exact Float64 coefficients is certified and tightened:
+    n11_ok = ToQUBO.Optimizer{Float64}()
+    x11_ok = [MOI.add_variable(n11_ok) for _ = 1:11]
+    for xi in x11_ok
+        MOI.add_constraint(n11_ok, xi, MOI.ZeroOne())
+    end
+    MOI.set(n11_ok, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+    MOI.set(
+        n11_ok,
+        MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
+        MOI.ScalarAffineFunction{Float64}(
+            [
+                [MOI.ScalarAffineTerm(100.0, x11_ok[1]), MOI.ScalarAffineTerm(1.0, x11_ok[2])]
+                [MOI.ScalarAffineTerm(10.0, x11_ok[i]) for i = 3:11]
+            ],
+            0.0,
+        ),
+    )
+    c11_ok = MOI.add_constraint(
+        n11_ok,
+        MOI.ScalarAffineFunction{Float64}(
+            [
+                [MOI.ScalarAffineTerm(2.0, x11_ok[1]), MOI.ScalarAffineTerm(-1.0, x11_ok[2])]
+                [MOI.ScalarAffineTerm(1.0, x11_ok[i]) for i = 3:11]
+            ],
+            0.0,
+        ),
+        MOI.EqualTo{Float64}(0.0),
+    )
+    MOI.set(n11_ok, Attributes.PenaltyIncumbent(), Tuple(zeros(Int, 11)))
+    MOI.optimize!(n11_ok)
+    n11_ok_meta = MOI.get(n11_ok, Attributes.PenaltyPolicyMetadata())
+    @test n11_ok_meta["incumbent"]["status"] == "accepted"
+    @test n11_ok_meta["sufficient_bound"]["certified"] === true
+    @test n11_ok_meta["sufficient_bound"]["tightened"] === true
+
+    # With incumbent (1, 1, 0, ..., 0) on x1 - x2 + sum(x3:x11) = 0, objective is 101 vs whole-domain 191:
+    n11_tight = ToQUBO.Optimizer{Float64}()
+    x11_t = [MOI.add_variable(n11_tight) for _ = 1:11]
+    for xi in x11_t
+        MOI.add_constraint(n11_tight, xi, MOI.ZeroOne())
+    end
+    MOI.set(n11_tight, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+    MOI.set(
+        n11_tight,
+        MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
+        MOI.ScalarAffineFunction{Float64}(
+            [
+                [MOI.ScalarAffineTerm(100.0, x11_t[1]), MOI.ScalarAffineTerm(1.0, x11_t[2])]
+                [MOI.ScalarAffineTerm(10.0, x11_t[i]) for i = 3:11]
+            ],
+            0.0,
+        ),
+    )
+    c11_t = MOI.add_constraint(
+        n11_tight,
+        MOI.ScalarAffineFunction{Float64}(
+            [
+                [MOI.ScalarAffineTerm(1.0, x11_t[1]), MOI.ScalarAffineTerm(-1.0, x11_t[2])]
+                [MOI.ScalarAffineTerm(1.0, x11_t[i]) for i = 3:11]
+            ],
+            0.0,
+        ),
+        MOI.EqualTo{Float64}(0.0),
+    )
+    inc11 = [1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    MOI.set(n11_tight, Attributes.PenaltyIncumbent(), inc11)
+    MOI.optimize!(n11_tight)
+    n11_t_meta = MOI.get(n11_tight, Attributes.PenaltyPolicyMetadata())
+    @test n11_t_meta["incumbent"]["status"] == "accepted"
+    @test n11_t_meta["objective_bounds"]["range"] == 101.0
+    @test MOI.get(n11_tight, Attributes.ConstraintEncodingPenalty(), c11_t) == 102.0
+    @test n11_t_meta["sufficient_bound"]["certified"] === true
+    @test n11_t_meta["sufficient_bound"]["tightened"] === true
+
+    # 8. Hamiltonian assembly precision loss with huge explicit hint (1e20 absorbs objective terms
+    # 100.0 and 1.0 in Float64 so (1,0) and (0,1) tie at 0.0):
+    huge_hint_model, _, huge_c = _build_binary_equality_fixture(;
+        incumbent = (0, 1),
+        hint = 1e20,
+    )
+    huge_meta = MOI.get(huge_hint_model, Attributes.PenaltyPolicyMetadata())
+    @test MOI.get(huge_hint_model, Attributes.ConstraintEncodingPenalty(), huge_c) == 1e20
+    @test huge_meta["sufficient_bound"]["certified"] === false
+    @test huge_meta["sufficient_bound"]["tightened"] === false
+    @test occursin("lost precision", huge_meta["sufficient_bound"]["reason"])
+    @test only(huge_meta["applied_penalties"]["constraints"])["sufficient_bound"] === false
+
+    # 9. No-incumbent compilation preserves exact floating-point PBO.bounds(model.f) behavior:
+    no_inc_float, _, c_no_inc = _build_binary_equality_fixture(;
+        c1 = 1e16,
+        c2 = 1.0,
+        incumbent = nothing,
+        offset = 1.0,
+    )
+    @test MOI.get(no_inc_float, Attributes.ConstraintEncodingPenalty(), c_no_inc) ==
+          10000000000000000.0
+
+    # 10. JuMP CachingOptimizer variable-keyed dictionary mapping after variable deletion:
+    for use_policy_incumbent in (false, true)
+        jm = JuMP.Model(ToQUBO.Optimizer)
+        @variable(jm, x_del, Bin)
+        @variable(jm, xj[1:2], Bin)
+        delete(jm, x_del)
+        @objective(jm, Min, 100.0 * xj[1] + 1.0 * xj[2])
+        @constraint(jm, c_jm, xj[1] + xj[2] == 1.0)
+        cand_dict = Dict(xj[1] => 0.0, xj[2] => 1.0)
+        if use_policy_incumbent
+            MOI.set(
+                jm,
+                Attributes.PenaltyPolicy(),
+                Attributes.ObjectiveRangePenalty(cand_dict),
+            )
+        else
+            MOI.set(jm, Attributes.PenaltyIncumbent(), cand_dict)
+        end
+        optimize!(jm)
+        jm_meta = MOI.get(jm, Attributes.PenaltyPolicyMetadata())
+        @test jm_meta["incumbent"]["status"] == "accepted"
+        @test jm_meta["objective_bounds"]["range"] == 1.0
+        @test MOI.get(jm, Attributes.ConstraintEncodingPenalty(), c_jm) == 2.0
+        @test jm_meta["sufficient_bound"]["certified"] === true
+        @test jm_meta["sufficient_bound"]["tightened"] === true
+    end
+
+    # Stale deleted JuMP variable in dictionary is rejected cleanly without KeyError:
+    jm_stale = JuMP.Model(ToQUBO.Optimizer)
+    @variable(jm_stale, x_del_s, Bin)
+    @variable(jm_stale, x_s[1:2], Bin)
+    stale_dict = Dict(x_del_s => 0.0, x_s[1] => 0.0, x_s[2] => 1.0)
+    delete(jm_stale, x_del_s)
+    @objective(jm_stale, Min, 100.0 * x_s[1] + 1.0 * x_s[2])
+    @constraint(jm_stale, c_stale, x_s[1] + x_s[2] == 1.0)
+    MOI.set(jm_stale, Attributes.PenaltyIncumbent(), stale_dict)
+    optimize!(jm_stale)
+    stale_meta = MOI.get(jm_stale, Attributes.PenaltyPolicyMetadata())
+    @test stale_meta["incumbent"]["status"] == "rejected"
+    @test MOI.get(jm_stale, Attributes.ConstraintEncodingPenalty(), c_stale) == 102.0
+
+    # MOI CachingOptimizer with VI-keyed dictionary after variable deletion:
+    for use_policy_incumbent in (false, true)
+        cached = MOIU.CachingOptimizer(
+            MOIU.UniversalFallback(MOIU.Model{Float64}()),
+            ToQUBO.Optimizer{Float64}(),
+        )
+        v_del = MOI.add_variable(cached)
+        v1 = MOI.add_variable(cached)
+        v2 = MOI.add_variable(cached)
+        MOI.delete(cached, v_del)
+        MOI.add_constraint(cached, v1, MOI.ZeroOne())
+        MOI.add_constraint(cached, v2, MOI.ZeroOne())
+        MOI.set(cached, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+        MOI.set(
+            cached,
+            MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
+            MOI.ScalarAffineFunction{Float64}(
+                [MOI.ScalarAffineTerm(100.0, v1), MOI.ScalarAffineTerm(1.0, v2)],
+                0.0,
+            ),
+        )
+        c_cached = MOI.add_constraint(
+            cached,
+            MOI.ScalarAffineFunction{Float64}(
+                [MOI.ScalarAffineTerm(1.0, v1), MOI.ScalarAffineTerm(1.0, v2)],
+                0.0,
+            ),
+            MOI.EqualTo{Float64}(1.0),
+        )
+        vi_dict = Dict(v1 => 0.0, v2 => 1.0)
+        if use_policy_incumbent
+            MOI.set(
+                cached,
+                Attributes.PenaltyPolicy(),
+                Attributes.ObjectiveRangePenalty(vi_dict),
+            )
+        else
+            MOI.set(cached, Attributes.PenaltyIncumbent(), vi_dict)
+        end
+        MOI.optimize!(cached)
+        cached_meta = MOI.get(cached, Attributes.PenaltyPolicyMetadata())
+        @test cached_meta["incumbent"]["status"] == "accepted"
+        @test cached_meta["objective_bounds"]["range"] == 1.0
+        @test MOI.get(cached, Attributes.ConstraintEncodingPenalty(), c_cached) == 2.0
+    end
+
     return nothing
 end
 

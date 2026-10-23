@@ -193,26 +193,53 @@ function _compiled_qubo_objective_from_target(model::Optimizer{T}) where {T}
     return f
 end
 
-function _map_incumbent_indices(::Function, ::Nothing)
+function _apply_incumbent_index_map(f::Function, vi::VI)
+    try
+        return f(vi)
+    catch err
+        if err isa KeyError
+            return VI(-abs(vi.value) - 1)
+        end
+        rethrow(err)
+    end
+end
+
+function _apply_incumbent_index_map(index_map::AbstractDict, vi::VI)
+    isempty(index_map) && return vi
+    return haskey(index_map, vi) ? index_map[vi] : VI(-abs(vi.value) - 1)
+end
+
+function _map_incumbent_indices(::Any, ::Nothing)
     return nothing
 end
 
-function _map_incumbent_indices(::Function, incumbent)
+function _map_incumbent_indices(::Any, incumbent)
     return incumbent
 end
 
-function _map_incumbent_indices(::Function, incumbent::AbstractVector)
+function _map_incumbent_indices(::Any, incumbent::AbstractVector)
     return copy(incumbent)
 end
 
-function _map_incumbent_indices(f::Function, incumbent::AbstractDict)
+function _map_incumbent_indices(index_map, incumbent::AbstractDict)
     mapped = Dict{Any,Any}()
 
     for (k, v) in incumbent
         if k isa VI
-            mapped[f(k)] = v
+            mapped[_apply_incumbent_index_map(index_map, k)] = v
         elseif !(k isa Number) && hasproperty(k, :index) && getproperty(k, :index) isa VI
-            mapped[f(getproperty(k, :index))] = v
+            vi = getproperty(k, :index)::VI
+            if hasproperty(k, :model)
+                jm = getproperty(k, :model)
+                moi_model = hasproperty(jm, :moi_backend) ? getproperty(jm, :moi_backend) : jm
+                if moi_model isa MOI.ModelLike && !MOI.is_valid(moi_model, vi)
+                    mapped[VI(-abs(vi.value) - 1)] = v
+                else
+                    mapped[k] = v
+                end
+                continue
+            end
+            mapped[_apply_incumbent_index_map(index_map, vi)] = v
         else
             mapped[k] = v
         end
@@ -266,6 +293,13 @@ end
 
 function MOIU.map_indices(f::Function, policy::ObjectiveRangePenalty)
     return ObjectiveRangePenalty(_map_incumbent_indices(f, policy.incumbent))
+end
+
+function MOIU.map_indices(
+    variable_map::AbstractDict{T,T},
+    policy::ObjectiveRangePenalty,
+) where {T<:Union{MOI.VariableIndex,MOI.ConstraintIndex}}
+    return ObjectiveRangePenalty(_map_incumbent_indices(variable_map, policy.incumbent))
 end
 
 @doc raw"""
@@ -909,8 +943,8 @@ struct PenaltyIncumbent <: CompilerAttribute end
 
 _attribute_from_key(::Val{:penalty_incumbent}) = PenaltyIncumbent
 
-function MOIU.map_indices(f::Function, ::PenaltyIncumbent, incumbent)
-    return _map_incumbent_indices(f, incumbent)
+function MOIU.map_indices(index_map, ::PenaltyIncumbent, incumbent)
+    return _map_incumbent_indices(index_map, incumbent)
 end
 
 function MOI.get(model::Optimizer, ::PenaltyIncumbent)

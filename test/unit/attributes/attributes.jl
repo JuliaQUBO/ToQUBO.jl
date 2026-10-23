@@ -376,6 +376,18 @@ function test_compiler_attributes()
                 @test MOI.get(model, Attributes.PenaltyIncumbent()) === nothing
                 @test MOI.get(model, Attributes.VariablePenaltyIncumbent(), x[1]) === nothing
                 @test MOI.get(model, Attributes.VariablePenaltyIncumbent(), x[2]) === nothing
+
+                idx_map = MOIU.IndexMap()
+                idx_map[x[1]] = VI(10)
+                idx_map[x[2]] = VI(20)
+                mapped_inc = MOIU.map_indices(idx_map, Attributes.PenaltyIncumbent(), cand)
+                @test mapped_inc == Dict(VI(10) => 0.0, VI(20) => 1.0)
+                mapped_pol = MOIU.map_indices(
+                    idx_map,
+                    Attributes.ObjectiveRangePenalty(cand),
+                )
+                @test mapped_pol ==
+                      Attributes.ObjectiveRangePenalty(Dict(VI(10) => 0.0, VI(20) => 1.0))
             end
         end
 

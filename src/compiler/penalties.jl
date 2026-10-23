@@ -344,6 +344,39 @@ function _normalize_candidate_value(::Type{T}, raw_val) where {T}
     return vt, vq
 end
 
+function _resolve_jump_variable_key(model::Virtual.Model, k)::VI
+    vi = getproperty(k, :index)::VI
+    !hasproperty(k, :model) && return vi
+    jm = getproperty(k, :model)
+    b = hasproperty(jm, :moi_backend) ? getproperty(jm, :moi_backend) : jm
+    if b isa MOI.ModelLike && !MOI.is_valid(b, vi)
+        return VI(-abs(vi.value) - 1)
+    end
+    if b isa MOI.Utilities.CachingOptimizer && isempty(b.model_to_optimizer_map)
+        outer_vars = MOI.get(b, MOI.ListOfVariableIndices())
+        source_vars = _source_variables_in_order(model)
+        pos = findfirst(==(vi), outer_vars)
+        if !isnothing(pos) && length(outer_vars) == length(source_vars)
+            return source_vars[pos]
+        end
+        return VI(-abs(vi.value) - 1)
+    end
+    while true
+        if b isa MOI.Utilities.CachingOptimizer
+            if !isempty(b.model_to_optimizer_map)
+                haskey(b.model_to_optimizer_map, vi) || return VI(-abs(vi.value) - 1)
+                vi = b.model_to_optimizer_map[vi]
+            end
+            b = b.optimizer
+        elseif b isa MOI.Bridges.LazyBridgeOptimizer
+            b = b.model
+        else
+            break
+        end
+    end
+    return vi
+end
+
 function _normalize_candidate_assignment(model::Virtual.Model{T}, raw) where {T}
     source_vars = _source_variables_in_order(model)
     source_set = Set(source_vars)
@@ -362,7 +395,7 @@ function _normalize_candidate_assignment(model::Virtual.Model{T}, raw) where {T}
             elseif k isa Integer && !(k isa Bool)
                 VI(Int(k))
             elseif !(k isa Number) && hasproperty(k, :index) && getproperty(k, :index) isa VI
-                getproperty(k, :index)
+                _resolve_jump_variable_key(model, k)
             else
                 return nothing, nothing, "Candidate assignment contains invalid or non-variable keys"
             end
@@ -965,6 +998,202 @@ function _lift_candidate_assignment(
     return y_inc, true, true, nothing
 end
 
+function _pbf_to_rational(
+    p::PBO.PBF{VI,T},
+)::Union{PBO.PBF{VI,Rational{BigInt}},Nothing} where {T}
+    q = PBO.PBF{VI,Rational{BigInt}}()
+
+    for (ω, c) in p
+        cq = _exact_rational(c)
+        isnothing(cq) && return nothing
+
+        if !iszero(cq)
+            q[ω] = cq
+        end
+    end
+
+    return q
+end
+
+function _pbf_matches_exact_rational(
+    p::PBO.PBF{VI,T},
+    q_exact::PBO.PBF{VI,Rational{BigInt}},
+)::Bool where {T}
+    p_q = _pbf_to_rational(p)
+    return !isnothing(p_q) && p_q == q_exact
+end
+
+function _is_positive_rational_multiple(
+    a::PBO.PBF{VI,Rational{BigInt}},
+    b::PBO.PBF{VI,Rational{BigInt}},
+)::Bool
+    isempty(a) && isempty(b) && return true
+    scale_q = nothing
+
+    for ω in union(keys(a), keys(b))
+        ca = a[ω]
+        cb = b[ω]
+
+        if iszero(ca) && iszero(cb)
+            continue
+        elseif iszero(ca) || iszero(cb)
+            return false
+        end
+
+        ratio = ca // cb
+        ratio > 0 || return false
+
+        if isnothing(scale_q)
+            scale_q = ratio
+        elseif scale_q != ratio
+            return false
+        end
+    end
+
+    return !isnothing(scale_q)
+end
+
+function _pbf_all_coeff_gcd(q::PBO.PBF{VI,Rational{BigInt}})::Rational{BigInt}
+    g_q = zero(Rational{BigInt})
+
+    for (_, c) in q
+        g_q = gcd(g_q, c)
+    end
+
+    return g_q
+end
+
+function _parse_function_exact_rational(
+    model::Virtual.Model{T},
+    vi::VI,
+)::Union{PBO.PBF{VI,Rational{BigInt}},Nothing} where {T}
+    haskey(model.source, vi) || return nothing
+    return _pbf_to_rational(Virtual.expansion(model.source[vi]))
+end
+
+function _parse_function_exact_rational(
+    model::Virtual.Model{T},
+    f::SAF{T},
+)::Union{PBO.PBF{VI,Rational{BigInt}},Nothing} where {T}
+    c0 = _exact_rational(f.constant)
+    isnothing(c0) && return nothing
+    g = PBO.PBF{VI,Rational{BigInt}}(c0)
+
+    for a in f.terms
+        ca = _exact_rational(a.coefficient)
+        isnothing(ca) && return nothing
+        haskey(model.source, a.variable) || return nothing
+        ξ_q = _pbf_to_rational(Virtual.expansion(model.source[a.variable]))
+        isnothing(ξ_q) && return nothing
+
+        for (ω, d) in ξ_q
+            g[ω] += ca * d
+        end
+    end
+
+    return g
+end
+
+function _parse_function_exact_rational(
+    model::Virtual.Model{T},
+    f::SQF{T},
+)::Union{PBO.PBF{VI,Rational{BigInt}},Nothing} where {T}
+    c0 = _exact_rational(f.constant)
+    isnothing(c0) && return nothing
+    g = PBO.PBF{VI,Rational{BigInt}}(c0)
+
+    for q in f.quadratic_terms
+        cq = _exact_rational(q.coefficient)
+        isnothing(cq) && return nothing
+        (haskey(model.source, q.variable_1) && haskey(model.source, q.variable_2)) ||
+            return nothing
+
+        if q.variable_1 === q.variable_2
+            cq //= 2
+        end
+
+        ξ_i = _pbf_to_rational(Virtual.expansion(model.source[q.variable_1]))
+        ξ_j = _pbf_to_rational(Virtual.expansion(model.source[q.variable_2]))
+        (isnothing(ξ_i) || isnothing(ξ_j)) && return nothing
+
+        for (ωi, di) in ξ_i, (ωj, dj) in ξ_j
+            g[PBO.varmul(ωi, ωj)] += cq * di * dj
+        end
+    end
+
+    for a in f.affine_terms
+        ca = _exact_rational(a.coefficient)
+        isnothing(ca) && return nothing
+        haskey(model.source, a.variable) || return nothing
+        ξ_q = _pbf_to_rational(Virtual.expansion(model.source[a.variable]))
+        isnothing(ξ_q) && return nothing
+
+        for (ω, d) in ξ_q
+            g[ω] += ca * d
+        end
+    end
+
+    return g
+end
+
+function _parse_function_exact_rational(
+    ::Virtual.Model,
+    ::MOI.AbstractFunction,
+)
+    return nothing
+end
+
+function _parse_set_exact_rational(
+    model::Virtual.Model{T},
+    f::Union{SAF{T},SQF{T}},
+    s::EQ{T},
+)::Union{PBO.PBF{VI,Rational{BigInt}},Nothing} where {T}
+    g = _parse_function_exact_rational(model, f)
+    rhs = _exact_rational(s.value)
+    (isnothing(g) || isnothing(rhs)) && return nothing
+    g[nothing] -= rhs
+    return g
+end
+
+function _parse_set_exact_rational(
+    model::Virtual.Model{T},
+    f::Union{SAF{T},SQF{T}},
+    s::LT{T},
+)::Union{PBO.PBF{VI,Rational{BigInt}},Nothing} where {T}
+    g = _parse_function_exact_rational(model, f)
+    rhs = _exact_rational(s.upper)
+    (isnothing(g) || isnothing(rhs)) && return nothing
+    g[nothing] -= rhs
+    return g
+end
+
+function _parse_set_exact_rational(
+    model::Virtual.Model{T},
+    f::Union{SAF{T},SQF{T}},
+    s::GT{T},
+)::Union{PBO.PBF{VI,Rational{BigInt}},Nothing} where {T}
+    g = _parse_function_exact_rational(model, f)
+    rhs = _exact_rational(s.lower)
+    (isnothing(g) || isnothing(rhs)) && return nothing
+    g[nothing] -= rhs
+    return g
+end
+
+function _verify_objective_exact_rational(
+    model::Virtual.Model{T},
+)::Tuple{Bool,Union{String,Nothing}} where {T}
+    F_obj = MOI.get(model.source_model, MOI.ObjectiveFunctionType())
+    f_obj = MOI.get(model.source_model, MOI.ObjectiveFunction{F_obj}())
+    f_exact_q = _parse_function_exact_rational(model, f_obj)
+
+    if isnothing(f_exact_q) || !_pbf_matches_exact_rational(model.f, f_exact_q)
+        return false,
+        "Compiled objective polynomial was rounded in floating-point arithmetic and cannot be certified as exact"
+    end
+
+    return true, nothing
+end
+
 function _pbf_min_and_positive_gap_enumerated(
     p::PBO.PBF{VI,T},
     vars::Vector{VI},
@@ -993,27 +1222,334 @@ function _pbf_min_and_positive_gap_enumerated(
     return min_val, min_pos
 end
 
+function _certify_nonnegative_linear_or_square_gap(
+    p_q::PBO.PBF{VI,Rational{BigInt}},
+    lower_bound_gap_q::Rational{BigInt},
+)::Union{Rational{BigInt},Nothing}
+    vars = PBO.variables(p_q)
+    if length(vars) <= 10
+        enum_res = _pbf_min_and_positive_gap_enumerated(p_q, vars)
+        isnothing(enum_res) && return nothing
+        min_val_q, min_pos_q = enum_res
+        min_val_q < 0 && return nothing
+        return min_pos_q
+    end
+
+    g_all = _pbf_all_coeff_gcd(p_q)
+    certified_gap = max(lower_bound_gap_q, g_all)
+    return certified_gap > 0 ? certified_gap : nothing
+end
+
+function _certify_encoding_penalty_rational(
+    v::Virtual.Variable{T},
+    p::PBO.PBF{VI,T},
+    kind::String,
+    id::Integer,
+)::Tuple{Union{Rational{BigInt},Nothing},Union{String,Nothing}} where {T}
+    e = Virtual.encoding(v)
+    targets = Virtual.target(v)
+    n = length(targets)
+    n >= 2 || return nothing, "Encoding penalty on $(kind) $(id) has fewer than 2 target variables"
+
+    if e isa Encoding.OneHot
+        r_oh = PBO.PBF{VI,Rational{BigInt}}([targets; -one(Rational{BigInt})])
+        χ_exact = r_oh^2
+        if !_pbf_matches_exact_rational(p, χ_exact)
+            return nothing,
+            "OneHot penalty polynomial on $(kind) $(id) was rounded in floating-point arithmetic"
+        end
+        return one(Rational{BigInt}), nothing
+    elseif e isa Encoding.DomainWall
+        χ_exact = PBO.PBF{VI,Rational{BigInt}}(
+            [
+                [targets[i] => 2 // 1 for i = 2:n]
+                [(targets[i], targets[i+1]) => -2 // 1 for i = 1:(n-1)]
+            ],
+        )
+        if !_pbf_matches_exact_rational(p, χ_exact)
+            return nothing,
+            "DomainWall penalty polynomial on $(kind) $(id) was rounded in floating-point arithmetic"
+        end
+        return 2 // 1, nothing
+    else
+        return nothing,
+        "Unsupported encoding penalty $(nameof(typeof(e))) on $(kind) $(id) for exact certification"
+    end
+end
+
+function _certify_scalar_inequality_piece_rational(
+    model::Virtual.Model{T},
+    f::Union{SAF{T},SQF{T}},
+    s::Union{LT{T},GT{T}},
+    slack_var::Union{Virtual.Variable{T},Nothing},
+    arch::AbstractArchitecture,
+    ci_id::Integer,
+)::Tuple{
+    Union{PBO.PBF{VI,Rational{BigInt}},Nothing},
+    Union{Rational{BigInt},Nothing},
+    Union{String,Nothing},
+} where {T}
+    r_raw_q = _parse_set_exact_rational(model, f, s)
+    isnothing(r_raw_q) &&
+        return nothing, nothing, "Constraint $(ci_id) residual could not be parsed in exact arithmetic"
+
+    g_disc = _parse(model, f, s, arch)
+    Attributes.discretize(model) && _discretize!(g_disc)
+    r_disc_q = _pbf_to_rational(g_disc)
+
+    if isnothing(r_disc_q) || !_is_positive_rational_multiple(r_disc_q, r_raw_q)
+        return nothing,
+        nothing,
+        "Constraint $(ci_id) residual was rounded in floating-point arithmetic or discretization"
+    end
+
+    if isnothing(slack_var)
+        g_piece_q = s isa LT{T} ? r_disc_q : -r_disc_q
+        l_q, _ = PBO.bounds(g_piece_q)
+        if l_q < 0
+            return nothing,
+            nothing,
+            "Constraint $(ci_id) linear inequality penalty is not nonnegative over the encoded domain"
+        end
+        g_r = _pbf_all_coeff_gcd(g_piece_q)
+        gap_q = _certify_nonnegative_linear_or_square_gap(g_piece_q, g_r)
+        isnothing(gap_q) &&
+            return nothing, nothing, "Constraint $(ci_id) positive gap could not be certified"
+        return g_piece_q, gap_q, nothing
+    else
+        ξ_z_q = _pbf_to_rational(Virtual.expansion(slack_var))
+        isnothing(ξ_z_q) &&
+            return nothing, nothing, "Constraint $(ci_id) slack expansion is not exact"
+        l_z, _ = PBO.bounds(ξ_z_q)
+        if l_z < 0
+            return nothing,
+            nothing,
+            "Constraint $(ci_id) slack expansion takes negative values"
+        end
+        r_aug_q = s isa LT{T} ? (r_disc_q + ξ_z_q) : (r_disc_q - ξ_z_q)
+        g_piece_q = r_aug_q^2
+        g_r = _pbf_all_coeff_gcd(r_aug_q)
+        gap_q = _certify_nonnegative_linear_or_square_gap(g_piece_q, g_r^2)
+        isnothing(gap_q) &&
+            return nothing, nothing, "Constraint $(ci_id) positive gap could not be certified"
+        return g_piece_q, gap_q, nothing
+    end
+end
+
+function _certify_constraint_penalty_rational(
+    model::Virtual.Model{T},
+    ci::CI,
+    p::PBO.PBF{VI,T},
+    arch::AbstractArchitecture,
+)::Tuple{Union{Rational{BigInt},Nothing},Union{String,Nothing}} where {T}
+    id = ci.value
+    method = Attributes.constraint_encoding_method(model, ci)
+    if !(method isa Attributes.QuadraticPenalty)
+        return nothing, "Constraint $(id) uses non-exact penalty method $(nameof(typeof(method)))"
+    end
+
+    p_q = _pbf_to_rational(p)
+    isnothing(p_q) &&
+        return nothing, "Constraint $(id) penalty coefficients are not finite in exact arithmetic"
+
+    f = MOI.get(model.source_model, MOI.ConstraintFunction(), ci)
+    s = MOI.get(model.source_model, MOI.ConstraintSet(), ci)
+
+    if f isa Union{SAF{T},SQF{T}} && s isa EQ{T}
+        r_raw_q = _parse_set_exact_rational(model, f, s)
+        isnothing(r_raw_q) &&
+            return nothing, "Constraint $(id) residual could not be parsed in exact arithmetic"
+
+        g_disc = _parse(model, f, s, arch)
+        Attributes.discretize(model) && _discretize!(g_disc)
+        r_disc_q = _pbf_to_rational(g_disc)
+
+        if isnothing(r_disc_q) || !_is_positive_rational_multiple(r_disc_q, r_raw_q)
+            return nothing,
+            "Constraint $(id) residual was rounded in floating-point arithmetic or discretization and does not preserve the exact constraint zero set"
+        end
+
+        if f isa SQF{T} && !_is_nonnegative(g_disc) &&
+           !isnothing(_boolean_logic_gadget_penalty(model, f, g_disc))
+            vars = sort!(
+                collect(union(PBO.variables(p_q), PBO.variables(r_raw_q)));
+                by = v -> v.value,
+            )
+            length(vars) <= 10 ||
+                return nothing, "Boolean gadget on constraint $(id) exceeds variable bound"
+            state = Dict{VI,Int}(v => 0 for v in vars)
+            min_pos_q = nothing
+            for mask = 0:((1 << length(vars)) - 1)
+                for i = 1:length(vars)
+                    state[vars[i]] = (mask >> (i - 1)) & 1
+                end
+                pv = _eval_pbf_rational(p_q, state)
+                rv = _eval_pbf_rational(r_raw_q, state)
+                (isnothing(pv) || isnothing(rv)) &&
+                    return nothing, "Constraint $(id) gadget evaluation failed"
+                if pv < 0 || (pv == 0) != (rv == 0)
+                    return nothing,
+                    "Constraint $(id) gadget penalty does not preserve the exact constraint zero set"
+                end
+                if pv > 0 && (isnothing(min_pos_q) || pv < min_pos_q)
+                    min_pos_q = pv
+                end
+            end
+            isnothing(min_pos_q) &&
+                return nothing, "Constraint $(id) gadget penalty has no positive violation gap"
+            return min_pos_q, nothing
+        elseif _is_nonnegative(g_disc)
+            if p_q != r_disc_q
+                return nothing,
+                "Constraint $(id) penalty polynomial was rounded in floating-point arithmetic"
+            end
+            l_q, _ = PBO.bounds(r_disc_q)
+            if l_q < 0
+                return nothing,
+                "Constraint $(id) linear equality penalty is not nonnegative over the encoded domain"
+            end
+            g_r = _pbf_all_coeff_gcd(r_disc_q)
+            min_pos_q = _certify_nonnegative_linear_or_square_gap(r_disc_q, g_r)
+            isnothing(min_pos_q) &&
+                return nothing, "Constraint $(id) positive gap could not be certified"
+            return min_pos_q, nothing
+        else
+            g_exact_q = r_disc_q^2
+            if p_q != g_exact_q
+                return nothing,
+                "Constraint $(id) squared penalty polynomial was rounded in floating-point arithmetic and does not preserve the exact constraint zero set"
+            end
+            g_r = _pbf_all_coeff_gcd(r_disc_q)
+            min_pos_q = _certify_nonnegative_linear_or_square_gap(g_exact_q, g_r^2)
+            isnothing(min_pos_q) &&
+                return nothing, "Constraint $(id) positive gap could not be certified"
+            return min_pos_q, nothing
+        end
+    elseif f isa Union{SAF{T},SQF{T}} && s isa Union{LT{T},GT{T}}
+        slack_vars = [v for v in model.variables if Virtual.source(v) == ci]
+        length(slack_vars) <= 1 ||
+            return nothing, "Unexpected slack variable count on constraint $(id)"
+        slack_var = isempty(slack_vars) ? nothing : only(slack_vars)
+        g_piece_q, min_pos_q, reason =
+            _certify_scalar_inequality_piece_rational(model, f, s, slack_var, arch, id)
+        isnothing(g_piece_q) && return nothing, reason
+        if p_q != g_piece_q
+            return nothing,
+            "Constraint $(id) inequality penalty polynomial was rounded in floating-point arithmetic"
+        end
+        return min_pos_q, nothing
+    elseif f isa Union{SAF{T},SQF{T}} && s isa MOI.Interval{T}
+        slack_vars = [v for v in model.variables if Virtual.source(v) == ci]
+        idx = 1
+        g_total_q = PBO.PBF{VI,Rational{BigInt}}()
+        min_piece_gap_q = nothing
+
+        s_lt = LT{T}(s.upper)
+        g_lt = _parse(model, f, s_lt, arch)
+        Attributes.discretize(model) && _discretize!(g_lt)
+        _, u_lt = PBO.bounds(g_lt)
+        if !(u_lt <= zero(T) && Attributes.ignore_feasible_constraints(model))
+            slack_lt = if !_is_nonnegative(g_lt)
+                idx <= length(slack_vars) ||
+                    return nothing, "Missing LessThan slack variable on interval constraint $(id)"
+                sv = slack_vars[idx]
+                idx += 1
+                sv
+            else
+                nothing
+            end
+            g_lt_q, gap_lt_q, reason_lt =
+                _certify_scalar_inequality_piece_rational(model, f, s_lt, slack_lt, arch, id)
+            isnothing(g_lt_q) && return nothing, reason_lt
+            for (ω, c) in g_lt_q
+                g_total_q[ω] += c
+            end
+            min_piece_gap_q = gap_lt_q
+        end
+
+        s_gt = GT{T}(s.lower)
+        g_gt = _parse(model, f, s_gt, arch)
+        Attributes.discretize(model) && _discretize!(g_gt)
+        l_gt, _ = PBO.bounds(g_gt)
+        if !(l_gt >= zero(T) && Attributes.ignore_feasible_constraints(model))
+            slack_gt = if !_is_nonpositive(g_gt)
+                idx <= length(slack_vars) ||
+                    return nothing, "Missing GreaterThan slack variable on interval constraint $(id)"
+                sv = slack_vars[idx]
+                idx += 1
+                sv
+            else
+                nothing
+            end
+            g_gt_q, gap_gt_q, reason_gt =
+                _certify_scalar_inequality_piece_rational(model, f, s_gt, slack_gt, arch, id)
+            isnothing(g_gt_q) && return nothing, reason_gt
+            for (ω, c) in g_gt_q
+                g_total_q[ω] += c
+            end
+            min_piece_gap_q =
+                isnothing(min_piece_gap_q) ? gap_gt_q : min(min_piece_gap_q, gap_gt_q)
+        end
+
+        if p_q != g_total_q
+            return nothing,
+            "Constraint $(id) interval penalty polynomial was rounded in floating-point arithmetic"
+        end
+        isnothing(min_piece_gap_q) &&
+            return nothing, "Constraint $(id) interval penalty has no positive violation gap"
+        min_pos_q = _certify_nonnegative_linear_or_square_gap(g_total_q, min_piece_gap_q)
+        isnothing(min_pos_q) &&
+            return nothing, "Constraint $(id) interval positive gap could not be certified"
+        return min_pos_q, nothing
+    elseif f isa MOI.VectorOfVariables && s isa MOI.SOS1{T}
+        slack_vars = [v for v in model.variables if Virtual.source(v) == ci]
+        length(slack_vars) == 1 ||
+            return nothing, "Unexpected SOS1 slack variable count on constraint $(id)"
+        sv = only(slack_vars)
+        if Virtual.encoding(sv) isa Encoding.DomainWall
+            return _certify_encoding_penalty_rational(sv, p, "constraint", id)
+        elseif Virtual.encoding(sv) isa Encoding.Mirror && length(Virtual.target(sv)) == 1
+            r_sos = PBO.PBF{VI,Rational{BigInt}}(-one(Rational{BigInt}))
+            for xi in f.variables
+                vi = model.source[xi]
+                Virtual.encoding(vi) isa Encoding.Mirror ||
+                    return nothing, "Unsupported non-Mirror variable in SOS1 constraint $(id)"
+                ξ_q = _pbf_to_rational(Virtual.expansion(vi))
+                isnothing(ξ_q) && return nothing, "SOS1 variable expansion is not exact"
+                for (ω, c) in ξ_q
+                    r_sos[ω] += c
+                end
+            end
+            ξ_z_q = _pbf_to_rational(Virtual.expansion(sv))
+            isnothing(ξ_z_q) && return nothing, "SOS1 slack expansion is not exact"
+            for (ω, c) in ξ_z_q
+                r_sos[ω] += c
+            end
+            g_exact_q = r_sos^2
+            if p_q != g_exact_q
+                return nothing,
+                "Constraint $(id) SOS1 penalty polynomial was rounded in floating-point arithmetic"
+            end
+            return one(Rational{BigInt}), nothing
+        else
+            return nothing, "Unsupported SOS1 slack encoding on constraint $(id)"
+        end
+    else
+        return nothing, "Unsupported constraint type on constraint $(id) for exact certification"
+    end
+end
+
 function _certify_penalty_function_rational(
     model::Virtual.Model{T},
     kind::String,
-    id::Integer,
+    ref::Union{CI,VI},
     p::PBO.PBF{VI,T},
     ϵ::T,
+    arch::AbstractArchitecture = GenericArchitecture(),
 )::Tuple{Union{Rational{BigInt},Nothing},Union{String,Nothing}} where {T}
+    id = ref.value
     if PBO.degree(p) > 2
         return nothing, "Penalty function on $(kind) $(id) has degree > 2 and requires quadratization"
-    end
-
-    if kind == "constraint"
-        for (ci, _) in model.g
-            if ci.value == id
-                method = Attributes.constraint_encoding_method(model, ci)
-                if !(method isa Attributes.QuadraticPenalty)
-                    return nothing,
-                    "Constraint $(id) uses non-exact penalty method $(nameof(typeof(method)))"
-                end
-            end
-        end
     end
 
     if !(isfinite(ϵ) && ϵ > zero(T))
@@ -1023,38 +1559,131 @@ function _certify_penalty_function_rational(
     ϵ_q = _exact_rational(ϵ)
     isnothing(ϵ_q) && return nothing, "Penalty function positive gap on $(kind) $(id) is not exact"
 
-    bounds_q = _pbf_bounds_rational(p)
-    isnothing(bounds_q) && return nothing, "Penalty function coefficients on $(kind) $(id) are not finite"
-
-    g_q = zero(Rational{BigInt})
-    for (ω, c) in p
-        isempty(ω) && continue
-        cq = _exact_rational(c)
-        isnothing(cq) && return nothing, "Penalty function coefficients on $(kind) $(id) are not finite"
-        g_q = gcd(g_q, cq)
-    end
-
-    vars = PBO.variables(p)
-    if length(vars) <= 10
-        enum_res = _pbf_min_and_positive_gap_enumerated(p, vars)
-        isnothing(enum_res) &&
-            return nothing, "Penalty function on $(kind) $(id) could not be evaluated in exact arithmetic"
-        min_val_q, min_pos_q = enum_res
-        if min_val_q < 0
-            return nothing, "Penalty function on $(kind) $(id) takes negative values"
-        elseif isnothing(min_pos_q) || ϵ_q > min_pos_q
-            return nothing,
-            "Penalty function positive gap on $(kind) $(id) exceeds exact minimum positive value"
+    min_pos_q, cert_reason = if kind == "constraint"
+        ref isa CI || return nothing, "Expected constraint index for constraint $(id)"
+        _certify_constraint_penalty_rational(model, ref, p, arch)
+    elseif kind == "variable"
+        ref isa VI || return nothing, "Expected variable index for variable $(id)"
+        haskey(model.source, ref) || return nothing, "Unknown variable $(id)"
+        _certify_encoding_penalty_rational(model.source[ref], p, kind, id)
+    elseif kind == "slack_variable"
+        ref isa CI || return nothing, "Expected constraint index for slack variable $(id)"
+        slack_match = get(model.slack, ref, nothing)
+        if isnothing(slack_match) || isnothing(Virtual.penaltyfn(slack_match))
+            slack_match = nothing
+            for v in model.variables
+                if Virtual.source(v) == ref && !isnothing(Virtual.penaltyfn(v))
+                    slack_match = v
+                    break
+                end
+            end
         end
-        return ϵ_q, nothing
+        isnothing(slack_match) && return nothing, "Unknown slack variable on constraint $(id)"
+        _certify_encoding_penalty_rational(slack_match, p, kind, id)
+    else
+        return nothing, "Unknown penalty kind $(kind)"
     end
 
-    if g_q <= 0 || ϵ_q > g_q
+    !isnothing(cert_reason) && return nothing, cert_reason
+    if isnothing(min_pos_q) || min_pos_q <= 0 || ϵ_q > min_pos_q
         return nothing,
-        "Penalty function positive gap on $(kind) $(id) cannot be certified in exact arithmetic"
+        "Penalty function positive gap on $(kind) $(id) exceeds certified minimum positive value"
     end
 
     return ϵ_q, nothing
+end
+
+function _verify_penalty_scaling_exact(
+    p::PBO.PBF{VI,T},
+    coeff,
+    kind::String,
+    id::Integer,
+)::Tuple{Bool,Union{String,Nothing}} where {T}
+    coeff_q = _exact_rational(coeff)
+    (isnothing(coeff) || !isfinite(coeff) || isnothing(coeff_q)) &&
+        return false, "Applied penalty on $(kind) $(id) is not finite in exact arithmetic"
+
+    for (_, c) in p
+        cq = _exact_rational(c)
+        isnothing(cq) &&
+            return false, "Penalty polynomial coefficient on $(kind) $(id) is not finite"
+        prod_t = T(coeff) * c
+        if !isfinite(prod_t) || _exact_rational(prod_t) != coeff_q * cq
+            return false,
+            "Scaled penalty term on $(kind) $(id) lost precision or overflowed in floating-point arithmetic"
+        end
+    end
+
+    return true, nothing
+end
+
+function _verify_hamiltonian_assembly_exact(
+    model::Virtual.Model{T},
+    ρ_map::AbstractDict{<:CI,T},
+    θ_map::AbstractDict{VI,T},
+    η_map::AbstractDict{<:CI,T},
+)::Tuple{Bool,Union{String,Nothing}} where {T}
+    obj_ok, obj_reason = _verify_objective_exact_rational(model)
+    obj_ok || return false, obj_reason
+
+    H_float = PBO.PBF{VI,T}()
+    H_exact = PBO.PBF{VI,Rational{BigInt}}()
+
+    for (ω, c) in model.f
+        cq = _exact_rational(c)
+        isnothing(cq) && return false, "Objective coefficient is not finite in exact arithmetic"
+        H_float[ω] += c
+        H_exact[ω] += cq
+    end
+
+    for (ci, g) in model.g
+        haskey(ρ_map, ci) || continue
+        ρ = ρ_map[ci]
+        ok_scale, scale_reason = _verify_penalty_scaling_exact(g, ρ, "constraint", ci.value)
+        ok_scale || return false, scale_reason
+        ρ_q = _exact_rational(ρ)::Rational{BigInt}
+
+        for (ω, c) in g
+            cq = _exact_rational(c)::Rational{BigInt}
+            H_float[ω] += ρ * c
+            H_exact[ω] += ρ_q * cq
+        end
+    end
+
+    for (vi, h) in model.h
+        haskey(θ_map, vi) || continue
+        θ = θ_map[vi]
+        ok_scale, scale_reason = _verify_penalty_scaling_exact(h, θ, "variable", vi.value)
+        ok_scale || return false, scale_reason
+        θ_q = _exact_rational(θ)::Rational{BigInt}
+
+        for (ω, c) in h
+            cq = _exact_rational(c)::Rational{BigInt}
+            H_float[ω] += θ * c
+            H_exact[ω] += θ_q * cq
+        end
+    end
+
+    for (ci, s) in model.s
+        haskey(η_map, ci) || continue
+        η = η_map[ci]
+        ok_scale, scale_reason = _verify_penalty_scaling_exact(s, η, "slack_variable", ci.value)
+        ok_scale || return false, scale_reason
+        η_q = _exact_rational(η)::Rational{BigInt}
+
+        for (ω, c) in s
+            cq = _exact_rational(c)::Rational{BigInt}
+            H_float[ω] += η * c
+            H_exact[ω] += η_q * cq
+        end
+    end
+
+    if !_pbf_matches_exact_rational(H_float, H_exact)
+        return false,
+        "Assembled Hamiltonian coefficients lost precision in floating-point arithmetic"
+    end
+
+    return true, nothing
 end
 
 function _verify_stored_coefficients_can_establish_bound(
@@ -1062,14 +1691,23 @@ function _verify_stored_coefficients_can_establish_bound(
     σ::Int,
     range_t::T,
     range_q::Rational{BigInt},
+    arch::AbstractArchitecture = GenericArchitecture(),
 )::Tuple{Bool,Union{String,Nothing}} where {T}
     if !isfinite(range_t) || range_t < zero(T)
         return false, "Tightened objective range is not finite in target precision"
     end
 
+    obj_ok, obj_reason = _verify_objective_exact_rational(model)
+    obj_ok || return false, obj_reason
+
+    ρ_cand_map = Dict{CI,T}()
+    θ_cand_map = Dict{VI,T}()
+    η_cand_map = Dict{CI,T}()
+    check_assembly_in_precheck = true
+
     for (ci, g) in model.g
         ϵ, _ = _positive_penalty_gap(g)
-        ϵ_q, reason = _certify_penalty_function_rational(model, "constraint", ci.value, g, ϵ)
+        ϵ_q, reason = _certify_penalty_function_rational(model, "constraint", ci, g, ϵ, arch)
         isnothing(ϵ_q) && return false, reason
 
         hint = Attributes.constraint_encoding_penalty_hint(model, ci)
@@ -1091,13 +1729,18 @@ function _verify_stored_coefficients_can_establish_bound(
                     return false,
                     "Stored coefficient for constraint $(ci.value) cannot establish strict sufficient inequality in target precision"
                 end
+                ρ_cand_map[ci] = T(ρ_cand)
+            else
+                check_assembly_in_precheck = false
             end
+        else
+            check_assembly_in_precheck = false
         end
     end
 
     for (vi, h) in model.h
         ϵ, _ = _positive_penalty_gap(h)
-        ϵ_q, reason = _certify_penalty_function_rational(model, "variable", vi.value, h, ϵ)
+        ϵ_q, reason = _certify_penalty_function_rational(model, "variable", vi, h, ϵ, arch)
         isnothing(ϵ_q) && return false, reason
 
         hint = Attributes.variable_encoding_penalty_hint(model, vi)
@@ -1119,13 +1762,19 @@ function _verify_stored_coefficients_can_establish_bound(
                     return false,
                     "Stored coefficient for variable $(vi.value) cannot establish strict sufficient inequality in target precision"
                 end
+                θ_cand_map[vi] = T(θ_cand)
+            else
+                check_assembly_in_precheck = false
             end
+        else
+            check_assembly_in_precheck = false
         end
     end
 
     for (ci, s) in model.s
         ϵ, _ = _positive_penalty_gap(s)
-        ϵ_q, reason = _certify_penalty_function_rational(model, "slack_variable", ci.value, s, ϵ)
+        ϵ_q, reason =
+            _certify_penalty_function_rational(model, "slack_variable", ci, s, ϵ, arch)
         isnothing(ϵ_q) && return false, reason
 
         hint = Attributes.slack_variable_encoding_penalty_hint(model, ci)
@@ -1147,8 +1796,19 @@ function _verify_stored_coefficients_can_establish_bound(
                     return false,
                     "Stored slack coefficient for constraint $(ci.value) cannot establish strict sufficient inequality in target precision"
                 end
+                η_cand_map[ci] = T(η_cand)
+            else
+                check_assembly_in_precheck = false
             end
+        else
+            check_assembly_in_precheck = false
         end
+    end
+
+    if check_assembly_in_precheck
+        asm_ok, asm_reason =
+            _verify_hamiltonian_assembly_exact(model, ρ_cand_map, θ_cand_map, η_cand_map)
+        asm_ok || return false, asm_reason
     end
 
     return true, nothing
@@ -1174,37 +1834,40 @@ function _objective_range_and_incumbent_metadata(
 
     raw_lower, raw_upper = PBO.bounds(model.f)
     raw_range = raw_upper - raw_lower
+    raw_finite =
+        isfinite(raw_lower) &&
+        isfinite(raw_upper) &&
+        isfinite(raw_range) &&
+        raw_range >= zero(raw_range)
     bounds_q = _pbf_bounds_rational(model.f)
 
-    whole_lower_t, whole_upper_t, whole_range_t, finite, arithmetic = if !isnothing(bounds_q)
+    whole_lower_t, whole_upper_t, whole_range_t, exact_finite = if !isnothing(bounds_q)
         lq, uq = bounds_q
         rq = uq - lq
         lt = _round_down(T, lq)
         ut = _round_up(T, uq)
         rt = _round_up(T, rq)
         fin = isfinite(lt) && isfinite(ut) && isfinite(rt) && rq >= 0 && rt >= zero(T)
-        lt, ut, rt, fin, "exact_rational"
+        lt, ut, rt, fin
     else
-        fin = isfinite(raw_lower) && isfinite(raw_upper) && isfinite(raw_range) &&
-              raw_range >= zero(raw_range)
-        raw_lower, raw_upper, raw_range, fin, "floating_point"
+        raw_lower, raw_upper, raw_range, false
     end
 
     objective_bounds = Dict{String,Any}(
         "source" => "compiled_pbf_bounds",
-        "lower" => whole_lower_t,
-        "upper" => whole_upper_t,
-        "range" => whole_range_t,
-        "finite" => finite,
+        "lower" => raw_lower,
+        "upper" => raw_upper,
+        "range" => raw_range,
+        "finite" => raw_finite,
         "sense" => sense_str,
-        "whole_domain_lower" => whole_lower_t,
-        "whole_domain_upper" => whole_upper_t,
-        "whole_domain_range" => whole_range_t,
+        "whole_domain_lower" => raw_lower,
+        "whole_domain_upper" => raw_upper,
+        "whole_domain_range" => raw_range,
         "lower_source" => "compiled_pbf_bounds",
         "upper_source" => "compiled_pbf_bounds",
         "incumbent_objective" => nothing,
         "tightened" => false,
-        "arithmetic" => arithmetic,
+        "arithmetic" => !isnothing(bounds_q) ? "exact_rational" : "floating_point",
     )
 
     incumbent_meta = Dict{String,Any}(
@@ -1218,8 +1881,8 @@ function _objective_range_and_incumbent_metadata(
         "tightened" => false,
         "objective" => nothing,
         "selected_bound" => nothing,
-        "selected_range" => finite ? whole_range_t : nothing,
-        "whole_domain_range" => finite ? whole_range_t : nothing,
+        "selected_range" => raw_finite ? raw_range : nothing,
+        "whole_domain_range" => raw_finite ? raw_range : nothing,
         "reason" => nothing,
         "fallback_source" => nothing,
     )
@@ -1236,11 +1899,17 @@ function _objective_range_and_incumbent_metadata(
     if !(policy isa Attributes.ObjectiveRangePenalty)
         incumbent_meta["reason"] = "PenaltyIncumbent requires ObjectiveRangePenalty policy"
         return objective_bounds, incumbent_meta, selected_range_q
-    elseif !finite || isnothing(bounds_q)
+    elseif !raw_finite || !exact_finite || isnothing(bounds_q)
         incumbent_meta["reason"] = "Objective bounds are not finite in exact arithmetic"
         return objective_bounds, incumbent_meta, selected_range_q
     elseif !isnothing(norm_reason)
         incumbent_meta["reason"] = norm_reason
+        return objective_bounds, incumbent_meta, selected_range_q
+    end
+
+    obj_exact_ok, obj_exact_reason = _verify_objective_exact_rational(model)
+    if !obj_exact_ok
+        incumbent_meta["reason"] = obj_exact_reason
         return objective_bounds, incumbent_meta, selected_range_q
     end
 
@@ -1290,8 +1959,8 @@ function _objective_range_and_incumbent_metadata(
     if σ == 1
         if v_compiled_q >= uq
             incumbent_meta["status"] = "unchanged"
-            incumbent_meta["selected_bound"] = whole_upper_t
-            incumbent_meta["selected_range"] = whole_range_t
+            incumbent_meta["selected_bound"] = raw_upper
+            incumbent_meta["selected_range"] = raw_range
             incumbent_meta["reason"] =
                 "Incumbent objective does not improve on whole-domain upper bound"
             return objective_bounds, incumbent_meta, selected_range_q
@@ -1299,8 +1968,13 @@ function _objective_range_and_incumbent_metadata(
 
         tight_range_q = v_compiled_q - lq
         tight_range_t = _round_up(T, tight_range_q)
-        ok_coeff, coeff_reason =
-            _verify_stored_coefficients_can_establish_bound(model, σ, tight_range_t, tight_range_q)
+        ok_coeff, coeff_reason = _verify_stored_coefficients_can_establish_bound(
+            model,
+            σ,
+            tight_range_t,
+            tight_range_q,
+            arch,
+        )
         if !ok_coeff
             incumbent_meta["status"] = "rejected"
             incumbent_meta["reason"] = coeff_reason
@@ -1308,7 +1982,11 @@ function _objective_range_and_incumbent_metadata(
         end
 
         objective_bounds["source"] = "verified_incumbent_bounds"
+        objective_bounds["lower"] = whole_lower_t
         objective_bounds["upper"] = v_inc_t
+        objective_bounds["whole_domain_lower"] = whole_lower_t
+        objective_bounds["whole_domain_upper"] = whole_upper_t
+        objective_bounds["whole_domain_range"] = whole_range_t
         objective_bounds["upper_source"] = "verified_incumbent"
         objective_bounds["range"] = tight_range_t
         objective_bounds["tightened"] = true
@@ -1318,6 +1996,7 @@ function _objective_range_and_incumbent_metadata(
         incumbent_meta["tightened"] = true
         incumbent_meta["selected_bound"] = v_inc_t
         incumbent_meta["selected_range"] = tight_range_t
+        incumbent_meta["whole_domain_range"] = whole_range_t
         incumbent_meta["reason"] = nothing
         incumbent_meta["fallback_source"] = nothing
 
@@ -1325,8 +2004,8 @@ function _objective_range_and_incumbent_metadata(
     else
         if v_compiled_q <= lq
             incumbent_meta["status"] = "unchanged"
-            incumbent_meta["selected_bound"] = whole_lower_t
-            incumbent_meta["selected_range"] = whole_range_t
+            incumbent_meta["selected_bound"] = raw_lower
+            incumbent_meta["selected_range"] = raw_range
             incumbent_meta["reason"] =
                 "Incumbent objective does not improve on whole-domain lower bound"
             return objective_bounds, incumbent_meta, selected_range_q
@@ -1334,8 +2013,13 @@ function _objective_range_and_incumbent_metadata(
 
         tight_range_q = uq - v_compiled_q
         tight_range_t = _round_up(T, tight_range_q)
-        ok_coeff, coeff_reason =
-            _verify_stored_coefficients_can_establish_bound(model, σ, tight_range_t, tight_range_q)
+        ok_coeff, coeff_reason = _verify_stored_coefficients_can_establish_bound(
+            model,
+            σ,
+            tight_range_t,
+            tight_range_q,
+            arch,
+        )
         if !ok_coeff
             incumbent_meta["status"] = "rejected"
             incumbent_meta["reason"] = coeff_reason
@@ -1344,6 +2028,10 @@ function _objective_range_and_incumbent_metadata(
 
         objective_bounds["source"] = "verified_incumbent_bounds"
         objective_bounds["lower"] = v_inc_t
+        objective_bounds["upper"] = whole_upper_t
+        objective_bounds["whole_domain_lower"] = whole_lower_t
+        objective_bounds["whole_domain_upper"] = whole_upper_t
+        objective_bounds["whole_domain_range"] = whole_range_t
         objective_bounds["lower_source"] = "verified_incumbent"
         objective_bounds["range"] = tight_range_t
         objective_bounds["tightened"] = true
@@ -1353,6 +2041,7 @@ function _objective_range_and_incumbent_metadata(
         incumbent_meta["tightened"] = true
         incumbent_meta["selected_bound"] = v_inc_t
         incumbent_meta["selected_range"] = tight_range_t
+        incumbent_meta["whole_domain_range"] = whole_range_t
         incumbent_meta["reason"] = nothing
         incumbent_meta["fallback_source"] = nothing
 
@@ -1739,17 +2428,19 @@ function _evaluate_applied_penalty_sufficiency(
     model::Virtual.Model{T},
     context::AbstractDict,
     kind::String,
-    id::Integer,
+    ref::Union{CI,VI},
     p::PBO.PBF{VI,T},
     applied_coeff,
     selected_range_q::Union{Rational{BigInt},Nothing},
     σ::Int,
     has_hint::Bool,
     scale,
-    offset;
+    offset,
+    arch::AbstractArchitecture = GenericArchitecture();
     method_name::Union{String,Nothing} = nothing,
     is_exact_method::Bool = true,
 ) where {T}
+    id = ref.value
     policy = Attributes.penalty_policy(model)
     objective_bounds = context["objective_bounds"]
     ϵ, gap_source = _positive_penalty_gap(p)
@@ -1769,13 +2460,16 @@ function _evaluate_applied_penalty_sufficiency(
     elseif !objective_bounds["finite"] || isnothing(selected_range_q)
         reason = "Objective range is not finite in exact arithmetic"
     else
-        ϵ_q, cert_reason = _certify_penalty_function_rational(model, kind, id, p, ϵ)
+        ϵ_q, cert_reason = _certify_penalty_function_rational(model, kind, ref, p, ϵ, arch)
         coeff_q = _exact_rational(applied_coeff)
+        scale_ok, scale_reason = _verify_penalty_scaling_exact(p, applied_coeff, kind, id)
 
         if !isnothing(cert_reason)
             reason = cert_reason
         elseif isnothing(coeff_q)
             reason = "Applied penalty on $(kind) $(id) is not finite in exact arithmetic"
+        elseif !scale_ok
+            reason = scale_reason
         elseif (σ * coeff_q) <= 0
             reason =
                 "Applied penalty on $(kind) $(id) does not have the required sign for $(objective_bounds["sense"])imization"
@@ -1814,6 +2508,7 @@ function _finalize_sufficient_bound_metadata!(
     model::Virtual.Model{T},
     context::AbstractDict,
     σ::Int,
+    arch::AbstractArchitecture = GenericArchitecture(),
 ) where {T}
     selected_range_q = pop!(context, "_selected_range_q", nothing)
     policy = Attributes.penalty_policy(model)
@@ -1845,6 +2540,12 @@ function _finalize_sufficient_bound_metadata!(
     elseif !isempty(context["fallbacks"])
         certified = false
         first_reason = first(context["fallbacks"])["reason"]
+    else
+        obj_ok, obj_reason = _verify_objective_exact_rational(model)
+        if !obj_ok
+            certified = false
+            first_reason = obj_reason
+        end
     end
 
     for (ci, g) in sort!(collect(model.g); by = kv -> kv[1].value)
@@ -1860,14 +2561,15 @@ function _finalize_sufficient_bound_metadata!(
             model,
             context,
             "constraint",
-            ci.value,
+            ci,
             g,
             ρ,
             selected_range_q,
             σ,
             has_hint,
             scale,
-            offset;
+            offset,
+            arch;
             method_name = method_name,
             is_exact_method = is_exact_method,
         )
@@ -1889,7 +2591,7 @@ function _finalize_sufficient_bound_metadata!(
             model,
             context,
             "variable",
-            vi.value,
+            vi,
             h,
             θ,
             selected_range_q,
@@ -1897,6 +2599,7 @@ function _finalize_sufficient_bound_metadata!(
             has_hint,
             scale,
             offset,
+            arch,
         )
         push!(applied_variables, entry)
 
@@ -1916,7 +2619,7 @@ function _finalize_sufficient_bound_metadata!(
             model,
             context,
             "slack_variable",
-            ci.value,
+            ci,
             s,
             η,
             selected_range_q,
@@ -1924,12 +2627,32 @@ function _finalize_sufficient_bound_metadata!(
             has_hint,
             scale,
             offset,
+            arch,
         )
         push!(applied_slacks, entry)
 
         if !ok && certified
             certified = false
             first_reason = reason
+        end
+    end
+
+    if policy isa Attributes.ObjectiveRangePenalty
+        asm_ok, asm_reason =
+            _verify_hamiltonian_assembly_exact(model, model.ρ, model.θ, model.η)
+        if !asm_ok
+            if certified
+                certified = false
+                first_reason = asm_reason
+            end
+            for entries in (applied_constraints, applied_variables, applied_slacks)
+                for entry in entries
+                    if entry["sufficient_bound"] === true
+                        entry["sufficient_bound"] = false
+                        entry["reason"] = asm_reason
+                    end
+                end
+            end
         end
     end
 
@@ -2070,7 +2793,7 @@ function penalties!(model::Virtual.Model{T}, arch::AbstractArchitecture) where {
 
     context["fallback_count"] = length(context["fallbacks"])
     context["legacy_objective_gap"] = δ
-    _finalize_sufficient_bound_metadata!(model, context, σ)
+    _finalize_sufficient_bound_metadata!(model, context, σ, arch)
     model.compiler_settings[:penalty_policy_metadata] = context
 
     return nothing
