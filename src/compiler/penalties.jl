@@ -1789,7 +1789,7 @@ function _verify_variable_constraint_enforced_rational(
             return true, nothing
         end
     elseif e isa Encoding.DomainWall
-        if !isempty(targets)
+        if !isempty(targets) || isempty(PBO.variables(ξ_q))
             if haskey(model.h, vi)
                 ϵ_q, cert_reason =
                     _certify_encoding_penalty_rational(v, model.h[vi], "variable", vi.value)

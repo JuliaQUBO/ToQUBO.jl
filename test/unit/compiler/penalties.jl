@@ -1540,6 +1540,38 @@ function test_compiler_incumbent_revalidation_after_model_edits()
         @test MOI.get(jm_unenf, Attributes.ConstraintEncodingPenalty(), c_yz) == 103.0
     end
 
+    # 4b. Singleton DomainWall encodings (fixed bounds 1 <= x <= 1 and singleton VariableEncodingSet [1.0]):
+    # constant expansion enforces domain without target bits and must not be mistaken for SOS1.
+    for use_value_set in (false, true)
+        let jm_dw1 = JuMP.Model(ToQUBO.Optimizer)
+            if use_value_set
+                JuMP.@variable(jm_dw1, 0 <= xdw <= 3, Int)
+                MOI.set(jm_dw1, Attributes.VariableEncodingSet(), xdw, [1.0])
+            else
+                JuMP.@variable(jm_dw1, 1 <= xdw <= 1, Int)
+            end
+            MOI.set(jm_dw1, Attributes.VariableEncodingMethod(), xdw, Encoding.DomainWall())
+            JuMP.@variable(jm_dw1, ydw, Bin)
+            JuMP.@variable(jm_dw1, zdw, Bin)
+            c_dw = JuMP.@constraint(jm_dw1, ydw + zdw == 1)
+            JuMP.@objective(jm_dw1, Min, 1.0 * xdw + 100.0 * ydw + 1.0 * zdw)
+            MOI.set(
+                jm_dw1,
+                Attributes.PenaltyIncumbent(),
+                Dict(xdw => 1, ydw => 0, zdw => 1),
+            )
+            JuMP.optimize!(jm_dw1)
+            meta_dw = MOI.get(jm_dw1, Attributes.PenaltyPolicyMetadata())
+            @test meta_dw["incumbent"]["status"] == "accepted"
+            @test meta_dw["incumbent"]["used"] === true
+            @test meta_dw["incumbent"]["tightened"] === true
+            @test meta_dw["sufficient_bound"]["certified"] === true
+            @test meta_dw["sufficient_bound"]["tightened"] === true
+            @test meta_dw["objective_bounds"]["range"] == 1.0
+            @test MOI.get(jm_dw1, Attributes.ConstraintEncodingPenalty(), c_dw) == 2.0
+        end
+    end
+
     # 5. Cached JuMP model recompiled after variable deletion with VariableRef, VI, and integer keys:
     for use_policy in (false, true)
         let jm_recomp = JuMP.Model(ToQUBO.Optimizer)
