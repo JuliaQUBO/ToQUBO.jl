@@ -547,6 +547,173 @@ function constraint(
 end
 
 
+function _is_binary_source_variable(model::Virtual.Model, xi::VI)::Bool
+    haskey(model.source, xi) || return false
+    v = model.source[xi]
+    return Virtual.encoding(v) isa Encoding.Mirror && length(Virtual.target(v)) == 1
+end
+
+function _is_binary_target_variable(model::Virtual.Model, yi::VI)::Bool
+    haskey(model.target, yi) || return false
+    v = model.target[yi]
+    return Virtual.encoding(v) isa Encoding.Mirror && length(Virtual.target(v)) == 1
+end
+
+function _has_only_binary_variables(
+    model::Virtual.Model{T},
+    f::SQF{T},
+    g::PBO.PBF{VI,T},
+)::Bool where {T}
+    for q in f.quadratic_terms
+        (_is_binary_source_variable(model, q.variable_1) &&
+         _is_binary_source_variable(model, q.variable_2)) || return false
+    end
+
+    for a in f.affine_terms
+        _is_binary_source_variable(model, a.variable) || return false
+    end
+
+    for (ω, _) in g
+        for y in ω
+            _is_binary_target_variable(model, y) || return false
+        end
+    end
+
+    return true
+end
+
+function _boolean_logic_gadget_penalty(
+    model::Virtual.Model{T},
+    f::SQF{T},
+    g::PBO.PBF{VI,T},
+)::Union{Tuple{PBO.PBF{VI,T},Bool},Nothing} where {T}
+    _has_only_binary_variables(model, f, g) || return nothing
+
+    n_terms = length(g)
+    (n_terms == 2 || n_terms == 3 || n_terms == 4) || return nothing
+
+    const_coeff = zero(T)
+    has_const = false
+    linear = Pair{VI,T}[]
+    quadratic = Pair{Tuple{VI,VI},T}[]
+
+    for (ω, c) in g
+        d = length(ω)
+        if d == 0
+            has_const = true
+            const_coeff = c
+        elseif d == 1
+            push!(linear, only(ω) => c)
+        elseif d == 2
+            u, v = ω
+            push!(quadratic, (u, v) => c)
+        else
+            return nothing
+        end
+    end
+
+    one_t = one(T)
+    two_t = T(2)
+    three_t = T(3)
+    four_t = T(4)
+
+    # 1. NOT pattern: ±(a + b - 1) = 0 -> 1 - a - b + 2ab
+    if n_terms == 3 && has_const && length(linear) == 2 && isempty(quadratic)
+        (a, ca), (b, cb) = linear
+        if a != b && (const_coeff == one_t || const_coeff == -one_t) &&
+           ca == -const_coeff && cb == -const_coeff
+            return (
+                PBO.PBF{VI,T}(
+                    one_t,
+                    a => -one_t,
+                    b => -one_t,
+                    [a, b] => two_t,
+                ),
+                false,
+            )
+        end
+        return nothing
+    end
+
+    # Remaining patterns (AND, OR, XOR) have no constant term and exactly one quadratic term
+    (!has_const && length(quadratic) == 1) || return nothing
+    (a, b), q_ab = only(quadratic)
+    a != b || return nothing
+
+    # 2. AND pattern: ±(c - a*b) = 0 -> 3c + ab - 2ac - 2bc
+    if n_terms == 2 && length(linear) == 1
+        c, cc = only(linear)
+        if c != a && c != b && (cc == one_t || cc == -one_t) && q_ab == -cc
+            return (
+                PBO.PBF{VI,T}(
+                    c => three_t,
+                    [a, b] => one_t,
+                    [a, c] => -two_t,
+                    [b, c] => -two_t,
+                ),
+                false,
+            )
+        end
+        return nothing
+    end
+
+    # 3. OR and XOR patterns have 3 linear terms over {a, b, c}
+    if n_terms == 4 && length(linear) == 3
+        ca = zero(T)
+        cb = zero(T)
+        c_out = nothing
+        cc = zero(T)
+
+        for (v, cv) in linear
+            if v == a
+                ca = cv
+            elseif v == b
+                cb = cv
+            else
+                c_out === nothing || return nothing
+                c_out = v
+                cc = cv
+            end
+        end
+
+        c_out === nothing && return nothing
+        c = c_out::VI
+        (ca == one_t || ca == -one_t) || return nothing
+        (cb == ca && cc == -ca) || return nothing
+
+        if q_ab == -ca
+            # OR pattern: ±(a + b - a*b - c) = 0 -> a + b + c + ab - 2ac - 2bc
+            return (
+                PBO.PBF{VI,T}(
+                    a => one_t,
+                    b => one_t,
+                    c => one_t,
+                    [a, b] => one_t,
+                    [a, c] => -two_t,
+                    [b, c] => -two_t,
+                ),
+                false,
+            )
+        elseif q_ab == -two_t * ca
+            # XOR pattern: ±(a + b - 2*a*b - c) = 0 -> a + b + c - 2ab - 2ac - 2bc + 4abc
+            return (
+                PBO.PBF{VI,T}(
+                    a => one_t,
+                    b => one_t,
+                    c => one_t,
+                    [a, b] => -two_t,
+                    [a, c] => -two_t,
+                    [b, c] => -two_t,
+                    [a, b, c] => four_t,
+                ),
+                true,
+            )
+        end
+    end
+
+    return nothing
+end
+
 @doc raw"""
     constraint(
         model::Virtual.Model{T},
@@ -571,7 +738,10 @@ into
 ```
 
 If the residual is nonnegative over the encoded domain, the compiler uses the
-residual directly instead of squaring it.
+residual directly instead of squaring it. When every involved variable is
+binary (`Encoding.Mirror`) and the constraint uses `QuadraticPenalty`, standard
+Boolean logic residuals (`NOT`, `AND`, `OR`, and `XOR`) emit minimal penalty
+gadgets directly.
 """
 function constraint(
     model::Virtual.Model{T},
@@ -623,6 +793,18 @@ function constraint(
     end
 
     if _is_quadratic_penalty(model, ci) && !_is_nonnegative(g)
+        gadget = _boolean_logic_gadget_penalty(model, f, g)
+
+        if !isnothing(gadget)
+            gadget_pbf, needs_quadratization = gadget
+
+            if needs_quadratization
+                MOI.set(model, Attributes.Quadratize(), true)
+            end
+
+            return gadget_pbf
+        end
+
         # Tell the compiler that quadratization is necessary
         MOI.set(model, Attributes.Quadratize(), true)
     end

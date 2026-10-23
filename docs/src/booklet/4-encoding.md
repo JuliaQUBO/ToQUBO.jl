@@ -214,6 +214,34 @@ When any reformulation creates terms above quadratic degree, the compiler marks
 the model for quadratization and reduces those terms before building the target
 QUBO.
 
+### Boolean Logic Gadgets and Indicator Formulations
+
+When an equality constraint uses the default
+[`ToQUBO.Attributes.QuadraticPenalty`](@ref) method and every variable involved
+is a binary variable (`MOI.ZeroOne`, encoded via [`ToQUBO.Encoding.Mirror`](@ref)),
+the compiler recognizes standard Boolean logic residuals (`NOT`, `AND`, `OR`, and
+`XOR`, up to overall sign and integer GCD normalization when discretization is
+enabled) and emits minimal textbook penalty gadgets directly instead of forming a
+generic squared residual:
+
+| Gate | Constraint / residual ``g = 0`` | Emitted PBF penalty (before ``\rho``) | Ancillas |
+|:--:|:--|:--|:--:|
+| `NOT` | ``\pm(a + b - 1) = 0`` | ``1 - a - b + 2ab`` | ``0`` |
+| `AND` | ``\pm(c - ab) = 0`` | ``3c + ab - 2ac - 2bc`` | ``0`` |
+| `OR` | ``\pm(a + b - ab - c) = 0`` | ``a + b + c + ab - 2ac - 2bc`` | ``0`` |
+| `XOR` | ``\pm(a + b - 2ab - c) = 0`` | ``a + b + c - 2ab - 2ac - 2bc + 4abc`` (quadratized via `PTR_BG` with 1 ancilla) | ``1`` |
+
+Each gadget vanishes on and only on the gate's truth table and has unit minimum
+positive violation gap (``\epsilon = 1``) over ``\{0, 1\}^n``. Non-matching
+quadratic equalities, or constraints involving any non-binary variable, fall
+back to the generic squared-residual path ``g(x)^2``.
+
+Logical implications can also be modeled directly with
+`MOI.Indicator{MOI.ACTIVATE_ON_ONE}` (`z => {f(x) in S}`) and
+`MOI.Indicator{MOI.ACTIVATE_ON_ZERO}` (`!z => {f(x) in S}`), which multiply the
+inner constraint's penalty by ``z`` or ``1 - z`` and quadratize any resulting
+higher-order terms.
+
 [^Mirkarimi2024PRR]:
     Puya Mirkarimi, Ishaan Shukla, David C. Hoyle, Ross Williams, and Nicholas
     Chancellor. **Quantum optimization with linear Ising penalty functions for

@@ -609,6 +609,427 @@ function test_compiler_constraints_trivial_indicator_inner_does_not_quadratize()
     return nothing
 end
 
+function test_compiler_constraints_boolean_logic_gadgets()
+    @testset "Boolean logic gadgets (NOT/AND/OR/XOR)" begin
+        # 1. Direct PBF coefficient, term-count, and Quadratize-flag checks across sign/scale variants
+        @testset "Direct PBF compilation and ancilla counts" begin
+            # NOT: ±(a + b - 1) = 0 via SQF
+            for sign in (1.0, -1.0, 2.0)
+                model = ToQUBO.Virtual.Model{Float64}()
+                arch  = ToQUBO.Compiler.GenericArchitecture()
+                x, _  = MOI.add_constrained_variables(model.source_model, fill(MOI.ZeroOne(), 2))
+                ToQUBO.Compiler.variables!(model, arch)
+                y = [only(ToQUBO.Virtual.target(model.source[xi])) for xi in x]
+
+                f = MOI.ScalarQuadraticFunction{Float64}(
+                    [MOI.ScalarQuadraticTerm(2.0 * sign, x[1], x[1])], # ½ * (2*sign) * x1^2 -> sign * x1
+                    [MOI.ScalarAffineTerm(sign, x[2])],
+                    0.0,
+                )
+                s = MOI.EqualTo{Float64}(sign)
+                ci = MOI.add_constraint(model.source_model, f, s)
+                g = ToQUBO.Compiler.constraint(model, ci, f, s, arch)
+
+                expected_not = PBO.PBF{VI,Float64}(
+                    1.0,
+                    y[1] => -1.0,
+                    y[2] => -1.0,
+                    [y[1], y[2]] => 2.0,
+                )
+                @test g == expected_not
+                @test length(g) == 4
+                @test PBO.degree(g) == 2
+                @test MOI.get(model, Attributes.Quadratize()) === false
+            end
+
+            # AND: ±(c - a*b) = 0
+            for sign in (1.0, -1.0, 3.0)
+                model = ToQUBO.Virtual.Model{Float64}()
+                arch  = ToQUBO.Compiler.GenericArchitecture()
+                x, _  = MOI.add_constrained_variables(model.source_model, fill(MOI.ZeroOne(), 3))
+                ToQUBO.Compiler.variables!(model, arch)
+                y = [only(ToQUBO.Virtual.target(model.source[xi])) for xi in x]
+
+                f = MOI.ScalarQuadraticFunction{Float64}(
+                    [MOI.ScalarQuadraticTerm(-sign, x[1], x[2])],
+                    [MOI.ScalarAffineTerm(sign, x[3])],
+                    0.0,
+                )
+                s = MOI.EqualTo{Float64}(0.0)
+                ci = MOI.add_constraint(model.source_model, f, s)
+                g = ToQUBO.Compiler.constraint(model, ci, f, s, arch)
+
+                expected_and = PBO.PBF{VI,Float64}(
+                    y[3] => 3.0,
+                    [y[1], y[2]] => 1.0,
+                    [y[1], y[3]] => -2.0,
+                    [y[2], y[3]] => -2.0,
+                )
+                @test g == expected_and
+                @test length(g) == 4
+                @test PBO.degree(g) == 2
+                @test MOI.get(model, Attributes.Quadratize()) === false
+            end
+
+            # OR: ±(a + b - a*b - c) = 0
+            for sign in (1.0, -1.0, 2.0)
+                model = ToQUBO.Virtual.Model{Float64}()
+                arch  = ToQUBO.Compiler.GenericArchitecture()
+                x, _  = MOI.add_constrained_variables(model.source_model, fill(MOI.ZeroOne(), 3))
+                ToQUBO.Compiler.variables!(model, arch)
+                y = [only(ToQUBO.Virtual.target(model.source[xi])) for xi in x]
+
+                f = MOI.ScalarQuadraticFunction{Float64}(
+                    [MOI.ScalarQuadraticTerm(-sign, x[1], x[2])],
+                    [
+                        MOI.ScalarAffineTerm(sign, x[1]),
+                        MOI.ScalarAffineTerm(sign, x[2]),
+                        MOI.ScalarAffineTerm(-sign, x[3]),
+                    ],
+                    0.0,
+                )
+                s = MOI.EqualTo{Float64}(0.0)
+                ci = MOI.add_constraint(model.source_model, f, s)
+                g = ToQUBO.Compiler.constraint(model, ci, f, s, arch)
+
+                expected_or = PBO.PBF{VI,Float64}(
+                    y[1] => 1.0,
+                    y[2] => 1.0,
+                    y[3] => 1.0,
+                    [y[1], y[2]] => 1.0,
+                    [y[1], y[3]] => -2.0,
+                    [y[2], y[3]] => -2.0,
+                )
+                @test g == expected_or
+                @test length(g) == 6
+                @test PBO.degree(g) == 2
+                @test MOI.get(model, Attributes.Quadratize()) === false
+            end
+
+            # XOR: ±(a + b - 2*a*b - c) = 0 (cubic PBF; reuses Quadratize path)
+            for sign in (1.0, -1.0, 2.0)
+                model = ToQUBO.Virtual.Model{Float64}()
+                arch  = ToQUBO.Compiler.GenericArchitecture()
+                x, _  = MOI.add_constrained_variables(model.source_model, fill(MOI.ZeroOne(), 3))
+                ToQUBO.Compiler.variables!(model, arch)
+                y = [only(ToQUBO.Virtual.target(model.source[xi])) for xi in x]
+
+                f = MOI.ScalarQuadraticFunction{Float64}(
+                    [MOI.ScalarQuadraticTerm(-2.0 * sign, x[1], x[2])],
+                    [
+                        MOI.ScalarAffineTerm(sign, x[1]),
+                        MOI.ScalarAffineTerm(sign, x[2]),
+                        MOI.ScalarAffineTerm(-sign, x[3]),
+                    ],
+                    0.0,
+                )
+                s = MOI.EqualTo{Float64}(0.0)
+                ci = MOI.add_constraint(model.source_model, f, s)
+                g = ToQUBO.Compiler.constraint(model, ci, f, s, arch)
+
+                expected_xor = PBO.PBF{VI,Float64}(
+                    y[1] => 1.0,
+                    y[2] => 1.0,
+                    y[3] => 1.0,
+                    [y[1], y[2]] => -2.0,
+                    [y[1], y[3]] => -2.0,
+                    [y[2], y[3]] => -2.0,
+                    [y[1], y[2], y[3]] => 4.0,
+                )
+                @test g == expected_xor
+                @test length(g) == 7
+                @test PBO.degree(g) == 3
+                @test MOI.get(model, Attributes.Quadratize()) === true
+            end
+        end
+
+        # 2. Exhaustive truth-table verification via ExactSampler.Optimizer
+        @testset "Exhaustive truth-table ground states via ExactSampler" begin
+            gates = [
+                (
+                    name = "NOT",
+                    n = 2,
+                    expected_target_vars = 2,
+                    build_constraint! = (m, x) -> MOI.add_constraint(
+                        m,
+                        MOI.ScalarQuadraticFunction{Float64}(
+                            [MOI.ScalarQuadraticTerm(2.0, x[1], x[1])],
+                            [MOI.ScalarAffineTerm(1.0, x[2])],
+                            0.0,
+                        ),
+                        MOI.EqualTo{Float64}(1.0),
+                    ),
+                    truth_table = s -> s[2] == (1 - s[1]),
+                    expected_ground_states = Set([[0, 1], [1, 0]]),
+                ),
+                (
+                    name = "AND",
+                    n = 3,
+                    expected_target_vars = 3,
+                    build_constraint! = (m, x) -> MOI.add_constraint(
+                        m,
+                        MOI.ScalarQuadraticFunction{Float64}(
+                            [MOI.ScalarQuadraticTerm(-1.0, x[1], x[2])],
+                            [MOI.ScalarAffineTerm(1.0, x[3])],
+                            0.0,
+                        ),
+                        MOI.EqualTo{Float64}(0.0),
+                    ),
+                    truth_table = s -> s[3] == (s[1] & s[2]),
+                    expected_ground_states = Set([[0, 0, 0], [0, 1, 0], [1, 0, 0], [1, 1, 1]]),
+                ),
+                (
+                    name = "OR",
+                    n = 3,
+                    expected_target_vars = 3,
+                    build_constraint! = (m, x) -> MOI.add_constraint(
+                        m,
+                        MOI.ScalarQuadraticFunction{Float64}(
+                            [MOI.ScalarQuadraticTerm(-1.0, x[1], x[2])],
+                            [
+                                MOI.ScalarAffineTerm(1.0, x[1]),
+                                MOI.ScalarAffineTerm(1.0, x[2]),
+                                MOI.ScalarAffineTerm(-1.0, x[3]),
+                            ],
+                            0.0,
+                        ),
+                        MOI.EqualTo{Float64}(0.0),
+                    ),
+                    truth_table = s -> s[3] == (s[1] | s[2]),
+                    expected_ground_states = Set([[0, 0, 0], [0, 1, 1], [1, 0, 1], [1, 1, 1]]),
+                ),
+                (
+                    name = "XOR",
+                    n = 3,
+                    expected_target_vars = 4, # 3 source variables + 1 quadratization ancilla
+                    build_constraint! = (m, x) -> MOI.add_constraint(
+                        m,
+                        MOI.ScalarQuadraticFunction{Float64}(
+                            [MOI.ScalarQuadraticTerm(-2.0, x[1], x[2])],
+                            [
+                                MOI.ScalarAffineTerm(1.0, x[1]),
+                                MOI.ScalarAffineTerm(1.0, x[2]),
+                                MOI.ScalarAffineTerm(-1.0, x[3]),
+                            ],
+                            0.0,
+                        ),
+                        MOI.EqualTo{Float64}(0.0),
+                    ),
+                    truth_table = s -> s[3] == xor(s[1], s[2]),
+                    expected_ground_states = Set([[0, 0, 0], [0, 1, 1], [1, 0, 1], [1, 1, 0]]),
+                ),
+            ]
+
+            for gate in gates, sense in (MOI.MIN_SENSE, MOI.MAX_SENSE)
+                @testset "$(gate.name) ($(sense))" begin
+                    model = ToQUBO.Optimizer{Float64}(ExactSampler.Optimizer)
+                    x, _  = MOI.add_constrained_variables(model, fill(MOI.ZeroOne(), gate.n))
+                    gate.build_constraint!(model, x)
+                    MOI.set(model, MOI.ObjectiveSense(), sense)
+                    MOI.set(
+                        model,
+                        MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
+                        MOI.ScalarAffineFunction{Float64}(MOI.ScalarAffineTerm{Float64}[], 0.0),
+                    )
+                    MOI.optimize!(model)
+
+                    @test MOI.get(model.target_model, MOI.NumberOfVariables()) == gate.expected_target_vars
+
+                    rc = MOI.get(model, MOI.ResultCount())
+                    @test rc == 2^gate.expected_target_vars
+
+                    ground_states = Set{Vector{Int}}()
+                    best_val_by_input = Dict{Vector{Int},Float64}()
+
+                    for k in 1:rc
+                        state = [round(Int, MOI.get(model, MOI.VariablePrimal(k), xi)) for xi in x]
+                        val   = MOI.get(model.optimizer, MOI.ObjectiveValue(k))
+                        if sense === MOI.MIN_SENSE
+                            best_val_by_input[state] = min(get(best_val_by_input, state, Inf), val)
+                        else
+                            best_val_by_input[state] = max(get(best_val_by_input, state, -Inf), val)
+                        end
+                        if isapprox(val, 0.0; atol = 1e-9)
+                            push!(ground_states, state)
+                        end
+                    end
+
+                    @test ground_states == gate.expected_ground_states
+                    for (state, best_val) in best_val_by_input
+                        if gate.truth_table(state)
+                            @test isapprox(best_val, 0.0; atol = 1e-9)
+                        elseif sense === MOI.MIN_SENSE
+                            @test best_val >= 1.0 - 1e-9
+                        else
+                            @test best_val <= -1.0 + 1e-9
+                        end
+                    end
+                end
+            end
+        end
+
+        # 3. Binary-only verification and fallback to generic squared-residual path
+        @testset "Non-binary variables and non-matching SQF-EQ fall back to generic path" begin
+            # 3a. Integer variable in [0, 1] (Encoding.Binary, not Encoding.Mirror)
+            model_int = ToQUBO.Virtual.Model{Float64}()
+            arch      = ToQUBO.Compiler.GenericArchitecture()
+            x_bin, _  = MOI.add_constrained_variables(model_int.source_model, fill(MOI.ZeroOne(), 2))
+            x_int, _  = MOI.add_constrained_variable(model_int.source_model, MOI.Integer())
+            MOI.add_constraint(model_int.source_model, x_int, MOI.Interval{Float64}(0.0, 1.0))
+            ToQUBO.Compiler.variables!(model_int, arch)
+            @test !(ToQUBO.Virtual.encoding(model_int.source[x_int]) isa Encoding.Mirror)
+
+            f_int = MOI.ScalarQuadraticFunction{Float64}(
+                [MOI.ScalarQuadraticTerm(-1.0, x_bin[1], x_bin[2])],
+                [MOI.ScalarAffineTerm(1.0, x_int)],
+                0.0,
+            )
+            s_int = MOI.EqualTo{Float64}(0.0)
+            ci_int = MOI.add_constraint(model_int.source_model, f_int, s_int)
+            g_int = ToQUBO.Compiler.constraint(model_int, ci_int, f_int, s_int, arch)
+
+            # Generic squared residual (c - a*b)^2 = c + a*b - 2*a*b*c (degree 3, 3 terms)
+            @test PBO.degree(g_int) == 3
+            @test length(g_int) == 3
+            @test MOI.get(model_int, Attributes.Quadratize()) === true
+
+            # 3b. SOS1 DomainWall-encoded binary variable
+            model_dw = ToQUBO.Virtual.Model{Float64}()
+            x_dw, _  = MOI.add_constrained_variables(model_dw.source_model, fill(MOI.ZeroOne(), 3))
+            MOI.add_constraint(
+                model_dw.source_model,
+                MOI.VectorOfVariables([x_dw[1], x_dw[2]]),
+                MOI.SOS1{Float64}([1.0, 2.0]),
+            )
+            ToQUBO.Compiler.variables!(model_dw, arch)
+            @test ToQUBO.Virtual.encoding(model_dw.source[x_dw[2]]) isa Encoding.DomainWall
+
+            f_dw = MOI.ScalarQuadraticFunction{Float64}(
+                [MOI.ScalarQuadraticTerm(-1.0, x_dw[2], x_dw[3])],
+                [MOI.ScalarAffineTerm(1.0, x_dw[1])],
+                0.0,
+            )
+            s_dw = MOI.EqualTo{Float64}(0.0)
+            ci_dw = MOI.add_constraint(model_dw.source_model, f_dw, s_dw)
+            g_dw = ToQUBO.Compiler.constraint(model_dw, ci_dw, f_dw, s_dw, arch)
+            @test MOI.get(model_dw, Attributes.Quadratize()) === true
+
+            # 3c. Non-matching SQF-EQ over binary variables: c - 2*a*b == 0
+            model_nm = ToQUBO.Virtual.Model{Float64}()
+            x_nm, _  = MOI.add_constrained_variables(model_nm.source_model, fill(MOI.ZeroOne(), 3))
+            ToQUBO.Compiler.variables!(model_nm, arch)
+            y_nm = [only(ToQUBO.Virtual.target(model_nm.source[xi])) for xi in x_nm]
+
+            f_nm = MOI.ScalarQuadraticFunction{Float64}(
+                [MOI.ScalarQuadraticTerm(-2.0, x_nm[1], x_nm[2])],
+                [MOI.ScalarAffineTerm(1.0, x_nm[3])],
+                0.0,
+            )
+            s_nm = MOI.EqualTo{Float64}(0.0)
+            ci_nm = MOI.add_constraint(model_nm.source_model, f_nm, s_nm)
+            g_nm = ToQUBO.Compiler.constraint(model_nm, ci_nm, f_nm, s_nm, arch)
+
+            # Generic (c - 2*a*b)^2 = c + 4*a*b - 4*a*b*c
+            @test g_nm == PBO.PBF{VI,Float64}(
+                y_nm[3] => 1.0,
+                [y_nm[1], y_nm[2]] => 4.0,
+                [y_nm[1], y_nm[2], y_nm[3]] => -4.0,
+            )
+            @test MOI.get(model_nm, Attributes.Quadratize()) === true
+
+            # 3d. LinearPenalty and AugmentedLagrangianPenalty on c - a*b == 0 bypass gadget
+            model_lp = ToQUBO.Virtual.Model{Float64}()
+            x_lp, _  = MOI.add_constrained_variables(model_lp.source_model, fill(MOI.ZeroOne(), 3))
+            ToQUBO.Compiler.variables!(model_lp, arch)
+            y_lp = [only(ToQUBO.Virtual.target(model_lp.source[xi])) for xi in x_lp]
+
+            f_lp = MOI.ScalarQuadraticFunction{Float64}(
+                [MOI.ScalarQuadraticTerm(-1.0, x_lp[1], x_lp[2])],
+                [MOI.ScalarAffineTerm(1.0, x_lp[3])],
+                0.0,
+            )
+            s_lp = MOI.EqualTo{Float64}(0.0)
+            ci_lp = MOI.add_constraint(model_lp.source_model, f_lp, s_lp)
+            MOI.set(
+                model_lp,
+                Attributes.ConstraintEncodingMethod(),
+                ci_lp,
+                Attributes.LinearPenalty(),
+            )
+            g_lp = ToQUBO.Compiler.constraint(model_lp, ci_lp, f_lp, s_lp, arch)
+            @test g_lp == PBO.PBF{VI,Float64}(
+                y_lp[3] => 1.0,
+                [y_lp[1], y_lp[2]] => -1.0,
+            )
+            @test MOI.get(model_lp, Attributes.Quadratize()) === false
+
+            # 3e. Paired discretization-on vs discretization-off regression on scaled and unit-sign residuals
+            # With Discretize() == true (default), 2*(c - a*b) == 0 normalizes to c - a*b and emits the AND gadget
+            model_disc_on = ToQUBO.Virtual.Model{Float64}()
+            x_on, _       = MOI.add_constrained_variables(model_disc_on.source_model, fill(MOI.ZeroOne(), 3))
+            ToQUBO.Compiler.variables!(model_disc_on, arch)
+            y_on = [only(ToQUBO.Virtual.target(model_disc_on.source[xi])) for xi in x_on]
+
+            f_scaled_on = MOI.ScalarQuadraticFunction{Float64}(
+                [MOI.ScalarQuadraticTerm(-2.0, x_on[1], x_on[2])],
+                [MOI.ScalarAffineTerm(2.0, x_on[3])],
+                0.0,
+            )
+            s_scaled_on = MOI.EqualTo{Float64}(0.0)
+            ci_scaled_on = MOI.add_constraint(model_disc_on.source_model, f_scaled_on, s_scaled_on)
+            g_scaled_on = ToQUBO.Compiler.constraint(model_disc_on, ci_scaled_on, f_scaled_on, s_scaled_on, arch)
+            @test g_scaled_on == PBO.PBF{VI,Float64}(
+                y_on[3] => 3.0,
+                [y_on[1], y_on[2]] => 1.0,
+                [y_on[1], y_on[3]] => -2.0,
+                [y_on[2], y_on[3]] => -2.0,
+            )
+            @test MOI.get(model_disc_on, Attributes.Quadratize()) === false
+
+            # With Discretize() == false, unit-sign -(c - a*b) == 0 still emits the AND gadget,
+            # while 2*(c - a*b) == 0 preserves its scale and emits generic 4*(c - a*b)^2 = 4c + 4ab - 8abc
+            model_disc_off = ToQUBO.Virtual.Model{Float64}()
+            MOI.set(model_disc_off, Attributes.Discretize(), false)
+            x_off, _       = MOI.add_constrained_variables(model_disc_off.source_model, fill(MOI.ZeroOne(), 3))
+            ToQUBO.Compiler.variables!(model_disc_off, arch)
+            y_off = [only(ToQUBO.Virtual.target(model_disc_off.source[xi])) for xi in x_off]
+
+            f_unit_off = MOI.ScalarQuadraticFunction{Float64}(
+                [MOI.ScalarQuadraticTerm(1.0, x_off[1], x_off[2])],
+                [MOI.ScalarAffineTerm(-1.0, x_off[3])],
+                0.0,
+            )
+            s_unit_off = MOI.EqualTo{Float64}(0.0)
+            ci_unit_off = MOI.add_constraint(model_disc_off.source_model, f_unit_off, s_unit_off)
+            g_unit_off = ToQUBO.Compiler.constraint(model_disc_off, ci_unit_off, f_unit_off, s_unit_off, arch)
+            @test g_unit_off == PBO.PBF{VI,Float64}(
+                y_off[3] => 3.0,
+                [y_off[1], y_off[2]] => 1.0,
+                [y_off[1], y_off[3]] => -2.0,
+                [y_off[2], y_off[3]] => -2.0,
+            )
+            @test MOI.get(model_disc_off, Attributes.Quadratize()) === false
+
+            f_scaled_off = MOI.ScalarQuadraticFunction{Float64}(
+                [MOI.ScalarQuadraticTerm(-2.0, x_off[1], x_off[2])],
+                [MOI.ScalarAffineTerm(2.0, x_off[3])],
+                0.0,
+            )
+            s_scaled_off = MOI.EqualTo{Float64}(0.0)
+            ci_scaled_off = MOI.add_constraint(model_disc_off.source_model, f_scaled_off, s_scaled_off)
+            g_scaled_off = ToQUBO.Compiler.constraint(model_disc_off, ci_scaled_off, f_scaled_off, s_scaled_off, arch)
+            @test g_scaled_off == PBO.PBF{VI,Float64}(
+                y_off[3] => 4.0,
+                [y_off[1], y_off[2]] => 4.0,
+                [y_off[1], y_off[2], y_off[3]] => -8.0,
+            )
+            @test MOI.get(model_disc_off, Attributes.Quadratize()) === true
+        end
+    end
+
+    return nothing
+end
+
 function test_compiler_constraints()
     @testset "→ Constraints" verbose = true begin
         test_compiler_constraints_quadratic()
@@ -625,6 +1046,7 @@ function test_compiler_constraints()
         test_compiler_constraints_quadratic_indicator_keeps_inner_terms()
         test_compiler_constraints_indicator_interval_sets()
         test_compiler_constraints_trivial_indicator_inner_does_not_quadratize()
+        test_compiler_constraints_boolean_logic_gadgets()
     end
 
     return nothing

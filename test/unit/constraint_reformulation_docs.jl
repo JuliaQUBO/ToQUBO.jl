@@ -23,6 +23,11 @@ function test_constraint_reformulation_docs()
             @test occursin(constraint_type, booklet)
         end
         @test occursin("The `EqualTo` row shows the default", booklet)
+        @test occursin("### Boolean Logic Gadgets and Indicator Formulations", booklet)
+        for gate in ("`NOT`", "`AND`", "`OR`", "`XOR`")
+            @test occursin(gate, booklet)
+        end
+        @test occursin("MOI.Indicator{MOI.ACTIVATE_ON_ONE}", booklet)
         @test occursin("SlackVariableEncodingBits", booklet)
         @test occursin("SlackVariableEncodingATol", booklet)
         @test occursin("[Constraint Reformulation](@ref)", settings)
