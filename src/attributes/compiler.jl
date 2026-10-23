@@ -193,10 +193,38 @@ function _compiled_qubo_objective_from_target(model::Optimizer{T}) where {T}
     return f
 end
 
+function _map_incumbent_indices(::Function, ::Nothing)
+    return nothing
+end
+
+function _map_incumbent_indices(::Function, incumbent)
+    return incumbent
+end
+
+function _map_incumbent_indices(::Function, incumbent::AbstractVector)
+    return copy(incumbent)
+end
+
+function _map_incumbent_indices(f::Function, incumbent::AbstractDict)
+    mapped = Dict{Any,Any}()
+
+    for (k, v) in incumbent
+        if k isa VI
+            mapped[f(k)] = v
+        elseif !(k isa Number) && hasproperty(k, :index) && getproperty(k, :index) isa VI
+            mapped[f(getproperty(k, :index))] = v
+        else
+            mapped[k] = v
+        end
+    end
+
+    return mapped
+end
+
 abstract type AutomaticPenaltyPolicy end
 
 @doc raw"""
-    ObjectiveRangePenalty()
+    ObjectiveRangePenalty(incumbent = nothing)
 
 Infer automatic penalty coefficients from a sufficient exact-penalty bound
 based on the compiled objective range. When ToQUBO can certify finite objective
@@ -204,11 +232,41 @@ bounds and a positive violation gap for a generated nonnegative penalty
 function, penalties are inferred as
 ``scale * sigma * ((objective_range + margin) / epsilon)``.
 
-This is the default policy. If the bound cannot be certified for a particular
-penalty function, ToQUBO falls back to [`LegacyPenalty`](@ref) for that
-coefficient and records the fallback in reformulation metadata.
+An optional candidate source assignment `incumbent` (or
+[`PenaltyIncumbent`](@ref) / [`VariablePenaltyIncumbent`](@ref)) may be supplied
+to tighten the whole-domain bound using a verified feasible incumbent:
+- For minimization, let ``L \le f(x)`` hold over the encoded domain and
+  ``U_{\text{inc}} = f(x_{\text{inc}})`` be the independently evaluated
+  objective of a source-feasible, zero-penalty representable incumbent. Then
+  ``\rho_i \epsilon_i > U_{\text{inc}} - L`` for every nonnegative penalty is
+  sufficient to place every infeasible assignment strictly above
+  ``U_{\text{inc}}``.
+- For maximization, the sign-adjusted equivalent uses
+  ``|\rho_i| \epsilon_i > U - L_{\text{inc}}``, where ``U \ge f(x)`` holds over
+  the encoded domain and ``L_{\text{inc}} = f(x_{\text{inc}})``.
+
+If a supplied candidate is incomplete, stale, infeasible, unrepresentable with
+zero generated penalties, or cannot establish the strict sufficient inequality
+in exact arithmetic, ToQUBO declines the tightened incumbent bound, records the
+reason in [`PenaltyPolicyMetadata`](@ref), and retains the whole-domain bound
+(or falls back to [`LegacyPenalty`](@ref) when the whole-domain bound cannot be
+certified).
 """
-struct ObjectiveRangePenalty <: AutomaticPenaltyPolicy end
+struct ObjectiveRangePenalty <: AutomaticPenaltyPolicy
+    incumbent::Any
+
+    ObjectiveRangePenalty(incumbent) = new(incumbent)
+end
+
+ObjectiveRangePenalty(; incumbent = nothing) = ObjectiveRangePenalty(incumbent)
+
+function Base.:(==)(a::ObjectiveRangePenalty, b::ObjectiveRangePenalty)
+    return a.incumbent == b.incumbent
+end
+
+function MOIU.map_indices(f::Function, policy::ObjectiveRangePenalty)
+    return ObjectiveRangePenalty(_map_incumbent_indices(f, policy.incumbent))
+end
 
 @doc raw"""
     LegacyPenalty()
@@ -828,17 +886,68 @@ function penalty_policy(model::Optimizer)::AutomaticPenaltyPolicy
 end
 
 @doc raw"""
+    PenaltyIncumbent()
+
+Set an optional candidate source assignment used by [`ObjectiveRangePenalty`](@ref)
+to tighten the automatic exact-penalty bound.
+
+The candidate may be supplied as:
+- an `AbstractDict` keyed by `MOI.VariableIndex`, integer source variable ids,
+  or JuMP variable references,
+- an `AbstractVector` or `Tuple` ordered according to `ToQUBO.original_variables(model)`,
+- or `nothing` to clear the candidate.
+
+On each compilation, ToQUBO independently validates that the candidate covers
+every source variable with finite values, satisfies every source constraint,
+lifts to a binary target representation with zero generated variable,
+constraint, and slack penalties, and evaluates the source objective (including
+constants and optimization sense) in exact rational arithmetic. Unvalidated
+variable primal starts (`MOI.VariablePrimalStart`) are never automatically used
+as a penalty certificate.
+"""
+struct PenaltyIncumbent <: CompilerAttribute end
+
+_attribute_from_key(::Val{:penalty_incumbent}) = PenaltyIncumbent
+
+function MOIU.map_indices(f::Function, ::PenaltyIncumbent, incumbent)
+    return _map_incumbent_indices(f, incumbent)
+end
+
+function MOI.get(model::Optimizer, ::PenaltyIncumbent)
+    return get(model.compiler_settings, :penalty_incumbent, nothing)
+end
+
+function MOI.set(model::Optimizer, ::PenaltyIncumbent, incumbent::Any)
+    model.compiler_settings[:penalty_incumbent] = incumbent
+
+    return nothing
+end
+
+function MOI.set(model::Optimizer, ::PenaltyIncumbent, ::Nothing)
+    delete!(model.compiler_settings, :penalty_incumbent)
+
+    return nothing
+end
+
+function penalty_incumbent(model::Optimizer)
+    return MOI.get(model, PenaltyIncumbent())
+end
+
+@doc raw"""
     PenaltyPolicyMetadata()
 
 Return diagnostic metadata for the automatic penalty policy used during the
 last compilation.
 
 The returned dictionary includes the selected automatic policy, objective
-bounds, the legacy objective gap, fallback records, and `inferred_penalties`.
-`inferred_penalties` is grouped under `"constraints"`, `"variables"`, and
-`"slack_variables"`. Each entry records the source item kind and id, final
-automatic coefficient, `epsilon`, `epsilon_source`, scale, offset, automatic
-policy, selected policy, and any fallback reason.
+bounds (including bound provenance and any verified incumbent tightening),
+`incumbent` validation/lifting outcome, `sufficient_bound` certification across
+applied coefficients, the legacy objective gap, fallback records, and
+`inferred_penalties`. `inferred_penalties` is grouped under `"constraints"`,
+`"variables"`, and `"slack_variables"`. Each entry records the source item kind
+and id, final automatic coefficient, `epsilon`, `epsilon_source`, scale,
+offset, automatic policy, selected policy, sufficiency status, and any fallback
+reason.
 
 Only automatically inferred coefficients are included in `inferred_penalties`.
 Explicit penalty hints bypass automatic inference; use [`AppliedPenalty`](@ref)
@@ -1689,6 +1798,62 @@ function MOI.set(
     ::Nothing,
 ) where {T}
     attr = :variable_encoding_penalty_hint
+
+    if haskey(model.variable_settings, attr)
+        delete!(model.variable_settings[attr], vi)
+    end
+
+    return nothing
+end
+
+@doc raw"""
+    VariablePenaltyIncumbent()
+
+Set a variable's value in a candidate feasible incumbent used by
+[`ObjectiveRangePenalty`](@ref) to tighten automatic exact-penalty bounds.
+
+When any variable has [`VariablePenaltyIncumbent`](@ref) set, every source
+variable in the model must be assigned a finite value to form a complete
+candidate assignment. Pass `nothing` to clear the variable's candidate value.
+See also [`PenaltyIncumbent`](@ref).
+"""
+struct VariablePenaltyIncumbent <: CompilerVariableAttribute end
+
+_attribute_from_key(::Val{:variable_penalty_incumbent}) = VariablePenaltyIncumbent
+
+function variable_penalty_incumbent(model::Optimizer, vi::VI)
+    return MOI.get(model, VariablePenaltyIncumbent(), vi)
+end
+
+function MOI.get(model::Optimizer, ::VariablePenaltyIncumbent, vi::VI)
+    attr = :variable_penalty_incumbent
+
+    if !haskey(model.variable_settings, attr) || !haskey(model.variable_settings[attr], vi)
+        return nothing
+    else
+        return model.variable_settings[attr][vi]
+    end
+end
+
+function MOI.set(model::Optimizer, ::VariablePenaltyIncumbent, vi::VI, value::Any)
+    attr = :variable_penalty_incumbent
+
+    if !haskey(model.variable_settings, attr)
+        model.variable_settings[attr] = Dict{VI,Any}()
+    end
+
+    model.variable_settings[attr][vi] = value
+
+    return nothing
+end
+
+function MOI.set(
+    model::Optimizer,
+    ::VariablePenaltyIncumbent,
+    vi::VI,
+    ::Nothing,
+)
+    attr = :variable_penalty_incumbent
 
     if haskey(model.variable_settings, attr)
         delete!(model.variable_settings[attr], vi)

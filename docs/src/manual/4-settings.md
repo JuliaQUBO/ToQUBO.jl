@@ -115,6 +115,76 @@ positive for minimization models and negative for maximization models, so
 explicit hints should use the same sign as the coefficient you want the
 compiler to apply.
 
+### Verified Feasible Incumbent Penalty Tightening
+
+When a feasible source assignment is known in advance (for example, from a
+domain heuristic or warm start), [`ToQUBO.Attributes.ObjectiveRangePenalty`](@ref)
+can tighten its sufficient penalty bound by replacing the worst-case bound over
+the entire encoded domain with the independently evaluated objective of the
+verified incumbent. Supply the candidate assignment via
+`ObjectiveRangePenalty(incumbent)`, [`ToQUBO.Attributes.PenaltyIncumbent`](@ref),
+or [`ToQUBO.Attributes.VariablePenaltyIncumbent`](@ref).
+
+#### Finite-Domain Sufficient Condition and Limits
+
+For minimization over a finite encoded binary domain ``y \in \{0, 1\}^m``, let
+``L \le f(y)`` hold for every encoded state and let ``U_{\text{inc}} = f(y_{\text{inc}})``
+be the compiled objective evaluated at a lifted target state ``y_{\text{inc}}``
+representing a source-feasible incumbent ``x_{\text{inc}}``. Suppose every
+generated constraint, variable-encoding, and slack-encoding penalty ``p_i(y)``
+is nonnegative over ``\{0, 1\}^m``, vanishes at ``y_{\text{inc}}`` (and on the
+represented feasible set), and has a certified positive violation gap
+``\epsilon_i = \min \{ p_i(y) : p_i(y) > 0 \}``. If the applied penalty
+coefficients ``\rho_i > 0`` satisfy the strict inequality
+
+```math
+\rho_i \epsilon_i > U_{\text{inc}} - L
+```
+
+for every generated penalty ``i``, then any assignment ``y`` that violates at
+least one penalty ``p_k(y) \ge \epsilon_k`` has penalized objective
+
+```math
+f(y) + \sum_i \rho_i p_i(y) \ge L + \rho_k \epsilon_k > U_{\text{inc}} = f(y_{\text{inc}}) + \sum_i \rho_i p_i(y_{\text{inc}}).
+```
+
+Every infeasible encoded assignment therefore has penalized energy strictly
+above ``U_{\text{inc}}``, while every represented feasible assignment with
+zero generated penalties retains its original objective ``f(y)``. Consequently,
+every global minimizer of the penalized objective is feasible and achieves the
+minimum objective among represented feasible assignments. For maximization, the
+same argument on the sign-adjusted objective gives
+``|\rho_i| \epsilon_i > U - L_{\text{inc}}``, where ``U \ge f(y)`` over the
+encoded domain and ``L_{\text{inc}} = f(y_{\text{inc}})``.
+
+Important limits of this guarantee:
+
+- **Sufficient condition, not minimal penalty**: ``\rho_i \epsilon_i > U_{\text{inc}} - L``
+  is a sufficient finite-domain bound (Quintero, Vera, and Zuluaga,
+  [arXiv:2410.24111v2](https://arxiv.org/abs/2410.24111v2), Section 3), not the
+  smallest coefficient that separates feasible and infeasible states. At the
+  tied threshold ``\rho_i \epsilon_i = U_{\text{inc}} - L``, an infeasible state
+  can tie with ``y_{\text{inc}}``.
+- **Source feasibility and zero-penalty representability**: A continuous source
+  point may be feasible in the original model yet lie off the chosen binary
+  discretization grid, or an inequality residual may require a slack value that
+  is not representable with zero penalty. ToQUBO validates both exact
+  original-domain feasibility and zero-penalty target representability in exact
+  rational arithmetic before accepting an incumbent.
+- **Evaluated objective, not user scalar**: ToQUBO never accepts a user-supplied
+  objective scalar as a certificate; it evaluates the actual source and compiled
+  objectives (including objective constants and sense) at the validated
+  assignment and revalidates on every compilation after model edits.
+- **Applied coefficients and exact penalty forms**: The sufficient-bound
+  certificate holds only when all applied coefficients (after scales, offsets,
+  and explicit hints) satisfy the strict inequality in exact arithmetic and no
+  non-exact penalty methods (`LinearPenalty`, `UnbalancedPenalty`,
+  `AugmentedLagrangianPenalty`), heuristic policies, or higher-order
+  quadratization auxiliaries are active. When any check fails, ToQUBO records
+  the rejection or non-certification reason in
+  [`ToQUBO.Attributes.PenaltyPolicyMetadata`](@ref) (`"incumbent"`,
+  `"objective_bounds"`, `"applied_penalties"`, and `"sufficient_bound"`).
+
 ### Literature Penalty Heuristics
 
 Besides the exactness-oriented default, ToQUBO offers the static
@@ -546,6 +616,8 @@ ToQUBO.Attributes.SlackVariableEncodingBits
 ToQUBO.Attributes.SlackVariableEncodingPenaltyHint
 ToQUBO.Attributes.SlackVariableEncodingPenalty
 ToQUBO.Attributes.ObjectiveRangePenalty
+ToQUBO.Attributes.PenaltyIncumbent
+ToQUBO.Attributes.VariablePenaltyIncumbent
 ToQUBO.Attributes.LegacyPenalty
 ToQUBO.Attributes.PenaltyPolicy
 ToQUBO.Attributes.PenaltyPolicyMetadata

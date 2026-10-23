@@ -31,6 +31,9 @@ function test_docs()
         @test occursin("DWave.Neal", settings_page)
         @test occursin("Finite-run stochastic samplers", settings_page)
         @test occursin("Ref(Attributes.ConstraintPenaltyScale())", settings_page)
+        @test occursin("### Verified Feasible Incumbent Penalty Tightening", settings_page)
+        @test occursin("ToQUBO.Attributes.PenaltyIncumbent", settings_page)
+        @test occursin("ToQUBO.Attributes.VariablePenaltyIncumbent", settings_page)
     end
 
     return nothing
