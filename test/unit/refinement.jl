@@ -663,6 +663,24 @@ function test_refinement_subgradient_validations()
     return nothing
 end
 
+function test_refinement_skips_soft_constraints()
+    model, _, c = _refinement_hinted_model(; updates = 5)
+    set_attribute(c, Attributes.SoftConstraint(), true)
+
+    optimize!(model)
+
+    backend = JuMP.unsafe_backend(model)
+
+    # A violated soft constraint must not trigger penalty escalation.
+    @test MOI.get(backend, Attributes.PenaltyUpdateCount()) == 0
+    @test primal_status(model) === MOI.FEASIBLE_POINT
+    @test ToQUBO.is_feasible(model)
+    @test MOI.get(backend, Attributes.ConstraintEncodingPenaltyHint(), JuMP.index(c)) ≈
+          -0.1
+
+    return nothing
+end
+
 function test_refinement()
     @testset "→ Penalty Refinement" verbose = true begin
         test_refinement_attributes()
@@ -684,6 +702,7 @@ function test_refinement()
         test_refinement_al_compiles_without_hint()
         test_refinement_al_coefficient_conversion()
         test_refinement_subgradient_multiplier_decrease()
+        test_refinement_skips_soft_constraints()
     end
 
     return nothing

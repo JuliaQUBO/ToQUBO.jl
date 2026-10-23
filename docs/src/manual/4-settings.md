@@ -27,6 +27,7 @@ and objective values; usage examples live in the
 ToQUBO.Attributes.PrimalFeasibilityCheck
 ToQUBO.Attributes.AutoFeasibilityReport
 ToQUBO.Attributes.SourceObjectiveValue
+ToQUBO.Attributes.SoftConstraint
 ```
 
 ## Compiler Optimization

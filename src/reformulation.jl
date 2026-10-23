@@ -306,6 +306,7 @@ function _constraint_encoding_entries(model::Virtual.Model)
                     Attributes.constraint_encoding_method(model, ci),
                 ),
                 "penalty" => get(model.ρ, ci, nothing),
+                "soft" => Attributes.soft_constraint(model, ci),
                 "terms" => _pbf_terms(terms),
             ),
         )

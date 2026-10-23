@@ -138,7 +138,10 @@ function _refine_penalties!(model::Virtual.Model{T}) where {T}
         while count < budget
             MOI.get(model, MOI.ResultCount()) > 0 || break
 
-            measurements = _constraint_measurements(model, 1)
+            measurements = filter(
+                measurement -> !measurement.soft,
+                _constraint_measurements(model, 1),
+            )
             violated = filter(
                 measurement -> measurement.violation > Float64(_FEASIBILITY_ATOL),
                 measurements,
