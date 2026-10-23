@@ -322,10 +322,72 @@ function test_compiler_attributes()
                 MOI.set(model, Attributes.PenaltyPolicy(), Attributes.ObjectiveRangePenalty())
                 @test MOI.get(model, Attributes.PenaltyPolicy()) isa
                       Attributes.ObjectiveRangePenalty
+                @test MOI.get(model, Attributes.PenaltyPolicy()).incumbent === nothing
+
+                inc_policy = Attributes.ObjectiveRangePenalty([0.0, 1.0])
+                MOI.set(model, Attributes.PenaltyPolicy(), inc_policy)
+                @test MOI.get(model, Attributes.PenaltyPolicy()) == inc_policy
+                @test MOI.get(model, Attributes.PenaltyPolicy()).incumbent == [0.0, 1.0]
+
+                kw_policy = Attributes.ObjectiveRangePenalty(; incumbent = (0, 1))
+                @test kw_policy.incumbent == (0, 1)
+
+                mapped = MOI.Utilities.map_indices(
+                    vi -> VI(vi.value + 10),
+                    Attributes.ObjectiveRangePenalty(Dict(VI(1) => 0.0, VI(2) => 1.0)),
+                )
+                @test mapped.incumbent == Dict(VI(11) => 0.0, VI(12) => 1.0)
 
                 MOI.set(model, Attributes.PenaltyPolicy(), nothing)
                 @test MOI.get(model, Attributes.PenaltyPolicy()) isa
                       Attributes.ObjectiveRangePenalty
+            end
+        end
+
+        @testset "PenaltyIncumbent and VariablePenaltyIncumbent" begin
+            let model = ToQUBO.Optimizer{Float64}()
+                x = [MOI.add_variable(model) for _ = 1:2]
+
+                @test MOI.supports(model, Attributes.PenaltyIncumbent())
+                @test MOI.supports(model, Attributes.VariablePenaltyIncumbent(), VI)
+                @test MOI.get(model, Attributes.PenaltyIncumbent()) === nothing
+                @test Attributes.penalty_incumbent(model) === nothing
+                @test MOI.get(model, Attributes.VariablePenaltyIncumbent(), x[1]) === nothing
+                @test Attributes.variable_penalty_incumbent(model, x[1]) === nothing
+
+                cand = Dict(x[1] => 0.0, x[2] => 1.0)
+                MOI.set(model, Attributes.PenaltyIncumbent(), cand)
+                @test MOI.get(model, Attributes.PenaltyIncumbent()) == cand
+                @test Attributes.penalty_incumbent(model) == cand
+
+                MOI.set(model, Attributes.VariablePenaltyIncumbent(), x[1], 0)
+                MOI.set(model, Attributes.VariablePenaltyIncumbent(), x[2], 1.0)
+                @test MOI.get(model, Attributes.VariablePenaltyIncumbent(), x[1]) == 0.0
+                @test MOI.get(model, Attributes.VariablePenaltyIncumbent(), x[2]) == 1.0
+
+                ToQUBO.Compiler.reset!(model)
+                @test MOI.get(model, Attributes.PenaltyIncumbent()) == cand
+                @test MOI.get(model, Attributes.VariablePenaltyIncumbent(), x[1]) == 0.0
+                @test MOI.get(model, Attributes.VariablePenaltyIncumbent(), x[2]) == 1.0
+
+                MOI.set(model, Attributes.PenaltyIncumbent(), nothing)
+                MOI.set(model, Attributes.VariablePenaltyIncumbent(), x[1], nothing)
+                MOI.set(model, Attributes.VariablePenaltyIncumbent(), x[2], nothing)
+                @test MOI.get(model, Attributes.PenaltyIncumbent()) === nothing
+                @test MOI.get(model, Attributes.VariablePenaltyIncumbent(), x[1]) === nothing
+                @test MOI.get(model, Attributes.VariablePenaltyIncumbent(), x[2]) === nothing
+
+                idx_map = MOIU.IndexMap()
+                idx_map[x[1]] = VI(10)
+                idx_map[x[2]] = VI(20)
+                mapped_inc = MOIU.map_indices(idx_map, Attributes.PenaltyIncumbent(), cand)
+                @test mapped_inc == Dict(VI(10) => 0.0, VI(20) => 1.0)
+                mapped_pol = MOIU.map_indices(
+                    idx_map,
+                    Attributes.ObjectiveRangePenalty(cand),
+                )
+                @test mapped_pol ==
+                      Attributes.ObjectiveRangePenalty(Dict(VI(10) => 0.0, VI(20) => 1.0))
             end
         end
 

@@ -48,7 +48,7 @@ function _copy_constraints!(::Type{F}, ::Type{S}, source, target, index_map) whe
         f = MOI.get(source, MOI.ConstraintFunction(), ci)
         s = MOI.get(source, MOI.ConstraintSet(), ci)
 
-        index_map[ci] = MOI.add_constraint(target, f, s)
+        index_map[ci] = MOI.add_constraint(target, MOIU.map_indices(index_map, f), s)
     end
 
     return nothing
@@ -84,22 +84,22 @@ function MOI.copy_to(model::Optimizer{T}, source::MOI.ModelLike) where {T}
     # Copy to PreQUBOModel + Add Bridges
     bridge_model = MOIB.full_bridge_optimizer(model.source_model, T)
 
+    # Copy Variables
+    for vi in variable_indices
+        index_map[vi] = MOI.add_variable(bridge_model)
+    end
+
     # Copy Objective Function
     let F = MOI.get(source, MOI.ObjectiveFunctionType())
         MOI.set(
             bridge_model,
             MOI.ObjectiveFunction{F}(),
-            MOI.get(source, MOI.ObjectiveFunction{F}()),
+            MOIU.map_indices(index_map, MOI.get(source, MOI.ObjectiveFunction{F}())),
         )
     end
 
     # Copy Objective Sense
     MOI.set(bridge_model, MOI.ObjectiveSense(), MOI.get(source, MOI.ObjectiveSense()))
-
-    # Copy Variables
-    for vi in variable_indices
-        index_map[vi] = MOI.add_variable(bridge_model)
-    end
 
     # Copy Constraints
     for (F, S) in constraint_types
@@ -108,7 +108,10 @@ function MOI.copy_to(model::Optimizer{T}, source::MOI.ModelLike) where {T}
 
     # Copy Attributes
     for attr in MOI.get(source, MOI.ListOfModelAttributesSet())
-        MOI.set(model, attr, MOI.get(source, attr))
+        if attr isa MOI.ObjectiveFunction || attr isa MOI.ObjectiveSense
+            continue
+        end
+        MOI.set(model, attr, MOIU.map_indices(index_map, attr, MOI.get(source, attr)))
     end
 
     for attr in MOI.get(source, MOI.ListOfVariableAttributesSet())
@@ -121,7 +124,67 @@ function MOI.copy_to(model::Optimizer{T}, source::MOI.ModelLike) where {T}
         _copy_constraint_attributes(F, S, source, model, index_map)
     end
 
+    remapped_incumbent = false
+    remapped_policy = false
+    for attr in MOI.get(source, MOI.ListOfOptimizerAttributesSet())
+        if attr isa Attributes.PenaltyIncumbent
+            MOI.set(
+                model,
+                attr,
+                MOIU.map_indices(index_map, attr, MOI.get(source, attr)),
+            )
+            remapped_incumbent = true
+        elseif attr isa Attributes.PenaltyPolicy
+            MOI.set(
+                model,
+                attr,
+                MOIU.map_indices(index_map, attr, MOI.get(source, attr)),
+            )
+            remapped_policy = true
+        end
+    end
+
+    if !remapped_incumbent
+        inc = MOI.get(model, Attributes.PenaltyIncumbent())
+        if !isnothing(inc)
+            MOI.set(
+                model,
+                Attributes.PenaltyIncumbent(),
+                MOIU.map_indices(index_map, Attributes.PenaltyIncumbent(), inc),
+            )
+        end
+    end
+
+    if !remapped_policy && haskey(model.compiler_settings, :penalty_policy)
+        pol = MOI.get(model, Attributes.PenaltyPolicy())
+        MOI.set(
+            model,
+            Attributes.PenaltyPolicy(),
+            MOIU.map_indices(index_map, Attributes.PenaltyPolicy(), pol),
+        )
+    end
+
     model.bridge_model = bridge_model
+
+    return index_map
+end
+
+function MOI.copy_to(
+    dest::MOIB.LazyBridgeOptimizer{<:MOIU.CachingOptimizer{<:Optimizer}},
+    src::MOI.ModelLike,
+)
+    index_map = MOIU.default_copy_to(dest, src)
+
+    for attr in MOI.get(src, MOI.ListOfOptimizerAttributesSet())
+        if attr isa Attributes.PenaltyIncumbent || attr isa Attributes.PenaltyPolicy
+            mapped = MOIU.map_indices(index_map, attr, MOI.get(src, attr))
+            MOI.set(dest.model.model_cache, attr, mapped)
+
+            if dest.model.optimizer !== nothing
+                MOI.set(dest.model.optimizer, attr, mapped)
+            end
+        end
+    end
 
     return index_map
 end
