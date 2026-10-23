@@ -962,6 +962,68 @@ function test_compiler_constraints_boolean_logic_gadgets()
                 [y_lp[1], y_lp[2]] => -1.0,
             )
             @test MOI.get(model_lp, Attributes.Quadratize()) === false
+
+            # 3e. Paired discretization-on vs discretization-off regression on scaled and unit-sign residuals
+            # With Discretize() == true (default), 2*(c - a*b) == 0 normalizes to c - a*b and emits the AND gadget
+            model_disc_on = ToQUBO.Virtual.Model{Float64}()
+            x_on, _       = MOI.add_constrained_variables(model_disc_on.source_model, fill(MOI.ZeroOne(), 3))
+            ToQUBO.Compiler.variables!(model_disc_on, arch)
+            y_on = [only(ToQUBO.Virtual.target(model_disc_on.source[xi])) for xi in x_on]
+
+            f_scaled_on = MOI.ScalarQuadraticFunction{Float64}(
+                [MOI.ScalarQuadraticTerm(-2.0, x_on[1], x_on[2])],
+                [MOI.ScalarAffineTerm(2.0, x_on[3])],
+                0.0,
+            )
+            s_scaled_on = MOI.EqualTo{Float64}(0.0)
+            ci_scaled_on = MOI.add_constraint(model_disc_on.source_model, f_scaled_on, s_scaled_on)
+            g_scaled_on = ToQUBO.Compiler.constraint(model_disc_on, ci_scaled_on, f_scaled_on, s_scaled_on, arch)
+            @test g_scaled_on == PBO.PBF{VI,Float64}(
+                y_on[3] => 3.0,
+                [y_on[1], y_on[2]] => 1.0,
+                [y_on[1], y_on[3]] => -2.0,
+                [y_on[2], y_on[3]] => -2.0,
+            )
+            @test MOI.get(model_disc_on, Attributes.Quadratize()) === false
+
+            # With Discretize() == false, unit-sign -(c - a*b) == 0 still emits the AND gadget,
+            # while 2*(c - a*b) == 0 preserves its scale and emits generic 4*(c - a*b)^2 = 4c + 4ab - 8abc
+            model_disc_off = ToQUBO.Virtual.Model{Float64}()
+            MOI.set(model_disc_off, Attributes.Discretize(), false)
+            x_off, _       = MOI.add_constrained_variables(model_disc_off.source_model, fill(MOI.ZeroOne(), 3))
+            ToQUBO.Compiler.variables!(model_disc_off, arch)
+            y_off = [only(ToQUBO.Virtual.target(model_disc_off.source[xi])) for xi in x_off]
+
+            f_unit_off = MOI.ScalarQuadraticFunction{Float64}(
+                [MOI.ScalarQuadraticTerm(1.0, x_off[1], x_off[2])],
+                [MOI.ScalarAffineTerm(-1.0, x_off[3])],
+                0.0,
+            )
+            s_unit_off = MOI.EqualTo{Float64}(0.0)
+            ci_unit_off = MOI.add_constraint(model_disc_off.source_model, f_unit_off, s_unit_off)
+            g_unit_off = ToQUBO.Compiler.constraint(model_disc_off, ci_unit_off, f_unit_off, s_unit_off, arch)
+            @test g_unit_off == PBO.PBF{VI,Float64}(
+                y_off[3] => 3.0,
+                [y_off[1], y_off[2]] => 1.0,
+                [y_off[1], y_off[3]] => -2.0,
+                [y_off[2], y_off[3]] => -2.0,
+            )
+            @test MOI.get(model_disc_off, Attributes.Quadratize()) === false
+
+            f_scaled_off = MOI.ScalarQuadraticFunction{Float64}(
+                [MOI.ScalarQuadraticTerm(-2.0, x_off[1], x_off[2])],
+                [MOI.ScalarAffineTerm(2.0, x_off[3])],
+                0.0,
+            )
+            s_scaled_off = MOI.EqualTo{Float64}(0.0)
+            ci_scaled_off = MOI.add_constraint(model_disc_off.source_model, f_scaled_off, s_scaled_off)
+            g_scaled_off = ToQUBO.Compiler.constraint(model_disc_off, ci_scaled_off, f_scaled_off, s_scaled_off, arch)
+            @test g_scaled_off == PBO.PBF{VI,Float64}(
+                y_off[3] => 4.0,
+                [y_off[1], y_off[2]] => 4.0,
+                [y_off[1], y_off[2], y_off[3]] => -8.0,
+            )
+            @test MOI.get(model_disc_off, Attributes.Quadratize()) === true
         end
     end
 
