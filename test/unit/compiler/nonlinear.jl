@@ -68,7 +68,7 @@ function test_compiler_nonlinear()
                     MOI.add_constraint(model, xi, MOI.ZeroOne())
                 end
 
-                # f(x) = (2*x1 - x2)^2 / 2 + 1 = x1 - x1*x2 + 0.5*x2 + 1
+                # f(x) = (2*x1 - x2)^2 / 2 + 1 = 2*x1 - 2*x1*x2 + 0.5*x2 + 1
                 diff = MOI.ScalarNonlinearFunction(
                     :-,
                     Any[MOI.ScalarNonlinearFunction(:*, Any[2.0, x[1]]), x[2]],
@@ -132,6 +132,68 @@ function test_compiler_nonlinear()
                 ToQUBO.Compiler.parse!(model, fs, spf, arch)
                 @test length(fs) == 1
                 @test fs[1] == PBO.PBF{VI,Float64}(-2.0, [y[1], y[2], y[3]] => 3.0)
+            end
+
+            # 6. Mixed affine/quadratic leaf equivalence (including diagonal MOI quadratic convention)
+            let model = ToQUBO.Virtual.Model{Float64}()
+                arch = ToQUBO.Compiler.GenericArchitecture()
+                x, _ = MOI.add_constrained_variables(model.source_model, fill(MOI.ZeroOne(), 3))
+                ToQUBO.Compiler.variables!(model, arch)
+                y = [only(ToQUBO.Virtual.target(model.source[xi])) for xi in x]
+
+                # saf = 2*x3 - x1 + 0.5
+                saf = MOI.ScalarAffineFunction(
+                    [MOI.ScalarAffineTerm(2.0, x[3]), MOI.ScalarAffineTerm(-1.0, x[1])],
+                    0.5,
+                )
+                # sqf = 1.5*x2^2 (MOI coeff 3.0) - 2.0*x2*x3 + x1 - 0.25
+                sqf = MOI.ScalarQuadraticFunction(
+                    [
+                        MOI.ScalarQuadraticTerm(3.0, x[2], x[2]),
+                        MOI.ScalarQuadraticTerm(-2.0, x[2], x[3]),
+                    ],
+                    [MOI.ScalarAffineTerm(1.0, x[1])],
+                    -0.25,
+                )
+                snf = MOI.ScalarNonlinearFunction(
+                    :-,
+                    Any[
+                        MOI.ScalarNonlinearFunction(:*, Any[saf, sqf]),
+                        MOI.ScalarNonlinearFunction(:^, Any[saf, 2]),
+                    ],
+                )
+
+                g = PBO.PBF{VI,Float64}()
+                ToQUBO.Compiler.parse!(model, g, snf, arch)
+                g_q = ToQUBO.Compiler._parse_function_exact_rational(model, snf)
+                @test !isnothing(g_q)
+
+                for b1 in (0, 1), b2 in (0, 1), b3 in (0, 1)
+                    saf_val = 2.0 * b3 - 1.0 * b1 + 0.5
+                    sqf_val = 1.5 * b2^2 - 2.0 * b2 * b3 + 1.0 * b1 - 0.25
+                    expected = saf_val * sqf_val - saf_val^2
+
+                    y_assign = Dict(y[1] => b1, y[2] => b2, y[3] => b3)
+                    g_val = sum(
+                        c * prod(y_assign[v] for v in ω; init = 1) for (ω, c) in g;
+                        init = 0.0,
+                    )
+                    g_q_val = sum(
+                        c * prod(y_assign[v] for v in ω; init = 1) for (ω, c) in g_q;
+                        init = zero(Rational{BigInt}),
+                    )
+                    @test g_val ≈ expected
+                    @test Float64(g_q_val) ≈ expected
+
+                    x_rat = Dict(
+                        x[1] => Rational{BigInt}(b1),
+                        x[2] => Rational{BigInt}(b2),
+                        x[3] => Rational{BigInt}(b3),
+                    )
+                    eval_q = ToQUBO.Compiler._eval_source_function_rational(snf, x_rat)
+                    @test !isnothing(eval_q)
+                    @test Float64(eval_q) ≈ expected
+                end
             end
         end
 
