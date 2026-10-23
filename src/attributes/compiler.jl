@@ -227,6 +227,8 @@ function _map_incumbent_indices(index_map, incumbent::AbstractDict)
     for (k, v) in incumbent
         if k isa VI
             mapped[_apply_incumbent_index_map(index_map, k)] = v
+        elseif k isa Integer && !(k isa Bool)
+            mapped[_apply_incumbent_index_map(index_map, VI(Int(k)))] = v
         elseif !(k isa Number) && hasproperty(k, :index) && getproperty(k, :index) isa VI
             vi = getproperty(k, :index)::VI
             if hasproperty(k, :model)
@@ -273,10 +275,12 @@ to tighten the whole-domain bound using a verified feasible incumbent:
   the encoded domain and ``L_{\text{inc}} = f(x_{\text{inc}})``.
 
 If a supplied candidate is incomplete, stale, infeasible, unrepresentable with
-zero generated penalties, or cannot establish the strict sufficient inequality
-in exact arithmetic, ToQUBO declines the tightened incumbent bound, records the
-reason in [`PenaltyPolicyMetadata`](@ref), and retains the whole-domain bound
-(or falls back to [`LegacyPenalty`](@ref) when the whole-domain bound cannot be
+zero generated penalties, or if any source constraint or variable domain is not
+enforced across all zero-penalty encoded states, or if the stored coefficients
+cannot establish the strict sufficient inequality in exact arithmetic, ToQUBO
+declines the tightened incumbent bound, records the reason in
+[`PenaltyPolicyMetadata`](@ref), and retains the whole-domain bound (or falls
+back to [`LegacyPenalty`](@ref) when the whole-domain bound cannot be
 certified).
 """
 struct ObjectiveRangePenalty <: AutomaticPenaltyPolicy

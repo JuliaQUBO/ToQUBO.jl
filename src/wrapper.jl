@@ -169,6 +169,26 @@ function MOI.copy_to(model::Optimizer{T}, source::MOI.ModelLike) where {T}
     return index_map
 end
 
+function MOI.copy_to(
+    dest::MOIB.LazyBridgeOptimizer{<:MOIU.CachingOptimizer{<:Optimizer}},
+    src::MOI.ModelLike,
+)
+    index_map = MOIU.default_copy_to(dest, src)
+
+    for attr in MOI.get(src, MOI.ListOfOptimizerAttributesSet())
+        if attr isa Attributes.PenaltyIncumbent || attr isa Attributes.PenaltyPolicy
+            mapped = MOIU.map_indices(index_map, attr, MOI.get(src, attr))
+            MOI.set(dest.model.model_cache, attr, mapped)
+
+            if dest.model.optimizer !== nothing
+                MOI.set(dest.model.optimizer, attr, mapped)
+            end
+        end
+    end
+
+    return index_map
+end
+
 # Objective Function Support
 function MOI.supports(model::Optimizer, f::MOI.ObjectiveFunction{F}) where {F}
     return MOI.supports(model.source_model, f)

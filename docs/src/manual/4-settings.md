@@ -176,12 +176,14 @@ Important limits of this guarantee:
   objectives (including objective constants and sense) at the validated
   assignment and revalidates on every compilation after model edits.
 - **Applied coefficients and exact penalty forms**: The sufficient-bound
-  certificate holds only when all applied coefficients (after scales, offsets,
-  and explicit hints) satisfy the strict inequality in exact arithmetic and no
-  non-exact penalty methods (`LinearPenalty`, `UnbalancedPenalty`,
-  `AugmentedLagrangianPenalty`), heuristic policies, or higher-order
-  quadratization auxiliaries are active. When any check fails, ToQUBO records
-  the rejection or non-certification reason in
+  certificate holds only when every source constraint and variable domain in the
+  source model is enforced across all zero-penalty encoded states (so jointly
+  zero generated penalties imply source feasibility), all applied coefficients
+  (after scales, offsets, and explicit hints) satisfy the strict inequality in
+  exact arithmetic, and no non-exact penalty methods (`LinearPenalty`,
+  `UnbalancedPenalty`, `AugmentedLagrangianPenalty`), heuristic policies, or
+  higher-order quadratization auxiliaries are active. When any check fails,
+  ToQUBO records the rejection or non-certification reason in
   [`ToQUBO.Attributes.PenaltyPolicyMetadata`](@ref) (`"incumbent"`,
   `"objective_bounds"`, `"applied_penalties"`, and `"sufficient_bound"`).
 

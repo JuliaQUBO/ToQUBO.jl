@@ -1513,6 +1513,129 @@ function test_compiler_incumbent_revalidation_after_model_edits()
     @test meta_infeas["objective_bounds"]["range"] == 110.0
     @test MOI.get(model, Attributes.ConstraintEncodingPenalty(), c) == 111.0
 
+    # 4. Binary variable with extra bound constraint (x >= 1.0) not enforced by Mirror encoding:
+    # must decline incumbent tightening and mark sufficient_bound uncertified.
+    let jm_unenf = JuMP.Model(ToQUBO.Optimizer)
+        JuMP.@variable(jm_unenf, xb >= 1.0, Bin)
+        JuMP.@variable(jm_unenf, yb, Bin)
+        JuMP.@variable(jm_unenf, zb, Bin)
+        c_yz = JuMP.@constraint(jm_unenf, yb + zb == 1)
+        JuMP.@objective(jm_unenf, Min, 1.0 * xb + 100.0 * yb + 1.0 * zb)
+        MOI.set(
+            jm_unenf,
+            Attributes.PenaltyIncumbent(),
+            Dict(xb => 1, yb => 0, zb => 1),
+        )
+        JuMP.optimize!(jm_unenf)
+        meta_unenf = MOI.get(jm_unenf, Attributes.PenaltyPolicyMetadata())
+        @test meta_unenf["incumbent"]["status"] == "rejected"
+        @test meta_unenf["incumbent"]["used"] === false
+        @test meta_unenf["incumbent"]["tightened"] === false
+        @test meta_unenf["objective_bounds"]["tightened"] === false
+        @test meta_unenf["objective_bounds"]["range"] == 102.0
+        @test meta_unenf["sufficient_bound"]["certified"] === false
+        @test meta_unenf["sufficient_bound"]["tightened"] === false
+        @test occursin("lower bound", meta_unenf["incumbent"]["reason"])
+        @test occursin("lower bound", meta_unenf["sufficient_bound"]["reason"])
+        @test MOI.get(jm_unenf, Attributes.ConstraintEncodingPenalty(), c_yz) == 103.0
+    end
+
+    # 5. Cached JuMP model recompiled after variable deletion with VariableRef, VI, and integer keys:
+    for use_policy in (false, true)
+        let jm_recomp = JuMP.Model(ToQUBO.Optimizer)
+            JuMP.@variable(jm_recomp, d_del, Bin)
+            JuMP.@variable(jm_recomp, xr[1:2], Bin)
+            JuMP.@objective(jm_recomp, Min, d_del + xr[1] + 10.0 * xr[2])
+            c_recomp = JuMP.@constraint(jm_recomp, xr[1] + xr[2] == 1)
+            inc1 = Dict(d_del => 0, xr[1] => 0, xr[2] => 1)
+            if use_policy
+                MOI.set(jm_recomp, Attributes.PenaltyPolicy(), Attributes.ObjectiveRangePenalty(inc1))
+            else
+                MOI.set(jm_recomp, Attributes.PenaltyIncumbent(), inc1)
+            end
+            JuMP.optimize!(jm_recomp)
+            @test MOI.get(jm_recomp, Attributes.PenaltyPolicyMetadata())["incumbent"]["status"] ==
+                  "accepted"
+
+            JuMP.delete(jm_recomp, d_del)
+            JuMP.@objective(jm_recomp, Min, 100.0 * xr[1] + 1.0 * xr[2])
+            for inc2 in (
+                Dict(xr[1] => 0, xr[2] => 1),
+                Dict(VI(2) => 0, VI(3) => 1),
+                Dict(2 => 0, 3 => 1),
+            )
+                if use_policy
+                    MOI.set(
+                        jm_recomp,
+                        Attributes.PenaltyPolicy(),
+                        Attributes.ObjectiveRangePenalty(inc2),
+                    )
+                else
+                    MOI.set(jm_recomp, Attributes.PenaltyIncumbent(), inc2)
+                end
+                JuMP.optimize!(jm_recomp)
+                meta_recomp = MOI.get(jm_recomp, Attributes.PenaltyPolicyMetadata())
+                @test meta_recomp["incumbent"]["status"] == "accepted"
+                @test meta_recomp["incumbent"]["used"] === true
+                @test meta_recomp["incumbent"]["tightened"] === true
+                @test meta_recomp["objective_bounds"]["range"] == 1.0
+                @test MOI.get(jm_recomp, Attributes.ConstraintEncodingPenalty(), c_recomp) == 2.0
+            end
+        end
+    end
+
+    # 6. Pre-compilation variable deletion with integer and VI keys on JuMP and CachingOptimizer:
+    for dict_cand in (Dict(2 => 0, 3 => 1), Dict(VI(2) => 0, VI(3) => 1))
+        let jm_pre = JuMP.Model(ToQUBO.Optimizer)
+            JuMP.@variable(jm_pre, d_pre, Bin)
+            JuMP.@variable(jm_pre, xp[1:2], Bin)
+            JuMP.delete(jm_pre, d_pre)
+            JuMP.@objective(jm_pre, Min, 100.0 * xp[1] + 1.0 * xp[2])
+            c_pre = JuMP.@constraint(jm_pre, xp[1] + xp[2] == 1)
+            MOI.set(jm_pre, Attributes.PenaltyIncumbent(), dict_cand)
+            JuMP.optimize!(jm_pre)
+            meta_pre = MOI.get(jm_pre, Attributes.PenaltyPolicyMetadata())
+            @test meta_pre["incumbent"]["status"] == "accepted"
+            @test meta_pre["incumbent"]["tightened"] === true
+            @test MOI.get(jm_pre, Attributes.ConstraintEncodingPenalty(), c_pre) == 2.0
+        end
+
+        let cached_int = MOIU.CachingOptimizer(
+                MOIU.UniversalFallback(MOIU.Model{Float64}()),
+                ToQUBO.Optimizer{Float64}(),
+            )
+            vc1 = MOI.add_variable(cached_int)
+            vc2 = MOI.add_variable(cached_int)
+            vc3 = MOI.add_variable(cached_int)
+            MOI.add_constraint(cached_int, vc2, MOI.ZeroOne())
+            MOI.add_constraint(cached_int, vc3, MOI.ZeroOne())
+            MOI.delete(cached_int, vc1)
+            c_ci = MOI.add_constraint(
+                cached_int,
+                MOI.ScalarAffineFunction{Float64}(
+                    [MOI.ScalarAffineTerm(1.0, vc2), MOI.ScalarAffineTerm(1.0, vc3)],
+                    0.0,
+                ),
+                MOI.EqualTo{Float64}(1.0),
+            )
+            MOI.set(cached_int, MOI.ObjectiveSense(), MOI.MIN_SENSE)
+            MOI.set(
+                cached_int,
+                MOI.ObjectiveFunction{MOI.ScalarAffineFunction{Float64}}(),
+                MOI.ScalarAffineFunction{Float64}(
+                    [MOI.ScalarAffineTerm(100.0, vc2), MOI.ScalarAffineTerm(1.0, vc3)],
+                    0.0,
+                ),
+            )
+            MOI.set(cached_int, Attributes.PenaltyIncumbent(), dict_cand)
+            MOI.optimize!(cached_int)
+            meta_ci = MOI.get(cached_int, Attributes.PenaltyPolicyMetadata())
+            @test meta_ci["incumbent"]["status"] == "accepted"
+            @test meta_ci["incumbent"]["tightened"] === true
+            @test MOI.get(cached_int, Attributes.ConstraintEncodingPenalty(), c_ci) == 2.0
+        end
+    end
+
     return nothing
 end
 

@@ -349,32 +349,26 @@ function _resolve_jump_variable_key(model::Virtual.Model, k)::VI
     !hasproperty(k, :model) && return vi
     jm = getproperty(k, :model)
     b = hasproperty(jm, :moi_backend) ? getproperty(jm, :moi_backend) : jm
-    if b isa MOI.ModelLike && !MOI.is_valid(b, vi)
+    if !(b isa MOI.ModelLike) || !MOI.is_valid(b, vi)
         return VI(-abs(vi.value) - 1)
     end
-    if b isa MOI.Utilities.CachingOptimizer && isempty(b.model_to_optimizer_map)
-        outer_vars = MOI.get(b, MOI.ListOfVariableIndices())
-        source_vars = _source_variables_in_order(model)
-        pos = findfirst(==(vi), outer_vars)
-        if !isnothing(pos) && length(outer_vars) == length(source_vars)
-            return source_vars[pos]
-        end
-        return VI(-abs(vi.value) - 1)
-    end
-    while true
-        if b isa MOI.Utilities.CachingOptimizer
-            if !isempty(b.model_to_optimizer_map)
-                haskey(b.model_to_optimizer_map, vi) || return VI(-abs(vi.value) - 1)
-                vi = b.model_to_optimizer_map[vi]
-            end
-            b = b.optimizer
-        elseif b isa MOI.Bridges.LazyBridgeOptimizer
-            b = b.model
+    cur = b
+    while cur !== model
+        if cur isa MOI.Utilities.CachingOptimizer
+            cur = cur.optimizer
+        elseif cur isa MOI.Bridges.LazyBridgeOptimizer
+            cur = cur.model
         else
-            break
+            return VI(-abs(vi.value) - 1)
         end
     end
-    return vi
+    outer_vars = MOI.get(b, MOI.ListOfVariableIndices())
+    source_vars = _source_variables_in_order(model)
+    pos = findfirst(==(vi), outer_vars)
+    if !isnothing(pos) && length(outer_vars) == length(source_vars)
+        return source_vars[pos]
+    end
+    return VI(-abs(vi.value) - 1)
 end
 
 function _normalize_candidate_assignment(model::Virtual.Model{T}, raw) where {T}
@@ -1465,6 +1459,13 @@ function _certify_constraint_penalty_rational(
                 g_total_q[ω] += c
             end
             min_piece_gap_q = gap_lt_q
+        else
+            r_lt_raw_q = _parse_set_exact_rational(model, f, s_lt)
+            bounds_lt_q = isnothing(r_lt_raw_q) ? nothing : _pbf_bounds_rational(r_lt_raw_q)
+            if isnothing(bounds_lt_q) || bounds_lt_q[2] > 0
+                return nothing,
+                "Constraint $(id) upper interval bound was omitted but is not unconditionally satisfied in exact arithmetic"
+            end
         end
 
         s_gt = GT{T}(s.lower)
@@ -1489,6 +1490,13 @@ function _certify_constraint_penalty_rational(
             end
             min_piece_gap_q =
                 isnothing(min_piece_gap_q) ? gap_gt_q : min(min_piece_gap_q, gap_gt_q)
+        else
+            r_gt_raw_q = _parse_set_exact_rational(model, f, s_gt)
+            bounds_gt_q = isnothing(r_gt_raw_q) ? nothing : _pbf_bounds_rational(r_gt_raw_q)
+            if isnothing(bounds_gt_q) || bounds_gt_q[1] < 0
+                return nothing,
+                "Constraint $(id) lower interval bound was omitted but is not unconditionally satisfied in exact arithmetic"
+            end
         end
 
         if p_q != g_total_q
@@ -1507,7 +1515,36 @@ function _certify_constraint_penalty_rational(
             return nothing, "Unexpected SOS1 slack variable count on constraint $(id)"
         sv = only(slack_vars)
         if Virtual.encoding(sv) isa Encoding.DomainWall
-            return _certify_encoding_penalty_rational(sv, p, "constraint", id)
+            min_pos_q, cert_reason =
+                _certify_encoding_penalty_rational(sv, p, "constraint", id)
+            !isnothing(cert_reason) && return nothing, cert_reason
+            sos_targets = Virtual.target(sv)
+            expansions_q = PBO.PBF{VI,Rational{BigInt}}[]
+            for xi in f.variables
+                haskey(model.source, xi) ||
+                    return nothing, "SOS1 variable $(xi.value) has not been encoded"
+                ξ_q = _pbf_to_rational(Virtual.expansion(model.source[xi]))
+                isnothing(ξ_q) && return nothing, "SOS1 variable expansion is not exact"
+                issubset(PBO.variables(ξ_q), sos_targets) ||
+                    return nothing,
+                    "SOS1 variable $(xi.value) expansion is not governed by SOS1 DomainWall targets"
+                push!(expansions_q, ξ_q)
+            end
+            for k = 0:length(sos_targets)
+                state = Dict{VI,Int}(
+                    sos_targets[j] => (j <= k ? 1 : 0) for j in eachindex(sos_targets)
+                )
+                vals = Rational{BigInt}[]
+                for ξ_q in expansions_q
+                    vq = _eval_pbf_rational(ξ_q, state)
+                    isnothing(vq) && return nothing, "SOS1 variable evaluation failed"
+                    push!(vals, vq)
+                end
+                _in_source_set_rational(vals, s) ||
+                    return nothing,
+                    "Constraint $(id) SOS1 DomainWall encoding does not enforce SOS1 across all zero-penalty states"
+            end
+            return min_pos_q, nothing
         elseif Virtual.encoding(sv) isa Encoding.Mirror && length(Virtual.target(sv)) == 1
             r_sos = PBO.PBF{VI,Rational{BigInt}}(-one(Rational{BigInt}))
             for xi in f.variables
@@ -1686,6 +1723,302 @@ function _verify_hamiltonian_assembly_exact(
     return true, nothing
 end
 
+function _verify_variable_constraint_enforced_rational(
+    model::Virtual.Model{T},
+    ci::Union{CI,Nothing},
+    vi::VI,
+    s::Union{MOI.AbstractSet,Nothing},
+)::Tuple{Bool,Union{String,Nothing}} where {T}
+    cid = isnothing(ci) ? vi.value : ci.value
+    haskey(model.source, vi) ||
+        return false, "Source variable $(vi.value) has not been encoded"
+    v = model.source[vi]
+    e = Virtual.encoding(v)
+    targets = Virtual.target(v)
+    ξ_q = _pbf_to_rational(Virtual.expansion(v))
+    isnothing(ξ_q) && return false, "Variable $(vi.value) expansion is not exact"
+
+    γ = Attributes.variable_encoding_set(model, vi)
+    γ_q = if !isnothing(γ)
+        vals = Rational{BigInt}[]
+        for g_val in γ
+            gq = _exact_rational(g_val)
+            isnothing(gq) &&
+                return false, "Variable $(vi.value) value set entry is not exact"
+            push!(vals, gq)
+        end
+        vals
+    else
+        nothing
+    end
+
+    if e isa Encoding.OneHot
+        if haskey(model.h, vi)
+            ϵ_q, cert_reason =
+                _certify_encoding_penalty_rational(v, model.h[vi], "variable", vi.value)
+            isnothing(ϵ_q) && return false, cert_reason
+            for k in eachindex(targets)
+                state = Dict{VI,Int}(targets[j] => (j == k ? 1 : 0) for j in eachindex(targets))
+                val_q = _eval_pbf_rational(ξ_q, state)
+                if isnothing(val_q) ||
+                   (!isnothing(s) && !_in_source_set_rational(val_q, s)) ||
+                   (!isnothing(γ_q) && !(val_q in γ_q))
+                    return false,
+                    "Source variable constraint $(cid) ($(VI) in $(typeof(s))) is not enforced across all zero-penalty encoded states of variable $(vi.value)"
+                end
+            end
+            return true, nothing
+        else
+            vars = PBO.variables(ξ_q)
+            length(vars) <= 10 ||
+                return false,
+                "Variable $(vi.value) OneHot encoding has no penalty and exceeds variable bound"
+            state = Dict{VI,Int}(y => 0 for y in vars)
+            for mask = 0:((1 << length(vars)) - 1)
+                for i in eachindex(vars)
+                    state[vars[i]] = (mask >> (i - 1)) & 1
+                end
+                val_q = _eval_pbf_rational(ξ_q, state)
+                if isnothing(val_q) ||
+                   (!isnothing(s) && !_in_source_set_rational(val_q, s)) ||
+                   (!isnothing(γ_q) && !(val_q in γ_q))
+                    return false,
+                    "Source variable constraint $(cid) ($(VI) in $(typeof(s))) is not enforced across all encoded states of variable $(vi.value)"
+                end
+            end
+            return true, nothing
+        end
+    elseif e isa Encoding.DomainWall
+        if !isempty(targets)
+            if haskey(model.h, vi)
+                ϵ_q, cert_reason =
+                    _certify_encoding_penalty_rational(v, model.h[vi], "variable", vi.value)
+                isnothing(ϵ_q) && return false, cert_reason
+                for k = 0:length(targets)
+                    state =
+                        Dict{VI,Int}(targets[j] => (j <= k ? 1 : 0) for j in eachindex(targets))
+                    val_q = _eval_pbf_rational(ξ_q, state)
+                    if isnothing(val_q) ||
+                       (!isnothing(s) && !_in_source_set_rational(val_q, s)) ||
+                       (!isnothing(γ_q) && !(val_q in γ_q))
+                        return false,
+                        "Source variable constraint $(cid) ($(VI) in $(typeof(s))) is not enforced across all zero-penalty encoded states of variable $(vi.value)"
+                    end
+                end
+                return true, nothing
+            else
+                vars = PBO.variables(ξ_q)
+                length(vars) <= 10 ||
+                    return false,
+                    "Variable $(vi.value) DomainWall encoding has no penalty and exceeds variable bound"
+                state = Dict{VI,Int}(y => 0 for y in vars)
+                for mask = 0:((1 << length(vars)) - 1)
+                    for i in eachindex(vars)
+                        state[vars[i]] = (mask >> (i - 1)) & 1
+                    end
+                    val_q = _eval_pbf_rational(ξ_q, state)
+                    if isnothing(val_q) ||
+                       (!isnothing(s) && !_in_source_set_rational(val_q, s)) ||
+                       (!isnothing(γ_q) && !(val_q in γ_q))
+                        return false,
+                        "Source variable constraint $(cid) ($(VI) in $(typeof(s))) is not enforced across all encoded states of variable $(vi.value)"
+                    end
+                end
+                return true, nothing
+            end
+        else
+            sos_sv = nothing
+            sos_ci = nothing
+            for (ci_cand, _) in model.g
+                sv_cand = get(model.slack, ci_cand, nothing)
+                if !isnothing(sv_cand) &&
+                   Virtual.encoding(sv_cand) isa Encoding.DomainWall &&
+                   issubset(PBO.variables(ξ_q), Virtual.target(sv_cand))
+                    sos_sv = sv_cand
+                    sos_ci = ci_cand
+                    break
+                end
+            end
+            (isnothing(sos_sv) || isnothing(sos_ci)) &&
+                return false,
+                "SOS1 DomainWall variable $(vi.value) has no certified SOS1 constraint penalty"
+            ϵ_q, cert_reason = _certify_encoding_penalty_rational(
+                sos_sv,
+                model.g[sos_ci],
+                "constraint",
+                sos_ci.value,
+            )
+            isnothing(ϵ_q) && return false, cert_reason
+            sos_targets = Virtual.target(sos_sv)
+            for k = 0:length(sos_targets)
+                state = Dict{VI,Int}(
+                    sos_targets[j] => (j <= k ? 1 : 0) for j in eachindex(sos_targets)
+                )
+                val_q = _eval_pbf_rational(ξ_q, state)
+                if isnothing(val_q) ||
+                   (!isnothing(s) && !_in_source_set_rational(val_q, s)) ||
+                   (!isnothing(γ_q) && !(val_q in γ_q))
+                    return false,
+                    "Source variable constraint $(cid) ($(VI) in $(typeof(s))) is not enforced across all zero-penalty SOS1 states of variable $(vi.value)"
+                end
+            end
+            return true, nothing
+        end
+    elseif e isa Union{
+        Encoding.Mirror,
+        Encoding.Binary,
+        Encoding.Unary,
+        Encoding.Arithmetic,
+        Encoding.Bounded,
+    }
+        if haskey(model.h, vi) || PBO.degree(ξ_q) > 1 || !isnothing(γ_q)
+            return false,
+            "Unexpected penalty, value set, or nonlinear expansion on variable $(vi.value)"
+        end
+        isnothing(s) && return true, nothing
+        bounds_q = _pbf_bounds_rational(ξ_q)
+        isnothing(bounds_q) &&
+            return false,
+            "Variable $(vi.value) expansion bounds are not finite in exact arithmetic"
+        l_q, u_q = bounds_q
+
+        if s isa LT{T}
+            upper = _exact_rational(s.upper)
+            (!isnothing(upper) && u_q <= upper) ||
+                return false,
+                "Source variable upper bound on variable $(vi.value) (constraint $(cid)) is not enforced across all zero-penalty encoded states"
+            return true, nothing
+        elseif s isa GT{T}
+            lower = _exact_rational(s.lower)
+            (!isnothing(lower) && l_q >= lower) ||
+                return false,
+                "Source variable lower bound on variable $(vi.value) (constraint $(cid)) is not enforced across all zero-penalty encoded states"
+            return true, nothing
+        elseif s isa MOI.Interval{T}
+            lower = _exact_rational(s.lower)
+            upper = _exact_rational(s.upper)
+            (!isnothing(lower) && !isnothing(upper) && l_q >= lower && u_q <= upper) ||
+                return false,
+                "Source variable interval bound on variable $(vi.value) (constraint $(cid)) is not enforced across all zero-penalty encoded states"
+            return true, nothing
+        elseif s isa EQ{T}
+            rhs = _exact_rational(s.value)
+            (!isnothing(rhs) && l_q == rhs && u_q == rhs) ||
+                return false,
+                "Source variable equality constraint on variable $(vi.value) (constraint $(cid)) is not enforced across all zero-penalty encoded states"
+            return true, nothing
+        elseif s isa MOI.Integer
+            all(kv -> denominator(kv[2]) == 1, ξ_q) ||
+                return false,
+                "Source variable integrality on variable $(vi.value) (constraint $(cid)) is not enforced across all zero-penalty encoded states"
+            return true, nothing
+        elseif s isa MOI.ZeroOne
+            vars = PBO.variables(ξ_q)
+            if length(vars) <= 2
+                state = Dict{VI,Int}(y => 0 for y in vars)
+                for mask = 0:((1 << length(vars)) - 1)
+                    for i in eachindex(vars)
+                        state[vars[i]] = (mask >> (i - 1)) & 1
+                    end
+                    val_q = _eval_pbf_rational(ξ_q, state)
+                    if isnothing(val_q) || !_in_source_set_rational(val_q, s)
+                        return false,
+                        "Source variable binary constraint on variable $(vi.value) (constraint $(cid)) is not enforced across all zero-penalty encoded states"
+                    end
+                end
+                return true, nothing
+            end
+            return false,
+            "Source variable binary constraint on variable $(vi.value) (constraint $(cid)) is not enforced across all zero-penalty encoded states"
+        else
+            return false,
+            "Source variable constraint $(cid) ($(VI) in $(typeof(s))) is not enforced across all zero-penalty encoded states"
+        end
+    else
+        return false,
+        "Unsupported variable encoding $(nameof(typeof(e))) on variable $(vi.value) for exact certification"
+    end
+end
+
+function _verify_omitted_constraint_satisfied_rational(
+    model::Virtual.Model{T},
+    ci::CI,
+    f::MOI.AbstractFunction,
+    s::MOI.AbstractSet,
+)::Tuple{Bool,Union{String,Nothing}} where {T}
+    if f isa Union{SAF{T},SQF{T}} && s isa EQ{T}
+        r_raw_q = _parse_set_exact_rational(model, f, s)
+        bounds_q = isnothing(r_raw_q) ? nothing : _pbf_bounds_rational(r_raw_q)
+        if !isnothing(bounds_q) && bounds_q == (0 // 1, 0 // 1)
+            return true, nothing
+        end
+    elseif f isa Union{SAF{T},SQF{T}} && s isa LT{T}
+        r_raw_q = _parse_set_exact_rational(model, f, s)
+        bounds_q = isnothing(r_raw_q) ? nothing : _pbf_bounds_rational(r_raw_q)
+        if !isnothing(bounds_q) && bounds_q[2] <= 0
+            return true, nothing
+        end
+    elseif f isa Union{SAF{T},SQF{T}} && s isa GT{T}
+        r_raw_q = _parse_set_exact_rational(model, f, s)
+        bounds_q = isnothing(r_raw_q) ? nothing : _pbf_bounds_rational(r_raw_q)
+        if !isnothing(bounds_q) && bounds_q[1] >= 0
+            return true, nothing
+        end
+    elseif f isa Union{SAF{T},SQF{T}} && s isa MOI.Interval{T}
+        r_lt_q = _parse_set_exact_rational(model, f, LT{T}(s.upper))
+        b_lt_q = isnothing(r_lt_q) ? nothing : _pbf_bounds_rational(r_lt_q)
+        r_gt_q = _parse_set_exact_rational(model, f, GT{T}(s.lower))
+        b_gt_q = isnothing(r_gt_q) ? nothing : _pbf_bounds_rational(r_gt_q)
+        if !isnothing(b_lt_q) && !isnothing(b_gt_q) && b_lt_q[2] <= 0 && b_gt_q[1] >= 0
+            return true, nothing
+        end
+    elseif f isa MOI.VectorOfVariables && s isa MOI.SOS1{T}
+        if length(f.variables) <= 1
+            return true, nothing
+        end
+    end
+
+    return false,
+    "Source constraint $(ci.value) ($(typeof(f)) in $(typeof(s))) has no generated penalty and is not unconditionally satisfied across all encoded states"
+end
+
+function _verify_all_source_constraints_enforced(
+    model::Virtual.Model{T},
+    ::AbstractArchitecture = GenericArchitecture(),
+)::Tuple{Bool,Union{String,Nothing}} where {T}
+    for vi in _source_variables_in_order(model)
+        haskey(model.source, vi) ||
+            return false, "Source variable $(vi.value) has not been encoded"
+        γ = Attributes.variable_encoding_set(model, vi)
+        if !isnothing(γ)
+            ok, reason = _verify_variable_constraint_enforced_rational(
+                model,
+                nothing,
+                vi,
+                nothing,
+            )
+            ok || return false, reason
+        end
+    end
+
+    for (F, S) in MOI.get(model.source_model, MOI.ListOfConstraintTypesPresent())
+        for ci in MOI.get(model.source_model, MOI.ListOfConstraintIndices{F,S}())
+            f = MOI.get(model.source_model, MOI.ConstraintFunction(), ci)
+            s = MOI.get(model.source_model, MOI.ConstraintSet(), ci)
+            if F === VI
+                ok, reason = _verify_variable_constraint_enforced_rational(model, ci, f, s)
+                ok || return false, reason
+            elseif !haskey(model.g, ci)
+                ok, reason =
+                    _verify_omitted_constraint_satisfied_rational(model, ci, f, s)
+                ok || return false, reason
+            end
+        end
+    end
+
+    return true, nothing
+end
+
 function _verify_stored_coefficients_can_establish_bound(
     model::Virtual.Model{T},
     σ::Int,
@@ -1699,6 +2032,9 @@ function _verify_stored_coefficients_can_establish_bound(
 
     obj_ok, obj_reason = _verify_objective_exact_rational(model)
     obj_ok || return false, obj_reason
+
+    src_ok, src_reason = _verify_all_source_constraints_enforced(model, arch)
+    src_ok || return false, src_reason
 
     ρ_cand_map = Dict{CI,T}()
     θ_cand_map = Dict{VI,T}()
@@ -2545,6 +2881,12 @@ function _finalize_sufficient_bound_metadata!(
         if !obj_ok
             certified = false
             first_reason = obj_reason
+        else
+            src_ok, src_reason = _verify_all_source_constraints_enforced(model, arch)
+            if !src_ok
+                certified = false
+                first_reason = src_reason
+            end
         end
     end
 
