@@ -290,6 +290,13 @@ function test_prequbo_model()
                 for F in (MOI.VectorAffineFunction{Float64}, MOI.VectorQuadraticFunction{Float64})
                     @test !MOI.supports_constraint(model, F, MOI.SOS1{Float64})
                 end
+
+                @test MOI.supports(model, MOI.ObjectiveFunction{MOI.ScalarNonlinearFunction}())
+                for S in (MOI.EqualTo{Float64}, MOI.LessThan{Float64}, MOI.GreaterThan{Float64})
+                    @test MOI.supports_constraint(model, MOI.ScalarNonlinearFunction, S)
+                end
+                @test !MOI.supports_constraint(model, MOI.ScalarNonlinearFunction, MOI.ZeroOne)
+                @test !MOI.supports_constraint(model, MOI.ScalarNonlinearFunction, MOI.Integer)
             end
         end
     end

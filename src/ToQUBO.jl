@@ -13,7 +13,9 @@ export ConstraintViolation,
 using MathOptInterface
 const MOI = MathOptInterface
 
+import MultivariatePolynomials as MP
 import PseudoBooleanOptimization as PBO
+import QUBODrivers
 import QUBOTools
 
 @doc raw"""
@@ -69,6 +71,7 @@ const MOIB = MOI.Bridges
 
 const SAF{T} = MOI.ScalarAffineFunction{T}
 const SQF{T} = MOI.ScalarQuadraticFunction{T}
+const SNF    = MOI.ScalarNonlinearFunction
 const SAT{T} = MOI.ScalarAffineTerm{T}
 const SQT{T} = MOI.ScalarQuadraticTerm{T}
 const VOV    = MOI.VectorOfVariables

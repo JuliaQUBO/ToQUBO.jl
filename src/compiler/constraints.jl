@@ -43,6 +43,10 @@ function constraints!(
         g = constraint(model, ci, f, s, arch)
 
         if !isnothing(g)
+            if PBO.degree(g) > 2
+                MOI.set(model, Attributes.Quadratize(), true)
+            end
+
             model.g[ci] = g
         end
     end
@@ -559,6 +563,38 @@ function _is_binary_target_variable(model::Virtual.Model, yi::VI)::Bool
     return Virtual.encoding(v) isa Encoding.Mirror && length(Virtual.target(v)) == 1
 end
 
+_collect_snf_variables!(::Vector{VI}, ::Any) = nothing
+
+function _collect_snf_variables!(vars::Vector{VI}, vi::VI)
+    push!(vars, vi)
+    return nothing
+end
+
+function _collect_snf_variables!(vars::Vector{VI}, f::SAF)
+    for t in f.terms
+        push!(vars, t.variable)
+    end
+    return nothing
+end
+
+function _collect_snf_variables!(vars::Vector{VI}, f::SQF)
+    for t in f.affine_terms
+        push!(vars, t.variable)
+    end
+    for t in f.quadratic_terms
+        push!(vars, t.variable_1)
+        push!(vars, t.variable_2)
+    end
+    return nothing
+end
+
+function _collect_snf_variables!(vars::Vector{VI}, f::SNF)
+    for arg in f.args
+        _collect_snf_variables!(vars, arg)
+    end
+    return nothing
+end
+
 function _has_only_binary_variables(
     model::Virtual.Model{T},
     f::SQF{T},
@@ -582,9 +618,30 @@ function _has_only_binary_variables(
     return true
 end
 
+function _has_only_binary_variables(
+    model::Virtual.Model{T},
+    f::SNF,
+    g::PBO.PBF{VI,T},
+)::Bool where {T}
+    vars = VI[]
+    _collect_snf_variables!(vars, f)
+
+    for x in vars
+        _is_binary_source_variable(model, x) || return false
+    end
+
+    for (ω, _) in g
+        for y in ω
+            _is_binary_target_variable(model, y) || return false
+        end
+    end
+
+    return true
+end
+
 function _boolean_logic_gadget_penalty(
     model::Virtual.Model{T},
-    f::SQF{T},
+    f::Union{SQF{T},SNF},
     g::PBO.PBF{VI,T},
 )::Union{Tuple{PBO.PBF{VI,T},Bool},Nothing} where {T}
     _has_only_binary_variables(model, f, g) || return nothing
@@ -1031,6 +1088,232 @@ function constraint(
     MOI.set(model, Attributes.Quadratize(), true)
 
     return g^2
+end
+
+function constraint(
+    model::Virtual.Model{T},
+    ci::CI,
+    f::SNF,
+    s::EQ{T},
+    arch::AbstractArchitecture,
+) where {T}
+    return constraint(model, ci, f, s, arch, _DIRECT_CONSTRAINT)
+end
+
+function constraint(
+    model::Virtual.Model{T},
+    ci::CI,
+    f::SNF,
+    s::EQ{T},
+    arch::AbstractArchitecture,
+    context::_ConstraintFeasibilityContext,
+) where {T}
+    g = _parse(model, f, s, arch)
+
+    if Attributes.discretize(model)
+        _discretize!(g)
+    end
+
+    l, u = PBO.bounds(g)
+
+    if l == zero(T) && u == zero(T)
+        if _handle_feasible_constraint(
+            model,
+            _constraint_message("Always-feasible", f, "=", s.value),
+        )
+            return nothing
+        end
+    elseif l > zero(T) || u < zero(T)
+        _handle_infeasible_constraint(
+            model,
+            context,
+            _constraint_message("Infeasible", f, "=", s.value),
+        )
+    end
+
+    if _is_quadratic_penalty(model, ci) && !_is_nonnegative(g)
+        gadget = _boolean_logic_gadget_penalty(model, f, g)
+
+        if !isnothing(gadget)
+            gadget_pbf, needs_quadratization = gadget
+
+            if needs_quadratization || PBO.degree(gadget_pbf) > 2
+                MOI.set(model, Attributes.Quadratize(), true)
+            end
+
+            return gadget_pbf
+        end
+    end
+
+    p = _equality_penalty(model, ci, g)
+
+    if PBO.degree(p) > 2
+        MOI.set(model, Attributes.Quadratize(), true)
+    end
+
+    return p
+end
+
+function constraint(
+    model::Virtual.Model{T},
+    ci::CI,
+    f::SNF,
+    s::LT{T},
+    arch::AbstractArchitecture,
+) where {T}
+    return constraint(model, ci, f, s, arch, _DIRECT_CONSTRAINT)
+end
+
+function constraint(
+    model::Virtual.Model{T},
+    ci::CI,
+    f::SNF,
+    s::LT{T},
+    arch::AbstractArchitecture,
+    context::_ConstraintFeasibilityContext,
+) where {T}
+    g = _parse(model, f, s, arch)
+
+    if Attributes.discretize(model)
+        _discretize!(g)
+    end
+
+    l, u = PBO.bounds(g)
+
+    if u <= zero(T)
+        if _handle_feasible_constraint(
+            model,
+            _constraint_message("Always-feasible", f, "<=", s.upper),
+        )
+            return nothing
+        end
+    elseif l > zero(T)
+        _handle_infeasible_constraint(
+            model,
+            context,
+            _constraint_message("Infeasible", f, "<=", s.upper),
+        )
+    end
+
+    p = if _is_unbalanced_penalty(model, ci)
+        _unbalanced_penalty(model, ci, g, s)
+    elseif _is_augmented_lagrangian(model, ci)
+        _augmented_lagrangian_penalty(model, ci, g, s)
+    elseif _is_nonnegative(g)
+        g
+    else
+        S = (zero(T), abs(l))
+        z = if Attributes.discretize(model)
+            variable_ℤ!(model, ci, S)
+        else
+            variable_ℝ!(model, ci, S)
+        end
+
+        for (ω, c) in Virtual.expansion(z)
+            g[ω] += c
+        end
+
+        g^2
+    end
+
+    if PBO.degree(p) > 2
+        MOI.set(model, Attributes.Quadratize(), true)
+    end
+
+    return p
+end
+
+function constraint(
+    model::Virtual.Model{T},
+    ci::CI,
+    f::SNF,
+    s::MOI.Interval{T},
+    arch::AbstractArchitecture,
+) where {T}
+    return constraint(model, ci, f, s, arch, _DIRECT_CONSTRAINT)
+end
+
+function constraint(
+    model::Virtual.Model{T},
+    ci::CI,
+    f::SNF,
+    s::MOI.Interval{T},
+    arch::AbstractArchitecture,
+    context::_ConstraintFeasibilityContext,
+) where {T}
+    return _combine_penalties(
+        constraint(model, ci, f, LT{T}(s.upper), arch, context),
+        constraint(model, ci, f, GT{T}(s.lower), arch, context),
+    )
+end
+
+function constraint(
+    model::Virtual.Model{T},
+    ci::CI,
+    f::SNF,
+    s::GT{T},
+    arch::AbstractArchitecture,
+) where {T}
+    return constraint(model, ci, f, s, arch, _DIRECT_CONSTRAINT)
+end
+
+function constraint(
+    model::Virtual.Model{T},
+    ci::CI,
+    f::SNF,
+    s::GT{T},
+    arch::AbstractArchitecture,
+    context::_ConstraintFeasibilityContext,
+) where {T}
+    g = _parse(model, f, s, arch)
+
+    if Attributes.discretize(model)
+        _discretize!(g)
+    end
+
+    l, u = PBO.bounds(g)
+
+    if l >= zero(T)
+        if _handle_feasible_constraint(
+            model,
+            _constraint_message("Always-feasible", f, ">=", s.lower),
+        )
+            return nothing
+        end
+    elseif u < zero(T)
+        _handle_infeasible_constraint(
+            model,
+            context,
+            _constraint_message("Infeasible", f, ">=", s.lower),
+        )
+    end
+
+    p = if _is_unbalanced_penalty(model, ci)
+        _unbalanced_penalty(model, ci, g, s)
+    elseif _is_augmented_lagrangian(model, ci)
+        _augmented_lagrangian_penalty(model, ci, g, s)
+    elseif _is_nonpositive(g)
+        -g
+    else
+        S = (zero(T), abs(u))
+        z = if Attributes.discretize(model)
+            variable_ℤ!(model, ci, S)
+        else
+            variable_ℝ!(model, ci, S)
+        end
+
+        for (ω, c) in Virtual.expansion(z)
+            g[ω] -= c
+        end
+
+        g^2
+    end
+
+    if PBO.degree(p) > 2
+        MOI.set(model, Attributes.Quadratize(), true)
+    end
+
+    return p
 end
 
 @doc raw"""

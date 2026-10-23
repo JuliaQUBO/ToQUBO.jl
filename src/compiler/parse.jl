@@ -184,10 +184,113 @@ function parse!(
     return nothing
 end
 
+function _polynomial_function(model::Virtual.Model{T}, f::SNF) where {T}
+    try
+        return QUBODrivers.polynomial_function(f, T)
+    catch err
+        if err isa QUBODrivers.InvalidNLExpression
+            compilation_error!(
+                model,
+                err.message;
+                status = "Unsupported nonlinear expression",
+            )
+        end
+
+        rethrow(err)
+    end
+end
+
+function parse!(
+    model::Virtual.Model{T},
+    g::PBO.PBF{VI,T},
+    spf::QUBODrivers.ScalarPolynomialFunction{T},
+    ::AbstractArchitecture,
+) where {T}
+    Base.empty!(g)
+
+    terms = MP.terms(spf.polynomial)
+    sizehint!(g, length(terms))
+
+    for term in terms
+        c = MP.coefficient(term)
+        iszero(c) && continue
+
+        term_pbf = PBO.PBF{VI,T}(c)
+
+        for (vi, exp) in zip(spf.variables, MP.exponents(term))
+            exp == 0 && continue
+            v = model.source[vi]
+            ξ = Virtual.expansion(v)
+            factor = exp == 1 ? ξ : ξ^exp
+            term_pbf = term_pbf * factor
+        end
+
+        for (ω, d) in term_pbf
+            g[ω] += d
+        end
+    end
+
+    return nothing
+end
+
+function parse!(
+    model::Virtual.Model{T},
+    g::PBO.PBF{VI,T},
+    f::SNF,
+    arch::AbstractArchitecture,
+) where {T}
+    spf = _polynomial_function(model, f)
+    parse!(model, g, spf, arch)
+
+    return nothing
+end
+
+function parse!(
+    model::Virtual.Model{T},
+    g::PBO.PBF{VI,T},
+    f::Union{SNF,QUBODrivers.ScalarPolynomialFunction{T}},
+    s::EQ{T},
+    arch::AbstractArchitecture,
+) where {T}
+    parse!(model, g, f, arch)
+
+    g[nothing] -= s.value
+
+    return nothing
+end
+
+function parse!(
+    model::Virtual.Model{T},
+    g::PBO.PBF{VI,T},
+    f::Union{SNF,QUBODrivers.ScalarPolynomialFunction{T}},
+    s::LT{T},
+    arch::AbstractArchitecture,
+) where {T}
+    parse!(model, g, f, arch)
+
+    g[nothing] -= s.upper
+
+    return nothing
+end
+
+function parse!(
+    model::Virtual.Model{T},
+    g::PBO.PBF{VI,T},
+    f::Union{SNF,QUBODrivers.ScalarPolynomialFunction{T}},
+    s::GT{T},
+    arch::AbstractArchitecture,
+) where {T}
+    parse!(model, g, f, arch)
+
+    g[nothing] -= s.lower
+
+    return nothing
+end
+
 function parse!(
     model::Virtual.Model{T},
     fs::Vector{PBO.PBF{VI,T}},
-    f::Union{VI,SAF{T},SQF{T}},
+    f::Union{VI,SAF{T},SQF{T},SNF,QUBODrivers.ScalarPolynomialFunction{T}},
     arch::AbstractArchitecture,
 ) where {T}
     resize!(fs, 1)

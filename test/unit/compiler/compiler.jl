@@ -7,6 +7,7 @@ include("analysis.jl")
 include("variables.jl")
 include("objective.jl")
 include("penalties.jl")
+include("nonlinear.jl")
 
 function test_compiler()
     @testset "□ Compiler" verbose = true begin
@@ -19,6 +20,7 @@ function test_compiler()
         test_compiler_variables()
         test_compiler_objective()
         test_compiler_penalties()
+        test_compiler_nonlinear()
     end
 
     return nothing

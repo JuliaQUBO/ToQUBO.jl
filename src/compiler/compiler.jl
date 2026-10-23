@@ -3,7 +3,9 @@ module Compiler
 # Imports
 import MathOptInterface as MOI
 import MathOptInterface: empty!
+import MultivariatePolynomials as MP
 import PseudoBooleanOptimization as PBO
+import QUBODrivers
 
 import QUBOTools
 import QUBOTools: AbstractArchitecture, GenericArchitecture
@@ -19,6 +21,7 @@ const SAT{T}  = MOI.ScalarAffineTerm{T}
 const SAF{T}  = MOI.ScalarAffineFunction{T}
 const SQT{T}  = MOI.ScalarQuadraticTerm{T}
 const SQF{T}  = MOI.ScalarQuadraticFunction{T}
+const SNF     = MOI.ScalarNonlinearFunction
 const VOV     = MOI.VectorOfVariables
 const VAF{T}  = MOI.VectorAffineFunction{T}
 const VQF{T}  = MOI.VectorQuadraticFunction{T}
