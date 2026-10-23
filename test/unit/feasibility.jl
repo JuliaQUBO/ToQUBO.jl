@@ -434,6 +434,30 @@ function test_feasibility_soft_constraints()
     @test !isempty(ToQUBO.violations(bridged_model; result = 1, include_soft = true))
     @test all(v -> v.soft, ToQUBO.violations(bridged_model; result = 1))
 
+    # Emptying a JuMP model and rebuilding with a hard constraint at the same
+    # constraint index must not leak the previous soft flag into the backend.
+    reuse_model = Model(() -> ToQUBO.Optimizer(ExactSampler.Optimizer))
+    @variable(reuse_model, u[1:2], Bin)
+    @objective(reuse_model, Max, 3u[1] + 3u[2])
+    c_reuse_soft = @constraint(reuse_model, u[1] + u[2] <= 1)
+    set_attribute(c_reuse_soft, Attributes.ConstraintEncodingPenaltyHint(), -0.1)
+    set_attribute(c_reuse_soft, Attributes.SoftConstraint(), true)
+    optimize!(reuse_model)
+    @test ToQUBO.is_feasible(reuse_model; result = 1)
+    @test primal_status(reuse_model; result = 1) === MOI.FEASIBLE_POINT
+
+    empty!(reuse_model)
+    @variable(reuse_model, v[1:2], Bin)
+    @objective(reuse_model, Max, 3v[1] + 3v[2])
+    c_reuse_hard = @constraint(reuse_model, v[1] + v[2] <= 1)
+    set_attribute(c_reuse_hard, Attributes.ConstraintEncodingPenaltyHint(), -0.1)
+    @test get_attribute(c_reuse_hard, Attributes.SoftConstraint()) === false
+    optimize!(reuse_model)
+    @test get_attribute(c_reuse_hard, Attributes.SoftConstraint()) === false
+    @test !ToQUBO.is_feasible(reuse_model; result = 1)
+    @test primal_status(reuse_model; result = 1) === MOI.INFEASIBLE_POINT
+    @test only(ToQUBO.violations(reuse_model; result = 1)).soft === false
+
     return nothing
 end
 

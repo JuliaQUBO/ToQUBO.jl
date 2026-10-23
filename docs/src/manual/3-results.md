@@ -186,7 +186,16 @@ requirements can be marked with [`ToQUBO.Attributes.SoftConstraint`](@ref):
 
 ```julia
 set_attribute(preference, Attributes.SoftConstraint(), true)
+set_attribute(preference, Attributes.ConstraintEncodingPenaltyHint(), -0.5)
 ```
+
+Marking a constraint with `SoftConstraint()` does not remove its compiled
+penalty term from the QUBO Hamiltonian or reduce its initial automatically
+inferred penalty coefficient. To give a soft constraint a bounded preference
+weight instead of an exact-penalty coefficient, pair `SoftConstraint()` with
+[`ToQUBO.Attributes.ConstraintPenaltyScale`](@ref),
+[`ToQUBO.Attributes.ConstraintPenaltyOffset`](@ref), or an explicit
+[`ToQUBO.Attributes.ConstraintEncodingPenaltyHint`](@ref).
 
 Soft constraints still have their residuals and violation magnitudes measured:
 - `ToQUBO.violations(model; result = i)` includes violated soft constraints by

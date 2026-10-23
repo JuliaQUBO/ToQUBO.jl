@@ -23,6 +23,18 @@ These attributes control how sampled results surface source-model feasibility
 and objective values; usage examples live in the
 [results manual](@ref "Feasibility in Solve Results").
 
+Marking a source constraint with [`ToQUBO.Attributes.SoftConstraint`](@ref)
+excludes its violations from hard-feasibility checks (`is_feasible`,
+`FeasibilityResult.feasible`, `primal_status`, `AutoFeasibilityReport()`) and
+from iterative penalty escalation under [`ToQUBO.Attributes.MaxPenaltyUpdates`](@ref),
+while still recording its residual and violation metrics in `ToQUBO.violations`
+and `ToQUBO.feasibility_report`. It does not remove the constraint's compiled
+penalty term or reduce its initial automatically inferred penalty coefficient;
+use [`ToQUBO.Attributes.ConstraintPenaltyScale`](@ref),
+[`ToQUBO.Attributes.ConstraintPenaltyOffset`](@ref), or
+[`ToQUBO.Attributes.ConstraintEncodingPenaltyHint`](@ref) to control the
+compiled preference weight.
+
 ```@docs
 ToQUBO.Attributes.PrimalFeasibilityCheck
 ToQUBO.Attributes.AutoFeasibilityReport

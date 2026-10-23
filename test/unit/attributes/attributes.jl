@@ -858,6 +858,53 @@ function test_constraint_attributes()
                 @test Attributes.soft_constraint(model, ci) === false
 
                 @test_throws ArgumentError MOI.set(model, Attributes.SoftConstraint(), ci, 1)
+
+                # Emptying the model clears per-constraint soft flags so reused
+                # constraint indices do not inherit stale soft flags.
+                MOI.set(model, Attributes.SoftConstraint(), ci, true)
+                @test MOI.get(model, Attributes.SoftConstraint(), ci) === true
+                MOI.empty!(model)
+                vi2 = MOI.add_variable(model)
+                f2 = MOI.ScalarAffineFunction{Float64}(
+                    [MOI.ScalarAffineTerm(1.0, vi2)],
+                    0.0,
+                )
+                ci2 = MOI.add_constraint(model, f2, MOI.LessThan{Float64}(1.0))
+                @test ci2 == ci
+                @test MOI.get(model, Attributes.SoftConstraint(), ci2) === false
+                @test Attributes.soft_constraint(model, ci2) === false
+
+                # SingleBridgeOptimizer and LazyBridgeOptimizer directly wrapping
+                # ToQUBO.Optimizer support SoftConstraint round-tripping.
+                bridged = MOI.Bridges.Constraint.SplitInterval{Float64}(
+                    ToQUBO.Optimizer{Float64}(),
+                )
+                bx = MOI.add_variable(bridged)
+                bf = MOI.ScalarAffineFunction{Float64}(
+                    [MOI.ScalarAffineTerm(1.0, bx)],
+                    0.0,
+                )
+                bci = MOI.add_constraint(bridged, bf, MOI.Interval{Float64}(0.0, 1.0))
+
+                @test MOI.supports(bridged, Attributes.SoftConstraint(), typeof(bci))
+                @test MOI.get(bridged, Attributes.SoftConstraint(), bci) === false
+
+                MOI.set(bridged, Attributes.SoftConstraint(), bci, true)
+                @test MOI.get(bridged, Attributes.SoftConstraint(), bci) === true
+
+                MOI.set(bridged, Attributes.SoftConstraint(), bci, false)
+                @test MOI.get(bridged, Attributes.SoftConstraint(), bci) === false
+
+                MOI.set(bridged, Attributes.SoftConstraint(), bci, true)
+                MOI.set(bridged, Attributes.SoftConstraint(), bci, nothing)
+                @test MOI.get(bridged, Attributes.SoftConstraint(), bci) === false
+
+                @test_throws ArgumentError MOI.set(
+                    bridged,
+                    Attributes.SoftConstraint(),
+                    bci,
+                    "invalid",
+                )
             end
         end
     end

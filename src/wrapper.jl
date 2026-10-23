@@ -12,7 +12,9 @@ function MOI.is_empty(model::Optimizer)
 end
 
 function MOI.empty!(model::Optimizer)
+    MOI.empty!(model.bridge_model)
     MOI.empty!(model.source_model)
+    delete!(model.constraint_settings, :soft_constraint)
 
     Compiler.reset!(model)
 

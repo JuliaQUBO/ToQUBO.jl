@@ -2661,6 +2661,13 @@ make a sampled result hard-infeasible in [`ToQUBO.is_feasible`](@ref),
 [`AutoFeasibilityReport`](@ref), and does not trigger iterative penalty
 escalation under [`MaxPenaltyUpdates`](@ref).
 
+Marking a constraint with `SoftConstraint()` does not remove its compiled
+penalty term from the target QUBO or reduce its initial automatically inferred
+penalty coefficient. Pair `SoftConstraint()` with
+[`ConstraintPenaltyScale`](@ref), [`ConstraintPenaltyOffset`](@ref), or an
+explicit [`ConstraintEncodingPenaltyHint`](@ref) to set a bounded preference
+weight.
+
 Defaults to `false` (hard constraint). Pass `nothing` to reset to the default.
 """
 struct SoftConstraint <: CompilerConstraintAttribute end
@@ -2806,15 +2813,18 @@ function MOI.set(
 end
 
 function MOI.supports(
-    ::MOIB.AbstractBridgeOptimizer,
-    ::SoftConstraint,
-    ::Type{<:MOIB.Constraint.AbstractBridge},
-)
-    return true
+    model::MOI.ModelLike,
+    attr::SoftConstraint,
+    ::Type{BT},
+) where {BT<:MOIB.Constraint.AbstractBridge}
+    return all(
+        MOI.supports(model, attr, MOI.ConstraintIndex{F,S}) for
+        (F, S) in MOIB.added_constraint_types(BT)
+    )
 end
 
 function MOI.set(
-    b::MOIB.AbstractBridgeOptimizer,
+    model::MOI.ModelLike,
     attr::SoftConstraint,
     bridge::MOIB.Constraint.AbstractBridge,
     value,
@@ -2829,7 +2839,7 @@ function MOI.set(
 
     for (F, S) in MOIB.added_constraint_types(typeof(bridge))
         for ci in MOI.get(bridge, MOI.ListOfConstraintIndices{F,S}())
-            MOI.set(b, attr, ci, value)
+            MOI.set(model, attr, ci, value)
         end
     end
 
@@ -2837,7 +2847,7 @@ function MOI.set(
 end
 
 function MOI.get(
-    b::MOIB.AbstractBridgeOptimizer,
+    model::MOI.ModelLike,
     attr::SoftConstraint,
     bridge::MOIB.Constraint.AbstractBridge,
 )::Bool
@@ -2846,7 +2856,7 @@ function MOI.get(
     for (F, S) in MOIB.added_constraint_types(typeof(bridge))
         for ci in MOI.get(bridge, MOI.ListOfConstraintIndices{F,S}())
             found = true
-            MOI.get(b, attr, ci) || return false
+            MOI.get(model, attr, ci) || return false
         end
     end
 
