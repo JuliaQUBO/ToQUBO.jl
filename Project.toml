@@ -21,7 +21,7 @@ ToQUBOJuMPExt = "JuMP"
 [compat]
 JuMP = "1"
 MathOptInterface = "1"
-MultivariatePolynomials = "0.5"
+MultivariatePolynomials = "0.5, 0.6"
 PseudoBooleanOptimization = "0.2.6, 0.3"
 QUBODrivers = "0.6.7"
 QUBOTools = "0.16"
