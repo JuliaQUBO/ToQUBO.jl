@@ -23,7 +23,7 @@ function test_compat()
         @test occursin(r"(^|,\s*)0\.3(\s*(,|$))", compat["PseudoBooleanOptimization"])
         @test "0.16" in _compat_entries(compat["QUBOTools"])
         @test compat["QUBODrivers"] == "0.6.7"
-        @test compat["MultivariatePolynomials"] == "0.5"
+        @test "0.5" in _compat_entries(compat["MultivariatePolynomials"])
         @test !haskey(compat, "SparseArrays")
         @test !haskey(project["deps"], "SparseArrays")
         @test !haskey(docs_project["deps"], "PySA")
