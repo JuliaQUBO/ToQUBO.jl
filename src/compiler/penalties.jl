@@ -22,6 +22,11 @@ function _exact_rational(x)::Union{Rational{BigInt},Nothing}
     end
 
     try
+        # Integral IEEE values need no dyadic denominator construction/reduction.
+        # BigInt preserves the stored integer exactly, including values beyond Int.
+        if x isa Base.IEEEFloat && isinteger(x)
+            return Rational{BigInt}(BigInt(x))
+        end
         return Rational{BigInt}(x)
     catch
         return nothing
@@ -1083,8 +1088,15 @@ function _pbf_matches_exact_rational(
     p::PBO.PBF{VI,T},
     q_exact::PBO.PBF{VI,Rational{BigInt}},
 )::Bool where {T}
-    p_q = _pbf_to_rational(p)
-    return !isnothing(p_q) && p_q == q_exact
+    nonzero_terms = 0
+    for (ω, c) in p
+        cq = _exact_rational(c)
+        isnothing(cq) && return false
+        iszero(cq) && continue
+        cq == q_exact[ω] || return false
+        nonzero_terms += 1
+    end
+    return nonzero_terms == length(q_exact)
 end
 
 function _is_positive_rational_multiple(
@@ -1906,12 +1918,18 @@ function _verify_hamiltonian_assembly_exact(
         ρ = ρ_map[ci]
         ok_scale, scale_reason = _verify_penalty_scaling_exact(g, ρ, "constraint", ci.value)
         ok_scale || return false, scale_reason
-        ρ_q = _exact_rational(ρ)::Rational{BigInt}
+        ρ_q = T <: Base.IEEEFloat ? nothing : _exact_rational(ρ)::Rational{BigInt}
 
         for (ω, c) in g
-            cq = _exact_rational(c)::Rational{BigInt}
-            H_float[ω] += ρ * c
-            H_exact[ω] += ρ_q * cq
+            product = ρ * c
+            H_float[ω] += product
+            if T <: Base.IEEEFloat
+                # Scaling verification above proved this IEEE product is exact.
+                H_exact[ω] += _exact_rational(product)::Rational{BigInt}
+            else
+                cq = _exact_rational(c)::Rational{BigInt}
+                H_exact[ω] += ρ_q * cq
+            end
         end
     end
 
@@ -1920,12 +1938,18 @@ function _verify_hamiltonian_assembly_exact(
         θ = θ_map[vi]
         ok_scale, scale_reason = _verify_penalty_scaling_exact(h, θ, "variable", vi.value)
         ok_scale || return false, scale_reason
-        θ_q = _exact_rational(θ)::Rational{BigInt}
+        θ_q = T <: Base.IEEEFloat ? nothing : _exact_rational(θ)::Rational{BigInt}
 
         for (ω, c) in h
-            cq = _exact_rational(c)::Rational{BigInt}
-            H_float[ω] += θ * c
-            H_exact[ω] += θ_q * cq
+            product = θ * c
+            H_float[ω] += product
+            if T <: Base.IEEEFloat
+                # Scaling verification above proved this IEEE product is exact.
+                H_exact[ω] += _exact_rational(product)::Rational{BigInt}
+            else
+                cq = _exact_rational(c)::Rational{BigInt}
+                H_exact[ω] += θ_q * cq
+            end
         end
     end
 
@@ -1934,12 +1958,18 @@ function _verify_hamiltonian_assembly_exact(
         η = η_map[ci]
         ok_scale, scale_reason = _verify_penalty_scaling_exact(s, η, "slack_variable", ci.value)
         ok_scale || return false, scale_reason
-        η_q = _exact_rational(η)::Rational{BigInt}
+        η_q = T <: Base.IEEEFloat ? nothing : _exact_rational(η)::Rational{BigInt}
 
         for (ω, c) in s
-            cq = _exact_rational(c)::Rational{BigInt}
-            H_float[ω] += η * c
-            H_exact[ω] += η_q * cq
+            product = η * c
+            H_float[ω] += product
+            if T <: Base.IEEEFloat
+                # Scaling verification above proved this IEEE product is exact.
+                H_exact[ω] += _exact_rational(product)::Rational{BigInt}
+            else
+                cq = _exact_rational(c)::Rational{BigInt}
+                H_exact[ω] += η_q * cq
+            end
         end
     end
 

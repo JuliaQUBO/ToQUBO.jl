@@ -1,0 +1,74 @@
+{
+  "case": "bhD-05-001.lp",
+  "source_snapshot": "16a166ee67c24c112551c803aab5394743b815b5",
+  "source_lp_decompressed_sha256": "336e190a2e13937a42e0afbb439ef570437e3dbf81e928c5696f604a62f05aea",
+  "julia": "1.10.12",
+  "baseline_ToQUBO": "2d4b234fc40c7f9fa1a642a9ca3bf406c268b9f7",
+  "both_PBO": "55cc80582ee3e6765f686718e490b3e41dd77311",
+  "PBO_tree": "271f0f6b9838482e91a736698168ce6c3522ef73",
+  "candidate_penalties_jl_sha256": "4314ea503c0c99ae69f6ef0e6f84634b4a54529df9f5ba2309ff57814c1b6fa8",
+  "resources": {
+    "physical_cores": 1,
+    "threads": 1,
+    "resident_memory_cap_bytes": 17179869184,
+    "swap_cap_bytes": 0,
+    "host_regime": "shared host, cooperative core exclusion, before/after admission occupancy probes; no host-wide exclusivity"
+  },
+  "observations": {
+    "case": "bhD-05-001.lp",
+    "baseline_ordinary_CPU4": {
+      "gc_seconds": 11.978919279,
+      "bytes": 14465523296,
+      "seconds": 44.823024314,
+      "allocations": 488354176
+    },
+    "candidate_ordinary_CPU15": {
+      "gc_seconds": 8.254068086,
+      "bytes": 9828491776,
+      "seconds": 29.085882952,
+      "allocations": 312340877
+    },
+    "baseline_recheck_ordinary_CPU15": {
+      "gc_seconds": 12.747101527,
+      "bytes": 14465523296,
+      "seconds": 44.968953359,
+      "allocations": 488354176
+    },
+    "baseline_sampled_CPU4": {
+      "gc_seconds": 13.10328093,
+      "bytes": 14465523296,
+      "seconds": 49.669891081,
+      "allocations": 488354176
+    },
+    "candidate_sampled_CPU15": {
+      "gc_seconds": 8.882725206,
+      "bytes": 9828491776,
+      "seconds": 31.451584272,
+      "allocations": 312340877
+    },
+    "same_core_runtime_ratio": 1.5460748925247205,
+    "allocation_reduction_fraction": 0.3604214065326228,
+    "allocated_byte_reduction_fraction": 0.3205574679266687,
+    "variable_order_identical": true,
+    "penalty_factors_identical": true,
+    "all_recorded_policy_metadata_identical": true,
+    "constraint_factor_count": 146,
+    "polynomial": {
+      "m": 1448160,
+      "sha256": "0a08a200a958dec64831995d421b85f1bf4225d97f6b027c1e70f5a9bae08bd9",
+      "sense": "min",
+      "offset": "31763174938//1",
+      "scale": "1//1",
+      "n": 3480
+    },
+    "full_metadata_sha256": "c121869fb14b018cbbf9c8c9d2ab75df61b8570cc7a71c67e0cff268ad89cce5",
+    "full_metadata_bytes": 364707675,
+    "full_metadata_construction": {
+      "gc_seconds": 12.56236554,
+      "bytes": 59959023520,
+      "seconds": 116.164319792,
+      "allocations": 1398416199
+    }
+  },
+  "measurement_scope": "One full D5 warmup followed by one ordinary warmed compilation and one sampled compilation per original process. A subsequent baseline-only full warmup and ordinary compilation repeat used candidate physical core15. All observations retained. Import/JIT/construction, explicit GC, export and full metadata excluded from compilation windows. Full candidate metadata validated separately against the retained baseline. No solver, preprocessing, D6 or end-to-end speedup measured."
+}
