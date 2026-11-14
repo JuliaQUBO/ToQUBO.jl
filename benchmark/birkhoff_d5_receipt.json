@@ -70,5 +70,56 @@
       "allocations": 1398416199
     }
   },
-  "measurement_scope": "One full D5 warmup followed by one ordinary warmed compilation and one sampled compilation per original process. A subsequent baseline-only full warmup and ordinary compilation repeat used candidate physical core15. All observations retained. Import/JIT/construction, explicit GC, export and full metadata excluded from compilation windows. Full candidate metadata validated separately against the retained baseline. No solver, preprocessing, D6 or end-to-end speedup measured."
+  "measurement_scope": "One full D5 warmup followed by one ordinary warmed compilation and one sampled compilation per original process. A subsequent baseline-only full warmup and ordinary compilation repeat used candidate physical core15. All observations retained. Import/JIT/construction, explicit GC, export and full metadata excluded from compilation windows. Full candidate metadata validated separately against the retained baseline. No solver, preprocessing, D6 or end-to-end speedup measured.",
+  "harness": {
+    "artifact_id": "toqubo-exact-verification-2026-11-14",
+    "source_repository": "qubo-preprocessing-benchmarks",
+    "retained_artifact_directory": "results/toqubo-exact-verification-2026-11-14",
+    "entrypoint": "runtime/d5.jl",
+    "entrypoint_sha256": "2911f06ca0191bcc5facf0de8fff3e95f58abcf73ef15d3dc5d232dfb83fa47f",
+    "supporting_files_sha256": {
+      "runtime/worker.jl": "0b5603f723f7bb12a2701e405308ece01cb7ccf84d4175a3b448589cf94746de",
+      "runtime/study.jl": "1d16e9339bd9cf7131ed9ebf034e3b8f704f8a5e6c6fe47abb88bc7bc78f131b",
+      "runtime/bounded.py": "98f6493fe276e43ff61c6a43f5a56bec009711ca62c89d81251b4b1992185c98",
+      "runtime/d5_baseline_recheck.jl": "3a3edfa201acc5d2c53f6989e860b706696b815fea1475d1bff2b0ff2fd5872b"
+    },
+    "environment_sha256": {
+      "Project.toml_both": "49cac1ac69103119897f1eb2faf5eef9b73ec75407655f25250cf22b1deea7c1",
+      "baseline_Manifest.toml": "23488250a13ff6593a1573c9908f5973a1aca6f5626b9b60e82f651a8afb5592",
+      "candidate_Manifest.toml": "2ba829010d1f8d363964c61e8f81d7ed33e84f754c0774813be78908f83322b7"
+    },
+    "julia_argv_templates": {
+      "baseline": [
+        "JULIA_1_10_12",
+        "--startup-file=no",
+        "--project=FROZEN_ROOT/env-baseline",
+        "FROZEN_ROOT/runtime/d5.jl",
+        "baseline"
+      ],
+      "candidate": [
+        "JULIA_1_10_12",
+        "--startup-file=no",
+        "--project=FROZEN_ROOT/env-candidate",
+        "FROZEN_ROOT/runtime/d5.jl",
+        "candidate"
+      ],
+      "baseline_recheck": [
+        "JULIA_1_10_12",
+        "--startup-file=no",
+        "--project=FROZEN_ROOT/env-baseline",
+        "FROZEN_ROOT/runtime/d5_baseline_recheck.jl",
+        "baseline"
+      ]
+    },
+    "runtime_environment": {
+      "JULIA_NUM_THREADS": "1",
+      "JULIA_NUM_GC_THREADS": "1",
+      "OPENBLAS_NUM_THREADS": "1",
+      "OMP_NUM_THREADS": "1",
+      "JULIA_PKG_PRECOMPILE_AUTO": "0",
+      "JULIA_PKG_OFFLINE": "true",
+      "JULIA_DEPOT_PATH": "FROZEN_ROOT/depot:READ_ONLY_DEPENDENCY_DEPOT"
+    },
+    "reproduction": "Use the retained frozen harness/supporting files, exact source LP in FROZEN_ROOT/input/source.lp and retained pinned manifests; adapt source paths together when recreating roots. The manifest hashes identify the producing environments and change when absolute source paths are relocated. Source guards bind actual ToQUBO/PBO file hashes and modes. Run under the documented one-core/one-thread16GiB/no-swap common supervisor; baseline250s, candidate400s, recheck140s. Each measurement is the same @timed MOI.optimize!(model) call after an identical full D5 warmup. The standalone helper microbenchmark is a separate experiment."
+  }
 }

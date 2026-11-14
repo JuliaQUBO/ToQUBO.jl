@@ -57,3 +57,11 @@ comparisons. Both conditions remain capped at 16 GiB, with no OOM events. Total
 allocated bytes describe allocation traffic over GC cycles, not peak live memory.
 The benchmark uses a merged PBO source pin, without changing package compatibility
 or implying that this dependency source is a registered release.
+
+The D5 receipt also binds the executable frozen study harness and its supporting
+files by SHA256, records all three Julia invocation templates and the producing
+Project/Manifest hashes, and describes reconstruction from the retained study
+artifact. The timed call is `@timed MOI.optimize!(model)` on a fresh identically
+constructed optimizer after a full D5 warmup. The separate helper script above
+does not reproduce the D5 experiment. Relocating source paths changes manifest
+bytes; retain every package revision and adapt both environments consistently.
