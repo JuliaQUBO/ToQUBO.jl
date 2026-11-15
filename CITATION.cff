@@ -25,13 +25,13 @@ abstract: >-
 repository-code: "https://github.com/JuliaQUBO/ToQUBO.jl"
 url: "https://juliaqubo.github.io/ToQUBO.jl/"
 license: MPL-2.0
-version: "0.8.0"
+version: "0.8.1"
 date-released: 2026-11-15
 doi: "10.5281/zenodo.21763525"
 identifiers:
   - type: doi
-    value: "10.5281/zenodo.24239247"
-    description: "Zenodo DOI for version 0.8.0"
+    value: "10.5281/zenodo.24250064"
+    description: "Zenodo DOI for version 0.8.1"
 keywords:
   - Julia
   - mathematical optimization
