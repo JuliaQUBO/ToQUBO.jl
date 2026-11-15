@@ -7,6 +7,7 @@ include("analysis.jl")
 include("variables.jl")
 include("objective.jl")
 include("penalties.jl")
+include("exact_rational.jl")
 include("nonlinear.jl")
 
 function test_compiler()
@@ -20,6 +21,9 @@ function test_compiler()
         test_compiler_variables()
         test_compiler_objective()
         test_compiler_penalties()
+        test_compiler_exact_rational_conversion()
+        test_compiler_streaming_exact_polynomial_comparison()
+        test_compiler_exact_assembly_arithmetic()
         test_compiler_nonlinear()
     end
 
