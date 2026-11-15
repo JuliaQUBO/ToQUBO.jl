@@ -1,5 +1,28 @@
 # Release Notes
 
+## v0.8.0 - 2026-11-15
+
+### Breaking changes
+
+- Existing public interfaces remain supported. Automatic recognition of supported Boolean gate patterns can change generated penalty coefficients and auxiliary-variable counts; the emitted gadgets preserve the gate truth table.
+
+### Added
+
+- Recognize Boolean NOT, AND, OR, and XOR constraint patterns and emit their minimal penalty gadgets (#256).
+- Tighten exact penalty bounds with a verified feasible incumbent (#257).
+- Add `Attributes.SoftConstraint()` so feasibility analysis can distinguish soft requirements from hard constraints (#258).
+- Compile vector objectives with per-objective weights and report their source objective values (#259).
+- Parse supported `MOI.ScalarNonlinearFunction` polynomial objectives and constraints into the HUBO/PUBO compilation path (#260).
+
+### Performance
+
+- Reduce exact penalty-verification allocations while preserving exact arithmetic and certification. On the pinned D5 Birkhoff case, one warmed compilation observation improved from 44.97 to 29.09 seconds (1.55x), with identical canonical QUBO, all 146 penalties, and complete metadata. This is a compilation result on a shared host, not a solver or whole-pipeline result (#266).
+
+### Maintenance
+
+- Synchronize version, citation metadata, documentation compatibility, and the version DOI under the existing Zenodo concept. Source licensing remains MPL-2.0; archival publication remains manual.
+- Accept current compatible DisjunctiveProgramming and MultivariatePolynomials versions, and update dependency-maintenance tooling.
+
 ## v0.7.1 - 2026-10-08
 
 ### Breaking changes
