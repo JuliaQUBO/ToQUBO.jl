@@ -119,22 +119,25 @@ end
 
 function _pbf_terms(f::PBO.PBF)
     terms = Dict{String,Any}[]
+    keys = Tuple{Int,String}[]
 
     for (term, coefficient) in f
         iszero(coefficient) && continue
 
+        variables = _term_variable_ids(term)
+        push!(keys, (length(variables), join(variables, ",")))
         push!(
             terms,
             Dict{String,Any}(
-                "variables" => _term_variable_ids(term),
+                "variables" => variables,
                 "coefficient" => coefficient,
             ),
         )
     end
 
-    sort!(terms; by = term -> (length(term["variables"]), join(term["variables"], ",")))
-
-    return terms
+    # Cache the exact decimal-string key once per term. sortperm preserves ties
+    # and leaves the variable vectors and coefficient objects unchanged.
+    return terms[sortperm(keys)]
 end
 
 function _pbf_variable_ids(f::PBO.PBF)
