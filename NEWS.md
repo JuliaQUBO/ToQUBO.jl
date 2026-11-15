@@ -1,5 +1,13 @@
 # Release Notes
 
+## v0.8.1 - 2026-11-15
+
+### Changelog
+
+- Cache exact reformulation-metadata sort keys once per retained term. Preserve metadata values, concrete types, stable ordering, schema, coefficient identities and independently owned variable vectors, including generic integer variable IDs (#268).
+- In the pinned pre-release D5 comparison, complete metadata matches under the same pinned serializer, alongside the canonical QUBO and all 146 penalties. Full warmed metadata construction took 20.57 and 21.54 seconds against one retained 155.57-second warmed baseline (7.56x and 7.22x observed ratios). These shared-host observations measure metadata construction separately from compilation and serialization; they do not establish an end-to-end, D6 or solver speedup.
+- Synchronize patch-version citations with version DOI `10.5281/zenodo.24250064` under the existing Zenodo concept. Public interfaces and dependency compatibility remain unchanged.
+
 ## v0.8.0 - 2026-11-15
 
 ### Breaking changes
