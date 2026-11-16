@@ -118,7 +118,8 @@ function _term_variable_ids(term)
 end
 
 function _pbf_terms(f::PBO.PBF)
-    terms = Dict{String,Any}[]
+    variable_ids = Vector[]
+    coefficients = Any[]
     keys = Tuple{Int,String}[]
 
     for (term, coefficient) in f
@@ -126,18 +127,24 @@ function _pbf_terms(f::PBO.PBF)
 
         variables = _term_variable_ids(term)
         push!(keys, (length(variables), join(variables, ",")))
-        push!(
-            terms,
-            Dict{String,Any}(
-                "variables" => variables,
-                "coefficient" => coefficient,
-            ),
-        )
+        push!(variable_ids, variables)
+        push!(coefficients, coefficient)
     end
 
-    # Cache the exact decimal-string key once per term. sortperm preserves ties
-    # and leaves the variable vectors and coefficient objects unchanged.
-    return terms[sortperm(keys)]
+    # Sort before allocating the payload dictionaries. The staging arrays retain
+    # each ID vector's concrete type and the original coefficient references.
+    order = sortperm(keys)
+    keys = nothing
+    terms = Vector{Dict{String,Any}}(undef, length(order))
+
+    for (i, j) in enumerate(order)
+        entry = Dict{String,Any}()
+        entry["variables"] = variable_ids[j]
+        entry["coefficient"] = coefficients[j]
+        terms[i] = entry
+    end
+
+    return terms
 end
 
 function _pbf_variable_ids(f::PBO.PBF)
