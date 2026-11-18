@@ -52,11 +52,36 @@ function _ieee_product_is_exact(x::F, y::F, p::F)::Union{Bool,Nothing} where {F<
     return iszero(fma(x, y, -p))
 end
 
-# Exact Int128 image of an integral IEEE value, or `nothing`.
-function _ieee_int128(x::F)::Union{Int128,Nothing} where {F<:_FastIEEE}
-    (isfinite(x) && isinteger(x)) || return nothing
-    -ldexp(one(Float64), 127) <= x < ldexp(one(Float64), 127) || return nothing
-    return Int128(x)
+# Allocation-free traversal of a PBF's terms in exactly the order of iterating the
+# PBF itself (ascending Dict slots). Generic Dict iteration is not inlined and
+# boxes each (term => coefficient, state) result; on very large models that
+# per-term garbage drives most garbage-collection time. Other storage falls back
+# to ordinary iteration.
+struct _TermSlots{D<:Dict}
+    d::D
+end
+_term_slots(p::PBO.PBF{V,T,<:Dict}) where {V,T} = _TermSlots(PBO.data(p))
+_term_slots(p::PBO.PBF) = p
+Base.IteratorSize(::Type{<:_TermSlots}) = Base.SizeUnknown()
+@inline function Base.iterate(t::_TermSlots, i::Int = 1)
+    d = t.d
+    n = length(d.slots)
+    while i <= n
+        if @inbounds Base.isslotfilled(d, i)
+            return (@inbounds((d.keys[i], d.vals[i])), i + 1)
+        end
+        i += 1
+    end
+    return nothing
+end
+
+# Exact Int128 image of an integral IEEE value as `(true, value)`, or
+# `(false, 0)`. The isbits tuple avoids boxing an Int128 per coefficient in
+# the per-term loops (a `Union{Int128,Nothing}` return is heap-allocated).
+@inline function _ieee_int128_split(x::F)::Tuple{Bool,Int128} where {F<:_FastIEEE}
+    (isfinite(x) && isinteger(x)) || return (false, zero(Int128))
+    -ldexp(one(Float64), 127) <= x < ldexp(one(Float64), 127) || return (false, zero(Int128))
+    return (true, Int128(x))
 end
 
 function _round_down(::Type{T}, q::Rational{BigInt}) where {T<:AbstractFloat}
@@ -1627,7 +1652,7 @@ function _linear_square_certificate_int128(
     m > 10 || return nothing
 
     matched = 0
-    for (ω, c) in p
+    for (ω, c) in _term_slots(p)
         iszero(c) && continue
         k = length(ω)
         expected = if k == 0
@@ -1640,11 +1665,15 @@ function _linear_square_certificate_int128(
         else
             zero(Int128)
         end
-        ic = _ieee_int128(c)
-        (isnothing(ic) || ic != expected) && return (false, nothing)
+        ok_c, ic = _ieee_int128_split(c)
+        (!ok_c || ic != expected) && return (false, nothing)
         matched += 1
     end
-    nonzero_linear = count(ai -> !iszero(ai * (ai + 2 * a0)), values(a))
+    # Explicit loop: a closure capturing the reassigned `a0` would box it.
+    nonzero_linear = 0
+    for ai in values(a)
+        iszero(ai * (ai + 2 * a0)) || (nonzero_linear += 1)
+    end
     matched == (iszero(a0) ? 0 : 1) + nonzero_linear + m * (m - 1) ÷ 2 || return (false, nothing)
 
     g_r = abs(a0)
@@ -1684,7 +1713,7 @@ function _certify_constraint_penalty_rational(
     # For Float32/Float64 the exact rational copy exists iff every coefficient is
     # finite; build it only in the branches that still compare it.
     p_q = if T <: _FastIEEE
-        all(isfinite(c) for (_, c) in p) ||
+        all(isfinite(c) for (_, c) in _term_slots(p)) ||
             return nothing, "Constraint $(id) penalty coefficients are not finite in exact arithmetic"
         nothing
     else
@@ -2000,7 +2029,7 @@ function _verify_penalty_scaling_exact(
     if T <: _FastIEEE && coeff isa T
         # Same decisions as the loop below: c is non-finite exactly when its exact
         # rational is unavailable, and T(coeff) == coeff here.
-        for (_, c) in p
+        for (_, c) in _term_slots(p)
             isfinite(c) ||
                 return false, "Penalty polynomial coefficient on $(kind) $(id) is not finite"
             prod_t = coeff * c
@@ -2029,8 +2058,8 @@ function _verify_penalty_scaling_exact(
 end
 
 function _int128_accumulate!(H_exact::Dict{PBO.Term{VI},Int128}, ω, v::_FastIEEE)::Bool
-    iv = _ieee_int128(v)
-    isnothing(iv) && return false
+    ok_v, iv = _ieee_int128_split(v)
+    ok_v || return false
     total, overflow = Base.Checked.add_with_overflow(get(H_exact, ω, zero(Int128)), iv)
     overflow && return false
     H_exact[ω] = total
@@ -2051,14 +2080,41 @@ function _assembly_int128_section!(
         factor = factors[ref]
         ok_scale, scale_reason = _verify_penalty_scaling_exact(poly, factor, kind, ref.value)
         ok_scale || return (false, scale_reason)
-        for (ω, c) in poly
-            product = factor * c
-            H_float[ω] += product
-            # Scaling verification above proved this IEEE product is exact.
-            _int128_accumulate!(H_exact, ω, product) || return nothing
-        end
+        _assembly_int128_terms!(H_float, H_exact, poly, factor) || return nothing
     end
     return :ok
+end
+
+# Per-term kernel. `model.g/h/s` hold abstractly typed PBFs, so this call is the
+# barrier that lets the loop specialize on the concrete storage.
+function _assembly_int128_terms!(
+    H_float::PBO.PBF{VI,T},
+    H_exact::Dict{PBO.Term{VI},Int128},
+    poly::PBO.PBF,
+    factor::T,
+)::Bool where {T<:_FastIEEE}
+    for (ω, c) in _term_slots(poly)
+        product = factor * c
+        H_float[ω] += product
+        # Scaling verification proved this IEEE product is exact.
+        _int128_accumulate!(H_exact, ω, product) || return false
+    end
+    return true
+end
+
+# Objective part of the integral assembly check: `true`, `false` (non-finite
+# coefficient) or `nothing` (fall back to rational arithmetic).
+function _assembly_int128_objective!(
+    H_float::PBO.PBF{VI,T},
+    H_exact::Dict{PBO.Term{VI},Int128},
+    f::PBO.PBF,
+)::Union{Bool,Nothing} where {T<:_FastIEEE}
+    for (ω, c) in _term_slots(f)
+        isfinite(c) || return false
+        H_float[ω] += c
+        _int128_accumulate!(H_exact, ω, c) || return nothing
+    end
+    return true
 end
 
 # Integral fast path for `_verify_hamiltonian_assembly_exact`: identical loops,
@@ -2075,11 +2131,9 @@ function _verify_hamiltonian_assembly_int128(
     H_float = PBO.PBF{VI,T}()
     H_exact = Dict{PBO.Term{VI},Int128}()
 
-    for (ω, c) in model.f
-        isfinite(c) || return false, "Objective coefficient is not finite in exact arithmetic"
-        H_float[ω] += c
-        _int128_accumulate!(H_exact, ω, c) || return nothing
-    end
+    objective = _assembly_int128_objective!(H_float, H_exact, model.f)
+    isnothing(objective) && return nothing
+    objective || return false, "Objective coefficient is not finite in exact arithmetic"
 
     section = _assembly_int128_section!(H_float, H_exact, ρ_map, model.g, "constraint")
     section === :ok || return section
@@ -2090,12 +2144,12 @@ function _verify_hamiltonian_assembly_int128(
 
     # Same decision as _pbf_matches_exact_rational(H_float, H_exact).
     nonzero_terms = 0
-    for (ω, c) in H_float
+    for (ω, c) in _term_slots(H_float)
         isfinite(c) ||
             return false, "Assembled Hamiltonian coefficients lost precision in floating-point arithmetic"
         iszero(c) && continue
-        ic = _ieee_int128(c)
-        if isnothing(ic) || ic != get(H_exact, ω, zero(Int128))
+        ok_c, ic = _ieee_int128_split(c)
+        if !ok_c || ic != get(H_exact, ω, zero(Int128))
             return false, "Assembled Hamiltonian coefficients lost precision in floating-point arithmetic"
         end
         nonzero_terms += 1
@@ -2922,7 +2976,8 @@ function _flip_values(f::PBO.PBF{VI,T}) where {T}
     increase = Dict{VI,T}()
     decrease = Dict{VI,T}()
 
-    for (ω, c) in f
+    # Slot order equals PBF iteration order, so floating-point sums are unchanged.
+    for (ω, c) in _term_slots(f)
         isempty(ω) && continue
 
         if length(ω) == 1
@@ -2962,7 +3017,7 @@ function _objective_penalty_scan(f::PBO.PBF{VI,T}) where {T}
     max_coefficient = typemin(T)
     term_count = 0
 
-    for (ω, c) in f
+    for (ω, c) in _term_slots(f)
         isempty(ω) && continue
 
         term_count += 1
@@ -3084,7 +3139,7 @@ function _heuristic_penalty_factor(sign, λ, ϵ, scale, offset)
 end
 
 function _is_integer_valued(p::PBO.PBF)
-    for (_ω, coefficient) in p
+    for (_ω, coefficient) in _term_slots(p)
         isinteger(coefficient) || return false
     end
 
