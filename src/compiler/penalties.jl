@@ -1562,15 +1562,20 @@ function _certify_encoding_penalty_rational(
     end
 end
 
+# Returned in place of the exact squared piece when the integral certificate
+# already proved that the compiled penalty equals it (see `p_float`).
+struct _VerifiedSquarePiece end
+
 function _certify_scalar_inequality_piece_rational(
     model::Virtual.Model{T},
     f::Union{SAF{T},SQF{T},SNF},
     s::Union{LT{T},GT{T}},
     slack_var::Union{Virtual.Variable{T},Nothing},
     arch::AbstractArchitecture,
-    ci_id::Integer,
+    ci_id::Integer;
+    p_float::Union{PBO.PBF,Nothing} = nothing,
 )::Tuple{
-    Union{PBO.PBF{VI,Rational{BigInt}},Nothing},
+    Union{PBO.PBF{VI,Rational{BigInt}},_VerifiedSquarePiece,Nothing},
     Union{Rational{BigInt},Nothing},
     Union{String,Nothing},
 } where {T}
@@ -1612,6 +1617,19 @@ function _certify_scalar_inequality_piece_rational(
             "Constraint $(ci_id) slack expansion takes negative values"
         end
         r_aug_q = s isa LT{T} ? (r_disc_q + ξ_z_q) : (r_disc_q - ξ_z_q)
+        # With the compiled penalty `p_float`, the integral certificate proves
+        # `p_float == r_aug_q^2` and returns the same gap as below without
+        # building the exact square. Only a proven match short-circuits; every
+        # other outcome runs the exact computation, so reasons keep their order.
+        if !isnothing(p_float) && T <: _FastIEEE
+            fast = _linear_square_certificate_int128(p_float, r_aug_q)
+            if !isnothing(fast) && first(fast)
+                gap_q = last(fast)
+                isnothing(gap_q) &&
+                    return nothing, nothing, "Constraint $(ci_id) positive gap could not be certified"
+                return _VerifiedSquarePiece(), gap_q, nothing
+            end
+        end
         g_piece_q = r_aug_q^2
         g_r = _pbf_all_coeff_gcd(r_aug_q)
         gap_q = _certify_nonnegative_linear_or_square_gap(g_piece_q, g_r^2)
@@ -1811,9 +1829,9 @@ function _certify_constraint_penalty_rational(
             return nothing, "Unexpected slack variable count on constraint $(id)"
         slack_var = isempty(slack_vars) ? nothing : only(slack_vars)
         g_piece_q, min_pos_q, reason =
-            _certify_scalar_inequality_piece_rational(model, f, s, slack_var, arch, id)
+            _certify_scalar_inequality_piece_rational(model, f, s, slack_var, arch, id; p_float = p)
         isnothing(g_piece_q) && return nothing, reason
-        if p_exact() != g_piece_q
+        if !(g_piece_q isa _VerifiedSquarePiece) && p_exact() != g_piece_q
             return nothing,
             "Constraint $(id) inequality penalty polynomial was rounded in floating-point arithmetic"
         end
@@ -2117,17 +2135,67 @@ function _assembly_int128_objective!(
     return true
 end
 
-# Integral fast path for `_verify_hamiltonian_assembly_exact`: identical loops,
-# floating accumulation and scaling checks, but the exact Hamiltonian is kept as
-# Int128 sums (overflow-checked). Returns `nothing`, before any decision that the
-# rational path could make differently, when a value is non-integral or a sum
-# overflows; the caller then runs the unchanged rational verification.
+# Sufficient condition for exact floating-point assembly that needs no
+# materialized Hamiltonian. Every contribution (objective coefficient or penalty
+# product `factor * c`) must be an integral IEEE value. A PBF has unique terms,
+# so each Hamiltonian term ω receives at most one contribution from the
+# objective and at most one from each penalty polynomial; every partial sum for
+# ω is therefore bounded by B = max|f| + Σ_k max|factor_k * c| over the
+# assembled polynomials. If B ≤ 2^precision(T), every partial sum is an exactly
+# representable integer, so each `H[ω] += v` is exact and the floating-point
+# assembly equals the exact assembly of the same products term by term. The
+# scaling checks are the ones the assembly verification runs. `false` only
+# means "not established"; the caller then runs the per-term verification.
+function _assembly_exact_by_magnitude_bound(
+    model::Virtual.Model{T},
+    ρ_map::AbstractDict{<:CI,T},
+    θ_map::AbstractDict{VI,T},
+    η_map::AbstractDict{<:CI,T},
+)::Bool where {T<:_FastIEEE}
+    limit = Int128(1) << precision(T)
+    ok, total = _max_magnitude(model.f, nothing, limit)
+    ok || return false
+    for (factors, polys, kind) in ((ρ_map, model.g, "constraint"), (θ_map, model.h, "variable"), (η_map, model.s, "slack_variable"))
+        for (ref, poly) in polys
+            haskey(factors, ref) || continue
+            factor = factors[ref]
+            first(_verify_penalty_scaling_exact(poly, factor, kind, ref.value)) || return false
+            ok, m = _max_magnitude(poly, factor, limit)
+            ok || return false
+            total += m
+            total <= limit || return false
+        end
+    end
+    return true
+end
+
+# Largest |v| over the contributions of `p` (`v = c`, or `factor * c` as
+# assembled); `(false, 0)` when a value is not integral or exceeds `limit`.
+function _max_magnitude(p::PBO.PBF, factor, limit::Int128)::Tuple{Bool,Int128}
+    m = zero(Int128)
+    for (_, c) in _term_slots(p)
+        ok, iv = _ieee_int128_split(isnothing(factor) ? c : factor * c)
+        ok || return (false, zero(Int128))
+        -limit <= iv <= limit || return (false, zero(Int128))
+        m = max(m, abs(iv))
+    end
+    return (true, m)
+end
+
+# Integral fast path for `_verify_hamiltonian_assembly_exact`. It first tries the
+# magnitude bound; otherwise it runs identical loops, floating accumulation and
+# scaling checks, but keeps the exact Hamiltonian as overflow-checked Int128 sums.
+# Returns `nothing`, before any decision that the rational path could make
+# differently, when a value is non-integral or a sum overflows; the caller then
+# runs the unchanged rational verification.
 function _verify_hamiltonian_assembly_int128(
     model::Virtual.Model{T},
     ρ_map::AbstractDict{<:CI,T},
     θ_map::AbstractDict{VI,T},
     η_map::AbstractDict{<:CI,T},
 )::Union{Tuple{Bool,Union{String,Nothing}},Nothing} where {T<:_FastIEEE}
+    _assembly_exact_by_magnitude_bound(model, ρ_map, θ_map, η_map) && return (true, nothing)
+
     H_float = PBO.PBF{VI,T}()
     H_exact = Dict{PBO.Term{VI},Int128}()
 

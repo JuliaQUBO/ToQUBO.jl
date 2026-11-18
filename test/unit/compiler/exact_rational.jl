@@ -297,15 +297,37 @@ function test_compiler_exact_certification_fast_paths()
                 return m
             end
             outcomes = Dict{Any,Int}()
-            for T in (Float32, Float64), _ in 1:200
-                m = model_with(T; size = rand(rng, 1:30), scale = rand(rng, (10, 10^6, 2^40)),
+            bound_paths = Dict{Bool,Int}()
+            for T in (Float32, Float64), _ in 1:300
+                m = model_with(T; size = rand(rng, 1:30), scale = rand(rng, (10, 10^6, 2^40, 2^52)),
                     fractional = rand(rng) < 0.3, huge = rand(rng) < 0.1)
                 got = C._verify_hamiltonian_assembly_exact(m, m.ρ, m.θ, m.η)
-                @test got == _reference_hamiltonian_assembly(m, m.ρ, m.θ, m.η, T)
+                expected = _reference_hamiltonian_assembly(m, m.ρ, m.θ, m.η, T)
+                @test got == expected
                 outcomes[got] = get(outcomes, got, 0) + 1
+                # The magnitude bound may only ever certify assemblies the exact
+                # rational verification accepts.
+                bound = C._assembly_exact_by_magnitude_bound(m, m.ρ, m.θ, m.η)
+                bound && @test expected == (true, nothing)
+                bound_paths[bound] = get(bound_paths, bound, 0) + 1
             end
             @test length(outcomes) >= 2
             @test get(outcomes, (true, nothing), 0) >= 50
+            # Small integral models with integral factors: the bound must certify.
+            for T in (Float32, Float64), _ in 1:50
+                m = model_with(T; size = rand(rng, 1:30), scale = 10, fractional = false, huge = false)
+                for ci in keys(m.ρ)
+                    m.ρ[ci] = T(rand(rng, 1:25))
+                end
+                bound = C._assembly_exact_by_magnitude_bound(m, m.ρ, m.θ, m.η)
+                @test bound
+                @test _reference_hamiltonian_assembly(m, m.ρ, m.θ, m.η, T) == (true, nothing)
+                @test C._verify_hamiltonian_assembly_exact(m, m.ρ, m.θ, m.η) == (true, nothing)
+                bound_paths[bound] = get(bound_paths, bound, 0) + 1
+            end
+            # Both the bound and the per-term integral path are exercised.
+            @test get(bound_paths, true, 0) >= 100
+            @test get(bound_paths, false, 0) >= 50
         end
 
         @testset "Squared linear residual certificate" begin
@@ -348,6 +370,52 @@ function test_compiler_exact_certification_fast_paths()
                 end
             end
             @test hits > 300
+        end
+
+        @testset "Inequality slack piece certificate" begin
+            hits = 0
+            for trial in 1:40
+                n = rand(rng, 11:16)
+                jm = Model(ToQUBO.Optimizer)
+                @variable(jm, x[1:n], Bin)
+                a = rand(rng, 1:7, n)
+                rhs = rand(rng, 3:(sum(a) - 1))
+                if isodd(trial)
+                    @constraint(jm, sum(a[i] * x[i] for i in 1:n) <= rhs)
+                else
+                    @constraint(jm, sum(a[i] * x[i] for i in 1:n) >= rhs)
+                end
+                @objective(jm, Min, sum(x))
+                optimize!(jm)
+                vm = unsafe_backend(jm)
+                arch = MOI.get(vm, Attributes.Architecture())
+                for (ci, p) in vm.g
+                    s = MOI.get(vm, MOI.ConstraintSet(), ci)
+                    s isa Union{MOI.LessThan{Float64},MOI.GreaterThan{Float64}} || continue
+                    f = MOI.get(vm, MOI.ConstraintFunction(), ci)
+                    slack = [v for v in vm.variables if ToQUBO.Virtual.source(v) == ci]
+                    length(slack) == 1 || continue
+                    exact = C._certify_scalar_inequality_piece_rational(vm, f, s, only(slack), arch, ci.value)
+                    fast = C._certify_scalar_inequality_piece_rational(vm, f, s, only(slack), arch, ci.value; p_float = p)
+                    if fast[1] isa C._VerifiedSquarePiece
+                        hits += 1
+                        # The proven piece is the exact square the caller compares against.
+                        @test exact[1] isa PBO.PBF && C._pbf_to_rational(p) == exact[1]
+                        @test fast[2] == exact[2]
+                        @test fast[3] === exact[3] === nothing
+                    else
+                        @test isequal(fast, exact)
+                    end
+                    # A perturbed compiled penalty must never be accepted as the square.
+                    q = copy(p)
+                    ω = first(ω for (ω, c) in q if length(ω) == 2)
+                    q[ω] = nextfloat(q[ω])
+                    perturbed = C._certify_scalar_inequality_piece_rational(vm, f, s, only(slack), arch, ci.value; p_float = q)
+                    @test !(perturbed[1] isa C._VerifiedSquarePiece)
+                    @test isequal(perturbed, exact)
+                end
+            end
+            @test hits >= 20
         end
     end
 end
