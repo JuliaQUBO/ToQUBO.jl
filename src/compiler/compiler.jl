@@ -37,6 +37,7 @@ include("setup.jl")
 include("variables.jl")
 include("objective.jl")
 include("constraints.jl")
+include("order.jl")
 include("penalties.jl")
 include("build.jl")
 

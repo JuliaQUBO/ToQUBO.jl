@@ -1355,7 +1355,9 @@ function constraint(
             ξ = Virtual.expansion(vi)
             a = ξ[nothing]
 
-            ω, c = argmin(p -> abs(last(p) + a), ξ)
+            # Smallest |c + a|; ties broken by the term's variable indices, not by
+            # the expansion's hash order.
+            ω, c = argmin(p -> (abs(last(p) + a), _term_order_key(first(p))), collect(ξ))
 
             if !((c + a) ≈ zero(T))
                 @warn "Variable $(xi) is always non-zero"

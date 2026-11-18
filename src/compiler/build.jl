@@ -37,17 +37,17 @@ function objective_function(model::Virtual.Model{T}, ::AbstractArchitecture) whe
     # floating-point accumulation below happens in the same order as before.
     _accumulate_scaled!(model.H, model.f, nothing)
 
-    for (ci, g) in model.g
+    for (ci, g) in _ordered_pairs(model.g)
         ρ = MOI.get(model, Attributes.ConstraintEncodingPenalty(), ci)
         _accumulate_scaled!(model.H, g, ρ)
     end
 
-    for (vi, h) in model.h
+    for (vi, h) in _ordered_pairs(model.h)
         θ = MOI.get(model, Attributes.VariableEncodingPenalty(), vi)
         _accumulate_scaled!(model.H, h, θ)
     end
 
-    for (ci, s) in model.s
+    for (ci, s) in _ordered_pairs(model.s)
         η = MOI.get(model, Attributes.SlackVariableEncodingPenalty(), ci)
         _accumulate_scaled!(model.H, s, η)
     end
