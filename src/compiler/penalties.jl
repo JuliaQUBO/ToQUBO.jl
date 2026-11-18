@@ -33,6 +33,32 @@ function _exact_rational(x)::Union{Rational{BigInt},Nothing}
     end
 end
 
+# Exact-arithmetic shortcuts. Each returns `nothing` whenever it does not apply,
+# and callers then use the unchanged Rational{BigInt} path, so every certification
+# decision and reason is identical; only the arithmetic used to reach it changes.
+const _FastIEEE = Union{Float32,Float64}
+
+# For finite x, y and p = fl(x * y), the rounding error x * y - p is exactly
+# representable and fma(x, y, -p) returns it whenever |x * y| stays well above the
+# underflow range (the exponent sum is then large enough for the error term).
+# The product is exact iff that error is zero. Products near underflow fall back.
+_fma_exact_floor(::Type{F}) where {F<:_FastIEEE} = ldexp(one(F), exponent(floatmin(F)) + 2 * precision(F))
+
+function _ieee_product_is_exact(x::F, y::F, p::F)::Union{Bool,Nothing} where {F<:_FastIEEE}
+    (isfinite(x) && isfinite(y)) || return nothing
+    isfinite(p) || return false
+    iszero(p) && return iszero(x) || iszero(y)
+    abs(p) >= _fma_exact_floor(F) || return nothing
+    return iszero(fma(x, y, -p))
+end
+
+# Exact Int128 image of an integral IEEE value, or `nothing`.
+function _ieee_int128(x::F)::Union{Int128,Nothing} where {F<:_FastIEEE}
+    (isfinite(x) && isinteger(x)) || return nothing
+    -ldexp(one(Float64), 127) <= x < ldexp(one(Float64), 127) || return nothing
+    return Int128(x)
+end
+
 function _round_down(::Type{T}, q::Rational{BigInt}) where {T<:AbstractFloat}
     x = T(q)
     isfinite(x) || return x
@@ -1570,6 +1596,79 @@ function _certify_scalar_inequality_piece_rational(
     end
 end
 
+# Integral certificate for a squared linear residual. For r = a0 + sum(a_i x_i)
+# over binary x, PBO's r^2 (f * f with f === g) has constant a0^2, linear
+# a_i^2 + 2 a0 a_i and pair 2 a_i a_j coefficients, with zero entries dropped.
+# Returns `nothing` when the shortcut does not apply (non-integral or large
+# coefficients, non-linear residual, at most 10 variables where the gap is
+# enumerated); otherwise (p == r^2 exactly, certified gap or nothing), matching
+# `p_q != r_q^2` and `_certify_nonnegative_linear_or_square_gap(r_q^2, gcd(r_q)^2)`.
+function _linear_square_certificate_int128(
+    p::PBO.PBF{VI,F},
+    r_q::PBO.PBF{VI,Rational{BigInt}},
+)::Union{Tuple{Bool,Union{Rational{BigInt},Nothing}},Nothing} where {F<:_FastIEEE}
+    bound = big(2)^62
+    a0 = zero(Int128)
+    a = Dict{VI,Int128}()
+    for (ω, c) in r_q
+        isone(denominator(c)) || return nothing
+        n = numerator(c)
+        abs(n) < bound || return nothing
+        k = length(ω)
+        if k == 0
+            a0 = Int128(n)
+        elseif k == 1
+            a[ω.ω[1]] = Int128(n)
+        else
+            return nothing
+        end
+    end
+    m = length(a)
+    m > 10 || return nothing
+
+    matched = 0
+    for (ω, c) in p
+        iszero(c) && continue
+        k = length(ω)
+        expected = if k == 0
+            a0 * a0
+        elseif k == 1
+            ai = get(a, ω.ω[1], zero(Int128))
+            ai * ai + 2 * a0 * ai
+        elseif k == 2
+            2 * get(a, ω.ω[1], zero(Int128)) * get(a, ω.ω[2], zero(Int128))
+        else
+            zero(Int128)
+        end
+        ic = _ieee_int128(c)
+        (isnothing(ic) || ic != expected) && return (false, nothing)
+        matched += 1
+    end
+    nonzero_linear = count(ai -> !iszero(ai * (ai + 2 * a0)), values(a))
+    matched == (iszero(a0) ? 0 : 1) + nonzero_linear + m * (m - 1) ÷ 2 || return (false, nothing)
+
+    g_r = abs(a0)
+    for ai in values(a)
+        g_r = gcd(g_r, ai)
+    end
+    g_all = iszero(a0) ? zero(Int128) : a0 * a0
+    for ai in values(a)
+        g_all = gcd(g_all, ai * (ai + 2 * a0))
+    end
+    if !isone(g_all)
+        vals = collect(values(a))
+        for i = 1:m
+            for j = (i+1):m
+                g_all = gcd(g_all, 2 * vals[i] * vals[j])
+                isone(g_all) && break
+            end
+            isone(g_all) && break
+        end
+    end
+    certified = max(g_r * g_r, g_all)
+    return (true, certified > 0 ? Rational{BigInt}(certified) : nothing)
+end
+
 function _certify_constraint_penalty_rational(
     model::Virtual.Model{T},
     ci::CI,
@@ -1582,9 +1681,18 @@ function _certify_constraint_penalty_rational(
         return nothing, "Constraint $(id) uses non-exact penalty method $(nameof(typeof(method)))"
     end
 
-    p_q = _pbf_to_rational(p)
-    isnothing(p_q) &&
+    # For Float32/Float64 the exact rational copy exists iff every coefficient is
+    # finite; build it only in the branches that still compare it.
+    p_q = if T <: _FastIEEE
+        all(isfinite(c) for (_, c) in p) ||
+            return nothing, "Constraint $(id) penalty coefficients are not finite in exact arithmetic"
+        nothing
+    else
+        _pbf_to_rational(p)
+    end
+    isnothing(p_q) && !(T <: _FastIEEE) &&
         return nothing, "Constraint $(id) penalty coefficients are not finite in exact arithmetic"
+    p_exact() = isnothing(p_q) ? (p_q = _pbf_to_rational(p)::PBO.PBF{VI,Rational{BigInt}}) : p_q
 
     f = MOI.get(model.source_model, MOI.ConstraintFunction(), ci)
     s = MOI.get(model.source_model, MOI.ConstraintSet(), ci)
@@ -1606,7 +1714,7 @@ function _certify_constraint_penalty_rational(
         if f isa Union{SQF{T},SNF} && !_is_nonnegative(g_disc) &&
            !isnothing(_boolean_logic_gadget_penalty(model, f, g_disc))
             vars = sort!(
-                collect(union(PBO.variables(p_q), PBO.variables(r_raw_q)));
+                collect(union(PBO.variables(p_exact()), PBO.variables(r_raw_q)));
                 by = v -> v.value,
             )
             length(vars) <= 10 ||
@@ -1617,7 +1725,7 @@ function _certify_constraint_penalty_rational(
                 for i = 1:length(vars)
                     state[vars[i]] = (mask >> (i - 1)) & 1
                 end
-                pv = _eval_pbf_rational(p_q, state)
+                pv = _eval_pbf_rational(p_exact(), state)
                 rv = _eval_pbf_rational(r_raw_q, state)
                 (isnothing(pv) || isnothing(rv)) &&
                     return nothing, "Constraint $(id) gadget evaluation failed"
@@ -1633,7 +1741,7 @@ function _certify_constraint_penalty_rational(
                 return nothing, "Constraint $(id) gadget penalty has no positive violation gap"
             return min_pos_q, nothing
         elseif _is_nonnegative(g_disc)
-            if p_q != r_disc_q
+            if p_exact() != r_disc_q
                 return nothing,
                 "Constraint $(id) penalty polynomial was rounded in floating-point arithmetic"
             end
@@ -1648,8 +1756,17 @@ function _certify_constraint_penalty_rational(
                 return nothing, "Constraint $(id) positive gap could not be certified"
             return min_pos_q, nothing
         else
+            fast = T <: _FastIEEE ? _linear_square_certificate_int128(p, r_disc_q) : nothing
+            if !isnothing(fast)
+                matches, min_pos_q = fast
+                matches || return nothing,
+                "Constraint $(id) squared penalty polynomial was rounded in floating-point arithmetic and does not preserve the exact constraint zero set"
+                isnothing(min_pos_q) &&
+                    return nothing, "Constraint $(id) positive gap could not be certified"
+                return min_pos_q, nothing
+            end
             g_exact_q = r_disc_q^2
-            if p_q != g_exact_q
+            if p_exact() != g_exact_q
                 return nothing,
                 "Constraint $(id) squared penalty polynomial was rounded in floating-point arithmetic and does not preserve the exact constraint zero set"
             end
@@ -1667,7 +1784,7 @@ function _certify_constraint_penalty_rational(
         g_piece_q, min_pos_q, reason =
             _certify_scalar_inequality_piece_rational(model, f, s, slack_var, arch, id)
         isnothing(g_piece_q) && return nothing, reason
-        if p_q != g_piece_q
+        if p_exact() != g_piece_q
             return nothing,
             "Constraint $(id) inequality penalty polynomial was rounded in floating-point arithmetic"
         end
@@ -1739,7 +1856,7 @@ function _certify_constraint_penalty_rational(
             end
         end
 
-        if p_q != g_total_q
+        if p_exact() != g_total_q
             return nothing,
             "Constraint $(id) interval penalty polynomial was rounded in floating-point arithmetic"
         end
@@ -1880,6 +1997,23 @@ function _verify_penalty_scaling_exact(
     (isnothing(coeff) || !isfinite(coeff) || isnothing(coeff_q)) &&
         return false, "Applied penalty on $(kind) $(id) is not finite in exact arithmetic"
 
+    if T <: _FastIEEE && coeff isa T
+        # Same decisions as the loop below: c is non-finite exactly when its exact
+        # rational is unavailable, and T(coeff) == coeff here.
+        for (_, c) in p
+            isfinite(c) ||
+                return false, "Penalty polynomial coefficient on $(kind) $(id) is not finite"
+            prod_t = coeff * c
+            exact = _ieee_product_is_exact(coeff, c, prod_t)
+            if isnothing(exact)
+                exact = isfinite(prod_t) && _exact_rational(prod_t) == coeff_q * _exact_rational(c)
+            end
+            exact || return false,
+            "Scaled penalty term on $(kind) $(id) lost precision or overflowed in floating-point arithmetic"
+        end
+        return true, nothing
+    end
+
     for (_, c) in p
         cq = _exact_rational(c)
         isnothing(cq) &&
@@ -1894,6 +2028,84 @@ function _verify_penalty_scaling_exact(
     return true, nothing
 end
 
+function _int128_accumulate!(H_exact::Dict{PBO.Term{VI},Int128}, ω, v::_FastIEEE)::Bool
+    iv = _ieee_int128(v)
+    isnothing(iv) && return false
+    total, overflow = Base.Checked.add_with_overflow(get(H_exact, ω, zero(Int128)), iv)
+    overflow && return false
+    H_exact[ω] = total
+    return true
+end
+
+# One penalty family of the integral assembly check (function barrier keeps the
+# per-term loop concrete). Returns :ok, `nothing` (fall back) or (false, reason).
+function _assembly_int128_section!(
+    H_float::PBO.PBF{VI,T},
+    H_exact::Dict{PBO.Term{VI},Int128},
+    factors::AbstractDict,
+    polys::AbstractDict,
+    kind::String,
+) where {T<:_FastIEEE}
+    for (ref, poly) in polys
+        haskey(factors, ref) || continue
+        factor = factors[ref]
+        ok_scale, scale_reason = _verify_penalty_scaling_exact(poly, factor, kind, ref.value)
+        ok_scale || return (false, scale_reason)
+        for (ω, c) in poly
+            product = factor * c
+            H_float[ω] += product
+            # Scaling verification above proved this IEEE product is exact.
+            _int128_accumulate!(H_exact, ω, product) || return nothing
+        end
+    end
+    return :ok
+end
+
+# Integral fast path for `_verify_hamiltonian_assembly_exact`: identical loops,
+# floating accumulation and scaling checks, but the exact Hamiltonian is kept as
+# Int128 sums (overflow-checked). Returns `nothing`, before any decision that the
+# rational path could make differently, when a value is non-integral or a sum
+# overflows; the caller then runs the unchanged rational verification.
+function _verify_hamiltonian_assembly_int128(
+    model::Virtual.Model{T},
+    ρ_map::AbstractDict{<:CI,T},
+    θ_map::AbstractDict{VI,T},
+    η_map::AbstractDict{<:CI,T},
+)::Union{Tuple{Bool,Union{String,Nothing}},Nothing} where {T<:_FastIEEE}
+    H_float = PBO.PBF{VI,T}()
+    H_exact = Dict{PBO.Term{VI},Int128}()
+
+    for (ω, c) in model.f
+        isfinite(c) || return false, "Objective coefficient is not finite in exact arithmetic"
+        H_float[ω] += c
+        _int128_accumulate!(H_exact, ω, c) || return nothing
+    end
+
+    section = _assembly_int128_section!(H_float, H_exact, ρ_map, model.g, "constraint")
+    section === :ok || return section
+    section = _assembly_int128_section!(H_float, H_exact, θ_map, model.h, "variable")
+    section === :ok || return section
+    section = _assembly_int128_section!(H_float, H_exact, η_map, model.s, "slack_variable")
+    section === :ok || return section
+
+    # Same decision as _pbf_matches_exact_rational(H_float, H_exact).
+    nonzero_terms = 0
+    for (ω, c) in H_float
+        isfinite(c) ||
+            return false, "Assembled Hamiltonian coefficients lost precision in floating-point arithmetic"
+        iszero(c) && continue
+        ic = _ieee_int128(c)
+        if isnothing(ic) || ic != get(H_exact, ω, zero(Int128))
+            return false, "Assembled Hamiltonian coefficients lost precision in floating-point arithmetic"
+        end
+        nonzero_terms += 1
+    end
+    nonzero_terms == count(!iszero, values(H_exact)) ||
+        return false, "Assembled Hamiltonian coefficients lost precision in floating-point arithmetic"
+
+    return true, nothing
+end
+
 function _verify_hamiltonian_assembly_exact(
     model::Virtual.Model{T},
     ρ_map::AbstractDict{<:CI,T},
@@ -1902,6 +2114,11 @@ function _verify_hamiltonian_assembly_exact(
 )::Tuple{Bool,Union{String,Nothing}} where {T}
     obj_ok, obj_reason = _verify_objective_exact_rational(model)
     obj_ok || return false, obj_reason
+
+    if T <: _FastIEEE
+        fast = _verify_hamiltonian_assembly_int128(model, ρ_map, θ_map, η_map)
+        isnothing(fast) || return fast
+    end
 
     H_float = PBO.PBF{VI,T}()
     H_exact = PBO.PBF{VI,Rational{BigInt}}()
