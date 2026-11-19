@@ -1,5 +1,12 @@
 # Release Notes
 
+## v0.8.2 - 2026-11-19
+
+### Changelog
+
+- Reduce allocation in exact penalty certification and Hamiltonian assembly. Floating-point inputs outside the fast paths retain rational certification. In single shared-host observations on the QOBLIB Birkhoff D6 model, the candidate compiled in approximately 352 s on Julia 1.10 and 224 s on Julia 1.13, compared with 9,456 s in the previous run. The audited canonical graph SHA was unchanged.
+- Traverse constraint and variable maps in a deterministic order when assembling and certifying the Hamiltonian and when recording penalty policy metadata. This stabilizes inferred constraint penalty order against changes in hash iteration. Floating-point arithmetic within a pseudo-Boolean function, MOI objective-term order, metadata type strings, JSON object key order, higher-order quadratization, and handling of conflicting incumbent aliases can still vary. See #275 for the remaining cases.
+
 ## v0.8.1 - 2026-11-15
 
 ### Changelog
