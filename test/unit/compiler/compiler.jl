@@ -24,6 +24,7 @@ function test_compiler()
         test_compiler_exact_rational_conversion()
         test_compiler_streaming_exact_polynomial_comparison()
         test_compiler_exact_assembly_arithmetic()
+        test_compiler_exact_certification_fast_paths()
         test_compiler_nonlinear()
     end
 
