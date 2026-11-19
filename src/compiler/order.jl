@@ -67,4 +67,4 @@ function _ordered_pairs(d::AbstractDict)
 end
 
 # Deterministic key of a pseudo-Boolean term: its variable indices.
-_term_order_key(ω::PBO.Term) = [v.value for v in ω.ω]
+_term_order_key(ω::PBO.Term) = Int[v.value for v in ω.ω]

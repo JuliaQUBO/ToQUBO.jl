@@ -119,6 +119,31 @@ function test_compiler_traversal_order()
                   (false, "Assembled Hamiltonian coefficients lost precision in floating-point arithmetic")
         end
 
+        @testset "SOS1 ties ignore expansion order" begin
+            model = ToQUBO.Virtual.Model{Float64}()
+            arch = QUBOTools.GenericArchitecture()
+            x = MOI.add_variable(model.source_model)
+            f = MOI.VectorOfVariables([x])
+            s = MOI.SOS1([1.0])
+            ci = MOI.add_constraint(model.source_model, f, s)
+            v = ToQUBO.Encoding.encode!(model, x, ToQUBO.Encoding.OneHot(), [-1.0, 1.0])
+            y = ToQUBO.Virtual.target(v)
+            expansion = ToQUBO.Virtual.expansion(v)
+
+            # Both coefficients have the same magnitude, so the lower target index wins.
+            first_penalty = @test_logs (:warn, r"always non-zero") ToQUBO.Compiler.constraint(
+                model, ci, f, s, arch,
+            )
+            @test _rehash_differently!(PBO.data(expansion))
+            second_penalty = @test_logs (:warn, r"always non-zero") ToQUBO.Compiler.constraint(
+                model, ci, f, s, arch,
+            )
+            for penalty in (first_penalty, second_penalty)
+                @test penalty[y[1]] == -1.0
+                @test iszero(penalty[y[2]])
+            end
+        end
+
         @testset "Penalty metadata and Hamiltonian do not depend on Dict order" begin
             model = ToQUBO.Optimizer{Float64}()
             x = MOI.add_variables(model, 5)
