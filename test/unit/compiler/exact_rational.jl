@@ -330,7 +330,30 @@ function test_compiler_exact_certification_fast_paths()
             @test get(bound_paths, false, 0) >= 50
         end
 
+        @testset "Hamiltonian assembly rejects an unset penalty factor" begin
+            model = ToQUBO.Optimizer{Float64}()
+            arch = QUBOTools.GenericArchitecture()
+            ci = MOI.ConstraintIndex{MOI.ScalarAffineFunction{Float64},MOI.EqualTo{Float64}}(1)
+            model.g[ci] = PBO.PBF{V,Float64}(V(1) => 2.0)
+            @test isnothing(MOI.get(model, Attributes.ConstraintEncodingPenalty(), ci))
+            @test_throws MethodError C.objective_function(model, arch)
+
+            model.ρ[ci] = 3.0
+            model.f[V(1)] = 7.0
+            @test C.objective_function(model, arch) === nothing
+            @test model.H[V(1)] == 13.0
+        end
+
         @testset "Squared linear residual certificate" begin
+            r = PBO.PBF{V,R}(V(i) => one(R) for i in 1:11)
+            r[nothing] = -1
+            square = r^2
+            p = PBO.PBF{V,Float64}(Dict(ω => Float64(c) for (ω, c) in square))
+            PBO.data(r)[PBO.Term([V(12)])] = zero(R)
+            @test C._linear_square_certificate_int128(p, r) == (true, R(1))
+            PBO.data(r)[PBO.Term([V(12), V(13)])] = zero(R)
+            @test C._linear_square_certificate_int128(p, r) == (true, R(1))
+
             hits = 0
             for _ in 1:300
                 k = rand(rng, (5, 11, 12, 30, 80))
@@ -397,6 +420,9 @@ function test_compiler_exact_certification_fast_paths()
                     length(slack) == 1 || continue
                     exact = C._certify_scalar_inequality_piece_rational(vm, f, s, only(slack), arch, ci.value)
                     fast = C._certify_scalar_inequality_piece_rational(vm, f, s, only(slack), arch, ci.value; p_float = p)
+                    rational = C._certify_scalar_inequality_piece_rational(
+                        vm, f, s, only(slack), arch, ci.value; p_float = C._pbf_to_rational(p))
+                    @test isequal(rational, exact)
                     if fast[1] isa C._VerifiedSquarePiece
                         hits += 1
                         # The proven piece is the exact square the caller compares against.
