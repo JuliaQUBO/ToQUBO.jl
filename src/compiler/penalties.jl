@@ -1621,7 +1621,7 @@ function _certify_scalar_inequality_piece_rational(
         # `p_float == r_aug_q^2` and returns the same gap as below without
         # building the exact square. Only a proven match short-circuits; every
         # other outcome runs the exact computation, so reasons keep their order.
-        if !isnothing(p_float) && T <: _FastIEEE
+        if T <: _FastIEEE && p_float isa PBO.PBF{VI,<:_FastIEEE}
             fast = _linear_square_certificate_int128(p_float, r_aug_q)
             if !isnothing(fast) && first(fast)
                 gap_q = last(fast)
@@ -1654,6 +1654,7 @@ function _linear_square_certificate_int128(
     a0 = zero(Int128)
     a = Dict{VI,Int128}()
     for (ω, c) in r_q
+        iszero(c) && continue
         isone(denominator(c)) || return nothing
         n = numerator(c)
         abs(n) < bound || return nothing

@@ -11,11 +11,18 @@ function build!(model::Virtual.Model{T}, arch::AbstractArchitecture) where {T}
     return nothing
 end
 
-# Function barrier: concrete per-PBF loop. `factor === nothing` adds coefficients
-# unscaled (the objective), exactly as `H[ω] += c`; otherwise `H[ω] += factor * c`.
+# Concrete per-PBF loops keep objective coefficients unscaled and preserve
+# multiplication for every stored penalty term.
+function _accumulate_unscaled!(H::PBO.PBF, p::PBO.PBF)
+    for (ω, c) in _term_slots(p)
+        H[ω] += c
+    end
+    return H
+end
+
 function _accumulate_scaled!(H::PBO.PBF, p::PBO.PBF, factor)
     for (ω, c) in _term_slots(p)
-        H[ω] += isnothing(factor) ? c : factor * c
+        H[ω] += factor * c
     end
     return H
 end
@@ -35,7 +42,7 @@ function objective_function(model::Virtual.Model{T}, ::AbstractArchitecture) whe
 
     # `_term_slots` visits terms in the PBFs' own iteration order, so every
     # floating-point accumulation below happens in the same order as before.
-    _accumulate_scaled!(model.H, model.f, nothing)
+    _accumulate_unscaled!(model.H, model.f)
 
     for (ci, g) in _ordered_pairs(model.g)
         ρ = MOI.get(model, Attributes.ConstraintEncodingPenalty(), ci)
