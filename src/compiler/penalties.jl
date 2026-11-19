@@ -999,7 +999,7 @@ function _lift_candidate_assignment(
     cand_q::Dict{VI,Rational{BigInt}},
     arch::AbstractArchitecture,
 )::Tuple{Union{Dict{VI,Int},Nothing},Bool,Bool,Union{String,Nothing}} where {T}
-    for (ci, _) in model.g
+    for (ci, _) in _ordered_pairs(model.g)
         method = Attributes.constraint_encoding_method(model, ci)
         if !(method isa Attributes.QuadraticPenalty)
             return nothing,
@@ -1088,7 +1088,7 @@ function _lift_candidate_assignment(
         end
     end
 
-    for (vi, h) in model.h
+    for (vi, h) in _ordered_pairs(model.h)
         if _eval_pbf_rational(h, y_inc) != 0
             return nothing,
             true,
@@ -1097,7 +1097,7 @@ function _lift_candidate_assignment(
         end
     end
 
-    for (ci, s) in model.s
+    for (ci, s) in _ordered_pairs(model.s)
         if _eval_pbf_rational(s, y_inc) != 0
             return nothing,
             true,
@@ -1106,7 +1106,7 @@ function _lift_candidate_assignment(
         end
     end
 
-    for (ci, g) in model.g
+    for (ci, g) in _ordered_pairs(model.g)
         if _eval_pbf_rational(g, y_inc) != 0
             return nothing,
             true,
@@ -2094,7 +2094,7 @@ function _assembly_int128_section!(
     polys::AbstractDict,
     kind::String,
 ) where {T<:_FastIEEE}
-    for (ref, poly) in polys
+    for (ref, poly) in _ordered_pairs(polys)
         haskey(factors, ref) || continue
         factor = factors[ref]
         ok_scale, scale_reason = _verify_penalty_scaling_exact(poly, factor, kind, ref.value)
@@ -2156,6 +2156,7 @@ function _assembly_exact_by_magnitude_bound(
     limit = Int128(1) << precision(T)
     ok, total = _max_magnitude(model.f, nothing, limit)
     ok || return false
+    # Order-independent: the result depends only on the sum of the maxima.
     for (factors, polys, kind) in ((ρ_map, model.g, "constraint"), (θ_map, model.h, "variable"), (η_map, model.s, "slack_variable"))
         for (ref, poly) in polys
             haskey(factors, ref) || continue
@@ -2253,7 +2254,7 @@ function _verify_hamiltonian_assembly_exact(
         H_exact[ω] += cq
     end
 
-    for (ci, g) in model.g
+    for (ci, g) in _ordered_pairs(model.g)
         haskey(ρ_map, ci) || continue
         ρ = ρ_map[ci]
         ok_scale, scale_reason = _verify_penalty_scaling_exact(g, ρ, "constraint", ci.value)
@@ -2273,7 +2274,7 @@ function _verify_hamiltonian_assembly_exact(
         end
     end
 
-    for (vi, h) in model.h
+    for (vi, h) in _ordered_pairs(model.h)
         haskey(θ_map, vi) || continue
         θ = θ_map[vi]
         ok_scale, scale_reason = _verify_penalty_scaling_exact(h, θ, "variable", vi.value)
@@ -2293,7 +2294,7 @@ function _verify_hamiltonian_assembly_exact(
         end
     end
 
-    for (ci, s) in model.s
+    for (ci, s) in _ordered_pairs(model.s)
         haskey(η_map, ci) || continue
         η = η_map[ci]
         ok_scale, scale_reason = _verify_penalty_scaling_exact(s, η, "slack_variable", ci.value)
@@ -2427,14 +2428,15 @@ function _verify_variable_constraint_enforced_rational(
         else
             sos_sv = nothing
             sos_ci = nothing
-            for (ci_cand, _) in model.g
-                sv_cand = get(model.slack, ci_cand, nothing)
-                if !isnothing(sv_cand) &&
+            # First match in traversal order (see order.jl), found in one pass over
+            # the constraints that own a slack variable.
+            for (ci_cand, sv_cand) in model.slack
+                if haskey(model.g, ci_cand) &&
                    Virtual.encoding(sv_cand) isa Encoding.DomainWall &&
-                   issubset(PBO.variables(ξ_q), Virtual.target(sv_cand))
+                   issubset(PBO.variables(ξ_q), Virtual.target(sv_cand)) &&
+                   (isnothing(sos_ci) || _traversal_key(ci_cand) < _traversal_key(sos_ci))
                     sos_sv = sv_cand
                     sos_ci = ci_cand
-                    break
                 end
             end
             (isnothing(sos_sv) || isnothing(sos_ci)) &&
@@ -2639,7 +2641,7 @@ function _verify_stored_coefficients_can_establish_bound(
     η_cand_map = Dict{CI,T}()
     check_assembly_in_precheck = true
 
-    for (ci, g) in model.g
+    for (ci, g) in _ordered_pairs(model.g)
         ϵ, _ = _positive_penalty_gap(g)
         ϵ_q, reason = _certify_penalty_function_rational(model, "constraint", ci, g, ϵ, arch)
         isnothing(ϵ_q) && return false, reason
@@ -2672,7 +2674,7 @@ function _verify_stored_coefficients_can_establish_bound(
         end
     end
 
-    for (vi, h) in model.h
+    for (vi, h) in _ordered_pairs(model.h)
         ϵ, _ = _positive_penalty_gap(h)
         ϵ_q, reason = _certify_penalty_function_rational(model, "variable", vi, h, ϵ, arch)
         isnothing(ϵ_q) && return false, reason
@@ -2705,7 +2707,7 @@ function _verify_stored_coefficients_can_establish_bound(
         end
     end
 
-    for (ci, s) in model.s
+    for (ci, s) in _ordered_pairs(model.s)
         ϵ, _ = _positive_penalty_gap(s)
         ϵ_q, reason =
             _certify_penalty_function_rational(model, "slack_variable", ci, s, ϵ, arch)
@@ -3489,7 +3491,7 @@ function _finalize_sufficient_bound_metadata!(
         end
     end
 
-    for (ci, g) in sort!(collect(model.g); by = kv -> kv[1].value)
+    for (ci, g) in _ordered_pairs(model.g)
         ρ = MOI.get(model, Attributes.ConstraintEncodingPenalty(), ci)
         has_hint = !isnothing(Attributes.constraint_encoding_penalty_hint(model, ci))
         scale = Attributes.constraint_penalty_scale(model, ci)
@@ -3522,7 +3524,7 @@ function _finalize_sufficient_bound_metadata!(
         end
     end
 
-    for (vi, h) in sort!(collect(model.h); by = kv -> kv[1].value)
+    for (vi, h) in _ordered_pairs(model.h)
         θ = MOI.get(model, Attributes.VariableEncodingPenalty(), vi)
         has_hint = !isnothing(Attributes.variable_encoding_penalty_hint(model, vi))
         scale = Attributes.penalty_scale(model)
@@ -3550,7 +3552,7 @@ function _finalize_sufficient_bound_metadata!(
         end
     end
 
-    for (ci, s) in sort!(collect(model.s); by = kv -> kv[1].value)
+    for (ci, s) in _ordered_pairs(model.s)
         η = MOI.get(model, Attributes.SlackVariableEncodingPenalty(), ci)
         has_hint = !isnothing(Attributes.slack_variable_encoding_penalty_hint(model, ci))
         scale = Attributes.constraint_penalty_scale(model, ci)
@@ -3630,7 +3632,7 @@ function penalties!(model::Virtual.Model{T}, arch::AbstractArchitecture) where {
     scan = _objective_penalty_scan(model.f)
     context = _penalty_context(model, arch)
 
-    for (ci, g) in model.g
+    for (ci, g) in _ordered_pairs(model.g)
         ρ = Attributes.constraint_encoding_penalty_hint(model, ci)
 
         if isnothing(ρ)
@@ -3686,7 +3688,7 @@ function penalties!(model::Virtual.Model{T}, arch::AbstractArchitecture) where {
         MOI.set(model, Attributes.ConstraintEncodingPenalty(), ci, ρ)
     end
 
-    for (vi, h) in model.h
+    for (vi, h) in _ordered_pairs(model.h)
         θ = Attributes.variable_encoding_penalty_hint(model, vi)
 
         if isnothing(θ)
@@ -3709,7 +3711,7 @@ function penalties!(model::Virtual.Model{T}, arch::AbstractArchitecture) where {
         MOI.set(model, Attributes.VariableEncodingPenalty(), vi, θ)
     end
 
-    for (ci, s) in model.s
+    for (ci, s) in _ordered_pairs(model.s)
         η = Attributes.slack_variable_encoding_penalty_hint(model, ci)
 
         if isnothing(η)

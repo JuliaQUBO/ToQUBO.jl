@@ -195,7 +195,9 @@ function _reference_hamiltonian_assembly(model, ρ_map, θ_map, η_map, T)
         H_exact[ω] += cq
     end
     for (maps, polys, kind) in ((ρ_map, model.g, "constraint"), (θ_map, model.h, "variable"), (η_map, model.s, "slack_variable"))
-        for (ref, poly) in polys
+        # The compiler visits penalty maps in its deterministic traversal order,
+        # which decides the first reported failure.
+        for (ref, poly) in C._ordered_pairs(polys)
             haskey(maps, ref) || continue
             factor = maps[ref]
             ok, reason = _reference_penalty_scaling(poly, factor, kind, ref.value, T)
